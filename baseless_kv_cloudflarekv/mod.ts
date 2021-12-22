@@ -78,7 +78,7 @@ export class CloudflareKVProvider implements IKVProvider {
 			)
 			.then((results) => {
 				if (filter) {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					// deno-lint-ignore no-explicit-any
 					const filterFns: ((doc: any) => boolean)[] = [];
 					for (const key of Object.keys(filter)) {
 						const prop = key as keyof Metadata;

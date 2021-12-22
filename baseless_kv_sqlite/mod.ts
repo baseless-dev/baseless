@@ -9,8 +9,6 @@ import {
 import { DB, SqliteOptions } from "https://deno.land/x/sqlite@v3.2.0/mod.ts";
 import * as log from "https://deno.land/std@0.118.0/log/mod.ts";
 
-const logger = log.getLogger("baseless_kv_sqlite");
-
 export class SqliteNotOpenedError extends Error {
 	public name = "SqliteNotOpenedError";
 }
@@ -44,6 +42,7 @@ export type SqliteKVProviderOptions = {
 export class SqliteKVProvider implements IKVProvider {
 	protected options: SqliteKVProviderOptions;
 	protected db?: DB;
+	protected logger = log.getLogger("baseless_kv_sqlite");
 
 	constructor(db: DB);
 	constructor(path: string, mode?: SqliteOptions["mode"]);
@@ -58,6 +57,7 @@ export class SqliteKVProvider implements IKVProvider {
 		}
 	}
 
+	// deno-lint-ignore require-await
 	public async open(): Promise<void> {
 		if ("db" in this.options) {
 			return;
@@ -69,29 +69,31 @@ export class SqliteKVProvider implements IKVProvider {
 			db.query(
 				"CREATE TABLE IF NOT EXISTS kv (key TEXT NOT NULL PRIMARY KEY, expireAt INTEGER, metadata TEXT NOT NULL, data TEXT) WITHOUT ROWID",
 			);
-			logger.debug(`Database initialized.`);
+			this.logger.debug(`Database initialized.`);
 			this.db = db;
-		} catch (err) {
-			logger.error(`Could not create base table "kv".`);
+		} catch (_) {
+			this.logger.error(`Could not create base table "kv".`);
 			throw new SqliteNotOpenedError();
 		}
 	}
 
+	// deno-lint-ignore require-await
 	public async close(): Promise<void> {
 		if ("db" in this.options) {
 			this.db = undefined;
 		} else if (this.db) {
 			try {
 				this.db.close();
-				logger.debug(`Database closed.`);
+				this.logger.debug(`Database closed.`);
 				this.db = undefined;
 			} catch (err) {
-				logger.error(`Could not close the database.`);
+				this.logger.error(`Could not close the database.`);
 				throw new SqliteUnknownError(err);
 			}
 		}
 	}
 
+	// deno-lint-ignore require-await
 	public async get<Metadata>(key: string): Promise<IKVValue<Metadata>> {
 		if (!this.db) {
 			throw new SqliteNotOpenedError();
@@ -103,7 +105,7 @@ export class SqliteKVProvider implements IKVProvider {
 				[key, now],
 			);
 			if (rows.length === 0) {
-				logger.debug(`Key "${key}" does not exists.`);
+				this.logger.debug(`Key "${key}" does not exists.`);
 				throw new KeyNotFoundError(key);
 			}
 			return new SqliteValue(
@@ -116,13 +118,14 @@ export class SqliteKVProvider implements IKVProvider {
 				throw err;
 			}
 			console.log(err);
-			logger.error(
+			this.logger.error(
 				`Could not retrieve key "${key}", got error : ${err}`,
 			);
 			throw new SqliteUnknownError(err);
 		}
 	}
 
+	// deno-lint-ignore require-await
 	public async list<Metadata>(
 		prefix: string,
 		filter?: KVScanFilter<Metadata>,
@@ -138,7 +141,7 @@ export class SqliteKVProvider implements IKVProvider {
 				"SELECT key, metadata, data FROM kv WHERE key LIKE ? AND (expireAt IS NULL OR expireAt >= ?) ORDER BY key ASC",
 				[prefixMatch, now],
 			);
-			logger.debug(
+			this.logger.debug(
 				`Found ${rows.length} keys with prefix "${prefix}".`,
 			);
 			const values = rows.map(
@@ -150,7 +153,7 @@ export class SqliteKVProvider implements IKVProvider {
 					),
 			);
 			if (filter) {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				// deno-lint-ignore no-explicit-any
 				const filterFns: ((row: any) => boolean)[] = [];
 				for (const key of Object.keys(filter)) {
 					const prop = key as keyof Metadata;
@@ -179,7 +182,7 @@ export class SqliteKVProvider implements IKVProvider {
 			}
 			return values;
 		} catch (err) {
-			logger.error(
+			this.logger.error(
 				`Could not list prefix "${prefix}", got error : ${err}`,
 			);
 			throw new SqliteUnknownError(err);
@@ -216,22 +219,23 @@ export class SqliteKVProvider implements IKVProvider {
 					data as null | string | Uint8Array,
 				],
 			);
-			logger.debug(`Key "${key}" set.`);
+			this.logger.debug(`Key "${key}" set.`);
 		} catch (err) {
-			logger.error(`Could not set key "${key}", got error : ${err}`);
+			this.logger.error(`Could not set key "${key}", got error : ${err}`);
 			throw new SqliteUnknownError(err);
 		}
 	}
 
+	// deno-lint-ignore require-await
 	public async delete(key: string): Promise<void> {
 		if (!this.db) {
 			throw new SqliteNotOpenedError();
 		}
 		try {
 			this.db.query("DELETE FROM kv WHERE key = ?", [key]);
-			logger.debug(`Key "${key}" deleted.`);
+			this.logger.debug(`Key "${key}" deleted.`);
 		} catch (err) {
-			logger.error(`Could not delete key "${key}", got error : ${err}`);
+			this.logger.error(`Could not delete key "${key}", got error : ${err}`);
 			throw new SqliteUnknownError(err);
 		}
 	}

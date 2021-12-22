@@ -29,7 +29,7 @@ function DocumentReferenceToKey(path: DocumentReference) {
 function keyToDocumentReference(key: string) {
 	const segments = key.split("/");
 	const collection = segments.slice(1, -2);
-	const id = segments.pop(); // eslint-disable-line @typescript-eslint/no-non-null-assertion
+	const id = segments.pop();
 	return new DocumentReference(new CollectionReference(...collection), id);
 }
 

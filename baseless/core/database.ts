@@ -106,7 +106,7 @@ export function doc(
 	if (segments.length === 1 && segments[0][0] === "/") {
 		segments = segments[0].replace(/^\//, "").replace(/\/$/, "").split("/");
 	}
-	const id = segments.pop()!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+	const id = segments.pop()!;
 	return new DocumentReference(new CollectionReference(...segments), id);
 }
 

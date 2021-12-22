@@ -1,0 +1,8 @@
+{
+	"imports": {
+		"https://baseless.dev/x/baseless/": "./baseless/",
+		"https://baseless.dev/x/baseless_kv_cloudflarekv/": "./baseless_kv_cloudflarekv/",
+		"https://baseless.dev/x/baseless_kv_sqlite/": "./baseless_kv_sqlite/",
+		"https://baseless.dev/x/baseless_mail_console/": "./baseless_mail_console/"
+	}
+}

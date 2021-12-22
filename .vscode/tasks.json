@@ -1,0 +1,24 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "deno",
+			"command": "fmt",
+			"args": ["--options-use-tabs", "--watch"],
+			"isBackground": true,
+			"group": "test",
+			"label": "deno: fmt --watch"
+		},
+		{
+			"type": "deno",
+			"command": "lint",
+			"args": ["--watch"],
+			"problemMatcher": [
+				"$deno-lint"
+			],
+			"isBackground": true,
+			"group": "test",
+			"label": "deno: lint --watch"
+		}
+	]
+}

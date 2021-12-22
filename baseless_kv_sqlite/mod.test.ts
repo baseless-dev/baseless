@@ -1,21 +1,4 @@
-import {
-	assertEquals,
-	assertNotEquals,
-} from "https://deno.land/std@0.118.0/testing/asserts.ts";
-import * as log from "https://deno.land/std@0.118.0/log/mod.ts";
-
-await log.setup({
-	handlers: {
-		console: new log.handlers.ConsoleHandler("DEBUG"),
-	},
-	loggers: {
-		baseless_kv_sqlite: {
-			level: "DEBUG",
-			handlers: ["console"],
-		},
-	},
-});
-
+import { assertEquals } from "https://deno.land/std@0.118.0/testing/asserts.ts";
 import { SqliteKVProvider } from "./mod.ts";
 
 Deno.test("open & close", async () => {

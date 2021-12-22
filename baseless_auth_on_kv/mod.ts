@@ -95,7 +95,7 @@ export class AuthOnKvProvider implements IAuthProvider {
 		try {
 			await this.getUser<Metadata>(userid);
 			throw new UserAlreadyExistsError(userid);
-		} catch (_) {
+		} catch (_err) {
 			const emailConfirmed = false;
 			const refreshTokenId = autoid();
 			return this.backend
@@ -240,7 +240,7 @@ export class AuthOnKvProvider implements IAuthProvider {
 				undefined,
 				{ expireIn: 60 * 5 },
 			);
-		} catch (_) {
+		} catch (_err) {
 			throw new PasswordResetError();
 		}
 	}

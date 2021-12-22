@@ -1,5 +1,6 @@
 import { IContext } from "./context.ts";
 import { Message } from "./mail.ts";
+import { NoopServiceError } from "./mod.ts";
 
 /**
  * Unique identifier for a user
@@ -13,27 +14,27 @@ export interface IUser<Metadata> {
 	/**
 	 * Unique identifier of the user
 	 */
-	readonly id: AuthIdentifier;
+	id: AuthIdentifier;
 
 	/**
 	 * Unique email of the user
 	 */
-	readonly email: string | null;
+	email: string | null;
 
 	/**
 	 * Has user confirmed his email?
 	 */
-	readonly emailConfirmed: boolean;
+	emailConfirmed: boolean;
 
 	/**
 	 * Unique token used to invalidate refresh_token
 	 */
-	readonly refreshTokenId: string;
+	refreshTokenId: string;
 
 	/**
 	 * Metadata of the object
 	 */
-	readonly metadata: Metadata;
+	metadata: Metadata;
 }
 
 export type AuthHandler<Metadata> = (
@@ -51,7 +52,6 @@ export type LocalizedMessageTemplate = Map<string, MessageTemplate>;
 export type AuthDescriptor = {
 	readonly allowAnonymousUser: boolean;
 	readonly allowSignMethodPassword: boolean;
-	readonly keys?: { alg: string; privateKey: string; publicKey: string };
 	readonly templates: {
 		verification: LocalizedMessageTemplate;
 		passwordReset: LocalizedMessageTemplate;
@@ -67,7 +67,6 @@ export type AuthDescriptor = {
 export class AuthBuilder {
 	private allowAnonymousUserValue?: boolean;
 	private allowSignMethodPasswordValue?: boolean;
-	private keys?: { alg: string; privateKey: string; publicKey: string };
 	private templates: {
 		verification: LocalizedMessageTemplate;
 		passwordReset: LocalizedMessageTemplate;
@@ -86,7 +85,6 @@ export class AuthBuilder {
 		return {
 			allowAnonymousUser: this.allowAnonymousUserValue ?? false,
 			allowSignMethodPassword: this.allowSignMethodPasswordValue ?? false,
-			keys: this.keys,
 			templates: {
 				verification: this.templates.verification,
 				passwordReset: this.templates.passwordReset,
@@ -110,14 +108,6 @@ export class AuthBuilder {
 	 */
 	public allowSignMethodPassword(value: boolean) {
 		this.allowSignMethodPasswordValue = value;
-		return this;
-	}
-
-	/**
-	 * Set the keys
-	 */
-	public setKeys(alg: string, privateKey: string, publicKey: string) {
-		this.keys = { alg, privateKey, publicKey };
 		return this;
 	}
 
@@ -381,4 +371,201 @@ export interface IAuthService {
 		code: string,
 		passwordHash: string,
 	): Promise<void>;
+}
+
+/**
+ * Auth service backed by an IKVProvider
+ */
+export class AuthService implements IAuthService {
+	/**
+	 * Construct an new AuthService backed by an IAuthProvider
+	 */
+	constructor(protected backend: IAuthProvider) {}
+
+	/**
+	 * Get the IUser of the auth identifier
+	 */
+	getUser<Metadata>(userid: AuthIdentifier): Promise<IUser<Metadata>> {
+		return this.backend.getUser<Metadata>(userid);
+	}
+
+	/**
+	 * Get the IUser by email
+	 */
+	getUserByEmail<Metadata>(email: string): Promise<IUser<Metadata>> {
+		return this.backend.getUserByEmail<Metadata>(email);
+	}
+
+	/**
+	 * Create user with metadata
+	 */
+	createUser<Metadata>(
+		email: string | null,
+		metadata: Metadata,
+	): Promise<IUser<Metadata>> {
+		return this.backend.createUser<Metadata>(email, metadata);
+	}
+
+	/**
+	 * Update a IUser
+	 */
+	updateUser<Metadata>(userid: string, metadata: Metadata): Promise<void> {
+		return this.backend.updateUser<Metadata>(userid, metadata);
+	}
+
+	/**
+	 * Delete a IUser
+	 */
+	deleteUser(userid: AuthIdentifier): Promise<void> {
+		return this.backend.deleteUser(userid);
+	}
+
+	/**
+	 * Retrieve user sign-in methods
+	 */
+	getSignInMethods(userid: string): Promise<string[]> {
+		return this.backend.getSignInMethods(userid);
+	}
+
+	/**
+	 * Add sign-in method email-password to userid
+	 */
+	addSignInMethodPassword(
+		userid: string,
+		email: string,
+		passwordHash: string,
+	): Promise<void> {
+		return this.backend.addSignInMethodPassword(userid, email, passwordHash);
+	}
+
+	/**
+	 * Sign-in with email and passwordHash
+	 */
+	signInWithEmailPassword<Metadata>(
+		email: string,
+		passwordHash: string,
+	): Promise<IUser<Metadata>> {
+		return this.backend.signInWithEmailPassword<Metadata>(email, passwordHash);
+	}
+
+	/**
+	 * Set email validation code
+	 */
+	setEmailValidationCode(email: string, code: string): Promise<void> {
+		return this.backend.setEmailValidationCode(email, code);
+	}
+
+	/**
+	 * Validate email with code
+	 */
+	validateEmailWithCode(email: string, code: string): Promise<void> {
+		return this.backend.validateEmailWithCode(email, code);
+	}
+
+	/**
+	 * Set password reset code
+	 */
+	setPasswordResetCode(email: string, code: string): Promise<void> {
+		return this.backend.setPasswordResetCode(email, code);
+	}
+
+	/**
+	 * Reset password with email and code
+	 */
+	resetPasswordWithCode(
+		email: string,
+		code: string,
+		passwordHash: string,
+	): Promise<void> {
+		return this.backend.resetPasswordWithCode(email, code, passwordHash);
+	}
+}
+
+/**
+ * Noop Auth service
+ */
+export class NoopAuthService implements IAuthService {
+	/**
+	 * Get the IUser of the auth identifier
+	 */
+	getUser<Metadata>(): Promise<IUser<Metadata>> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Get the IUser by email
+	 */
+	getUserByEmail<Metadata>(): Promise<IUser<Metadata>> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Create user with metadata
+	 */
+	createUser<Metadata>(): Promise<IUser<Metadata>> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Update a IUser
+	 */
+	updateUser(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Delete a IUser
+	 */
+	deleteUser(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Retrieve user sign-in methods
+	 */
+	getSignInMethods(): Promise<string[]> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Add sign-in method email-password to userid
+	 */
+	addSignInMethodPassword(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Sign-in with email and passwordHash
+	 */
+	signInWithEmailPassword<Metadata>(): Promise<IUser<Metadata>> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Set email validation code
+	 */
+	setEmailValidationCode(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Validate email with code
+	 */
+	validateEmailWithCode(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Set password reset code
+	 */
+	setPasswordResetCode(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Reset password with email and code
+	 */
+	resetPasswordWithCode(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
+	}
 }

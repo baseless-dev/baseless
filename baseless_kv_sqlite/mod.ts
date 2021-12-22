@@ -71,7 +71,7 @@ export class SqliteKVProvider implements IKVProvider {
 			);
 			this.logger.debug(`Database initialized.`);
 			this.db = db;
-		} catch (_) {
+		} catch (_err) {
 			this.logger.error(`Could not create base table "kv".`);
 			throw new SqliteNotOpenedError();
 		}

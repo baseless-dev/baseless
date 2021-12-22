@@ -1,3 +1,5 @@
+import { NoopServiceError } from "./mod.ts";
+
 export type MailHandler = (message: Message) => Promise<void>;
 
 /**
@@ -74,4 +76,39 @@ export interface IMailService {
 	 * Send a message
 	 */
 	send(message: Message): Promise<void>;
+}
+
+/**
+ * Mail service backed by a IMailProvider
+ */
+export class MailService implements IMailService {
+	/**
+	 * Construct a new MailService backed by an IMailProvider
+	 */
+	public constructor(
+		protected descriptor: MailDescriptor,
+		protected provider: IMailProvider,
+	) {}
+
+	/**
+	 * Send a message
+	 */
+	public async send(message: Message): Promise<void> {
+		await this.provider.send(message);
+		if (this.descriptor.onMessageSent) {
+			await this.descriptor.onMessageSent(message);
+		}
+	}
+}
+
+/**
+ * Noop mail service backed by a IMailProvider
+ */
+export class NoopMailService implements IMailService {
+	/**
+	 * Send a message
+	 */
+	public send(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
+	}
 }

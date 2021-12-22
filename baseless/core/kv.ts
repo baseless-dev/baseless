@@ -1,3 +1,5 @@
+import { NoopServiceError } from "./mod.ts";
+
 /**
  * Type alias for string | ReadableStream | ArrayBuffer
  */
@@ -144,5 +146,87 @@ export class KeyNotFoundError extends Error {
 	public name = "KeyNotFoundError";
 	public constructor(key: string) {
 		super(`Key not found at '${key}'.`);
+	}
+}
+
+/**
+ * KV service backed by a IKVProvider
+ */
+export class KVService implements IKVService {
+	/**
+	 * Construct a new KVService backed by an IKVProvider
+	 */
+	constructor(protected backend: IKVProvider) {}
+
+	/**
+	 * Retrieve a single key
+	 */
+	get<Metadata>(
+		key: string,
+		options?: KVGetOptions,
+	): Promise<IKVValue<Metadata>> {
+		return this.backend.get(key, options);
+	}
+
+	/**
+	 * Retrieve keys at prefix
+	 */
+	list<Metadata>(
+		prefix: string,
+		filter?: KVScanFilter<Metadata>,
+	): Promise<IKVValue<Metadata>[]> {
+		return this.backend.list(prefix, filter);
+	}
+
+	/**
+	 * Set a key
+	 */
+	set<Metadata>(
+		key: string,
+		metadata: Metadata,
+		data?: KVData,
+		options?: KVSetOptions,
+	): Promise<void> {
+		return this.backend.set(key, metadata, data, options);
+	}
+
+	/**
+	 * Delete a key
+	 */
+	delete(key: string): Promise<void> {
+		return this.backend.delete(key);
+	}
+}
+
+/**
+ * Noop KV service backed by a IKVProvider
+ */
+export class NoopKVService implements IKVService {
+	/**
+	 * Retrieve a single key
+	 */
+	get<Metadata>(): Promise<IKVValue<Metadata>> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Retrieve keys at prefix
+	 */
+	list<Metadata>(): Promise<IKVValue<Metadata>[]> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Set a key
+	 */
+	set(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Delete a key
+	 */
+	delete(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
 	}
 }

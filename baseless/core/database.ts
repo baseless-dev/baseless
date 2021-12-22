@@ -1,6 +1,7 @@
 import { KVScanFilter, KVSetOptions } from "./kv.ts";
 import { IContext } from "./context.ts";
 import { autoid } from "./autoid.ts";
+import { NoopServiceError } from "./mod.ts";
 
 /**
  * Invalid collection path error
@@ -469,4 +470,206 @@ export interface IDatabaseService {
 	 * Delete a document
 	 */
 	delete(reference: DocumentReference): Promise<void>;
+}
+
+/**
+ * Database service backed by an IKVProvider
+ */
+export class DatabaseService implements IDatabaseService {
+	/**
+	 * Construct a new DatabaseService backed by an IDatabaseProvider
+	 */
+	constructor(protected backend: IDatabaseProvider) {}
+
+	/**
+	 * Retrieve a single document
+	 */
+	get<Metadata, Data>(
+		reference: DocumentReference,
+	): Promise<IDocument<Metadata, Data>> {
+		return this.backend.get(reference);
+	}
+
+	/**
+	 * Retrieve documents at prefix
+	 */
+	list<Metadata, Data>(
+		reference: CollectionReference,
+		filter?: DatabaseScanFilter<Metadata>,
+	): Promise<IDocument<Metadata, Data>[]> {
+		return this.backend.list(reference, filter);
+	}
+
+	/**
+	 * Create a document
+	 */
+	create<Metadata, Data>(
+		reference: DocumentReference,
+		metadata: Metadata,
+		data?: Data,
+		options?: DatabaseSetOptions,
+	): Promise<void> {
+		return this.backend.create(reference, metadata, data, options);
+	}
+
+	/**
+	 * Update a document
+	 */
+	update<Metadata, Data>(
+		reference: DocumentReference,
+		metadata: Partial<Metadata>,
+		data?: Partial<Data>,
+		options?: DatabaseSetOptions,
+	): Promise<void> {
+		return this.backend.update(reference, metadata, data, options);
+	}
+
+	/**
+	 * Delete a document
+	 */
+	delete(reference: DocumentReference): Promise<void> {
+		return this.backend.delete(reference);
+	}
+}
+
+/**
+ * Noop database service backed by an IKVProvider
+ */
+export class NoopDatabaseService implements IDatabaseService {
+	/**
+	 * Retrieve a single document
+	 */
+	get<Metadata, Data>(): Promise<IDocument<Metadata, Data>> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Retrieve documents at prefix
+	 */
+	list<Metadata, Data>(): Promise<IDocument<Metadata, Data>[]> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Create a document
+	 */
+	create(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Update a document
+	 */
+	update(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
+	}
+
+	/**
+	 * Delete a document
+	 */
+	delete(): Promise<void> {
+		return Promise.reject(new NoopServiceError());
+	}
+}
+
+/**
+ * Cached Document
+ */
+export class CachedDocument<Metadata, Data>
+	implements IDocument<Metadata, Data> {
+	public constructor(
+		public reference: DocumentReference,
+		public metadata: Metadata,
+		protected _data: Data,
+	) {}
+
+	public data(): Promise<Data> {
+		return Promise.resolve(this._data);
+	}
+}
+
+/**
+ * Database service with in-memory cache
+ */
+export class CachableDatabaseService implements IDatabaseService {
+	protected cache = new Map<string, IDocument<unknown, unknown>>();
+
+	/**
+	 * Construct a new DatabaseService backed by an IKVProvider
+	 * @param backend IKVProvider backend
+	 */
+	constructor(protected backend: IDatabaseService) {}
+
+	/**
+	 * Retrieve a single document
+	 */
+	get<Metadata, Data>(
+		reference: DocumentReference,
+	): Promise<IDocument<Metadata, Data>> {
+		const key = reference.toString();
+		if (this.cache.has(key)) {
+			return Promise.resolve(this.cache.get(key)!); // eslint-disable-line @typescript-eslint/no-non-null-assertion
+		}
+		return this.backend.get(reference).then((doc) => {
+			this.cache.set(key, doc);
+			return doc;
+		});
+	}
+
+	/**
+	 * Retrieve documents at prefix
+	 */
+	list<Metadata, Data>(
+		reference: CollectionReference,
+		filter?: DatabaseScanFilter<Metadata>,
+	): Promise<IDocument<Metadata, Data>[]> {
+		return this.backend.list(reference, filter).then((docs) => {
+			for (const doc of docs) {
+				this.cache.set(doc.reference.toString(), doc);
+			}
+			return docs;
+		});
+	}
+
+	/**
+	 * Create a document
+	 */
+	create<Metadata, Data>(
+		reference: DocumentReference,
+		metadata: Metadata,
+		data?: Data,
+		options?: DatabaseSetOptions,
+	): Promise<void> {
+		return this.backend.create(reference, metadata, data, options).then(() => {
+			const doc = new CachedDocument<Metadata, Data>(
+				reference,
+				metadata,
+				data as Data,
+			);
+			this.cache.set(reference.toString(), doc);
+		});
+	}
+
+	/**
+	 * Update a document
+	 */
+	update<Metadata, Data>(
+		reference: DocumentReference,
+		metadata: Partial<Metadata>,
+		data?: Partial<Data>,
+		options?: DatabaseSetOptions,
+	): Promise<void> {
+		return this.backend.update(reference, metadata, data, options).then(() => {
+			this.cache.delete(reference.toString());
+		});
+	}
+
+	/**
+	 * Delete a document
+	 */
+	delete(reference: DocumentReference): Promise<void> {
+		return this.backend.delete(reference).then(() => {
+			this.cache.delete(reference.toString());
+		});
+	}
 }

@@ -165,6 +165,9 @@ export async function createOBaseHandler({
 			kv: kvService,
 			database: databaseService,
 			mail: mailService,
+			waitUntil(promise) {
+				waitUntilCollection.push(promise);
+			},
 		};
 
 		const url = new URL(request.url);
@@ -294,6 +297,7 @@ export async function createOBaseHandler({
 									request,
 									context,
 									cmd.locale,
+									cmd.email,
 								);
 								break;
 							case "auth.validate-email":

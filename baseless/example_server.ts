@@ -72,30 +72,40 @@ const handleOBase = await createOBaseHandler({
 	privateKey,
 });
 
-import { serve } from "https://deno.land/std@0.118.0/http/server.ts";
-
-log.info(`Server listening on http://0.0.0.0:8080/`);
-
-await serve(async (request, _) => {
-	const url = new URL(request.url);
-	try {
-		const segments = url.pathname.replace(/(^\/|\/$)/, "").split("/");
-		switch (segments[0]) {
-			case "obase": {
-				url.pathname = "/" + segments.splice(1).join("/");
-				request = new Request(url.toString(), request);
-				const [response, waitUntil] = await handleOBase(request);
-				await Promise.all(waitUntil);
-				return response;
+async function handle(conn: Deno.Conn) {
+	const httpConn = Deno.serveHttp(conn);
+	for await (const event of httpConn) {
+		const url = new URL(event.request.url);
+		try {
+			const segments = url.pathname.replace(/(^\/|\/$)/, "").split("/");
+			switch (segments[0]) {
+				case "obase": {
+					url.pathname = "/" + segments.splice(1).join("/");
+					const request = new Request(url.toString(), event.request);
+					const [response, waitUntil] = await handleOBase(request);
+					await event.respondWith(response);
+					await Promise.all(waitUntil);
+					break;
+				}
+				default: {
+					await event.respondWith(new Response(null, { status: 404 }));
+				}
 			}
-			default: {
-				return new Response(null, { status: 404 });
-			}
+		} catch (err) {
+			await event.respondWith(
+				new Response(JSON.stringify(err), { status: 500 }),
+			);
 		}
-	} catch (err) {
-		return new Response(JSON.stringify(err), { status: 500 });
 	}
-}, { port: 8080 });
+}
+
+const server = Deno.listen({ port: 8080 });
+
+log.info(`Server listening on http://localhost:8080/`);
+
+for await (const conn of server) {
+	handle(conn);
+}
 
 await kvProvider.close();
 await kvBackendAuth.close();

@@ -36,4 +36,9 @@ export interface IContext {
 	 * Mail service
 	 */
 	readonly mail: IMailService;
+
+	/**
+	 * Extend the lifetime of the request until the promise is done without blocking the response
+	 */
+	waitUntil(promise: PromiseLike<unknown>): void;
 }

@@ -375,18 +375,17 @@ export function validate(
 	}
 	if ($if !== undefined) {
 		const keywordLocation = `${schemaLocation}/if`;
-		const conditionResult =
-			validate(
-				instance,
-				$if,
-				draft,
-				lookup,
-				shortCircuit,
-				recursiveAnchor,
-				instanceLocation,
-				keywordLocation,
-				evaluated,
-			).valid;
+		const conditionResult = validate(
+			instance,
+			$if,
+			draft,
+			lookup,
+			shortCircuit,
+			recursiveAnchor,
+			instanceLocation,
+			keywordLocation,
+			evaluated,
+		).valid;
 		if (conditionResult) {
 			if ($then !== undefined) {
 				const thenResult = validate(

@@ -4,12 +4,13 @@ import {
 	jwtVerify,
 	KeyLike,
 } from "https://deno.land/x/jose@v4.3.7/index.ts";
-import * as log from "https://deno.land/std@0.118.0/log/mod.ts";
+import { getLogger, Logger } from "https://deno.land/std@0.118.0/log/mod.ts";
 import {
 	AuthDescriptor,
 	AuthIdentifier,
 	AuthService,
 	IAuthProvider,
+	IAuthService,
 	NoopAuthService,
 } from "./core/auth.ts";
 import { ClientsDescriptor } from "./core/clients.ts";
@@ -20,32 +21,35 @@ import {
 	DatabaseService,
 	doc,
 	IDatabaseProvider,
+	IDatabaseService,
 	NoopDatabaseService,
 } from "./core/database.ts";
-import { FunctionsDescriptor } from "./core/functions.ts";
+import { FunctionsDescriptor, FunctionsHttpHandler } from "./core/functions.ts";
 import {
 	IKVProvider,
-	KVScanFilter,
+	IKVService,
 	KVService,
 	NoopKVService,
 } from "./core/kv.ts";
 import {
 	IMailProvider,
+	IMailService,
 	MailDescriptor,
 	MailService,
 	NoopMailService,
 } from "./core/mail.ts";
 import { IContext } from "./core/context.ts";
 import { Commands, Result, Results, validator } from "./server/schema.ts";
-import createAuthController from "./server/auth.ts";
-import createDatabaseController from "./server/database.ts";
+import { AuthController } from "./server/auth.ts";
+import { DatabaseController } from "./server/database.ts";
 
 export async function importKeys(
 	alg: string,
 	publicKey: string,
 	privateKey: string,
-): Promise<[KeyLike, KeyLike]> {
+): Promise<[string, KeyLike, KeyLike]> {
 	return [
+		alg,
 		await importSPKI(
 			publicKey,
 			alg,
@@ -57,21 +61,7 @@ export async function importKeys(
 	];
 }
 
-// deno-lint-ignore require-await
-export async function createOBaseHandler({
-	clientsDescriptor,
-	authDescriptor,
-	databaseDescriptor,
-	functionsDescriptor,
-	mailDescriptor,
-	authProvider,
-	kvProvider,
-	databaseProvider,
-	mailProvider,
-	algKey,
-	publicKey,
-	privateKey,
-}: {
+export type ServerInit = {
 	clientsDescriptor: ClientsDescriptor;
 	authDescriptor: AuthDescriptor;
 	databaseDescriptor: DatabaseDescriptor;
@@ -84,40 +74,64 @@ export async function createOBaseHandler({
 	algKey: string;
 	publicKey: KeyLike;
 	privateKey: KeyLike;
-}): Promise<(req: Request) => Promise<[Response, PromiseLike<unknown>[]]>> {
-	const logger = log.getLogger("baseless_server");
+};
 
-	const authService = authProvider
-		? new AuthService(authProvider)
-		: new NoopAuthService();
-	const kvService = kvProvider
-		? new KVService(kvProvider)
-		: new NoopKVService();
-	const databaseService = databaseProvider
-		? new DatabaseService(databaseProvider)
-		: new NoopDatabaseService();
-	const mailService = mailProvider
-		? new MailService(mailDescriptor, mailProvider)
-		: new NoopMailService();
-	const functionsMap = new Map(
-		functionsDescriptor.https.filter((http) => http.onCall).map(
-			(http) => [http.path, http.onCall!],
-		),
-	);
+export type ServerData = ServerInit & {
+	authService: IAuthService;
+	kvService: IKVService;
+	databaseService: IDatabaseService;
+	mailService: IMailService;
+	functionsMap: Map<string, FunctionsHttpHandler>;
+	logger: Logger;
+};
 
-	const authController = await createAuthController({
-		logger,
-		authDescriptor,
-		algKey,
-		publicKey,
-		privateKey,
-	});
-	const databaseController = await createDatabaseController({
-		logger,
-		databaseDescriptor,
-	});
+export class Server {
+	private data: ServerData;
+	private authController: AuthController;
+	private databaseController: DatabaseController;
 
-	return async (request: Request) => {
+	public constructor(init: ServerInit) {
+		this.data = {
+			...init,
+			authService: init.authProvider
+				? new AuthService(init.authProvider)
+				: new NoopAuthService(),
+			kvService: init.kvProvider ? new KVService(init.kvProvider)
+			: new NoopKVService(),
+			databaseService: init.databaseProvider
+				? new DatabaseService(init.databaseProvider)
+				: new NoopDatabaseService(),
+			mailService: init.mailProvider
+				? new MailService(init.mailDescriptor, init.mailProvider)
+				: new NoopMailService(),
+			functionsMap: new Map(
+				init.functionsDescriptor.https.filter((http) => http.onCall).map(
+					(http) => [http.path, http.onCall!],
+				),
+			),
+			logger: getLogger("baseless_server"),
+		};
+
+		this.authController = new AuthController(this.data);
+		this.databaseController = new DatabaseController(this.data);
+	}
+
+	/**
+	 * Handle the request
+	 */
+	public async handle(
+		request: Request,
+	): Promise<[Response, PromiseLike<unknown>[]]> {
+		const {
+			logger,
+			clientsDescriptor,
+			databaseService,
+			publicKey,
+			authService,
+			kvService,
+			mailService,
+		} = this.data;
+
 		// Request must include a clientid in it's header
 		if (!request.headers.has("X-BASELESS-CLIENT-ID")) {
 			return [new Response(null, { status: 401 }), []];
@@ -163,190 +177,180 @@ export async function createOBaseHandler({
 			currentUserId,
 			auth: authService,
 			kv: kvService,
-			database: databaseService,
+			database: dbService,
 			mail: mailService,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},
 		};
 
+		let commands: Commands | undefined;
+
 		const url = new URL(request.url);
-		const segments = url.pathname.replace(/(^\/|\/$)/, "").split("/");
-		switch (segments[0]) {
-			case "1.0": {
-				let commands: Commands | undefined;
 
-				switch (request.headers.get("Content-Type")?.toLocaleLowerCase()) {
-					case "application/json": {
-						let body = "";
-						if (request.body) {
-							const buffer = await new Response(request.body).arrayBuffer();
-							body = new TextDecoder().decode(buffer);
-						}
+		logger.info(`${request.method} ${url.pathname}`);
 
-						try {
-							commands = JSON.parse(body);
-						} catch (err) {
-							logger.error(`Could not parse JSON body, got error : ${err}`);
-							return [new Response(null, { status: 400 }), waitUntilCollection];
-						}
+		if (url.pathname.length > 1) {
+			const fnName = url.pathname.substring(1);
+			if (this.data.functionsMap.has(fnName)) {
+				try {
+					const onCall = this.data.functionsMap.get(fnName)!;
+					const response = await onCall(request, context);
+					return [response, waitUntilCollection];
+				} catch (_err) {
+					return [new Response(null, { status: 500 }), waitUntilCollection];
+				}
+			}
+			return [new Response(null, { status: 405 }), waitUntilCollection];
+		}
 
-						const result = validator.validate(commands);
-						if (!result.valid) {
-							logger.error(
-								`JSON body did not validate againts schema, got error : ${result.errors}`,
-							);
-							// TODO if production?
-							return [
-								new Response(JSON.stringify(result.errors), { status: 400 }),
-								waitUntilCollection,
-							];
-						}
-
-						break;
-					}
+		switch (request.headers.get("Content-Type")?.toLocaleLowerCase()) {
+			case "application/json": {
+				let body = "";
+				if (request.body) {
+					const buffer = await new Response(request.body).arrayBuffer();
+					body = new TextDecoder().decode(buffer);
 				}
 
-				if (!commands) {
+				try {
+					commands = JSON.parse(body);
+				} catch (err) {
+					logger.error(`Could not parse JSON body, got error : ${err}`);
+					return [new Response(null, { status: 400 }), waitUntilCollection];
+				}
+
+				const result = validator.validate(commands);
+				if (!result.valid) {
+					logger.error(
+						`JSON body did not validate againts schema, got error : ${result.errors}`,
+					);
+					// TODO if production?
 					return [
-						new Response(null, { status: 400 }),
+						new Response(JSON.stringify(result.errors), { status: 400 }),
 						waitUntilCollection,
 					];
 				}
 
-				logger.debug(commands);
-				// TODO: Descriptor's security
-				const results: Results = {};
-				await Promise.all(
-					Object.entries(commands).map(([key, cmd]) => {
-						let p: Promise<Result>;
-						switch (cmd.cmd) {
-							case "fn.call":
-								if (functionsMap.has(cmd.ref)) {
-									const onCall = functionsMap.get(cmd.ref)!;
-									p = onCall(context, request).then((res) => res.text()).then(
-										(ret) => ({ ret }),
-									);
-								} else {
-									p = Promise.resolve({ error: "METHOD_NOT_ALLOWED" });
-								}
-								break;
-							case "db.get":
-								p = databaseController.get(request, context, doc(cmd.ref));
-								break;
-							case "db.list":
-								p = databaseController.list(
-									request,
-									context,
-									collection(cmd.ref),
-									cmd.filter,
-								);
-								break;
-							case "db.create":
-								p = databaseController.create(
-									request,
-									context,
-									doc(cmd.ref),
-									cmd.metadata,
-									cmd.data,
-								);
-								break;
-							case "db.update":
-								p = databaseController.update(
-									request,
-									context,
-									doc(cmd.ref),
-									cmd.metadata,
-									cmd.data,
-								);
-								break;
-							case "db.delete":
-								p = databaseController.delete(request, context, doc(cmd.ref));
-								break;
-							case "auth.create-anonymous-user":
-								p = authController.createAnonymousUser(request, context);
-								break;
-							case "auth.add-sign-with-email-password":
-								p = authController.addSignWithEmailPassword(
-									request,
-									context,
-									cmd.locale,
-									cmd.email,
-									cmd.password,
-								);
-								break;
-							case "auth.create-user-with-email-password":
-								p = authController.createUserWithEmail(
-									request,
-									context,
-									cmd.locale,
-									cmd.email,
-									cmd.password,
-								);
-								break;
-							case "auth.sign-with-email-password":
-								p = authController.signWithEmailPassword(
-									request,
-									context,
-									cmd.email,
-									cmd.password,
-								);
-								break;
-							case "auth.send-email-validation-code":
-								p = authController.sendVerificationEmail(
-									request,
-									context,
-									cmd.locale,
-									cmd.email,
-								);
-								break;
-							case "auth.validate-email":
-								p = authController.validateEmailWithCode(
-									request,
-									context,
-									cmd.email,
-									cmd.code,
-								);
-								break;
-							case "auth.send-password-reset-code":
-								p = authController.sendPasswordResetEmail(
-									request,
-									context,
-									cmd.locale,
-									cmd.email,
-								);
-								break;
-							case "auth.reset-password":
-								p = authController.resetPasswordWithCode(
-									request,
-									context,
-									cmd.email,
-									cmd.code,
-									cmd.password,
-								);
-								break;
-							default:
-								p = Promise.reject("CommandNotAllowed");
-								break;
-						}
-						return p
-							.catch((err) => ({ error: err.toString() }))
-							.then((res) => {
-								results[key] = res;
-							});
-					}),
-				);
-
-				return [
-					new Response(JSON.stringify(results), { status: 200 }),
-					waitUntilCollection,
-				];
-			}
-			default: {
-				return [new Response(null, { status: 405 }), waitUntilCollection];
+				break;
 			}
 		}
 
-		return [new Response(null, { status: 500 }), []];
-	};
+		if (!commands) {
+			return [
+				new Response(null, { status: 400 }),
+				waitUntilCollection,
+			];
+		}
+
+		const promises: Promise<[string, Result]>[] = Object.entries(commands)
+			.map(([key, cmd]) => {
+				switch (cmd.cmd) {
+					case "auth.create-anonymous-user":
+						return this.authController.createAnonymousUser(request, context)
+							.then(
+								(res) => [key, res],
+							);
+					case "auth.add-sign-with-email-password":
+						return this.authController.addSignWithEmailPassword(
+							request,
+							context,
+							cmd.locale,
+							cmd.email,
+							cmd.password,
+						).then((res) => [key, res]);
+					case "auth.create-user-with-email-password":
+						return this.authController.createUserWithEmail(
+							request,
+							context,
+							cmd.locale,
+							cmd.email,
+							cmd.password,
+						).then((res) => [key, res]);
+					case "auth.send-email-validation-code":
+						return this.authController.sendValidationEmail(
+							request,
+							context,
+							cmd.locale,
+							cmd.email,
+						).then((res) => [key, res]);
+					case "auth.validate-email":
+						return this.authController.validateEmailWithCode(
+							request,
+							context,
+							cmd.email,
+							cmd.code,
+						).then((res) => [key, res]);
+					case "auth.send-password-reset-code":
+						return this.authController.sendPasswordResetEmail(
+							request,
+							context,
+							cmd.locale,
+							cmd.email,
+						).then((res) => [key, res]);
+					case "auth.reset-password":
+						return this.authController.resetPasswordWithCode(
+							request,
+							context,
+							cmd.email,
+							cmd.code,
+							cmd.password,
+						).then((res) => [key, res]);
+					case "auth.sign-with-email-password":
+						return this.authController.signWithEmailPassword(
+							request,
+							context,
+							cmd.email,
+							cmd.password,
+						).then((res) => [key, res]);
+					case "db.get":
+						return this.databaseController.get(
+							request,
+							context,
+							doc(cmd.ref),
+						).then((res) => [key, res]);
+					case "db.list":
+						return this.databaseController.list(
+							request,
+							context,
+							collection(cmd.ref),
+							cmd.filter,
+						).then((res) => [key, res]);
+					case "db.create":
+						return this.databaseController.create(
+							request,
+							context,
+							doc(cmd.ref),
+							cmd.metadata,
+							cmd.data,
+						).then((res) => [key, res]);
+					case "db.update":
+						return this.databaseController.update(
+							request,
+							context,
+							doc(cmd.ref),
+							cmd.metadata,
+							cmd.data,
+						).then((res) => [key, res]);
+					case "db.delete":
+						return this.databaseController.delete(
+							request,
+							context,
+							doc(cmd.ref),
+						).then((res) => [key, res]);
+					default:
+						return Promise.resolve([key, { error: "METHOD_NOT_ALLOWED" }]);
+				}
+			});
+
+		const responses = await Promise.all(promises);
+		const results = responses.reduce((results, [key, res]) => {
+			results[key] = res;
+			return results;
+		}, {} as Results);
+
+		return [
+			new Response(JSON.stringify(results), { status: 200 }),
+			waitUntilCollection,
+		];
+	}
 }

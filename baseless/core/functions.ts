@@ -33,8 +33,8 @@ export class FunctionsBuilder {
  * Functions Http handler
  */
 export type FunctionsHttpHandler = (
-	ctx: IContext,
 	request: Request,
+	ctx: IContext,
 ) => Promise<Response>;
 
 /**

@@ -53,7 +53,7 @@ export type AuthDescriptor = {
 	readonly allowAnonymousUser: boolean;
 	readonly allowSignMethodPassword: boolean;
 	readonly templates: {
-		verification: LocalizedMessageTemplate;
+		validation: LocalizedMessageTemplate;
 		passwordReset: LocalizedMessageTemplate;
 	};
 	readonly onCreateUser?: AuthHandler<unknown>;
@@ -68,10 +68,10 @@ export class AuthBuilder {
 	private allowAnonymousUserValue?: boolean;
 	private allowSignMethodPasswordValue?: boolean;
 	private templates: {
-		verification: LocalizedMessageTemplate;
+		validation: LocalizedMessageTemplate;
 		passwordReset: LocalizedMessageTemplate;
 	} = {
-		verification: new Map(),
+		validation: new Map(),
 		passwordReset: new Map(),
 	};
 	private onCreateUserHandler?: AuthHandler<unknown>;
@@ -86,7 +86,7 @@ export class AuthBuilder {
 			allowAnonymousUser: this.allowAnonymousUserValue ?? false,
 			allowSignMethodPassword: this.allowSignMethodPasswordValue ?? false,
 			templates: {
-				verification: this.templates.verification,
+				validation: this.templates.validation,
 				passwordReset: this.templates.passwordReset,
 			},
 			onCreateUser: this.onCreateUserHandler,
@@ -112,10 +112,10 @@ export class AuthBuilder {
 	}
 
 	/**
-	 * Set the verification email template
+	 * Set the validation email template
 	 */
-	public setTemplateVerification(locale: string, message: MessageTemplate) {
-		this.templates.verification.set(locale, message);
+	public setTemplateValidation(locale: string, message: MessageTemplate) {
+		this.templates.validation.set(locale, message);
 		return this;
 	}
 

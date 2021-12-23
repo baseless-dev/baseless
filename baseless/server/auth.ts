@@ -1,46 +1,30 @@
-import { Logger } from "https://deno.land/std@0.118.0/log/mod.ts";
-import { KeyLike, SignJWT } from "https://deno.land/x/jose@v4.3.7/index.ts";
+import { SignJWT } from "https://deno.land/x/jose@v4.3.7/index.ts";
 import { AuthDescriptor, IAuthService, IUser } from "../core/auth.ts";
-import { autoid } from "../core/autoid.ts";
 import { Client } from "../core/clients.ts";
-import { IContext } from "../core/context.ts";
 import { IMailService } from "../core/mail.ts";
+import { IContext } from "../core/context.ts";
 import { Result } from "./schema.ts";
+import { autoid } from "../core/autoid.ts";
+import { ServerData } from "../server.ts";
 
-/**
- * Hash password with SHA-512
- */
-export async function hashPassword(password: string) {
-	const buffer = new TextEncoder().encode(password);
-	const hash = await crypto.subtle.digest({ name: "SHA-512" }, buffer);
-	return new TextDecoder().decode(hash);
-}
+export class AuthController {
+	public constructor(
+		private data: ServerData,
+	) {}
 
-export default ({
-	logger,
-	authDescriptor,
-	algKey,
-	publicKey,
-	privateKey,
-}: {
-	logger: Logger;
-	authDescriptor: AuthDescriptor;
-	algKey: string;
-	publicKey: KeyLike;
-	privateKey: KeyLike;
-}) => {
-	function getMessageTemplate(
+	private _getMessageTemplate(
 		type: keyof AuthDescriptor["templates"],
 		locale: string,
 	) {
+		const templates = this.data.authDescriptor.templates;
 		for (const key of [locale, "en"]) {
-			if (authDescriptor.templates[type].has(key)) {
-				return authDescriptor.templates[type].get(key)!;
+			if (templates[type].has(key)) {
+				return templates[type].get(key)!;
 			}
 		}
 	}
 
-	async function sendVerificationEmailTo(
+	private async _sendValidationEmailTo(
 		authService: IAuthService,
 		mailService: IMailService,
 		client: Client,
@@ -48,7 +32,7 @@ export default ({
 		to: string,
 	) {
 		const code = autoid(40);
-		const tpl = getMessageTemplate("verification", locale);
+		const tpl = this._getMessageTemplate("validation", locale);
 		await authService.setEmailValidationCode(to, code);
 		if (tpl) {
 			const link = tpl.link + `?code=${code}`;
@@ -65,16 +49,17 @@ export default ({
 					.replace("%LINK%", link)) ?? undefined,
 			});
 		} else {
-			logger.error(
+			this.data.logger.error(
 				`Could not find validation template for locale "${locale}". Validation code is "${code}".`,
 			);
 		}
 	}
 
-	async function createJWTs(
+	private async _createJWTs(
 		context: IContext,
 		user: IUser<unknown>,
 	): Promise<{ access_token: string; refresh_token: string }> {
+		const { algKey, privateKey } = this.data;
 		const access_token = await new SignJWT({ scope: "*" })
 			.setSubject(user.id)
 			.setExpirationTime("15min")
@@ -93,187 +78,202 @@ export default ({
 		return { access_token, refresh_token };
 	}
 
-	return {
-		async sendVerificationEmail(
-			_request: Request,
-			context: IContext,
-			locale: string,
-			email: string,
-		): Promise<Result> {
-			const user = await context.auth.getUserByEmail(email);
-			if (!user.email || user.emailConfirmed) {
-				return { error: "NotAllowed" };
-			}
-			context.waitUntil(sendVerificationEmailTo(
-				context.auth,
-				context.mail,
-				context.client,
-				locale,
-				user.email,
-			));
+	public async sendValidationEmail(
+		_request: Request,
+		context: IContext,
+		locale: string,
+		email: string,
+	): Promise<Result> {
+		const user = await context.auth.getUserByEmail(email);
+		if (!user.email || user.emailConfirmed) {
+			return { error: "NotAllowed" };
+		}
+		context.waitUntil(this._sendValidationEmailTo(
+			context.auth,
+			context.mail,
+			context.client,
+			locale,
+			user.email,
+		));
+		return {};
+	}
+
+	public async validateEmailWithCode(
+		_request: Request,
+		context: IContext,
+		email: string,
+		code: string,
+	): Promise<Result> {
+		try {
+			await context.auth.validateEmailWithCode(email, code);
 			return {};
-		},
-		async validateEmailWithCode(
-			_request: Request,
-			context: IContext,
-			email: string,
-			code: string,
-		): Promise<Result> {
-			try {
-				await context.auth.validateEmailWithCode(email, code);
-				return {};
-			} catch (err) {
-				return { error: `${err}` };
-			}
-		},
-		async sendPasswordResetEmail(
-			_request: Request,
-			context: IContext,
-			locale: string,
-			email: string,
-		): Promise<Result> {
-			const code = autoid(40);
-			const tpl = getMessageTemplate("passwordReset", locale);
-			await context.auth.setPasswordResetCode(email, code);
-			if (tpl) {
-				const link = tpl.link + `?code=${code}`;
-				context.waitUntil(context.mail.send({
-					to: email,
-					subject: tpl.subject
-						.replace("%APP_NAME%", context.client.principal)
-						.replace("%LINK%", link),
-					text: tpl.text
-						.replace("%APP_NAME%", context.client.principal)
-						.replace("%LINK%", link),
-					html: (tpl.html && tpl.html
-						.replace("%APP_NAME%", context.client.principal)
-						.replace("%LINK%", link)) ?? undefined,
-				}));
-			} else {
-				logger.error(
-					`Could not find password reset template for locale "${locale}". Reset password code is "${code}".`,
-				);
-			}
+		} catch (err) {
+			return { error: `${err}` };
+		}
+	}
+
+	public async sendPasswordResetEmail(
+		_request: Request,
+		context: IContext,
+		locale: string,
+		email: string,
+	): Promise<Result> {
+		const code = autoid(40);
+		const tpl = this._getMessageTemplate("passwordReset", locale);
+		await context.auth.setPasswordResetCode(email, code);
+		if (tpl) {
+			const link = tpl.link + `?code=${code}`;
+			context.waitUntil(context.mail.send({
+				to: email,
+				subject: tpl.subject
+					.replace("%APP_NAME%", context.client.principal)
+					.replace("%LINK%", link),
+				text: tpl.text
+					.replace("%APP_NAME%", context.client.principal)
+					.replace("%LINK%", link),
+				html: (tpl.html && tpl.html
+					.replace("%APP_NAME%", context.client.principal)
+					.replace("%LINK%", link)) ?? undefined,
+			}));
+		} else {
+			this.data.logger.error(
+				`Could not find password reset template for locale "${locale}". Reset password code is "${code}".`,
+			);
+		}
+		return {};
+	}
+
+	private async _hashPassword(password: string) {
+		const buffer = new TextEncoder().encode(password);
+		const hash = await crypto.subtle.digest({ name: "SHA-512" }, buffer);
+		return new TextDecoder().decode(hash);
+	}
+
+	public async resetPasswordWithCode(
+		_request: Request,
+		context: IContext,
+		email: string,
+		code: string,
+		password: string,
+	): Promise<Result> {
+		try {
+			await context.auth.resetPasswordWithCode(
+				email,
+				code,
+				await this._hashPassword(password),
+			);
 			return {};
-		},
-		async resetPasswordWithCode(
-			_request: Request,
-			context: IContext,
-			email: string,
-			code: string,
-			password: string,
-		): Promise<Result> {
-			try {
-				await context.auth.resetPasswordWithCode(
-					email,
-					code,
-					await hashPassword(password),
-				);
-				return {};
-			} catch (err) {
-				return { error: `${err}` };
-			}
-		},
-		async createAnonymousUser(
-			_request: Request,
-			context: IContext,
-		): Promise<Result> {
-			if (!authDescriptor.allowAnonymousUser) {
-				return { error: "METHOD_NOT_ALLOWED" };
-			}
-			const user = await context.auth.createUser(null, {});
-			if (authDescriptor.onCreateUser) {
-				context.waitUntil(authDescriptor.onCreateUser(context, user));
-			}
-			return await createJWTs(context, user);
-		},
-		async addSignWithEmailPassword(
-			_request: Request,
-			context: IContext,
-			locale: string,
-			email: string,
-			password: string,
-		): Promise<Result> {
-			if (!authDescriptor.allowSignMethodPassword) {
-				return { error: "METHOD_NOT_ALLOWED" };
-			}
-			if (!context.currentUserId) {
-				return { error: "UNAUTHORIZED" };
-			}
-			const user = await context.auth.getUser(context.currentUserId);
-			if (!user.email) {
-				await context.auth.updateUser(user.id, {}, email, undefined);
-				user.email = email;
-			}
+		} catch (err) {
+			return { error: `${err}` };
+		}
+	}
+
+	public async createAnonymousUser(
+		_request: Request,
+		context: IContext,
+	): Promise<Result> {
+		const { authDescriptor } = this.data;
+		if (!authDescriptor.allowAnonymousUser) {
+			return { error: "METHOD_NOT_ALLOWED" };
+		}
+		const user = await context.auth.createUser(null, {});
+		if (authDescriptor.onCreateUser) {
+			context.waitUntil(authDescriptor.onCreateUser(context, user));
+		}
+		return await this._createJWTs(context, user);
+	}
+
+	public async addSignWithEmailPassword(
+		_request: Request,
+		context: IContext,
+		locale: string,
+		email: string,
+		password: string,
+	): Promise<Result> {
+		const { authDescriptor } = this.data;
+		if (!authDescriptor.allowSignMethodPassword) {
+			return { error: "METHOD_NOT_ALLOWED" };
+		}
+		if (!context.currentUserId) {
+			return { error: "UNAUTHORIZED" };
+		}
+		const user = await context.auth.getUser(context.currentUserId);
+		if (!user.email) {
+			await context.auth.updateUser(user.id, {}, email, undefined);
+			user.email = email;
+		}
+		await context.auth.addSignInMethodPassword(
+			user.id,
+			user.email,
+			await this._hashPassword(password),
+		);
+		context.waitUntil(this._sendValidationEmailTo(
+			context.auth,
+			context.mail,
+			context.client,
+			locale,
+			email,
+		));
+		if (authDescriptor.onUpdateUser) {
+			context.waitUntil(authDescriptor.onUpdateUser(context, user));
+		}
+		return {};
+	}
+
+	public async createUserWithEmail(
+		_request: Request,
+		context: IContext,
+		locale: string,
+		email: string,
+		password: string,
+	): Promise<Result> {
+		try {
+			const _user = await context.auth.getUserByEmail(email);
+			return {};
+		} catch (_err) {
+			const user = await context.auth.createUser(email, {});
 			await context.auth.addSignInMethodPassword(
 				user.id,
-				user.email,
-				await hashPassword(password),
+				email,
+				await this._hashPassword(password),
 			);
-			context.waitUntil(sendVerificationEmailTo(
+			context.waitUntil(this._sendValidationEmailTo(
 				context.auth,
 				context.mail,
 				context.client,
 				locale,
 				email,
 			));
-			if (authDescriptor.onUpdateUser) {
-				context.waitUntil(authDescriptor.onUpdateUser(context, user));
+			const { authDescriptor } = this.data;
+			if (authDescriptor.onCreateUser) {
+				context.waitUntil(authDescriptor.onCreateUser(context, user));
 			}
 			return {};
-		},
-		async createUserWithEmail(
-			_request: Request,
-			context: IContext,
-			locale: string,
-			email: string,
-			password: string,
-		): Promise<Result> {
-			try {
-				const _user = await context.auth.getUserByEmail(email);
-				return {};
-			} catch (_err) {
-				const user = await context.auth.createUser(email, {});
-				await context.auth.addSignInMethodPassword(
-					user.id,
-					email,
-					await hashPassword(password),
-				);
-				context.waitUntil(sendVerificationEmailTo(
-					context.auth,
-					context.mail,
-					context.client,
-					locale,
-					email,
-				));
-				if (authDescriptor.onCreateUser) {
-					context.waitUntil(authDescriptor.onCreateUser(context, user));
-				}
-				return {};
+		}
+	}
+
+	public async signWithEmailPassword(
+		_request: Request,
+		context: IContext,
+		email: string,
+		password: string,
+	): Promise<Result> {
+		const { authDescriptor } = this.data;
+		if (!authDescriptor.allowSignMethodPassword) {
+			return { error: "NotAllowed" };
+		}
+		try {
+			const passwordHash = await this._hashPassword(password);
+			const user = await context.auth.signInWithEmailPassword(
+				email,
+				passwordHash,
+			);
+			if (!user.emailConfirmed) {
+				return { error: "AuthEmailNotConfirmed" };
 			}
-		},
-		async signWithEmailPassword(
-			_request: Request,
-			context: IContext,
-			email: string,
-			password: string,
-		): Promise<Result> {
-			if (!authDescriptor.allowSignMethodPassword) {
-				return { error: "NotAllowed" };
-			}
-			try {
-				const passwordHash = await hashPassword(password);
-				const user = await context.auth.signInWithEmailPassword(
-					email,
-					passwordHash,
-				);
-				if (!user.emailConfirmed) {
-					return { error: "AuthEmailNotConfirmed" };
-				}
-				return await createJWTs(context, user);
-			} catch (_err) {
-				return { error: "NotAllowed" };
-			}
-		},
-	};
-};
+			return await this._createJWTs(context, user);
+		} catch (_err) {
+			return { error: "NotAllowed" };
+		}
+	}
+}

@@ -98,21 +98,19 @@ export default ({
 			_request: Request,
 			context: IContext,
 			locale: string,
+			email: string,
 		): Promise<Result> {
-			if (!context.currentUserId) {
-				return { error: "NotAllowed" };
-			}
-			const user = await context.auth.getUser(context.currentUserId);
+			const user = await context.auth.getUserByEmail(email);
 			if (!user.email || user.emailConfirmed) {
 				return { error: "NotAllowed" };
 			}
-			await sendVerificationEmailTo(
+			context.waitUntil(sendVerificationEmailTo(
 				context.auth,
 				context.mail,
 				context.client,
 				locale,
 				user.email,
-			);
+			));
 			return {};
 		},
 		async validateEmailWithCode(
@@ -139,7 +137,7 @@ export default ({
 			await context.auth.setPasswordResetCode(email, code);
 			if (tpl) {
 				const link = tpl.link + `?code=${code}`;
-				await context.mail.send({
+				context.waitUntil(context.mail.send({
 					to: email,
 					subject: tpl.subject
 						.replace("%APP_NAME%", context.client.principal)
@@ -150,7 +148,7 @@ export default ({
 					html: (tpl.html && tpl.html
 						.replace("%APP_NAME%", context.client.principal)
 						.replace("%LINK%", link)) ?? undefined,
-				});
+				}));
 			} else {
 				logger.error(
 					`Could not find password reset template for locale "${locale}". Reset password code is "${code}".`,
@@ -185,7 +183,7 @@ export default ({
 			}
 			const user = await context.auth.createUser(null, {});
 			if (authDescriptor.onCreateUser) {
-				await authDescriptor.onCreateUser(context, user);
+				context.waitUntil(authDescriptor.onCreateUser(context, user));
 			}
 			return await createJWTs(context, user);
 		},
@@ -207,22 +205,20 @@ export default ({
 				await context.auth.updateUser(user.id, {}, email, undefined);
 				user.email = email;
 			}
-			await Promise.all([
-				context.auth.addSignInMethodPassword(
-					user.id,
-					user.email,
-					await hashPassword(password),
-				),
-				sendVerificationEmailTo(
-					context.auth,
-					context.mail,
-					context.client,
-					locale,
-					email,
-				),
-			]);
+			await context.auth.addSignInMethodPassword(
+				user.id,
+				user.email,
+				await hashPassword(password),
+			);
+			context.waitUntil(sendVerificationEmailTo(
+				context.auth,
+				context.mail,
+				context.client,
+				locale,
+				email,
+			));
 			if (authDescriptor.onUpdateUser) {
-				await authDescriptor.onUpdateUser(context, user);
+				context.waitUntil(authDescriptor.onUpdateUser(context, user));
 			}
 			return {};
 		},
@@ -233,25 +229,28 @@ export default ({
 			email: string,
 			password: string,
 		): Promise<Result> {
-			const user = await context.auth.createUser(email, {});
-			await Promise.all([
-				context.auth.addSignInMethodPassword(
+			try {
+				const _user = await context.auth.getUserByEmail(email);
+				return {};
+			} catch (_err) {
+				const user = await context.auth.createUser(email, {});
+				await context.auth.addSignInMethodPassword(
 					user.id,
 					email,
 					await hashPassword(password),
-				),
-				sendVerificationEmailTo(
+				);
+				context.waitUntil(sendVerificationEmailTo(
 					context.auth,
 					context.mail,
 					context.client,
 					locale,
 					email,
-				),
-			]);
-			if (authDescriptor.onCreateUser) {
-				await authDescriptor.onCreateUser(context, user);
+				));
+				if (authDescriptor.onCreateUser) {
+					context.waitUntil(authDescriptor.onCreateUser(context, user));
+				}
+				return {};
 			}
-			return {};
 		},
 		async signWithEmailPassword(
 			_request: Request,

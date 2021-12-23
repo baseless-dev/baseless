@@ -28,7 +28,7 @@ export type Command =
 		password: string;
 	}
 	| { cmd: "auth.sign-with-email-password"; email: string; password: string }
-	| { cmd: "auth.send-email-validation-code"; locale: string }
+	| { cmd: "auth.send-email-validation-code"; locale: string; email: string }
 	| { cmd: "auth.validate-email"; email: string; code: string }
 	| { cmd: "auth.send-password-reset-code"; locale: string; email: string }
 	| {
@@ -218,8 +218,9 @@ const commandsSchema = {
 				properties: {
 					cmd: { const: "auth.send-email-validation-code" },
 					locale: { type: "string" },
+					email: { type: "string" },
 				},
-				required: ["locale"],
+				required: ["locale", "email"],
 			},
 			{
 				properties: {

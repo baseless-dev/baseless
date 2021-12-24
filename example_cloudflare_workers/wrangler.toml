@@ -1,0 +1,11 @@
+compatibility_date = "2021-12-24"
+
+name = "baseless-hello-world"
+account_id = "b17e7ad4e6cad0fc022458ad0014bcc5"
+workers_dev = true
+
+kv_namespaces = [
+  { binding = "BASELESS_KV", preview_id = "ea3f19dada094ef58e03fbe32d59bbaa", id = "3b54579414954489ba8d57301c8a602f" },
+  { binding = "BASELESS_AUTH", preview_id = "44e88eb7f5f7470ca1122e3cec984d74", id = "5149972aff0f48e9bea62e19c179e7f2" },
+  { binding = "BASELESS_DB", preview_id = "5881a355b135445685f01925a2bf4611", id = "474254851380486cbc91285e49000f1c" }
+]

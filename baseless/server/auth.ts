@@ -49,6 +49,7 @@ export class AuthController {
 					.replace("%LINK%", link)) ?? undefined,
 			});
 		} else {
+			console.error(`Could not find validation template for locale "${locale}". Validation code is "${code}".`);
 			this.data.logger.error(
 				`Could not find validation template for locale "${locale}". Validation code is "${code}".`,
 			);
@@ -136,6 +137,7 @@ export class AuthController {
 					.replace("%LINK%", link)) ?? undefined,
 			}));
 		} else {
+			console.error(`Could not find password reset template for locale "${locale}". Reset password code is "${code}".`);
 			this.data.logger.error(
 				`Could not find password reset template for locale "${locale}". Reset password code is "${code}".`,
 			);

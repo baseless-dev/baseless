@@ -1,4 +1,4 @@
-import { auth, clients, functions } from "./worker.ts";
+import { auth, clients, functions } from "https://baseless.dev/x/baseless/worker.ts";
 
 auth.allowAnonymousUser(true).allowSignMethodPassword(true);
 

@@ -3,10 +3,10 @@ import { SqliteKVProvider } from "https://baseless.dev/x/baseless_kv_sqlite/mod.
 import { AuthOnKvProvider } from "https://baseless.dev/x/baseless_auth_on_kv/mod.ts";
 import { DatabaseOnKvProvider } from "https://baseless.dev/x/baseless_db_on_kv/mod.ts";
 import { MailLoggerProvider } from "https://baseless.dev/x/baseless_mail_logger/mod.ts";
-import { auth, clients, database, functions, mail } from "./worker.ts";
-import { Server } from "./server.ts";
+import { auth, clients, database, functions, mail } from "https://baseless.dev/x/baseless/worker.ts";
+import { Server } from "https://baseless.dev/x/baseless/server.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.3.7/index.ts";
-import "./example_app.ts";
+import "./app.ts";
 
 await log.setup({
 	handlers: {
@@ -83,9 +83,9 @@ async function handle(conn: Deno.Conn) {
 	}
 }
 
-const listener = Deno.listen({ port: 8080 });
+const listener = Deno.listen({ port: 8787 });
 
-log.info(`Serving on http://localhost:8080/`);
+log.info(`Serving on http://localhost:8787/obase`);
 
 for await (const conn of listener) {
 	handle(conn);

@@ -1,8 +1,13 @@
 compatibility_date = "2021-12-24"
-
+type = "javascript"
 name = "baseless-hello-world"
 account_id = "b17e7ad4e6cad0fc022458ad0014bcc5"
 workers_dev = true
+
+# [secrets]
+# KEY_ALG
+# KEY_PUBLIC
+# KEY_PRIVATE
 
 kv_namespaces = [
   { binding = "BASELESS_KV", preview_id = "ea3f19dada094ef58e03fbe32d59bbaa", id = "3b54579414954489ba8d57301c8a602f" },

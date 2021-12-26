@@ -4,8 +4,7 @@ import { AuthOnKvProvider } from "https://baseless.dev/x/baseless_auth_on_kv/mod
 import { DatabaseOnKvProvider } from "https://baseless.dev/x/baseless_db_on_kv/mod.ts";
 import { MailLoggerProvider } from "https://baseless.dev/x/baseless_mail_logger/mod.ts";
 import { auth, clients, database, functions, mail } from "https://baseless.dev/x/baseless/worker.ts";
-import { Server } from "https://baseless.dev/x/baseless/server.ts";
-import { generateKeyPair, KeyLike } from "https://deno.land/x/jose@v4.3.7/index.ts";
+import { importKeys, Server } from "https://baseless.dev/x/baseless/server.ts";
 import "./app.ts";
 
 await log.setup({
@@ -31,10 +30,11 @@ await log.setup({
 let server: Server | undefined;
 
 export default {
-	// deno-lint-ignore no-unused-vars no-explicit-any
+	// deno-lint-ignore no-explicit-any
 	async fetch(request: Request, env: Record<string, any>, ctx: { waitUntil(p: PromiseLike<unknown>): void }) {
 		if (!server) {
-			const { publicKey, privateKey } = await generateKeyPair("ES256");
+			console.log(env.KEY_ALG, env.KEY_PUBLIC, env.KEY_PRIVATE);
+			const [ algKey, publicKey, privateKey ] = await importKeys(env.KEY_ALG, env.KEY_PUBLIC, env.KEY_PRIVATE);
 			const kvProvider = new CloudflareKVProvider(env.BASELESS_KV);
 			const kvBackendAuth = new CloudflareKVProvider(env.BASELESS_AUTH);
 			const kvBackendDb = new CloudflareKVProvider(env.BASELESS_DB);
@@ -52,14 +52,13 @@ export default {
 				kvProvider,
 				databaseProvider,
 				mailProvider,
-				algKey: "ES256",
+				algKey,
 				publicKey,
 				privateKey,
 			});
 		}
 
 		const url = new URL(request.url);
-		console.log("Blep!");
 
 		try {
 			const segments = url.pathname.replace(/(^\/|\/$)/, "").split("/");

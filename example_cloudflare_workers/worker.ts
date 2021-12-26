@@ -58,22 +58,12 @@ export default {
 			});
 		}
 
-		const url = new URL(request.url);
-
 		try {
-			const segments = url.pathname.replace(/(^\/|\/$)/, "").split("/");
-			switch (segments[0]) {
-				case "obase": {
-					url.pathname = "/" + segments.splice(1).join("/");
-					const req = new Request(url.toString(), request);
-					const [response, waitUntil] = await server.handle(req);
-					for (const p of waitUntil) {
-						ctx.waitUntil(p);
-					}
-					return response;
-				}
+			const [response, waitUntil] = await server.handle(request);
+			for (const p of waitUntil) {
+				ctx.waitUntil(p);
 			}
-			return new Response(null, { status: 404 });
+			return response;
 		} catch (err) {
 			return new Response(JSON.stringify(err), { status: 500 });
 		}

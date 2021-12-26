@@ -59,22 +59,10 @@ const server = new Server({
 async function handle(conn: Deno.Conn) {
 	const httpConn = Deno.serveHttp(conn);
 	for await (const event of httpConn) {
-		const url = new URL(event.request.url);
 		try {
-			const segments = url.pathname.replace(/(^\/|\/$)/, "").split("/");
-			switch (segments[0]) {
-				case "obase": {
-					url.pathname = "/" + segments.splice(1).join("/");
-					const request = new Request(url.toString(), event.request);
-					const [response, waitUntil] = await server.handle(request);
-					await event.respondWith(response);
-					await Promise.all(waitUntil);
-					break;
-				}
-				default: {
-					await event.respondWith(new Response(null, { status: 404 }));
-				}
-			}
+			const [response, waitUntil] = await server.handle(event.request);
+			await event.respondWith(response);
+			await Promise.all(waitUntil);
 		} catch (err) {
 			await event.respondWith(
 				new Response(JSON.stringify(err), { status: 500 }),
@@ -85,7 +73,7 @@ async function handle(conn: Deno.Conn) {
 
 const listener = Deno.listen({ port: 8787 });
 
-log.info(`Serving on http://localhost:8787/obase`);
+log.info(`Serving on http://localhost:8787/`);
 
 for await (const conn of listener) {
 	handle(conn);

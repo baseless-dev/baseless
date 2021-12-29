@@ -53,7 +53,7 @@ export default {
 			const kvBackendDb = new CloudflareKVProvider(env.BASELESS_DB);
 			const authProvider = new AuthOnKvProvider(kvBackendAuth);
 			const databaseProvider = new DatabaseOnKvProvider(kvBackendDb);
-			// const mailProvider = new MailLoggerProvider();
+			// const mailProvider = new LoggerMailProvider();
 			const mailProvider = new SendgridMailProvider({
 				apiKey: env.DEMO_SENDGRID_KEY,
 				from: { email: "auth@baseless.dev" },

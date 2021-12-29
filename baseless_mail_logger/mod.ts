@@ -7,7 +7,7 @@ import {
 /**
  * Mail provider that output to console the message sent
  */
-export class MailLoggerProvider implements IMailProvider {
+export class LoggerMailProvider implements IMailProvider {
 	private logger = getLogger("baseless_mail_logger");
 
 	/**

@@ -2,7 +2,7 @@ import * as log from "https://deno.land/std@0.118.0/log/mod.ts";
 import { SqliteKVProvider } from "https://baseless.dev/x/baseless_kv_sqlite/mod.ts";
 import { AuthOnKvProvider } from "https://baseless.dev/x/baseless_auth_on_kv/mod.ts";
 import { DatabaseOnKvProvider } from "https://baseless.dev/x/baseless_db_on_kv/mod.ts";
-import { MailLoggerProvider } from "https://baseless.dev/x/baseless_mail_logger/mod.ts";
+import { LoggerMailProvider } from "https://baseless.dev/x/baseless_mail_logger/mod.ts";
 import {
 	auth,
 	clients,
@@ -43,7 +43,7 @@ const kvBackendAuth = new SqliteKVProvider(":memory:");
 const kvBackendDb = new SqliteKVProvider(":memory:");
 const authProvider = new AuthOnKvProvider(kvBackendAuth);
 const databaseProvider = new DatabaseOnKvProvider(kvBackendDb);
-const mailProvider = new MailLoggerProvider();
+const mailProvider = new LoggerMailProvider();
 
 await kvProvider.open();
 await kvBackendAuth.open();

@@ -117,7 +117,6 @@ export class SqliteKVProvider implements IKVProvider {
 			if (err instanceof KeyNotFoundError) {
 				throw err;
 			}
-			console.log(err);
 			this.logger.error(
 				`Could not retrieve key "${key}", got error : ${err}`,
 			);

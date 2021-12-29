@@ -3,9 +3,19 @@ import { SqliteKVProvider } from "https://baseless.dev/x/baseless_kv_sqlite/mod.
 import { AuthOnKvProvider } from "https://baseless.dev/x/baseless_auth_on_kv/mod.ts";
 import { DatabaseOnKvProvider } from "https://baseless.dev/x/baseless_db_on_kv/mod.ts";
 import { MailLoggerProvider } from "https://baseless.dev/x/baseless_mail_logger/mod.ts";
-import { auth, clients, database, functions, mail } from "https://baseless.dev/x/baseless/worker.ts";
+import {
+	auth,
+	clients,
+	database,
+	functions,
+	mail,
+} from "https://baseless.dev/x/baseless/worker.ts";
 import { Server } from "https://baseless.dev/x/baseless/server.ts";
-import { generateKeyPair, exportPKCS8, exportSPKI } from "https://deno.land/x/jose@v4.3.7/index.ts";
+import {
+	exportPKCS8,
+	exportSPKI,
+	generateKeyPair,
+} from "https://deno.land/x/jose@v4.3.7/index.ts";
 import "./app.ts";
 
 await log.setup({
@@ -39,7 +49,11 @@ await kvProvider.open();
 await kvBackendAuth.open();
 await kvBackendDb.open();
 
-const { publicKey, privateKey } = await generateKeyPair("RS512", { extractable: true });
+const { publicKey, privateKey } = await generateKeyPair("RS256", {
+	extractable: true,
+});
+
+// console.log(await exportSPKI(publicKey), await exportPKCS8(privateKey));
 
 const server = new Server({
 	clientsDescriptor: clients.build(),
@@ -51,7 +65,7 @@ const server = new Server({
 	kvProvider,
 	databaseProvider,
 	mailProvider,
-	algKey: "ES256",
+	algKey: "RS256",
 	publicKey,
 	privateKey,
 });

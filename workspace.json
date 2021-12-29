@@ -5,6 +5,7 @@
 		"https://baseless.dev/x/baseless_db_on_kv/": "./baseless_db_on_kv/",
 		"https://baseless.dev/x/baseless_kv_cloudflarekv/": "./baseless_kv_cloudflarekv/",
 		"https://baseless.dev/x/baseless_kv_sqlite/": "./baseless_kv_sqlite/",
-		"https://baseless.dev/x/baseless_mail_logger/": "./baseless_mail_logger/"
+		"https://baseless.dev/x/baseless_mail_logger/": "./baseless_mail_logger/",
+		"https://baseless.dev/x/baseless_mail_sendgrid/": "./baseless_mail_sendgrid/"
 	}
 }

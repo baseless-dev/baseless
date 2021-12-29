@@ -1,6 +1,39 @@
-import { auth, clients, functions } from "https://baseless.dev/x/baseless/worker.ts";
+import {
+	auth,
+	clients,
+	functions,
+} from "https://baseless.dev/x/baseless/worker.ts";
 
-auth.allowAnonymousUser(true).allowSignMethodPassword(true);
+auth.allowAnonymousUser(true).allowSignMethodPassword(true)
+	.setTemplateValidation("en", {
+		subject: "Email validation",
+		link: "https://hello-world.baseless.dev/auth/email-validation",
+		text: `Hello,
+
+Follow this link to verify your email address.
+
+%LINK%
+
+If you didn’t ask to verify this address, you can ignore this email.
+
+Thanks,
+
+Your %APP_NAME% team`,
+	}).setTemplatePasswordReset("en", {
+		subject: "Password reset",
+		link: "https://hello-world.baseless.dev/auth/password-reset",
+		text: `Hello,
+
+		Follow this link to reset your %APP_NAME% password for your account.
+		
+		%LINK%
+		
+		If you didn’t ask to reset your password, you can ignore this email.
+		
+		Thanks,
+		
+		Your %APP_NAME% team`,
+	});
 
 clients.register(
 	"Hello World",

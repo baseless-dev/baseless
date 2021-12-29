@@ -39,17 +39,19 @@ export class AuthController {
 			await mailService.send({
 				to,
 				subject: tpl.subject
-					.replace("%APP_NAME%", client.principal)
-					.replace("%LINK%", link),
+					.replace(/%APP_NAME%/g, client.principal)
+					.replace(/%LINK%/g, link),
 				text: tpl.text
-					.replace("%APP_NAME%", client.principal)
-					.replace("%LINK%", link),
+					.replace(/%APP_NAME%/g, client.principal)
+					.replace(/%LINK%/g, link),
 				html: (tpl.html && tpl.html
-					.replace("%APP_NAME%", client.principal)
-					.replace("%LINK%", link)) ?? undefined,
+					.replace(/%APP_NAME%/g, client.principal)
+					.replace(/%LINK%/g, link)) ?? undefined,
 			});
 		} else {
-			console.error(`Could not find validation template for locale "${locale}". Validation code is "${code}".`);
+			console.error(
+				`Could not find validation template for locale "${locale}". Validation code is "${code}".`,
+			);
 			this.data.logger.error(
 				`Could not find validation template for locale "${locale}". Validation code is "${code}".`,
 			);
@@ -127,17 +129,19 @@ export class AuthController {
 			context.waitUntil(context.mail.send({
 				to: email,
 				subject: tpl.subject
-					.replace("%APP_NAME%", context.client.principal)
-					.replace("%LINK%", link),
+					.replace(/%APP_NAME%/g, context.client.principal)
+					.replace(/%LINK%/g, link),
 				text: tpl.text
-					.replace("%APP_NAME%", context.client.principal)
-					.replace("%LINK%", link),
+					.replace(/%APP_NAME%/g, context.client.principal)
+					.replace(/%LINK%/g, link),
 				html: (tpl.html && tpl.html
-					.replace("%APP_NAME%", context.client.principal)
-					.replace("%LINK%", link)) ?? undefined,
+					.replace(/%APP_NAME%/g, context.client.principal)
+					.replace(/%LINK%/g, link)) ?? undefined,
 			}));
 		} else {
-			console.error(`Could not find password reset template for locale "${locale}". Reset password code is "${code}".`);
+			console.error(
+				`Could not find password reset template for locale "${locale}". Reset password code is "${code}".`,
+			);
 			this.data.logger.error(
 				`Could not find password reset template for locale "${locale}". Reset password code is "${code}".`,
 			);
@@ -148,7 +152,8 @@ export class AuthController {
 	private async _hashPassword(password: string) {
 		const buffer = new TextEncoder().encode(password);
 		const hash = await crypto.subtle.digest({ name: "SHA-512" }, buffer);
-		return new TextDecoder().decode(hash);
+		return btoa(String.fromCharCode(...new Uint8Array(hash)));
+		// return new TextDecoder().decode(hash);
 	}
 
 	public async resetPasswordWithCode(
@@ -275,6 +280,7 @@ export class AuthController {
 			}
 			return await this._createJWTs(context, user);
 		} catch (_err) {
+			this.data.logger.error(_err);
 			return { error: "NotAllowed" };
 		}
 	}

@@ -61,11 +61,6 @@ export default {
 			});
 
 			server = new Server({
-				clientsDescriptor: clients.build(),
-				authDescriptor: auth.build(),
-				databaseDescriptor: database.build(),
-				functionsDescriptor: functions.build(),
-				mailDescriptor: mail.build(),
 				authProvider,
 				kvProvider,
 				databaseProvider,

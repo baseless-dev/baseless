@@ -56,11 +56,6 @@ const { publicKey, privateKey } = await generateKeyPair("RS256", {
 // console.log(await exportSPKI(publicKey), await exportPKCS8(privateKey));
 
 const server = new Server({
-	clientsDescriptor: clients.build(),
-	authDescriptor: auth.build(),
-	databaseDescriptor: database.build(),
-	functionsDescriptor: functions.build(),
-	mailDescriptor: mail.build(),
 	authProvider,
 	kvProvider,
 	databaseProvider,

@@ -38,6 +38,13 @@ import {
 	MailService,
 	NoopMailService,
 } from "./core/mail.ts";
+import {
+	auth,
+	clients,
+	database,
+	functions,
+	mail,
+} from "./worker.ts";
 import { IContext } from "./core/context.ts";
 import { Commands, Result, Results, validator } from "./server/schema.ts";
 import { AuthController } from "./server/auth.ts";
@@ -62,11 +69,6 @@ export async function importKeys(
 }
 
 export type ServerInit = {
-	clientsDescriptor: ClientsDescriptor;
-	authDescriptor: AuthDescriptor;
-	databaseDescriptor: DatabaseDescriptor;
-	functionsDescriptor: FunctionsDescriptor;
-	mailDescriptor: MailDescriptor;
 	authProvider?: IAuthProvider;
 	kvProvider?: IKVProvider;
 	databaseProvider?: IDatabaseProvider;
@@ -77,6 +79,11 @@ export type ServerInit = {
 };
 
 export type ServerData = ServerInit & {
+	clientsDescriptor: ClientsDescriptor;
+	authDescriptor: AuthDescriptor;
+	databaseDescriptor: DatabaseDescriptor;
+	functionsDescriptor: FunctionsDescriptor;
+	mailDescriptor: MailDescriptor;
 	authService: IAuthService;
 	kvService: IKVService;
 	databaseService: IDatabaseService;
@@ -91,8 +98,18 @@ export class Server {
 	private databaseController: DatabaseController;
 
 	public constructor(init: ServerInit) {
+		const clientsDescriptor = clients.build();
+		const authDescriptor = auth.build();
+		const databaseDescriptor = database.build();
+		const functionsDescriptor = functions.build();
+		const mailDescriptor = mail.build();
 		this.data = {
 			...init,
+			clientsDescriptor,
+			authDescriptor,
+			databaseDescriptor,
+			functionsDescriptor,
+			mailDescriptor,
 			authService: init.authProvider
 				? new AuthService(init.authProvider)
 				: new NoopAuthService(),
@@ -102,10 +119,10 @@ export class Server {
 				? new DatabaseService(init.databaseProvider)
 				: new NoopDatabaseService(),
 			mailService: init.mailProvider
-				? new MailService(init.mailDescriptor, init.mailProvider)
+				? new MailService(mailDescriptor, init.mailProvider)
 				: new NoopMailService(),
 			functionsMap: new Map(
-				init.functionsDescriptor.https.filter((http) => http.onCall).map(
+				functionsDescriptor.https.filter((http) => http.onCall).map(
 					(http) => [http.path, http.onCall!],
 				),
 			),

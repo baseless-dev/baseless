@@ -11,7 +11,7 @@ import {
 	mail,
 } from "https://baseless.dev/x/baseless/worker.ts";
 import { importKeys, Server } from "https://baseless.dev/x/baseless/server.ts";
-import "../example_deno_server/app.ts";
+import "https://baseless.dev/x/example_deno_server/app.ts";
 
 await log.setup({
 	handlers: {

@@ -3,13 +3,6 @@ import { SqliteKVProvider } from "https://baseless.dev/x/baseless_kv_sqlite/mod.
 import { AuthOnKvProvider } from "https://baseless.dev/x/baseless_auth_on_kv/mod.ts";
 import { DatabaseOnKvProvider } from "https://baseless.dev/x/baseless_db_on_kv/mod.ts";
 import { LoggerMailProvider } from "https://baseless.dev/x/baseless_mail_logger/mod.ts";
-import {
-	auth,
-	clients,
-	database,
-	functions,
-	mail,
-} from "https://baseless.dev/x/baseless/worker.ts";
 import { Server } from "https://baseless.dev/x/baseless/server.ts";
 import {
 	exportPKCS8,

@@ -2,7 +2,7 @@ import {
 	auth,
 	clients,
 	functions,
-} from "https://baseless.dev/x/baseless/worker.ts";
+} from "https://baseless.dev/x/baseless/worker/mod.ts";
 
 auth.allowAnonymousUser(true).allowSignMethodPassword(true);
 

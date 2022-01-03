@@ -3,7 +3,10 @@ import { CloudflareKVProvider } from "https://baseless.dev/x/baseless_kv_cloudfl
 import { AuthOnKvProvider } from "https://baseless.dev/x/baseless_auth_on_kv/mod.ts";
 import { DatabaseOnKvProvider } from "https://baseless.dev/x/baseless_db_on_kv/mod.ts";
 import { SendgridMailProvider } from "https://baseless.dev/x/baseless_mail_sendgrid/mod.ts";
-import { importKeys, Server } from "https://baseless.dev/x/baseless/server.ts";
+import {
+	importKeys,
+	Server,
+} from "https://baseless.dev/x/baseless/server/mod.ts";
 import "https://baseless.dev/x/example_deno_server/app.ts";
 
 await log.setup({

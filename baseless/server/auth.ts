@@ -5,7 +5,7 @@ import { IMailService } from "../core/mail.ts";
 import { IContext } from "../core/context.ts";
 import { Result } from "./schema.ts";
 import { autoid } from "../core/autoid.ts";
-import { ServerData } from "../server.ts";
+import { ServerData } from "./server.ts";
 
 export class AuthController {
 	public constructor(

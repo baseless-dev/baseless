@@ -10,7 +10,7 @@ import {
 } from "../core/database.ts";
 import { IContext } from "../core/context.ts";
 import { Result } from "./schema.ts";
-import { ServerData } from "../server.ts";
+import { ServerData } from "./server.ts";
 
 class Document<Metadata, Data> implements IDocument<Metadata, Data> {
 	public constructor(

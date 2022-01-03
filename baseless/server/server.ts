@@ -12,8 +12,8 @@ import {
 	IAuthProvider,
 	IAuthService,
 	NoopAuthService,
-} from "./core/auth.ts";
-import { ClientsDescriptor } from "./core/clients.ts";
+} from "../core/auth.ts";
+import { ClientsDescriptor } from "../core/clients.ts";
 import {
 	CachableDatabaseService,
 	collection,
@@ -23,26 +23,29 @@ import {
 	IDatabaseProvider,
 	IDatabaseService,
 	NoopDatabaseService,
-} from "./core/database.ts";
-import { FunctionsDescriptor, FunctionsHttpHandler } from "./core/functions.ts";
+} from "../core/database.ts";
+import {
+	FunctionsDescriptor,
+	FunctionsHttpHandler,
+} from "../core/functions.ts";
 import {
 	IKVProvider,
 	IKVService,
 	KVService,
 	NoopKVService,
-} from "./core/kv.ts";
+} from "../core/kv.ts";
 import {
 	IMailProvider,
 	IMailService,
 	MailDescriptor,
 	MailService,
 	NoopMailService,
-} from "./core/mail.ts";
-import { auth, clients, database, functions, mail } from "./worker.ts";
-import { IContext } from "./core/context.ts";
-import { Commands, Result, Results, validator } from "./server/schema.ts";
-import { AuthController } from "./server/auth.ts";
-import { DatabaseController } from "./server/database.ts";
+} from "../core/mail.ts";
+import { auth, clients, database, functions, mail } from "../worker/mod.ts";
+import { IContext } from "../core/context.ts";
+import { Commands, Result, Results, validator } from "./schema.ts";
+import { AuthController } from "./auth.ts";
+import { DatabaseController } from "./database.ts";
 
 export async function importKeys(
 	alg: string,

@@ -38,13 +38,7 @@ import {
 	MailService,
 	NoopMailService,
 } from "./core/mail.ts";
-import {
-	auth,
-	clients,
-	database,
-	functions,
-	mail,
-} from "./worker.ts";
+import { auth, clients, database, functions, mail } from "./worker.ts";
 import { IContext } from "./core/context.ts";
 import { Commands, Result, Results, validator } from "./server/schema.ts";
 import { AuthController } from "./server/auth.ts";

@@ -1,5 +1,5 @@
 import { SignJWT } from "https://deno.land/x/jose@v4.3.7/index.ts";
-import { AuthDescriptor, IAuthService, IUser } from "../core/auth.ts";
+import { IAuthService, IUser } from "../core/auth.ts";
 import { Client } from "../core/clients.ts";
 import { IMailService } from "../core/mail.ts";
 import { IContext } from "../core/context.ts";
@@ -13,13 +13,13 @@ export class AuthController {
 	) {}
 
 	private _getMessageTemplate(
-		type: keyof AuthDescriptor["templates"],
+		client: Client,
+		type: keyof Client["templates"],
 		locale: string,
 	) {
-		const templates = this.data.authDescriptor.templates;
 		for (const key of [locale, "en"]) {
-			if (templates[type].has(key)) {
-				return templates[type].get(key)!;
+			if (client.templates[type].has(key)) {
+				return client.templates[type].get(key)!;
 			}
 		}
 	}
@@ -32,7 +32,7 @@ export class AuthController {
 		to: string,
 	) {
 		const code = autoid(40);
-		const tpl = this._getMessageTemplate("validation", locale);
+		const tpl = this._getMessageTemplate(client, "validation", locale);
 		await authService.setEmailValidationCode(to, code);
 		if (tpl) {
 			const link = tpl.link + `?code=${code}`;
@@ -122,7 +122,11 @@ export class AuthController {
 		email: string,
 	): Promise<Result> {
 		const code = autoid(40);
-		const tpl = this._getMessageTemplate("passwordReset", locale);
+		const tpl = this._getMessageTemplate(
+			context.client,
+			"passwordReset",
+			locale,
+		);
 		await context.auth.setPasswordResetCode(email, code);
 		if (tpl) {
 			const link = tpl.link + `?code=${code}`;

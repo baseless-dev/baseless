@@ -42,20 +42,12 @@ export type AuthHandler<Metadata> = (
 	auth: IUser<Metadata>,
 ) => Promise<void>;
 
-export type MessageTemplate = Omit<Message, "to"> & { link: string };
-
-export type LocalizedMessageTemplate = Map<string, MessageTemplate>;
-
 /**
  * Auth descriptor
  */
 export type AuthDescriptor = {
 	readonly allowAnonymousUser: boolean;
 	readonly allowSignMethodPassword: boolean;
-	readonly templates: {
-		validation: LocalizedMessageTemplate;
-		passwordReset: LocalizedMessageTemplate;
-	};
 	readonly onCreateUser?: AuthHandler<unknown>;
 	readonly onUpdateUser?: AuthHandler<unknown>;
 	readonly onDeleteUser?: AuthHandler<unknown>;
@@ -67,13 +59,6 @@ export type AuthDescriptor = {
 export class AuthBuilder {
 	private allowAnonymousUserValue?: boolean;
 	private allowSignMethodPasswordValue?: boolean;
-	private templates: {
-		validation: LocalizedMessageTemplate;
-		passwordReset: LocalizedMessageTemplate;
-	} = {
-		validation: new Map(),
-		passwordReset: new Map(),
-	};
 	private onCreateUserHandler?: AuthHandler<unknown>;
 	private onUpdateUserHandler?: AuthHandler<unknown>;
 	private onDeleteUserHandler?: AuthHandler<unknown>;
@@ -85,10 +70,6 @@ export class AuthBuilder {
 		return {
 			allowAnonymousUser: this.allowAnonymousUserValue ?? false,
 			allowSignMethodPassword: this.allowSignMethodPasswordValue ?? false,
-			templates: {
-				validation: this.templates.validation,
-				passwordReset: this.templates.passwordReset,
-			},
 			onCreateUser: this.onCreateUserHandler,
 			onUpdateUser: this.onUpdateUserHandler,
 			onDeleteUser: this.onDeleteUserHandler,
@@ -108,22 +89,6 @@ export class AuthBuilder {
 	 */
 	public allowSignMethodPassword(value: boolean) {
 		this.allowSignMethodPasswordValue = value;
-		return this;
-	}
-
-	/**
-	 * Set the validation email template
-	 */
-	public setTemplateValidation(locale: string, message: MessageTemplate) {
-		this.templates.validation.set(locale, message);
-		return this;
-	}
-
-	/**
-	 * Set the password reset template
-	 */
-	public setTemplatePasswordReset(locale: string, message: MessageTemplate) {
-		this.templates.passwordReset.set(locale, message);
 		return this;
 	}
 

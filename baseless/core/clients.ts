@@ -1,3 +1,9 @@
+import { Message } from "./mail.ts";
+
+export type MessageTemplate = Omit<Message, "to"> & { link: string };
+
+export type LocalizedMessageTemplate = Map<string, MessageTemplate>;
+
 /**
  * Clients descriptor
  */
@@ -15,7 +21,7 @@ export type Client = {
 	/**
 	 * Allowed urls
 	 */
-	readonly url: string;
+	readonly url: string[];
 
 	/**
 	 * Client id
@@ -25,7 +31,15 @@ export type Client = {
 	/**
 	 * Client secret
 	 */
-	readonly secret: string;
+	readonly secret?: string;
+
+	/**
+	 * Client templates
+	 */
+	readonly templates: {
+		validation: LocalizedMessageTemplate;
+		passwordReset: LocalizedMessageTemplate;
+	};
 };
 
 /**
@@ -42,30 +56,82 @@ export class NumberOfClientError extends Error {
  * Clients builder
  */
 export class ClientsBuilder {
-	private clients = new Set<Client>();
+	private clients: ClientBuilder[] = [];
 
 	/**
 	 * Build the auth descriptor
 	 */
 	public build(): ClientsDescriptor {
-		if (this.clients.size === 0) {
-			throw new NumberOfClientError(0);
-		}
-		return Array.from(this.clients);
+		return this.clients.map((client) => client.build());
 	}
 
 	public register(
 		principal: string,
-		url: string,
+		url: string[],
 		id: string,
-		secret: string,
-	): this {
-		this.clients.add({
-			principal,
-			url,
-			id,
-			secret,
-		});
+	): ClientBuilder {
+		const client = new ClientBuilder(principal, url, id);
+		this.clients.push(client);
+		return client;
+	}
+}
+
+/**
+ * Client builder
+ */
+export class ClientBuilder {
+	private secret?: string;
+	private templates: {
+		validation: LocalizedMessageTemplate;
+		passwordReset: LocalizedMessageTemplate;
+	} = {
+		validation: new Map(),
+		passwordReset: new Map(),
+	};
+
+	public constructor(
+		private principal: string,
+		private url: string[],
+		private id: string,
+	) {}
+
+	/**
+	 * Build the auth descriptor
+	 */
+	public build(): Client {
+		return {
+			principal: this.principal,
+			url: this.url,
+			id: this.id,
+			secret: this.secret,
+			templates: {
+				validation: new Map(this.templates.validation),
+				passwordReset: new Map(this.templates.passwordReset),
+			},
+		};
+	}
+
+	/**
+	 * Set secret
+	 */
+	public setSecret(secret: string) {
+		this.secret = secret;
+		return this;
+	}
+
+	/**
+	 * Set the validation email template
+	 */
+	public setTemplateValidation(locale: string, message: MessageTemplate) {
+		this.templates.validation.set(locale, message);
+		return this;
+	}
+
+	/**
+	 * Set the password reset template
+	 */
+	public setTemplatePasswordReset(locale: string, message: MessageTemplate) {
+		this.templates.passwordReset.set(locale, message);
 		return this;
 	}
 }

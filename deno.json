@@ -1,0 +1,11 @@
+{
+	"compilerOptions": {
+
+	},
+	"fmt": {
+		"options": {
+			"useTabs": true,
+			"lineWidth": 120
+		}
+	}
+}

@@ -123,7 +123,7 @@ export class Server {
 					(http) => [http.path, http.onCall!],
 				),
 			),
-			logger: getLogger("baseless_server"),
+			logger: getLogger("baseless/server"),
 		};
 
 		this.authController = new AuthController(this.data);

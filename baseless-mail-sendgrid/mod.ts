@@ -13,7 +13,7 @@ export type IAddress = {
  * Mail provider that send email with Sendgrid api
  */
 export class SendgridMailProvider implements IMailProvider {
-	private logger = getLogger("baseless_mail_sendgrid");
+	private logger = getLogger("baseless-mail-sendgrid");
 
 	/**
 	 * Construct a Sendgrid Mail Provider object with an API key

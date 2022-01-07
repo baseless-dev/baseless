@@ -42,7 +42,7 @@ export type SqliteKVProviderOptions = {
 export class SqliteKVProvider implements IKVProvider {
 	protected options: SqliteKVProviderOptions;
 	protected db?: DB;
-	protected logger = getLogger("baseless_kv_sqlite");
+	protected logger = getLogger("baseless-kv-sqlite");
 
 	constructor(db: DB);
 	constructor(path: string, mode?: SqliteOptions["mode"]);

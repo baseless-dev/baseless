@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-release:
+    name: Create release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub release
+        id: release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "${{ github.ref }}"
+          release_name: "Release ${{ github.ref }}"
+          draft: true
+
+  cloudflare-upload:
+    name: Upload to Cloudflare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Create artifacts directory
+        run: mkdir artifacts
+
+      - name: Creates bulk JSON payload
+        shell: bash
+        run: |
+          echo "[" > artifacts/payload.json
+
+          for path in $(find . -mindepth 2 -type f -path "./baseless*" 2>/dev/null); do
+            module=$(echo "$path" | cut -d "/" -f2)
+            pathname=$(echo "$path" | cut -d "/" -f3-)
+            key=$module@$GITHUB_REF/$pathname
+            value=$(base64 -w 0 "$path")
+            echo "{\"key\":\"$key\",\"base64\":true,\"value\":\"$value\"}," >> artifacts/payload.json
+          done
+
+          truncate -s -2 artifacts/payload.json
+
+          echo "]" >> artifacts/payload.json
+
+      # - name: Upload artifacts
+      #   shell: bash
+      #   env:
+      #     CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      #     CLOUDFLARE_X_STORAGE_KV_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_X_STORAGE_KV_NAMESPACE_ID }}
+      #     CLOUDFLARE_X_STORAGE_API_TOKEN: ${{ secrets.CLOUDFLARE_X_STORAGE_API_TOKEN }}
+      #   run: |
+      #     curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$CLOUDFLARE_X_STORAGE_KV_NAMESPACE_ID/bulk" \
+      #       -H "Authorization: Bearer $CLOUDFLARE_X_STORAGE_API_TOKEN" \
+      #       -H "Content-Type:application/json" \
+      #       --data-binary "@artifacts/payload.json"

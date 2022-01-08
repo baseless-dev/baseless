@@ -45,12 +45,14 @@ jobs:
 
           echo "]" >> artifacts/payload.json
 
-      # - name: Upload artifacts
-      #   shell: bash
-      #   env:
-      #     CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      #     CLOUDFLARE_X_STORAGE_KV_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_X_STORAGE_KV_NAMESPACE_ID }}
-      #     CLOUDFLARE_X_STORAGE_API_TOKEN: ${{ secrets.CLOUDFLARE_X_STORAGE_API_TOKEN }}
+      - name: Upload artifacts
+        shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_X_STORAGE_KV_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_X_STORAGE_KV_NAMESPACE_ID }}
+          CLOUDFLARE_X_STORAGE_API_TOKEN: ${{ secrets.CLOUDFLARE_X_STORAGE_API_TOKEN }}
+        run: |
+          cat artifacts/payload.json
       #   run: |
       #     curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$CLOUDFLARE_X_STORAGE_KV_NAMESPACE_ID/bulk" \
       #       -H "Authorization: Bearer $CLOUDFLARE_X_STORAGE_API_TOKEN" \

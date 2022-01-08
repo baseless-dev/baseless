@@ -1,9 +1,6 @@
-import {
-	importPKCS8,
-	importSPKI,
-	jwtVerify,
-	KeyLike,
-} from "https://deno.land/x/jose@v4.3.7/index.ts";
+import { KeyLike } from "https://deno.land/x/jose@v4.3.7/types.d.ts"
+import { importSPKI, importPKCS8 } from "https://deno.land/x/jose@v4.3.7/key/import.ts";
+import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
 import { getLogger, Logger } from "https://deno.land/std@0.118.0/log/mod.ts";
 import {
 	AuthDescriptor,

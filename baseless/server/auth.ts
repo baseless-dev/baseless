@@ -1,4 +1,4 @@
-import { SignJWT } from "https://deno.land/x/jose@v4.3.7/index.ts";
+import { SignJWT } from "https://deno.land/x/jose@v4.3.7/jwt/sign.ts";
 import { IAuthService, IUser } from "../core/auth.ts";
 import { Client } from "../core/clients.ts";
 import { IMailService } from "../core/mail.ts";

@@ -36,7 +36,7 @@ jobs:
           for path in $(find . -mindepth 2 -type f -path "./baseless*" 2>/dev/null); do
             module=$(echo "$path" | cut -d "/" -f2)
             pathname=$(echo "$path" | cut -d "/" -f3-)
-            key=$module@$GITHUB_REF/$pathname
+            key=$module@$GITHUB_REF_NAME/$pathname
             value=$(base64 -w 0 "$path")
             echo "{\"key\":\"$key\",\"base64\":true,\"value\":\"$value\"}," >> artifacts/payload.json
           done

@@ -7,6 +7,7 @@ on:
     branches:
       - "next"
       - "beta"
+      - "latest"
 
 jobs:
   create-release:

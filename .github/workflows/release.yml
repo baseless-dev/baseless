@@ -14,8 +14,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "${{ github.ref }}"
-          release_name: "Release ${{ github.ref }}"
+          tag_name: "${{ github.ref_name }}"
+          release_name: "Release ${{ github.ref_name }}"
           draft: true
 
   cloudflare-upload:
@@ -52,9 +52,7 @@ jobs:
           CLOUDFLARE_X_STORAGE_KV_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_X_STORAGE_KV_NAMESPACE_ID }}
           CLOUDFLARE_X_STORAGE_API_TOKEN: ${{ secrets.CLOUDFLARE_X_STORAGE_API_TOKEN }}
         run: |
-          cat artifacts/payload.json
-      #   run: |
-      #     curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$CLOUDFLARE_X_STORAGE_KV_NAMESPACE_ID/bulk" \
-      #       -H "Authorization: Bearer $CLOUDFLARE_X_STORAGE_API_TOKEN" \
-      #       -H "Content-Type:application/json" \
-      #       --data-binary "@artifacts/payload.json"
+          curl -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces/$CLOUDFLARE_X_STORAGE_KV_NAMESPACE_ID/bulk" \
+            -H "Authorization: Bearer $CLOUDFLARE_X_STORAGE_API_TOKEN" \
+            -H "Content-Type:application/json" \
+            --data-binary "@artifacts/payload.json"

@@ -1,4 +1,4 @@
-import { getLogger } from "https://deno.land/std@0.118.0/log/mod.ts";
+import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
 import { Message } from "https://baseless.dev/x/shared/deno/mail.ts";
 import { IMailProvider } from "https://baseless.dev/x/provider/deno/mail.ts";
 
@@ -6,7 +6,7 @@ import { IMailProvider } from "https://baseless.dev/x/provider/deno/mail.ts";
  * Mail provider that output to console the message sent
  */
 export class LoggerMailProvider implements IMailProvider {
-	private logger = getLogger("baseless-mail-logger");
+	private logger = logger("provider-mail-logger");
 
 	/**
 	 * Send a message

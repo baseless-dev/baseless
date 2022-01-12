@@ -1,4 +1,4 @@
-import { getLogger } from "https://deno.land/std@0.118.0/log/mod.ts";
+import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
 import { Message } from "https://baseless.dev/x/shared/deno/mail.ts";
 import { IMailProvider } from "https://baseless.dev/x/provider/deno/mail.ts";
 
@@ -11,7 +11,7 @@ export type IAddress = {
  * Mail provider that send email with Sendgrid api
  */
 export class SendgridMailProvider implements IMailProvider {
-	private logger = getLogger("baseless-mail-sendgrid");
+	private logger = logger("provider-mail-sendgrid");
 
 	/**
 	 * Construct a Sendgrid Mail Provider object with an API key

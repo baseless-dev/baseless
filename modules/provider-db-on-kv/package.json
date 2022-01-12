@@ -25,13 +25,18 @@
 			"https://baseless.dev/x/provider/deno/kv.ts": {
 				"name": "@baseless/provider",
 				"version": "^0.0.1"
+			},
+			"https://baseless.dev/x/logger/deno/mod.ts": {
+				"name": "@baseless/logger",
+				"version": "^0.0.1"
 			}
 		},
 		"redirects": {
 			"https://baseless.dev/x/shared/deno/database.ts": "https://baseless.dev/x/shared/browser/database.ts",
 			"https://baseless.dev/x/provider/deno/database.ts": "https://baseless.dev/x/provider/browser/database.js",
 			"https://baseless.dev/x/shared/deno/kv.ts": "https://baseless.dev/x/shared/browser/kv.ts",
-			"https://baseless.dev/x/provider/deno/kv.ts": "https://baseless.dev/x/provider/browser/kv.js"
+			"https://baseless.dev/x/provider/deno/kv.ts": "https://baseless.dev/x/provider/browser/kv.js",
+			"https://baseless.dev/x/logger/deno/mod.ts": "https://baseless.dev/x/logger/browser/mod.ts"
 		}
 	}
 }

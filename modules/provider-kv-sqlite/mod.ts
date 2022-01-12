@@ -9,7 +9,7 @@ import {
 	KVData,
 } from "https://baseless.dev/x/shared/deno/kv.ts";
 import { DB, SqliteOptions } from "https://deno.land/x/sqlite@v3.2.0/mod.ts";
-import { getLogger } from "https://deno.land/std@0.118.0/log/mod.ts";
+import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
 
 export class SqliteNotOpenedError extends Error {
 	public name = "SqliteNotOpenedError";
@@ -44,7 +44,7 @@ export type SqliteKVProviderOptions = {
 export class SqliteKVProvider implements IKVProvider {
 	protected options: SqliteKVProviderOptions;
 	protected db?: DB;
-	protected logger = getLogger("baseless-kv-sqlite");
+	protected logger = logger("provider-kv-sqlite");
 
 	constructor(db: DB);
 	constructor(path: string, mode?: SqliteOptions["mode"]);

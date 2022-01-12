@@ -15,6 +15,7 @@ import {
 	IKVValue,
 	KeyNotFoundError,
 } from "https://baseless.dev/x/shared/deno/kv.ts";
+import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
 
 const EOC = "/";
 
@@ -80,6 +81,8 @@ export class Document<Metadata, Data> implements IDocument<Metadata, Data> {
  * Database provider backed by an IKVProvider
  */
 export class DatabaseOnKvProvider implements IDatabaseProvider {
+	protected logger = logger("provider-db-on-kv");
+
 	/**
 	 * Construct a new DatabaseOnKvProvider backed by an IKVProvider
 	 */

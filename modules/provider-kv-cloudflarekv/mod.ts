@@ -8,6 +8,7 @@ import {
 	KeyNotFoundError,
 	KVData,
 } from "https://baseless.dev/x/shared/deno/kv.ts";
+import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
 import "./cloudflare-workers.d.ts";
 
 export class CloudflareKVValue<Metadata> implements IKVValue<Metadata> {
@@ -42,6 +43,8 @@ export class CloudflareKVListValue<Metadata> implements IKVValue<Metadata> {
 }
 
 export class CloudflareKVProvider implements IKVProvider {
+	protected logger = logger("provider-kv-cloudflarekv");
+
 	constructor(protected ns: KVNamespace) {}
 
 	public open(): Promise<void> {

@@ -1,0 +1,16 @@
+{
+	"name": "@baseless/shared",
+	"version": "0.0.1",
+	"license": "AGPLv3",
+	"author": {
+		"email": "michael@baseless.dev",
+		"name": "Michael Grenier",
+		"url": "https://baseless.dev/"
+	},
+	"main": "mod.ts",
+	"dnt": {
+		"shims": {
+			"crypto": true
+		}
+	}
+}

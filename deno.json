@@ -1,8 +1,14 @@
 {
-	"compilerOptions": {
-
+	"compilerOptions": {},
+	"lint": {
+		"files": {
+			"exclude": ["dist/"]
+		}
 	},
 	"fmt": {
+		"files": {
+			"exclude": ["dist/"]
+		},
 		"options": {
 			"useTabs": true,
 			"lineWidth": 120

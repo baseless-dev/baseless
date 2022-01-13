@@ -1,12 +1,17 @@
 {
 	"imports": {
 		"https://baseless.dev/x/client/deno/": "./modules/client/",
+		"https://baseless.dev/x/json-schema/deno/": "./modules/json-schema/",
 		"https://baseless.dev/x/logger/deno/": "./modules/logger/",
 		"https://baseless.dev/x/provider/deno/": "./modules/provider/",
+		"https://baseless.dev/x/provider-auth-on-kv/deno/": "./modules/provider-auth-on-kv/",
+		"https://baseless.dev/x/provider-client-memory/deno/": "./modules/provider-client-memory/",
 		"https://baseless.dev/x/provider-db-on-kv/deno/": "./modules/provider-db-on-kv/",
 		"https://baseless.dev/x/provider-kv-cloudflarekv/deno/": "./modules/provider-kv-cloudflarekv/",
 		"https://baseless.dev/x/provider-kv-sqlite/deno/": "./modules/provider-kv-sqlite/",
+		"https://baseless.dev/x/provider-mail-logger/deno/": "./modules/provider-mail-logger/",
 		"https://baseless.dev/x/provider-mail-sendgrid/deno/": "./modules/provider-mail-sendgrid/",
+		"https://baseless.dev/x/server/deno/": "./modules/server/",
 		"https://baseless.dev/x/shared/deno/": "./modules/shared/"
 	}
 }

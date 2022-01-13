@@ -1,4 +1,5 @@
 import { IKVValue, KVData } from "https://baseless.dev/x/shared/deno/kv.ts";
+import { NoopProviderError } from "./mod.ts";
 
 /**
  * Options when getting a value from the kv
@@ -79,37 +80,34 @@ export interface IKVProvider {
 }
 
 /**
- * Key-value service
+ * Noop KV Provider
  */
-export interface IKVService {
+export class NoopKVProvider implements IKVProvider {
 	/**
 	 * Retrieve a single key
 	 */
-	get<Metadata>(
-		key: string,
-		options?: KVGetOptions,
-	): Promise<IKVValue<Metadata>>;
+	get<Metadata>(): Promise<IKVValue<Metadata>> {
+		return Promise.reject(new NoopProviderError());
+	}
 
 	/**
 	 * Retrieve keys at prefix
 	 */
-	list<Metadata>(
-		prefix: string,
-		filter?: KVScanFilter<Metadata>,
-	): Promise<IKVValue<Metadata>[]>;
+	list<Metadata>(): Promise<IKVValue<Metadata>[]> {
+		return Promise.reject(new NoopProviderError());
+	}
 
 	/**
 	 * Set a key
 	 */
-	set<Metadata>(
-		key: string,
-		metadata: Metadata,
-		data?: KVData,
-		options?: KVSetOptions,
-	): Promise<void>;
+	set(): Promise<void> {
+		return Promise.reject(new NoopProviderError());
+	}
 
 	/**
 	 * Delete a key
 	 */
-	delete(key: string): Promise<void>;
+	delete(): Promise<void> {
+		return Promise.reject(new NoopProviderError());
+	}
 }

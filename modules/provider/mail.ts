@@ -1,4 +1,5 @@
 import { Message } from "https://baseless.dev/x/shared/deno/mail.ts";
+import { NoopProviderError } from "./mod.ts";
 
 /**
  * Mail Provider
@@ -11,11 +12,13 @@ export interface IMailProvider {
 }
 
 /**
- * Mail Service
+ * Noop Mail Provider
  */
-export interface IMailService {
+export class NoopMailProvider implements IMailProvider {
 	/**
 	 * Send a message
 	 */
-	send(message: Message): Promise<void>;
+	public send(): Promise<void> {
+		return Promise.reject(new NoopProviderError());
+	}
 }

@@ -1,11 +1,31 @@
+export enum LogLevel {
+	DEBUG = 'DEBUG',
+	LOG = 'LOG',
+	INFO = 'INFO',
+	WARN = 'WARN',
+	ERROR = 'ERROR',
+	CRITICAL = 'CRITICAL'
+}
+
+export const LogSeverity = {
+	[LogLevel.DEBUG]: 0,
+	[LogLevel.LOG]: 1,
+	[LogLevel.INFO]: 2,
+	[LogLevel.WARN]: 3,
+	[LogLevel.ERROR]: 4,
+	[LogLevel.CRITICAL]: 5
+}
+
 export type Logger = (
 	namespace: string,
-	level: string,
+	level: LogLevel,
 	message: string,
 ) => void;
 
 let globalLogger: Logger = (ns, lvl, msg) => {
-	console.log(`${new Date().toISOString()} [${ns}] ${lvl} ${msg}`);
+	console.log(
+		`${new Date().toISOString()} [${ns}] ${lvl} ${msg}`,
+	);
 };
 
 export function createLogger(logger: Logger) {
@@ -15,19 +35,22 @@ export function createLogger(logger: Logger) {
 export function logger(namespace: string) {
 	return {
 		debug: (message: string) => {
-			globalLogger(namespace, "debug", message);
+			globalLogger(namespace, LogLevel.DEBUG, message);
 		},
 		log: (message: string) => {
-			globalLogger(namespace, "debug", message);
+			globalLogger(namespace, LogLevel.LOG, message);
 		},
 		info: (message: string) => {
-			globalLogger(namespace, "debug", message);
+			globalLogger(namespace, LogLevel.INFO, message);
 		},
 		warn: (message: string) => {
-			globalLogger(namespace, "debug", message);
+			globalLogger(namespace, LogLevel.WARN, message);
 		},
 		error: (message: string) => {
-			globalLogger(namespace, "debug", message);
+			globalLogger(namespace, LogLevel.ERROR, message);
+		},
+		critical: (message: string) => {
+			globalLogger(namespace, LogLevel.CRITICAL, message);
 		},
 	};
 }

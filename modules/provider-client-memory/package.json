@@ -1,0 +1,27 @@
+{
+	"name": "@baseless/provider-client-memory",
+	"version": "0.0.1",
+	"license": "AGPLv3",
+	"author": {
+		"email": "michael@baseless.dev",
+		"name": "Michael Grenier",
+		"url": "https://baseless.dev/"
+	},
+	"main": "mod.ts",
+	"dnt": {
+		"mappings": {
+			"https://baseless.dev/x/provider/deno/client.ts": {
+				"name": "@baseless/provider",
+				"version": "^0.0.1"
+			},
+			"https://baseless.dev/x/logger/deno/mod.ts": {
+				"name": "@baseless/logger",
+				"version": "^0.0.1"
+			}
+		},
+		"redirects": {
+			"https://baseless.dev/x/provider/deno/client.ts": "https://baseless.dev/x/provider/browser/client.js",
+			"https://baseless.dev/x/logger/deno/mod.ts": "https://baseless.dev/x/logger/browser/mod.ts"
+		}
+	}
+}

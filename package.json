@@ -1,11 +1,16 @@
 {
 	"workspaces": [
 		"./dist/client",
+		"./dist/json-schema",
+		"./dist/logger",
 		"./dist/provider",
+		"./dist/provider-auth-on-kv",
+		"./dist/provider-client-memory",
 		"./dist/provider-db-on-kv",
 		"./dist/provider-kv-cloudflarekv",
 		"./dist/provider-kv-sqlite",
 		"./dist/provider-mail-sendgrid",
+		"./dist/server",
 		"./dist/shared"
 	]
 }

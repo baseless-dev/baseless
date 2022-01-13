@@ -1,3 +1,4 @@
+export * from "./auth.ts";
 export * from "./autoid.ts";
 export * from "./database.ts";
 export * from "./kv.ts";

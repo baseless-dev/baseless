@@ -3,6 +3,7 @@ import {
 	DocumentReference,
 } from "https://baseless.dev/x/shared/deno/database.ts";
 import { KVScanFilter, KVSetOptions } from "./kv.ts";
+import { NoopProviderError } from "./mod.ts";
 
 /**
  * Document
@@ -80,46 +81,41 @@ export interface IDatabaseProvider {
 }
 
 /**
- * Database service
+ * Noop Database Provider
  */
-export interface IDatabaseService {
+export class NoopDatabaseProvider implements IDatabaseProvider {
 	/**
-	 * Retrieve a single document from the database
+	 * Retrieve a single document
 	 */
-	get<Metadata, Data>(
-		reference: DocumentReference,
-	): Promise<IDocument<Metadata, Data>>;
+	get<Metadata, Data>(): Promise<IDocument<Metadata, Data>> {
+		return Promise.reject(new NoopProviderError());
+	}
 
 	/**
 	 * Retrieve documents at prefix
 	 */
-	list<Metadata, Data>(
-		reference: CollectionReference,
-		filter?: DatabaseScanFilter<Metadata>,
-	): Promise<IDocument<Metadata, Data>[]>;
+	list<Metadata, Data>(): Promise<IDocument<Metadata, Data>[]> {
+		return Promise.reject(new NoopProviderError());
+	}
 
 	/**
 	 * Create a document
 	 */
-	create<Metadata, Data>(
-		reference: DocumentReference,
-		metadata: Metadata,
-		data?: Data,
-		options?: DatabaseSetOptions,
-	): Promise<void>;
+	create(): Promise<void> {
+		return Promise.reject(new NoopProviderError());
+	}
 
 	/**
 	 * Update a document
 	 */
-	update<Metadata, Data>(
-		reference: DocumentReference,
-		metadata: Partial<Metadata>,
-		data?: Partial<Data>,
-		options?: DatabaseSetOptions,
-	): Promise<void>;
+	update(): Promise<void> {
+		return Promise.reject(new NoopProviderError());
+	}
 
 	/**
 	 * Delete a document
 	 */
-	delete(reference: DocumentReference): Promise<void>;
+	delete(): Promise<void> {
+		return Promise.reject(new NoopProviderError());
+	}
 }

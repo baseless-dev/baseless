@@ -1,0 +1,40 @@
+{
+	"name": "@baseless/client",
+	"version": "0.0.1",
+	"license": "AGPLv3",
+	"author": {
+		"email": "michael@baseless.dev",
+		"name": "Michael Grenier",
+		"url": "https://baseless.dev/"
+	},
+	"main": "mod.ts",
+	"dependencies": {
+		"jose": "4.3.7"
+	},
+	"dnt": {
+		"targets": ["browser", "deno", "node"],
+		"node": {
+			"https://deno.land/x/jose@v4.3.7/key/import.ts": {
+				"name": "jose",
+				"version": "^4.3.7"
+			},
+			"https://deno.land/x/jose@v4.3.7/types.d.ts": {
+				"name": "jose",
+				"version": "^4.3.7"
+			},
+			"https://deno.land/x/jose@v4.3.7/jwt/verify.ts": {
+				"name": "jose",
+				"version": "^4.3.7"
+			},
+			"https://baseless.dev/x/logger/deno/mod.ts": {
+				"name": "@baseless/logger",
+				"version": "^0.0.1"
+			}
+		},
+		"browser": {
+			"https://baseless.dev/x/logger/deno/mod.ts": "https://baseless.dev/x/logger/browser/mod.ts",
+			"https://deno.land/x/jose@v4.3.7/key/import.ts": "https://cdnjs.cloudflare.com/ajax/libs/jose/4.3.7/key/import.js",
+			"https://deno.land/x/jose@v4.3.7/jwt/verify.ts": "https://cdnjs.cloudflare.com/ajax/libs/jose/4.3.7/jwt/verify.js"
+		}
+	}
+}

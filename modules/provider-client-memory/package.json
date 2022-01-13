@@ -9,7 +9,8 @@
 	},
 	"main": "mod.ts",
 	"dnt": {
-		"mappings": {
+		"targets": ["browser", "deno", "node"],
+		"node": {
 			"https://baseless.dev/x/provider/deno/client.ts": {
 				"name": "@baseless/provider",
 				"version": "^0.0.1"
@@ -19,7 +20,7 @@
 				"version": "^0.0.1"
 			}
 		},
-		"redirects": {
+		"browser": {
 			"https://baseless.dev/x/provider/deno/client.ts": "https://baseless.dev/x/provider/browser/client.js",
 			"https://baseless.dev/x/logger/deno/mod.ts": "https://baseless.dev/x/logger/browser/mod.ts"
 		}

@@ -9,7 +9,8 @@
 	},
 	"main": "mod.ts",
 	"dnt": {
-		"mappings": {
+		"targets": ["browser", "deno", "node"],
+		"node": {
 			"https://baseless.dev/x/provider/deno/auth.ts": {
 				"name": "@baseless/provider",
 				"version": "^0.0.1"
@@ -35,7 +36,7 @@
 				"version": "^0.0.1"
 			}
 		},
-		"redirects": {
+		"browser": {
 			"https://baseless.dev/x/provider/deno/auth.ts": "https://baseless.dev/x/provider/browser/auth.js",
 			"https://baseless.dev/x/provider/deno/kv.ts": "https://baseless.dev/x/provider/browser/kv.js",
 			"https://baseless.dev/x/shared/deno/autoid.ts": "https://baseless.dev/x/shared/browser/autoid.ts",

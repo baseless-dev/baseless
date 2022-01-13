@@ -6,15 +6,10 @@ import {
 	fromFileUrl,
 	join,
 	relative,
+	resolve
 } from "https://deno.land/std@0.120.0/path/mod.ts";
 
 const args = parse(Deno.args);
-const supportedRuntime = {
-	"browser": 'Browser (script type="module")',
-	"deno": "Deno",
-	"node-cjs": "Node CommonJS",
-	"node-esm": "Node ES Module",
-};
 
 function printUsage() {
 	console.log(`A universal runtime Typscript builder`);
@@ -38,8 +33,16 @@ if (
 } else {
 	await buildModule("shared");
 	await buildModule("client");
+	await buildModule("logger");
+	await buildModule("json-schema");
 	await buildModule("provider");
-	// await buildPackage("provider-mail-sendgrid");
+	await buildModule("provider-auth-on-kv");
+	await buildModule("provider-client-memory");
+	await buildModule("provider-db-on-kv");
+	await buildModule("provider-kv-cloudflarekv");
+	await buildModule("provider-kv-sqlite");
+	await buildModule("provider-mail-logger");
+	await buildModule("provider-mail-sendgrid");
 }
 
 // deno-lint-ignore no-explicit-any
@@ -69,37 +72,56 @@ async function buildModule(name: string) {
 
 	const realMain = join(src, main);
 
-	await build({
-		entryPoints: [realMain],
-		outDir: dst,
-		typeCheck: false,
-		skipSourceOutput: true,
-		test: false,
-		shims: {
-			deno: false,
-			...(dnt?.shims ?? {}),
-		},
-		mappings: dnt?.mappings ?? {},
-		package: originalPackage,
-	});
+	if (dnt?.targets?.includes("node")) {
+		// await build({
+		// 	entryPoints: [realMain],
+		// 	outDir: dst,
+		// 	typeCheck: false,
+		// 	skipSourceOutput: true,
+		// 	test: false,
+		// 	shims: {
+		// 		deno: false,
+		// 		...(dnt?.shims ?? {}),
+		// 	},
+		// 	mappings: dnt?.node ?? {},
+		// 	package: originalPackage,
+		// });
+	}
 
-	console.log("[dbt] Emitting browser ESM modules...");
-	await buildBrowser(realMain, dnt?.importMap ?? {}, join(dst, "browser"));
+	if (dnt?.targets?.includes("browser")) {
+		console.log("[dbt] Emitting browser ESM modules...");
+		await buildBrowser(realMain, dnt?.browser ?? {}, join(dst, "browser"));
+	}
 
-	console.log("[dbt] Emitting Deno modules...");
-	await buildDeno(src, join(dst, "deno"));
+	if (dnt?.targets?.includes("deno")) {
+		console.log("[dbt] Emitting Deno modules...");
+		await buildDeno(src, join(dst, "deno"));
+	}
 
-	console.log("[dbt] Adding Deno and browser export to package.json...");
-	const outPkg = await readPackage(`${dst}/package.json`);
-	outPkg["deno"] = outPkg["exports"]["."]["deno"] = "./deno/mod.ts";
-	outPkg["browser"] = outPkg["exports"]["."]["browser"] = "./browser/mod.js";
-	await Deno.writeFile(
-		`${dst}/package.json`,
-		new TextEncoder().encode(JSON.stringify(outPkg, undefined, `\t`)),
-	);
-
-	console.log("[dbt] Removing node_modules...");
-	await Deno.remove(join(dst, "node_modules"), { recursive: true });
+	if (dnt?.targets?.includes("node")) {
+		console.log("[dbt] Adding Deno and browser export to package.json...");
+		let outPkg = await readPackage(`${dst}/package.json`).catch(_ => {
+			const { dnt, ...rest } = pkg;
+			return rest;
+		});
+		outPkg = {
+			...outPkg,
+			deno: "./deno/mod.ts",
+			browser: "./browser/mod.js",
+			exports: {
+				...outPkg?.exports,
+				".": {
+					...outPkg?.exports?.["."],
+					deno: "./deno/mod.ts",
+					browser: "./browser/mod.js",
+				}
+			}
+		};
+		await Deno.writeFile(
+			`${dst}/package.json`,
+			new TextEncoder().encode(JSON.stringify(outPkg, undefined, `\t`)),
+		);
+	}
 
 	console.log("[dbt] Complete!");
 }
@@ -110,6 +132,7 @@ async function buildBrowser(
 	outDir: string,
 ) {
 	const { files: emitFiles } = await Deno.emit(main, {
+		importMapPath: "./import-map.json",
 		compilerOptions: {
 			sourceMap: false,
 		},
@@ -117,10 +140,11 @@ async function buildBrowser(
 
 	const files: Record<string, string> = {};
 
+	const root = resolve(dirname(main));
 	for (let [path, content] of Object.entries(emitFiles)) {
 		try {
 			path = fromFileUrl(path);
-			if (!path.match(/\.js\.map$/)) {
+			if (!path.match(/\.js\.map$/) && relative(root, path).substring(0, 2) !== "..") {
 				// TODO use TS compiler API to properly visit import/export statement
 
 				path = relative(dirname(main), path).replace(/\.ts\.js$/, ".js");

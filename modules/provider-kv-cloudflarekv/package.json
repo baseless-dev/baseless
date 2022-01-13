@@ -9,7 +9,8 @@
 	},
 	"main": "mod.ts",
 	"dnt": {
-		"mappings": {
+		"targets": ["deno"],
+		"node": {
 			"https://baseless.dev/x/shared/deno/kv.ts": {
 				"name": "@baseless/shared",
 				"version": "^0.0.1"
@@ -23,7 +24,7 @@
 				"version": "^0.0.1"
 			}
 		},
-		"redirects": {
+		"browser": {
 			"https://baseless.dev/x/shared/deno/kv.ts": "https://baseless.dev/x/shared/browser/kv.ts",
 			"https://baseless.dev/x/provider/deno/kv.ts": "https://baseless.dev/x/provider/browser/kv.js",
 			"https://baseless.dev/x/logger/deno/mod.ts": "https://baseless.dev/x/logger/browser/mod.ts"

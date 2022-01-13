@@ -7,5 +7,8 @@
 		"name": "Jeremy Danyow",
 		"url": "https://github.com/cfworker/cfworker/blob/main/packages/json-schema/README.md"
 	},
-	"main": "mod.ts"
+	"main": "mod.ts",
+	"dnt": {
+		"targets": ["browser", "deno", "node"]
+	}
 }

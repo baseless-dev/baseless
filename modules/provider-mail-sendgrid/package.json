@@ -9,7 +9,8 @@
 	},
 	"main": "mod.ts",
 	"dnt": {
-		"mappings": {
+		"targets": ["browser", "deno", "node"],
+		"node": {
 			"https://baseless.dev/x/shared/deno/mail.ts": {
 				"name": "@baseless/shared",
 				"version": "^0.0.1"
@@ -23,7 +24,7 @@
 				"version": "^0.0.1"
 			}
 		},
-		"redirects": {
+		"browser": {
 			"https://baseless.dev/x/shared/deno/mail.ts": "https://baseless.dev/x/shared/browser/mail.js",
 			"https://baseless.dev/x/provider/deno/mail.ts": "https://baseless.dev/x/provider/browser/mail.js",
 			"https://baseless.dev/x/logger/deno/mod.ts": "https://baseless.dev/x/logger/browser/mod.ts"

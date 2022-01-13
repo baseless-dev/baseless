@@ -47,7 +47,7 @@ jobs:
         run: |
           echo "[" > artifacts/payload.json
 
-          for path in $(find . -mindepth 2 -type f -path "./dist*" -not -name "package.json" 2>/dev/null); do
+          for path in $(find ./dist -type f -path "./dist/*/deno/*" -or -path "./dist/*/browser/*" 2>/dev/null); do
             module=$(echo "$path" | cut -d "/" -f3)
             pathname=$(echo "$path" | cut -d "/" -f4-)
             key=$module@$GITHUB_REF_NAME/$pathname

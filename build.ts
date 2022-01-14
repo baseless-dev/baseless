@@ -1,18 +1,22 @@
 import { parse } from "https://deno.land/std@0.120.0/flags/mod.ts";
 import { expandGlob } from "https://deno.land/std@0.120.0/fs/expand_glob.ts";
-import { build } from "https://deno.land/x/dnt/mod.ts";
 import {
+	basename,
 	dirname,
 	fromFileUrl,
 	join,
 	relative,
-	resolve
+	resolve,
 } from "https://deno.land/std@0.120.0/path/mod.ts";
+import {
+	createProject,
+	ts,
+} from "https://deno.land/x/ts_morph/bootstrap/mod.ts";
 
 const args = parse(Deno.args);
 
 function printUsage() {
-	console.log(`A universal runtime Typscript builder`);
+	console.log(`A universal Typscript builder`);
 	console.log(``);
 	console.log(
 		`USAGE:\n  deno run --unstable -A build.ts`,
@@ -24,164 +28,382 @@ function printUsage() {
 	);
 }
 
-const help = !!args.help;
+await Deno.permissions.request({ name: "read" });
+await Deno.permissions.request({ name: "write" });
 
-if (
-	help
-) {
+// deno-lint-ignore no-extra-boolean-cast
+if (!!args.help) {
 	printUsage();
 } else {
-	await buildModule("shared");
-	await buildModule("client");
-	await buildModule("logger");
-	await buildModule("json-schema");
-	await buildModule("provider");
-	await buildModule("provider-auth-on-kv");
-	await buildModule("provider-client-memory");
-	await buildModule("provider-db-on-kv");
-	await buildModule("provider-kv-cloudflarekv");
-	await buildModule("provider-kv-sqlite");
-	await buildModule("provider-mail-logger");
-	await buildModule("provider-mail-sendgrid");
-}
-
-// deno-lint-ignore no-explicit-any
-async function readPackage(path: string): Promise<any> {
-	try {
-		return JSON.parse(await readFileAsString(path));
-	} catch (err) {
-		throw new Error(`Could not load package.json file at ${path}, got ${err}`);
-	}
-}
-
-async function readFileAsString(path: string): Promise<string> {
-	const buffer = await Deno.readFile(path);
-	const str = new TextDecoder().decode(buffer);
-	return str;
-}
-
-async function buildModule(name: string) {
-	const src = `./modules/${name}`;
-	const dst = `./dist/${name}`;
-
-	const pkg = await readPackage(`${src}/package.json`);
-
-	await Deno.remove(dst, { recursive: true }).catch((_) => {});
-
-	const { main, scripts, dnt, ...originalPackage } = pkg;
-
-	const realMain = join(src, main);
-
-	if (dnt?.targets?.includes("node")) {
-		// await build({
-		// 	entryPoints: [realMain],
-		// 	outDir: dst,
-		// 	typeCheck: false,
-		// 	skipSourceOutput: true,
-		// 	test: false,
-		// 	shims: {
-		// 		deno: false,
-		// 		...(dnt?.shims ?? {}),
-		// 	},
-		// 	mappings: dnt?.node ?? {},
-		// 	package: originalPackage,
-		// });
-	}
-
-	if (dnt?.targets?.includes("browser")) {
-		console.log("[dbt] Emitting browser ESM modules...");
-		await buildBrowser(realMain, dnt?.browser ?? {}, join(dst, "browser"));
-	}
-
-	if (dnt?.targets?.includes("deno")) {
-		console.log("[dbt] Emitting Deno modules...");
-		await buildDeno(src, join(dst, "deno"));
-	}
-
-	if (dnt?.targets?.includes("node")) {
-		console.log("[dbt] Adding Deno and browser export to package.json...");
-		let outPkg = await readPackage(`${dst}/package.json`).catch(_ => {
-			const { dnt, ...rest } = pkg;
-			return rest;
-		});
-		outPkg = {
-			...outPkg,
-			deno: "./deno/mod.ts",
-			browser: "./browser/mod.js",
-			exports: {
-				...outPkg?.exports,
-				".": {
-					...outPkg?.exports?.["."],
-					deno: "./deno/mod.ts",
-					browser: "./browser/mod.js",
-				}
-			}
-		};
-		await Deno.writeFile(
-			`${dst}/package.json`,
-			new TextEncoder().encode(JSON.stringify(outPkg, undefined, `\t`)),
-		);
-	}
-
-	console.log("[dbt] Complete!");
-}
-
-async function buildBrowser(
-	main: string,
-	importMap: Record<string, string>,
-	outDir: string,
-) {
-	const { files: emitFiles } = await Deno.emit(main, {
-		importMapPath: "./import-map.json",
-		compilerOptions: {
-			sourceMap: false,
-		},
-	});
-
-	const files: Record<string, string> = {};
-
-	const root = resolve(dirname(main));
-	for (let [path, content] of Object.entries(emitFiles)) {
-		try {
-			path = fromFileUrl(path);
-			if (!path.match(/\.js\.map$/) && relative(root, path).substring(0, 2) !== "..") {
-				// TODO use TS compiler API to properly visit import/export statement
-
-				path = relative(dirname(main), path).replace(/\.ts\.js$/, ".js");
-				for (const [key, value] of Object.entries(importMap)) {
-					content = content.replace(new RegExp(`"${key}`, "g"), `"${value}`);
-				}
-				content = content.replace(/\.ts"/g, `.js"`);
-				files[path] = content;
-			}
-		} catch (_) {}
-	}
-
-	await Deno.remove(outDir, { recursive: true }).catch((_) => {});
-
-	const output: Record<string, string> = {};
-
-	const encoder = new TextEncoder();
-	for await (const [path, content] of Object.entries(files)) {
-		const dest = join(outDir, path);
-		await Deno.mkdir(dirname(dest), { recursive: true });
-		await Deno.writeFile(dest, encoder.encode(content));
-		output[dest] = content;
-	}
-
-	return output;
-}
-
-async function buildDeno(
-	src: string,
-	dst: string,
-) {
+	const cwd = Deno.cwd();
+	const project = await createProject({ useInMemoryFileSystem: true });
+	const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
 	for await (
-		const entry of expandGlob(join(src, "**/*.{ts,tsx,js,mjs,jsx,json}"))
+		const entry of expandGlob("*/package.json", { root: "./modules" })
 	) {
-		const dest = join(dst, relative(src, entry.path));
-		await Deno.mkdir(dirname(dest), { recursive: true });
-		await Deno.copyFile(entry.path, dest);
+		let buffer: Uint8Array;
+		let json: Record<string, unknown>;
+		try {
+			buffer = await Deno.readFile(entry.path);
+			json = JSON.parse(new TextDecoder().decode(buffer));
+		} catch (_err) {
+			continue;
+		}
+
+		if (!json.name || !json.main) {
+			continue;
+		}
+
+		const root = relative(cwd, dirname(entry.path));
+		const name = basename(root);
+		console.log(`Building module ${name}...`);
+
+		const main = join(root, json.main as string);
+
+		const universalBuild: {
+			targets?: string[];
+			node?: Record<string, string>;
+			browser?: Record<string, string>;
+		} = json.universalBuild as any ?? {};
+
+		const targets: string[] = universalBuild.targets ?? [];
+
+		const nodeMappings = Object.entries(universalBuild.node ?? {}).map(
+			([key, pkg]: [string, string]) => {
+				const parts = pkg.split("@");
+				return [
+					new RegExp(key),
+					parts.slice(0, -1).join("@"),
+					parts.pop()!,
+				] as const;
+			},
+		);
+
+		const browserMappings = Object.entries(universalBuild.browser ?? {}).map((
+			[key, val]: [string, string],
+		) => ([new RegExp(key), val] as const));
+
+		const nodeDependencies = new Set<string>();
+
+		// Build browser
+		if (targets.includes("browser")) {
+			console.debug(`  Transpiling browser modules...`);
+			const outDir = join("./dist", name, "browser");
+			await Deno.remove(outDir, { recursive: true }).catch((_) => {});
+
+			const { files } = await Deno.emit(main, {
+				importMapPath: "./import-map.json",
+				compilerOptions: { sourceMap: false, target: "esnext" },
+			});
+
+			const filteredFiles = Object.entries(files).reduce(
+				(map, [key, content]) => {
+					const url = new URL(key);
+					if (url.protocol === "file:") {
+						const path = relative(root, fromFileUrl(url));
+						if (
+							!path.substring(0, 3).match(/^\.\.[\\/]?/) && path.match(/\.js$/)
+						) {
+							map[path] = content;
+						}
+					}
+					return map;
+				},
+				{} as Record<string, string>,
+			);
+
+			for (const [path, content] of Object.entries(filteredFiles)) {
+				const dest = join(outDir, path.replace(/\.ts\.js$/, ".js"));
+				const sourceFile = ts.createSourceFile(
+					basename(path),
+					content,
+					ts.ScriptTarget.Latest,
+				);
+				ts.forEachChild(sourceFile, function visit(node) {
+					if (
+						(ts.isImportDeclaration(node) ||
+							ts.isExportDeclaration(node)) &&
+						node.moduleSpecifier &&
+						ts.isStringLiteral(node.moduleSpecifier)
+					) {
+						for (const [pattern, pkg] of browserMappings) {
+							if (pattern.test(node.moduleSpecifier.text)) {
+								node.moduleSpecifier.text = pkg;
+								break;
+							}
+						}
+						node.moduleSpecifier.text = node.moduleSpecifier.text.replace(
+							/\.ts$/,
+							".js",
+						);
+					}
+					ts.forEachChild(node, visit);
+				});
+				const out = printer.printFile(sourceFile).replace(
+					/\/\/\/ <amd-module name="[^"]*" \/>\s*/g,
+					"",
+				);
+				await Deno.mkdir(dirname(dest), { recursive: true });
+				await Deno.writeFile(dest, new TextEncoder().encode(out));
+			}
+		}
+
+		// Build Deno
+		if (targets.includes("deno")) {
+			console.debug(`  Copying Deno modules...`);
+			const outDir = join("./dist", name, "deno");
+			await Deno.remove(outDir, { recursive: true }).catch((_) => {});
+
+			for await (
+				const entry of expandGlob(join(root, "**/*.{ts,tsx,js,mjs,jsx}"))
+			) {
+				const dest = join(outDir, relative(root, entry.path));
+				await Deno.mkdir(dirname(dest), { recursive: true });
+				await Deno.copyFile(entry.path, dest);
+			}
+		}
+
+		// // Build types
+		// if (targets.includes("node")) {
+		// 	console.debug(`  Transpiling types...`);
+		// 	const outDir = join("./dist", name, "types");
+		// 	await Deno.remove(outDir, { recursive: true }).catch((_) => {});
+
+		// 	const { files } = await Deno.emit(main, {
+		// 		importMapPath: "./import-map.json",
+		// 		compilerOptions: { emitDeclarationOnly: true, declaration: true },
+		// 	});
+
+		// 	const filteredFiles = Object.entries(files).reduce(
+		// 		(map, [key, content]) => {
+		// 			if (key.match(/\.ts\.d\.ts$/)) {
+		// 				const url = new URL(key);
+		// 				if (url.protocol === "file:") {
+		// 					const path = relative(root, fromFileUrl(url));
+		// 					if (!path.substring(0, 3).match(/^\.\.[\\/]?/)) {
+		// 						map[path] = content;
+		// 					}
+		// 				}
+		// 			}
+		// 			return map;
+		// 		},
+		// 		{} as Record<string, string>,
+		// 	);
+
+		// 	for (const [path, content] of Object.entries(filteredFiles)) {
+		// 		const dest = join(outDir, path.replace(/\.ts\.d\.ts$/, ".d.ts"));
+		// 		const sourceFile = ts.createSourceFile(
+		// 			basename(path),
+		// 			content,
+		// 			ts.ScriptTarget.Latest,
+		// 		);
+		// 		ts.forEachChild(sourceFile, function visit(node) {
+		// 			if (
+		// 				(ts.isImportDeclaration(node) ||
+		// 					ts.isExportDeclaration(node)) &&
+		// 				node.moduleSpecifier &&
+		// 				ts.isStringLiteral(node.moduleSpecifier)
+		// 			) {
+		// 				for (const [pattern, pkg, ver] of nodeMappings) {
+		// 					if (pattern.test(node.moduleSpecifier.text)) {
+		// 						node.moduleSpecifier.text = pkg;
+		// 						nodeDependencies.add(pkg + "@" + ver);
+		// 						break;
+		// 					}
+		// 				}
+		// 				node.moduleSpecifier.text = node.moduleSpecifier.text.replace(
+		// 					/\.ts$/,
+		// 					".js",
+		// 				);
+		// 			} else if (
+		// 				node.kind === ts.SyntaxKind.LastTypeNode &&
+		// 				ts.isLiteralTypeNode((node as any).argument) &&
+		// 				ts.isStringLiteral((node as any).argument.literal)
+		// 			) {
+		// 				for (const [pattern, pkg, ver] of nodeMappings) {
+		// 					if (pattern.test((node as any).argument.literal.text)) {
+		// 						(node as any).argument.literal.text = pkg;
+		// 						nodeDependencies.add(pkg + "@" + ver);
+		// 						break;
+		// 					}
+		// 				}
+		// 				(node as any).argument.literal.text = (node as any).argument
+		// 					.literal.text.replace(
+		// 						/\.ts$/,
+		// 						".js",
+		// 					);
+		// 			}
+		// 			ts.forEachChild(node, visit);
+		// 		});
+		// 		const out = printer.printFile(sourceFile).replace(
+		// 			/\/\/\/ <amd-module name="[^"]*" \/>\s*/g,
+		// 			"",
+		// 		);
+		// 		await Deno.mkdir(dirname(dest), { recursive: true });
+		// 		await Deno.writeFile(dest, new TextEncoder().encode(out));
+		// 	}
+		// }
+
+		// // Build Nodejs ESM
+		// if (targets.includes("node")) {
+		// 	console.debug(`  Transpiling Nodejs ESM modules...`);
+		// 	const outDir = join("./dist", name, "node/esm");
+		// 	await Deno.remove(outDir, { recursive: true }).catch((_) => {});
+
+		// 	const { files } = await Deno.emit(main, {
+		// 		importMapPath: "./import-map.json",
+		// 		compilerOptions: {
+		// 			sourceMap: false,
+		// 			declaration: false,
+		// 			emitDeclarationOnly: false,
+		// 			target: "esnext",
+		// 			module: "esnext",
+		// 		},
+		// 	});
+
+		// 	const filteredFiles = Object.entries(files).reduce(
+		// 		(map, [key, content]) => {
+		// 			if (key.match(/\.ts\.js$/)) {
+		// 				const url = new URL(key);
+		// 				if (url.protocol === "file:") {
+		// 					const path = relative(root, fromFileUrl(url));
+		// 					if (!path.substring(0, 3).match(/^\.\.[\\/]?/)) {
+		// 						map[path] = content;
+		// 					}
+		// 				}
+		// 			}
+		// 			return map;
+		// 		},
+		// 		{} as Record<string, string>,
+		// 	);
+
+		// 	for (const [path, content] of Object.entries(filteredFiles)) {
+		// 		const dest = join(outDir, path.replace(/\.ts\.js$/, ".js"));
+		// 		const sourceFile = ts.createSourceFile(
+		// 			basename(path),
+		// 			content,
+		// 			ts.ScriptTarget.Latest,
+		// 		);
+		// 		ts.forEachChild(sourceFile, function visit(node) {
+		// 			if (
+		// 				(ts.isImportDeclaration(node) ||
+		// 					ts.isExportDeclaration(node)) &&
+		// 				node.moduleSpecifier &&
+		// 				ts.isStringLiteral(node.moduleSpecifier)
+		// 			) {
+		// 				for (const [pattern, pkg, ver] of nodeMappings) {
+		// 					if (pattern.test(node.moduleSpecifier.text)) {
+		// 						node.moduleSpecifier.text = pkg;
+		// 						nodeDependencies.add(pkg + "@" + ver);
+		// 						break;
+		// 					}
+		// 				}
+		// 				node.moduleSpecifier.text = node.moduleSpecifier.text.replace(
+		// 					/\.ts$/,
+		// 					"",
+		// 				);
+		// 			}
+		// 			ts.forEachChild(node, visit);
+		// 		});
+		// 		const out = printer.printFile(sourceFile).replace(
+		// 			/\/\/\/ <amd-module name="[^"]*" \/>\s*/g,
+		// 			"",
+		// 		);
+		// 		await Deno.mkdir(dirname(dest), { recursive: true });
+		// 		await Deno.writeFile(dest, new TextEncoder().encode(out));
+		// 		await Deno.writeFile(
+		// 			join(outDir, "package.json"),
+		// 			new TextEncoder().encode(`{ "type": "module" }`),
+		// 		);
+		// 	}
+		// }
+
+		// // Build Nodejs CJS
+		// if (targets.includes("node")) {
+		// 	console.debug(`  Transpiling Nodejs CJS modules...`);
+		// 	const outDir = join("./dist", name, "node/cjs");
+		// 	await Deno.remove(outDir, { recursive: true }).catch((_) => {});
+
+		// 	const { files } = await Deno.emit(main, {
+		// 		importMapPath: "./import-map.json",
+		// 		compilerOptions: {
+		// 			sourceMap: false,
+		// 			declaration: false,
+		// 			emitDeclarationOnly: false,
+		// 			target: "es2015",
+		// 			module: "commonjs",
+		// 		},
+		// 	});
+
+		// 	const filteredFiles = Object.entries(files).reduce(
+		// 		(map, [key, content]) => {
+		// 			if (key.match(/\.ts\.js$/)) {
+		// 				const url = new URL(key);
+		// 				if (url.protocol === "file:") {
+		// 					const path = relative(root, fromFileUrl(url));
+		// 					if (!path.substring(0, 3).match(/^\.\.[\\/]?/)) {
+		// 						map[path] = content;
+		// 					}
+		// 				}
+		// 			}
+		// 			return map;
+		// 		},
+		// 		{} as Record<string, string>,
+		// 	);
+
+		// 	for (const [path, content] of Object.entries(filteredFiles)) {
+		// 		const dest = join(outDir, path.replace(/\.ts\.js$/, ".js"));
+		// 		const sourceFile = ts.createSourceFile(
+		// 			basename(path),
+		// 			content,
+		// 			ts.ScriptTarget.Latest,
+		// 		);
+		// 		ts.forEachChild(sourceFile, function visit(node) {
+		// 			if (
+		// 				ts.isCallExpression(node) && ts.isIdentifier(node.expression) &&
+		// 				node.expression.escapedText === "require"
+		// 			) {
+		// 				for (const arg of node.arguments) {
+		// 					if (ts.isStringLiteral(arg)) {
+		// 						const url = new URL(arg.text);
+		// 						if (url.protocol === "file:") {
+		// 							arg.text = relative(root, fromFileUrl(url));
+		// 						}
+		// 						for (const [pattern, pkg, ver] of nodeMappings) {
+		// 							if (pattern.test(arg.text)) {
+		// 								arg.text = pkg;
+		// 								nodeDependencies.add(pkg + "@" + ver);
+		// 							}
+		// 							break;
+		// 						}
+		// 						arg.text = arg.text.replace(
+		// 							/\.ts$/,
+		// 							".js",
+		// 						);
+		// 					}
+		// 				}
+		// 			}
+		// 			ts.forEachChild(node, visit);
+		// 		});
+		// 		const out = printer.printFile(sourceFile).replace(
+		// 			/\/\/\/ <amd-module name="[^"]*" \/>\s*/g,
+		// 			"",
+		// 		);
+		// 		await Deno.mkdir(dirname(dest), { recursive: true });
+		// 		await Deno.writeFile(dest, new TextEncoder().encode(out));
+		// 		await Deno.writeFile(
+		// 			join(outDir, "package.json"),
+		// 			new TextEncoder().encode(`{ "type": "commonjs" }`),
+		// 		);
+		// 	}
+		// }
+
+		// // Build package.json
+		// if (targets.includes("node")) {
+		// 	console.log(
+		// 		`  Dependencies ${Array.from(nodeDependencies).join(", ")}`,
+		// 	);
+		// }
 	}
-	await Deno.remove(join(dst, "package.json")).catch((_) => {});
+	console.log("Done!");
 }

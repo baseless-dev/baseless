@@ -1,10 +1,10 @@
 export enum LogLevel {
-	DEBUG = 'DEBUG',
-	LOG = 'LOG',
-	INFO = 'INFO',
-	WARN = 'WARN',
-	ERROR = 'ERROR',
-	CRITICAL = 'CRITICAL'
+	DEBUG = "DEBUG",
+	LOG = "LOG",
+	INFO = "INFO",
+	WARN = "WARN",
+	ERROR = "ERROR",
+	CRITICAL = "CRITICAL",
 }
 
 export const LogSeverity = {
@@ -13,8 +13,8 @@ export const LogSeverity = {
 	[LogLevel.INFO]: 2,
 	[LogLevel.WARN]: 3,
 	[LogLevel.ERROR]: 4,
-	[LogLevel.CRITICAL]: 5
-}
+	[LogLevel.CRITICAL]: 5,
+};
 
 export type Logger = (
 	namespace: string,

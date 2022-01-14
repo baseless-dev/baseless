@@ -7,7 +7,7 @@ export type MessageTemplate = Omit<Message, "to">;
 
 export type LocalizedMessageHandler<Data> = (
 	context: Context,
-	data: Data
+	data: Data,
 ) => MessageTemplate;
 
 export type LocalizedMessageTemplate<Data> = Record<
@@ -48,8 +48,8 @@ export class Client {
 		 * Client templates
 		 */
 		public templates?: {
-			validation: LocalizedMessageTemplate<{ code: string; }>;
-			passwordReset: LocalizedMessageTemplate<{ code: string; }>;
+			validation: LocalizedMessageTemplate<{ code: string }>;
+			passwordReset: LocalizedMessageTemplate<{ code: string }>;
 		},
 	) {}
 }

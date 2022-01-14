@@ -8,7 +8,7 @@
 		"url": "https://baseless.dev/"
 	},
 	"main": "mod.ts",
-	"dnt": {
+	"universalBuild": {
 		"targets": ["browser", "deno", "node"]
 	}
 }

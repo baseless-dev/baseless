@@ -8,33 +8,12 @@
 		"url": "https://baseless.dev/"
 	},
 	"main": "mod.ts",
-	"dnt": {
+	"universalBuild": {
 		"targets": ["browser", "deno", "node"],
 		"node": {
-			"https://baseless.dev/x/provider/deno/auth.ts": {
-				"name": "@baseless/provider",
-				"version": "^0.0.1"
-			},
-			"https://baseless.dev/x/provider/deno/kv.ts": {
-				"name": "@baseless/provider",
-				"version": "^0.0.1"
-			},
-			"https://baseless.dev/x/shared/deno/autoid.ts": {
-				"name": "@baseless/shared",
-				"version": "^0.0.1"
-			},
-			"https://baseless.dev/x/shared/deno/auth.ts": {
-				"name": "@baseless/shared",
-				"version": "^0.0.1"
-			},
-			"https://baseless.dev/x/shared/deno/kv.ts": {
-				"name": "@baseless/shared",
-				"version": "^0.0.1"
-			},
-			"https://baseless.dev/x/logger/deno/mod.ts": {
-				"name": "@baseless/logger",
-				"version": "^0.0.1"
-			}
+			"https://baseless.dev/x/provider/*": "@baseless/provider@^0.0.1",
+			"https://baseless.dev/x/shared/*": "@baseless/shared@^0.0.1",
+			"https://baseless.dev/x/logger/*": "@baseless/logger@^0.0.1"
 		},
 		"browser": {
 			"https://baseless.dev/x/provider/deno/auth.ts": "https://baseless.dev/x/provider/browser/auth.js",

@@ -1,5 +1,5 @@
 import {
-IAuthProvider,
+	IAuthProvider,
 	IClientProvider,
 	IDatabaseProvider,
 	IKVProvider,
@@ -18,7 +18,10 @@ import { Commands, Result, Results, validator } from "./schema.ts";
 import { AuthIdentifier } from "https://baseless.dev/x/shared/deno/auth.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
 import { Context } from "https://baseless.dev/x/provider/deno/context.ts";
-import { collection, doc } from "https://baseless.dev/x/shared/deno/database.ts";
+import {
+	collection,
+	doc,
+} from "https://baseless.dev/x/shared/deno/database.ts";
 
 export class Server {
 	private logger = logger("server");

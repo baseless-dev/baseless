@@ -8,9 +8,10 @@
 		"url": "https://baseless.dev/"
 	},
 	"main": "mod.ts",
-	"dnt": {
+	"universalBuild": {
 		"shims": {
 			"crypto": true
-		}
+		},
+		"targets": ["browser", "deno", "node"]
 	}
 }

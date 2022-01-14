@@ -8,7 +8,7 @@
 		"url": "https://github.com/cfworker/cfworker/blob/main/packages/json-schema/README.md"
 	},
 	"main": "mod.ts",
-	"dnt": {
+	"universalBuild": {
 		"targets": ["browser", "deno", "node"]
 	}
 }

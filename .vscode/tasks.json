@@ -19,6 +19,13 @@
 			"isBackground": true,
 			"group": "test",
 			"label": "deno: lint --watch"
+		},
+		{
+			"type": "deno",
+			"command": "run",
+			"args": ["--unstable", "-A", "build.ts", "--watch"],
+			"isBackground": true,
+			"label": "deno: build.ts --watch"
 		}
 	]
 }

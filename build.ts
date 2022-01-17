@@ -12,29 +12,9 @@ import {
 	createProject,
 	ts,
 } from "https://deno.land/x/ts_morph/bootstrap/mod.ts";
+import { debounce } from "https://deno.land/std@0.121.0/async/debounce.ts";
 
-const args = parse(Deno.args);
-
-function printUsage() {
-	console.log(`A universal Typscript builder`);
-	console.log(``);
-	console.log(
-		`USAGE:\n  deno run --unstable -A build.ts`,
-	);
-	console.log(``);
-	console.log(`OPTIONS:`);
-	console.log(
-		`  --help                   Print help information`,
-	);
-}
-
-await Deno.permissions.request({ name: "read" });
-await Deno.permissions.request({ name: "write" });
-
-// deno-lint-ignore no-extra-boolean-cast
-if (!!args.help) {
-	printUsage();
-} else {
+export async function build() {
 	const cwd = Deno.cwd();
 	const project = await createProject({ useInMemoryFileSystem: true });
 	const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
@@ -406,4 +386,55 @@ if (!!args.help) {
 		// }
 	}
 	console.log("Done!");
+}
+
+const args = parse(Deno.args);
+
+function printUsage() {
+	console.log(`A universal Typscript builder`);
+	console.log(``);
+	console.log(
+		`USAGE:\n  deno run --unstable -A build.ts`,
+	);
+	console.log(``);
+	console.log(`OPTIONS:`);
+	console.log(
+		`  --help                   Print help information`,
+		`  --watch                  Watch for changes and rebuild`,
+	);
+}
+
+if (import.meta.main) {
+	await Deno.permissions.request({ name: "read" });
+	await Deno.permissions.request({ name: "read", path: "./modules" });
+	await Deno.permissions.request({ name: "write", path: "./dist" });
+	await Deno.permissions.request({ name: "net" });
+
+	// deno-lint-ignore no-extra-boolean-cast
+	if (!!args.help) {
+		printUsage();
+	} else {
+		if (!!args.watch) {
+			const watcher = Deno.watchFs("./modules", { recursive: true });
+
+			let building = false;
+			const handle = debounce(async () => {
+				console.log("Changes detected, rebuilding...");
+				if (!building) {
+					building = true;
+					await build();
+					building = false;
+				}
+			}, 200);
+
+			console.log("Watching for changes...");
+			for await (const event of watcher) {
+				if (["create", "modify", "remove"].includes(event.kind)) {
+					handle();
+				}
+			}
+		} else {
+			await build();
+		}
+	}
 }

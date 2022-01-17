@@ -56,9 +56,23 @@ export class Server {
 	public async handle(
 		request: Request,
 	): Promise<[Response, PromiseLike<unknown>[]]> {
+		const responseInit: ResponseInit = {
+			headers: {
+				"Access-Control-Allow-Origin": "*",
+				"Access-Control-Allow-Headers":
+					"Origin, Authorization, Content-Type, X-BASELESS-CLIENT-ID",
+			},
+		};
+
 		// Request must include a clientid in it's header
 		if (!request.headers.has("X-BASELESS-CLIENT-ID")) {
-			return [new Response(null, { status: 401 }), []];
+			return [
+				new Response(null, {
+					...responseInit,
+					status: 401,
+				}),
+				[],
+			];
 		}
 
 		const client_id = request.headers.get("X-BASELESS-CLIENT-ID") ?? "";
@@ -67,8 +81,35 @@ export class Server {
 		// Clientid must match a registered client
 		if (!client) {
 			this.logger.info(`Client ID "${client_id}" not found.`);
-			return [new Response(null, { status: 401 }), []];
+			return [
+				new Response(null, {
+					...responseInit,
+					status: 401,
+				}),
+				[],
+			];
 		}
+
+		const originUrl = request.headers.get("Origin");
+
+		// Request's Origin be in client's url
+		if (!originUrl || !client.url.some((url) => url.indexOf(originUrl) > -1)) {
+			this.logger.info(
+				`Request's Origin not allowed for client "${client_id}".`,
+			);
+			return [
+				new Response(null, {
+					...responseInit,
+					status: 401,
+				}),
+				[],
+			];
+		}
+
+		responseInit.headers = {
+			...responseInit.headers,
+			"Access-Control-Allow-Origin": originUrl,
+		};
 
 		let currentUserId: AuthIdentifier | undefined;
 		if (request.headers.get("Authorization")) {
@@ -109,18 +150,38 @@ export class Server {
 		const url = new URL(request.url);
 		this.logger.info(`${request.method} ${url.pathname}`);
 
+		if (request.method === "OPTIONS") {
+			return [
+				new Response(null, {
+					...responseInit,
+					status: 200,
+				}),
+				waitUntilCollection,
+			];
+		}
+
 		if (url.pathname.length > 1) {
 			const fnName = url.pathname.substring(1);
 			if (this.functionsHttpMap.has(fnName)) {
 				try {
 					const onCall = this.functionsHttpMap.get(fnName)!;
-					const response = await onCall(request, context);
+					const result = await onCall(request, context);
+					const response = new Response(result.body, {
+						...responseInit,
+						headers: { ...responseInit.headers, ...result.headers },
+					});
 					return [response, waitUntilCollection];
 				} catch (_err) {
-					return [new Response(null, { status: 500 }), waitUntilCollection];
+					return [
+						new Response(null, { ...responseInit, status: 500 }),
+						waitUntilCollection,
+					];
 				}
 			}
-			return [new Response(null, { status: 405 }), waitUntilCollection];
+			return [
+				new Response(null, { ...responseInit, status: 405 }),
+				waitUntilCollection,
+			];
 		}
 
 		let commands: Commands | undefined;
@@ -136,7 +197,10 @@ export class Server {
 					commands = JSON.parse(body);
 				} catch (err) {
 					this.logger.error(`Could not parse JSON body, got error : ${err}`);
-					return [new Response(null, { status: 400 }), waitUntilCollection];
+					return [
+						new Response(null, { ...responseInit, status: 400 }),
+						waitUntilCollection,
+					];
 				}
 
 				const result = validator.validate(commands);
@@ -146,7 +210,10 @@ export class Server {
 					);
 					// TODO if production?
 					return [
-						new Response(JSON.stringify(result.errors), { status: 400 }),
+						new Response(JSON.stringify(result.errors), {
+							...responseInit,
+							status: 400,
+						}),
 						waitUntilCollection,
 					];
 				}
@@ -158,7 +225,7 @@ export class Server {
 		// Request did not contain any valid commands
 		if (!commands) {
 			return [
-				new Response(null, { status: 400 }),
+				new Response(null, { ...responseInit, status: 400 }),
 				waitUntilCollection,
 			];
 		}
@@ -270,7 +337,7 @@ export class Server {
 		}, {} as Results);
 
 		return [
-			new Response(JSON.stringify(results), { status: 200 }),
+			new Response(JSON.stringify(results), { ...responseInit, status: 200 }),
 			waitUntilCollection,
 		];
 	}

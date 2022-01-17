@@ -3,7 +3,7 @@ export type AuthIdentifier = string;
 /**
  * User interface
  */
-export class User<Metadata> {
+export class User<Metadata = Record<never, never>> {
 	public constructor(
 		/**
 		 * Unique identifier of the user

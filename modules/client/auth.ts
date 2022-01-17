@@ -1,5 +1,6 @@
 import { App } from "./app.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
+import { User } from "https://baseless.dev/x/shared/deno/auth.ts";
 
 /**
  * Class representing Baseless Auth service.
@@ -9,52 +10,138 @@ export class Auth {
 	 * Construct an `Auth` object
 	 * @internal
 	 */
-	public constructor(public readonly app: App) {}
+	public constructor(public readonly app: App) {
+		this._storage = new SessionStorage(this);
+		this.languageCode = "en";
+	}
+
+	/**
+	 * @internal
+	 */
+	public _currentUser: User | undefined;
+
+	/**
+	 * @internal
+	 */
+	public _storage: IStorage;
+
+	/**
+	 * Language code to be sent as local on supported commands
+	 */
+	public languageCode: string;
+
+	private tokenChangeHandlers: TokenChangeHandler[] = [];
+
+	/**
+	 * @internal
+	 */
+	public _onTokensChange(
+		handler: TokenChangeHandler,
+	): void {
+		this.tokenChangeHandlers.push(handler);
+	}
 }
 
-export type User<Metadata = Record<string, unknown>> =
-	| EmailUser<Metadata>
-	| AnonymousUser<Metadata>;
+export type Tokens = {
+	id_token: string;
+	access_token: string;
+	refresh_token?: string;
+};
 
-export interface IUser<Metadata> {
-	/**
-	 * Type of the user
-	 */
-	readonly type: string;
+export type TokenChangeHandler = (
+	tokens: Tokens | undefined,
+	user: User | undefined,
+) => Promise<void>;
 
-	/**
-	 * Unique identifier of the user
-	 */
-	readonly id: string;
-
-	/**
-	 * Metadata of the object
-	 */
-	readonly metadata: Metadata;
+export interface IStorage {
+	getPersistence(): Persistence;
+	getTokens(): Promise<Tokens | undefined>;
+	setTokens(tokens: Tokens | undefined): Promise<void>;
 }
 
-export interface EmailUser<Metadata> extends IUser<Metadata> {
-	/**
-	 * Type of the user
-	 */
-	readonly type: "email";
+export class LocalStorage implements IStorage {
+	constructor(protected auth: Auth) {}
 
-	/**
-	 * Unique email of the user
-	 */
-	readonly email: string | null;
+	getPersistence(): Persistence {
+		return Persistence.Local;
+	}
 
-	/**
-	 * Is email confirmed?
-	 */
-	readonly isEmailConfirmed: boolean;
+	getTokens(): Promise<Tokens | undefined> {
+		return new Promise((resolve) => {
+			const value = localStorage.getItem(
+				`baseless-${this.auth.app.clientId}-tokens`,
+			);
+			try {
+				if (value) {
+					return resolve(JSON.parse(value) as Tokens);
+				}
+			} catch (_err) {}
+			return resolve(undefined);
+		});
+	}
+
+	setTokens(tokens: Tokens | undefined): Promise<void> {
+		return new Promise((resolve) => {
+			localStorage.setItem(
+				`baseless-${this.auth.app.clientId}-tokens`,
+				JSON.stringify(tokens),
+			);
+			return resolve();
+		});
+	}
 }
 
-export interface AnonymousUser<Metadata> extends IUser<Metadata> {
-	/**
-	 * Type of the user
-	 */
-	readonly type: "anonymous";
+export class SessionStorage implements IStorage {
+	constructor(protected auth: Auth) {}
+
+	getPersistence(): Persistence {
+		return Persistence.Session;
+	}
+
+	getTokens(): Promise<Tokens | undefined> {
+		return new Promise((resolve) => {
+			const value = sessionStorage.getItem(
+				`baseless-${this.auth.app.clientId}-tokens`,
+			);
+			try {
+				if (value) {
+					return resolve(JSON.parse(value) as Tokens);
+				}
+			} catch (_err) {}
+			return resolve(undefined);
+		});
+	}
+
+	setTokens(tokens: Tokens | undefined): Promise<void> {
+		return new Promise((resolve) => {
+			sessionStorage.setItem(
+				`baseless-${this.auth.app.clientId}-tokens`,
+				JSON.stringify(tokens),
+			);
+			return resolve();
+		});
+	}
+}
+
+export class MemoryStorage implements IStorage {
+	private tokens: Tokens | undefined;
+
+	getPersistence(): Persistence {
+		return Persistence.None;
+	}
+
+	getTokens(): Promise<Tokens | undefined> {
+		return new Promise((resolve) => {
+			return resolve(this.tokens);
+		});
+	}
+
+	setTokens(tokens: Tokens | undefined): Promise<void> {
+		return new Promise((resolve) => {
+			this.tokens = tokens;
+			return resolve();
+		});
+	}
 }
 
 export enum Persistence {
@@ -71,7 +158,7 @@ export function getAuth(app: App) {
 }
 
 async function getOrRefreshTokens(auth: Auth) {
-	const id_token = auth.app.getIdToken();
+	const { id_token } = auth.app._tokens ?? {};
 	if (!id_token) {
 		return null;
 	}
@@ -80,13 +167,10 @@ async function getOrRefreshTokens(auth: Auth) {
 		let { payload } = await jwtVerify(id_token, auth.app.clientPublicKey);
 		if (!payload.exp || payload.exp - Date.now() / 1000 <= 5 * 60) {
 			// Refresh tokens
+			return Promise.reject("NOTIMPLEMENTED");
 		}
 
-		return {
-			id_token: auth.app.getIdToken()!,
-			access_token: auth.app.getAccessToken()!,
-			refresg_token: auth.app.getRefreshToken()!,
-		};
+		return auth.app._tokens!;
 	} catch (_err) {
 		return null;
 	}
@@ -137,12 +221,25 @@ export function onAuthStateChanged(auth: Auth) {
  *
  * User account creation can fail if the account already exists or the password is invalid.
  */
-export function createUserWithEmailAndPassword(
+export async function createUserWithEmailAndPassword(
 	auth: Auth,
 	email: string,
 	password: string,
 ) {
-	return Promise.reject("NOTIMPLEMENTED");
+	const req = new Request(auth.app.prepareRequest(), {
+		body: JSON.stringify({
+			"1": {
+				cmd: "auth.create-user-with-email-password",
+				email,
+				password,
+				locale: auth.languageCode,
+			},
+		}),
+	});
+	const res = await fetch(req);
+	const json = await res.json();
+	console.log(json);
+	debugger;
 }
 
 /**
@@ -157,8 +254,20 @@ export function sendEmailVerification(auth: Auth) {
 /**
  * Applies a verification code sent to the user by email or other out-of-band mechanism.
  */
-export function validateEmail(auth: Auth, code: string) {
-	return Promise.reject("NOTIMPLEMENTED");
+export async function validateEmail(auth: Auth, code: string, email: string) {
+	const req = new Request(auth.app.prepareRequest(), {
+		body: JSON.stringify({
+			"1": {
+				cmd: "auth.validate-email",
+				email,
+				code,
+			},
+		}),
+	});
+	const res = await fetch(req);
+	const json = await res.json();
+	console.log(json);
+	debugger;
 }
 
 /**
@@ -173,7 +282,12 @@ export function sendPasswordResetEmail(auth: Auth, email: string) {
 /**
  * Completes the password reset process, given a confirmation code and new password.
  */
-export function resetPassword(auth: Auth, code: string, newPassword: string) {
+export function resetPassword(
+	auth: Auth,
+	code: string,
+	email: string,
+	newPassword: string,
+) {
 	return Promise.reject("NOTIMPLEMENTED");
 }
 
@@ -182,8 +296,27 @@ export function resetPassword(auth: Auth, code: string, newPassword: string) {
  *
  * This makes it easy for a user signing in to specify whether their session should be remembered or not. It also makes it easier to never persist the `Auth` state for applications that are shared by other users or have sensitive data.
  */
-export function setPersistence(auth: Auth, persistence: Persistence) {
-	return Promise.reject("NOTIMPLEMENTED");
+export async function setPersistence(auth: Auth, persistence: Persistence) {
+	const oldPersistence = auth._storage.getPersistence();
+	if (oldPersistence !== persistence) {
+		// Get old tokens
+		const oldTokens = await auth._storage.getTokens();
+		// Clear tokens from previous storage
+		await auth._storage.setTokens(undefined);
+		switch (persistence) {
+			case Persistence.Local:
+				auth._storage = new LocalStorage(auth);
+				break;
+			case Persistence.Session:
+				auth._storage = new SessionStorage(auth);
+				break;
+			case Persistence.None:
+				auth._storage = new MemoryStorage();
+				break;
+		}
+		// Set old tokens in new storage
+		auth._storage.setTokens(oldTokens);
+	}
 }
 
 /**
@@ -200,12 +333,20 @@ export function signInAnonymously(auth: Auth) {
  *
  * Fails with an error if the email address and password do not match.
  */
-export function signInWithEmailAndPassword(
+export async function signInWithEmailAndPassword(
 	auth: Auth,
 	email: string,
 	password: string,
 ) {
-	return Promise.reject("NOTIMPLEMENTED");
+	const req = new Request(auth.app.prepareRequest(), {
+		body: JSON.stringify({
+			"1": { cmd: "auth.sign-with-email-password", email, password },
+		}),
+	});
+	const res = await fetch(req);
+	const json = await res.json();
+	console.log(json);
+	debugger;
 }
 
 /**

@@ -48,8 +48,8 @@ export class Client {
 		 * Client templates
 		 */
 		public templates?: {
-			validation: LocalizedMessageTemplate<{ code: string }>;
-			passwordReset: LocalizedMessageTemplate<{ code: string }>;
+			validation: LocalizedMessageTemplate<{ code: string; email: string }>;
+			passwordReset: LocalizedMessageTemplate<{ code: string; email: string }>;
 		},
 	) {}
 }

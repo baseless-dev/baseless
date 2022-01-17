@@ -1,6 +1,6 @@
-import { User } from "./auth.ts";
 import { importSPKI } from "https://deno.land/x/jose@v4.3.7/key/import.ts";
 import { KeyLike } from "https://deno.land/x/jose@v4.3.7/types.d.ts";
+import { Tokens } from "./auth.ts";
 
 /**
  * A BaselessApp holds the initialization information for a collection of services.
@@ -16,68 +16,29 @@ export class App {
 		public readonly clientPublicKey: KeyLike,
 	) {}
 
-	protected _currentUser: User | undefined;
-	public get currentUser() {
-		return this._currentUser;
-	}
-
-	protected _currentTokens:
-		| {
-			id_token: string;
-			access_token: string;
-			refresh_token?: string;
-		}
+	/**
+	 * Retrieve tokens
+	 * @internal
+	 */
+	public _tokens:
+		| Tokens
 		| undefined;
 
 	/**
-	 * Get ID Token
-	 * @internal
+	 * Prepare a new `Request` object to the baseless enpoint with clientid and access token
 	 */
-	public getIdToken() {
-		return this._currentTokens?.id_token;
+	public prepareRequest() {
+		return new Request(this.baselessUrl, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-BASELESS-CLIENT-ID": this.clientId,
+				...(this._tokens?.access_token
+					? { "Authorization": `Bearer ${this._tokens.access_token}` }
+					: {}),
+			},
+		});
 	}
-
-	/**
-	 * Get Access Token
-	 * @internal
-	 */
-	public getAccessToken() {
-		return this._currentTokens?.access_token;
-	}
-
-	/**
-	 * Get Refresh Token
-	 * @internal
-	 */
-	public getRefreshToken() {
-		return this._currentTokens?.refresh_token;
-	}
-
-	/**
-	 * Set current user
-	 * @internal
-	 */
-	public setCurrentUser(user: User) {
-		this._currentUser = user;
-	}
-
-	/**
-	 * Set tokens
-	 * @internal
-	 */
-	public setTokens(
-		id_token: string,
-		access_token: string,
-		refresh_token?: string,
-	) {
-		this._currentTokens = { id_token, access_token, refresh_token };
-	}
-
-	/**
-	 * Fetch the endpoint using current user and credentials
-	 * @internal
-	 */
-	public async fetch() {}
 }
 
 /**

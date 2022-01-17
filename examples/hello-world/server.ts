@@ -23,7 +23,7 @@ const clientProvider = new MemoryClientProvider([
 	new Client(
 		"hello-world",
 		"Hello World",
-		["http://localhost:8787/", "https://hello-world.baseless.dev/"],
+		["http://localhost:8080/", "https://hello-world.baseless.dev/"],
 		"RS256",
 		publicKey,
 		privateKey,

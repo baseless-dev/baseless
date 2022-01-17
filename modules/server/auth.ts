@@ -120,7 +120,7 @@ export class AuthController {
 		);
 		await context.auth.setEmailValidationCode(to, code);
 		if (template) {
-			const message = template(context, { code });
+			const message = template(context, { code, email: to });
 			context.waitUntil(context.mail.send({
 				to,
 				subject: message.subject,
@@ -203,7 +203,7 @@ export class AuthController {
 		);
 		await context.auth.setPasswordResetCode(email, code);
 		if (template) {
-			const message = template(context, { code });
+			const message = template(context, { code, email });
 			context.waitUntil(context.mail.send({
 				to: email,
 				subject: message.subject,

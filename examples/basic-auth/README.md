@@ -3,5 +3,5 @@
 ## Run locally
 
 ```sh
-deno run -A dev.ts
+deno run dev.ts
 ```

@@ -1,4 +1,4 @@
-import { Context } from "https://baseless.dev/x/provider/deno/context.ts";
+import { Context } from "https://baseless.dev/x/provider/context.ts";
 
 /**
  * Functions descriptor

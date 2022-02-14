@@ -15,8 +15,8 @@
 			"https://baseless.dev/x/logger/*": "@baseless/logger@^0.0.1"
 		},
 		"browser": {
-			"https://baseless.dev/x/provider/deno/client.ts": "https://baseless.dev/x/provider/browser/client.js",
-			"https://baseless.dev/x/logger/deno/mod.ts": "https://baseless.dev/x/logger/browser/mod.ts"
+			"https://baseless.dev/x/provider/client.ts": "https://baseless.dev/w/provider/client.js",
+			"https://baseless.dev/x/logger/mod.ts": "https://baseless.dev/w/logger/mod.ts"
 		}
 	}
 }

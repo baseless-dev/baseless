@@ -1,9 +1,5 @@
-import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
-import {
-	Client,
-	ClientNotFoundError,
-	IClientProvider,
-} from "https://baseless.dev/x/provider/deno/client.ts";
+import { logger } from "https://baseless.dev/x/logger/mod.ts";
+import { Client, ClientNotFoundError, IClientProvider } from "https://baseless.dev/x/provider/client.ts";
 
 /**
  * Mail provider that send email with Sendgrid api

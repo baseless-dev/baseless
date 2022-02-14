@@ -1,17 +1,17 @@
 import {
 	AuthIdentifier,
-	PasswordResetCodeError,
 	PasswordResetError,
+	SetPasswordResetError,
 	User,
 	UserAlreadyExistsError,
 	UserNotFoundError,
 	ValidationCodeError,
-} from "https://baseless.dev/x/shared/deno/auth.ts";
-import { IAuthProvider } from "https://baseless.dev/x/provider/deno/auth.ts";
-import { KeyNotFoundError } from "https://baseless.dev/x/shared/deno/kv.ts";
-import { IKVProvider } from "https://baseless.dev/x/provider/deno/kv.ts";
-import { autoid } from "https://baseless.dev/x/shared/deno/autoid.ts";
-import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
+} from "https://baseless.dev/x/shared/auth.ts";
+import { IAuthProvider } from "https://baseless.dev/x/provider/auth.ts";
+import { KeyNotFoundError } from "https://baseless.dev/x/shared/kv.ts";
+import { IKVProvider } from "https://baseless.dev/x/provider/kv.ts";
+import { autoid } from "https://baseless.dev/x/shared/autoid.ts";
+import { logger } from "https://baseless.dev/x/logger/mod.ts";
 
 /**
  * Convert authid to key
@@ -43,8 +43,7 @@ export class AuthOnKvProvider implements IAuthProvider {
 				refreshTokenId: string;
 			}
 		>(key);
-		const { email, emailConfirmed, refreshTokenId, ...metadata } =
-			value.metadata;
+		const { email, emailConfirmed, refreshTokenId, ...metadata } = value.metadata;
 		return new User(
 			userid,
 			email,
@@ -93,9 +92,7 @@ export class AuthOnKvProvider implements IAuthProvider {
 					emailConfirmed,
 					refreshTokenId,
 				})
-				.then(() =>
-					new User(userid, email, emailConfirmed, refreshTokenId, metadata)
-				);
+				.then(() => new User(userid, email, emailConfirmed, refreshTokenId, metadata));
 		}
 	}
 
@@ -260,7 +257,7 @@ export class AuthOnKvProvider implements IAuthProvider {
 				this.backend.delete(`passwordresetcode::${email}`),
 			]);
 		} catch (err) {
-			throw new PasswordResetCodeError();
+			throw new SetPasswordResetError();
 		}
 	}
 }

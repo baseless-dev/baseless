@@ -29,13 +29,24 @@ export class User<Metadata = Record<never, never>> {
 }
 
 /**
+ * Anonymous user disabled error
+ */
+export class AnonymousUserError extends Error {
+	public name = "AnonymousUserError";
+}
+
+/**
  * User not found error
  */
 export class UserNotFoundError extends Error {
 	public name = "UserNotFoundError";
-	public constructor(userid: string) {
-		super(`User '${userid}' not found.`);
-	}
+}
+
+/**
+ * Email not found error
+ */
+export class EmailNotFoundError extends Error {
+	public name = "EmailNotFoundError";
 }
 
 /**
@@ -43,9 +54,6 @@ export class UserNotFoundError extends Error {
  */
 export class UserAlreadyExistsError extends Error {
 	public name = "UserAlreadyExistsError";
-	public constructor(userid: string) {
-		super(`User '${userid}' already exists.`);
-	}
 }
 
 /**
@@ -53,9 +61,55 @@ export class UserAlreadyExistsError extends Error {
  */
 export class UserNeedsAnEmailError extends Error {
 	public name = "UserNeedsAnEmailError";
-	public constructor(userid: string) {
-		super(`User '${userid}' needs an email.`);
-	}
+}
+
+/**
+ * Email needs confirmation error
+ */
+export class EmailNeedsConfirmationError extends Error {
+	public name = "EmailNeedsConfirmationError";
+}
+
+/**
+ * Create user password error
+ */
+export class CreateUserError extends Error {
+	public name = "CreateUserError";
+}
+
+/**
+ * Update user password error
+ */
+export class UpdateUserError extends Error {
+	public name = "UpdateUserError";
+}
+
+/**
+ * Delete user password error
+ */
+export class DeleteUserError extends Error {
+	public name = "DeleteUserError";
+}
+
+/**
+ * Add sign in with email password error
+ */
+export class AddSignInEmailPasswordError extends Error {
+	public name = "AddSignInEmailPasswordError";
+}
+
+/**
+ * Sign in with email password error
+ */
+export class SignInEmailPasswordError extends Error {
+	public name = "SignInEmailPasswordError";
+}
+
+/**
+ * Set validation code error
+ */
+export class SetValidationCodeError extends Error {
+	public name = "SetValidationCodeError";
 }
 
 /**
@@ -66,15 +120,15 @@ export class ValidationCodeError extends Error {
 }
 
 /**
+ * Set password reset error
+ */
+export class SetPasswordResetError extends Error {
+	public name = "SetPasswordResetError";
+}
+
+/**
  * Password reset error
  */
 export class PasswordResetError extends Error {
 	public name = "PasswordResetError";
-}
-
-/**
- * Password reset code error
- */
-export class PasswordResetCodeError extends Error {
-	public name = "PasswordResetCodeError";
 }

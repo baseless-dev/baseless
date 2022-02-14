@@ -1,10 +1,21 @@
-import { User } from "https://baseless.dev/x/shared/deno/auth.ts";
-import { Context } from "https://baseless.dev/x/provider/deno/context.ts";
-import { Client } from "https://baseless.dev/x/provider/deno/client.ts";
-import { autoid } from "https://baseless.dev/x/shared/deno/autoid.ts";
+import {
+	AddSignInEmailPasswordError,
+	AnonymousUserError,
+	CreateUserError,
+	EmailNeedsConfirmationError,
+	PasswordResetError,
+	SetPasswordResetError,
+	SetValidationCodeError,
+	SignInEmailPasswordError,
+	User,
+	ValidationCodeError,
+} from "https://baseless.dev/x/shared/auth.ts";
+import { Context } from "https://baseless.dev/x/provider/context.ts";
+import { Client } from "https://baseless.dev/x/provider/client.ts";
+import { autoid } from "https://baseless.dev/x/shared/autoid.ts";
 import { SignJWT } from "https://deno.land/x/jose@v4.3.7/jwt/sign.ts";
 import { Result } from "./schema.ts";
-import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
+import { logger } from "https://baseless.dev/x/logger/mod.ts";
 
 export type AuthHandler<Metadata> = (
 	ctx: Context,
@@ -137,8 +148,19 @@ export class AuthController {
 	private async _createJWTs(
 		context: Context,
 		user: User<unknown>,
-	): Promise<{ access_token: string; refresh_token: string }> {
+	): Promise<{ id_token: string; access_token: string; refresh_token: string }> {
 		const { algKey, privateKey } = context.client;
+		const id_token = await new SignJWT({
+			email: user.email,
+			metadata: user.metadata,
+			emailConfirmed: user.emailConfirmed,
+		})
+			.setSubject(user.id)
+			.setExpirationTime("1week")
+			.setIssuer(context.client.principal)
+			.setAudience(context.client.principal)
+			.setProtectedHeader({ alg: algKey })
+			.sign(privateKey);
 		const access_token = await new SignJWT({ scope: "*" })
 			.setSubject(user.id)
 			.setExpirationTime("15min")
@@ -154,7 +176,7 @@ export class AuthController {
 			.setJti(user.refreshTokenId)
 			.setProtectedHeader({ alg: algKey })
 			.sign(privateKey);
-		return { access_token, refresh_token };
+		return { id_token, access_token, refresh_token };
 	}
 
 	public async sendValidationEmail(
@@ -163,16 +185,21 @@ export class AuthController {
 		locale: string,
 		email: string,
 	): Promise<Result> {
-		const user = await context.auth.getUserByEmail(email);
-		if (!user.email || user.emailConfirmed) {
-			return { error: "NotAllowed" };
+		try {
+			const user = await context.auth.getUserByEmail(email);
+			if (!user.email || user.emailConfirmed) {
+				throw new SetValidationCodeError();
+			}
+			await this._sendValidationEmailTo(
+				context,
+				locale,
+				user.email,
+			);
+			return {};
+		} catch (err: unknown) {
+			this.logger.error(`Could not send validation email, got ${err}`);
+			throw new SetValidationCodeError();
 		}
-		await this._sendValidationEmailTo(
-			context,
-			locale,
-			user.email,
-		);
-		return {};
 	}
 
 	public async validateEmailWithCode(
@@ -184,8 +211,9 @@ export class AuthController {
 		try {
 			await context.auth.validateEmailWithCode(email, code);
 			return {};
-		} catch (err) {
-			return { error: `${err}` };
+		} catch (err: unknown) {
+			this.logger.error(`Could validate email with code, got ${err}`);
+			throw new ValidationCodeError();
 		}
 	}
 
@@ -195,27 +223,32 @@ export class AuthController {
 		locale: string,
 		email: string,
 	): Promise<Result> {
-		const code = autoid(40);
-		const template = this._getMessageTemplate(
-			context.client,
-			"passwordReset",
-			locale,
-		);
-		await context.auth.setPasswordResetCode(email, code);
-		if (template) {
-			const message = template(context, { code, email });
-			context.waitUntil(context.mail.send({
-				to: email,
-				subject: message.subject,
-				text: message.text,
-				html: message.html,
-			}));
-		} else {
-			this.logger.error(
-				`Could not find password reset template for locale "${locale}". Reset password code is "${code}".`,
+		try {
+			const code = autoid(40);
+			const template = this._getMessageTemplate(
+				context.client,
+				"passwordReset",
+				locale,
 			);
+			await context.auth.setPasswordResetCode(email, code);
+			if (template) {
+				const message = template(context, { code, email });
+				context.waitUntil(context.mail.send({
+					to: email,
+					subject: message.subject,
+					text: message.text,
+					html: message.html,
+				}));
+			} else {
+				this.logger.error(
+					`Could not find password reset template for locale "${locale}". Reset password code is "${code}".`,
+				);
+			}
+			return {};
+		} catch (err: unknown) {
+			this.logger.error(`Could send password reset, got ${err}`);
+			throw new SetPasswordResetError();
 		}
-		return {};
 	}
 
 	private async _hashPassword(password: string) {
@@ -239,8 +272,9 @@ export class AuthController {
 				await this._hashPassword(password),
 			);
 			return {};
-		} catch (err) {
-			return { error: `${err}` };
+		} catch (err: unknown) {
+			this.logger.error(`Could reset password, got ${err}`);
+			throw new PasswordResetError();
 		}
 	}
 
@@ -248,15 +282,20 @@ export class AuthController {
 		_request: Request,
 		context: Context,
 	): Promise<Result> {
-		const { authDescriptor } = this;
-		if (!authDescriptor.allowAnonymousUser) {
-			return { error: "METHOD_NOT_ALLOWED" };
+		try {
+			const { authDescriptor } = this;
+			if (!authDescriptor.allowAnonymousUser) {
+				throw new AnonymousUserError();
+			}
+			const user = await context.auth.createUser(null, {});
+			if (authDescriptor.onCreateUser) {
+				context.waitUntil(authDescriptor.onCreateUser(context, user));
+			}
+			return await this._createJWTs(context, user);
+		} catch (err: unknown) {
+			this.logger.error(`Could create anonymous user, got ${err}`);
+			throw new AnonymousUserError();
 		}
-		const user = await context.auth.createUser(null, {});
-		if (authDescriptor.onCreateUser) {
-			context.waitUntil(authDescriptor.onCreateUser(context, user));
-		}
-		return await this._createJWTs(context, user);
 	}
 
 	public async addSignWithEmailPassword(
@@ -266,32 +305,37 @@ export class AuthController {
 		email: string,
 		password: string,
 	): Promise<Result> {
-		const { authDescriptor } = this;
-		if (!authDescriptor.allowSignMethodPassword) {
-			return { error: "METHOD_NOT_ALLOWED" };
+		try {
+			const { authDescriptor } = this;
+			if (!authDescriptor.allowSignMethodPassword) {
+				throw new AddSignInEmailPasswordError();
+			}
+			if (!context.currentUserId) {
+				throw new AddSignInEmailPasswordError();
+			}
+			const user = await context.auth.getUser(context.currentUserId);
+			if (!user.email) {
+				await context.auth.updateUser(user.id, {}, email, undefined);
+				user.email = email;
+			}
+			await context.auth.addSignInMethodPassword(
+				user.id,
+				user.email,
+				await this._hashPassword(password),
+			);
+			await this._sendValidationEmailTo(
+				context,
+				locale,
+				email,
+			);
+			if (authDescriptor.onUpdateUser) {
+				context.waitUntil(authDescriptor.onUpdateUser(context, user));
+			}
+			return {};
+		} catch (err: unknown) {
+			this.logger.error(`Could add sign in method with email password, got ${err}`);
+			throw new AddSignInEmailPasswordError();
 		}
-		if (!context.currentUserId) {
-			return { error: "UNAUTHORIZED" };
-		}
-		const user = await context.auth.getUser(context.currentUserId);
-		if (!user.email) {
-			await context.auth.updateUser(user.id, {}, email, undefined);
-			user.email = email;
-		}
-		await context.auth.addSignInMethodPassword(
-			user.id,
-			user.email,
-			await this._hashPassword(password),
-		);
-		await this._sendValidationEmailTo(
-			context,
-			locale,
-			email,
-		);
-		if (authDescriptor.onUpdateUser) {
-			context.waitUntil(authDescriptor.onUpdateUser(context, user));
-		}
-		return {};
 	}
 
 	public async createUserWithEmail(
@@ -302,10 +346,12 @@ export class AuthController {
 		password: string,
 	): Promise<Result> {
 		try {
-			const _user = await context.auth.getUserByEmail(email);
-			return {};
-		} catch (_err) {
-			const user = await context.auth.createUser(email, {});
+			let user = await context.auth.getUserByEmail(email).catch((_) => undefined);
+			if (user) {
+				this.logger.warn(`User already exist for '${email}'.`);
+				return {};
+			}
+			user = await context.auth.createUser(email, {});
 			await context.auth.addSignInMethodPassword(
 				user.id,
 				email,
@@ -321,6 +367,9 @@ export class AuthController {
 				context.waitUntil(authDescriptor.onCreateUser(context, user));
 			}
 			return {};
+		} catch (err: unknown) {
+			this.logger.error(`Could create user, got ${err}`);
+			throw new CreateUserError();
 		}
 	}
 
@@ -332,7 +381,8 @@ export class AuthController {
 	): Promise<Result> {
 		const { authDescriptor } = this;
 		if (!authDescriptor.allowSignMethodPassword) {
-			return { error: "NotAllowed" };
+			this.logger.warn(`Sign in with email and password is not allowed.`);
+			throw new SignInEmailPasswordError();
 		}
 		try {
 			const passwordHash = await this._hashPassword(password);
@@ -341,12 +391,13 @@ export class AuthController {
 				passwordHash,
 			);
 			if (!user.emailConfirmed) {
-				return { error: "AuthEmailNotConfirmed" };
+				this.logger.warn(`Email '${email}' is not confirmed.`);
+				throw new EmailNeedsConfirmationError();
 			}
 			return await this._createJWTs(context, user);
-		} catch (_err) {
-			this.logger.error(_err);
-			return { error: "NotAllowed" };
+		} catch (err: unknown) {
+			this.logger.error(`Could sign in with email and password, got ${err}`);
+			throw new SignInEmailPasswordError();
 		}
 	}
 }

@@ -2,8 +2,7 @@
  * Generate an autoid
  */
 export function autoid(length = 20) {
-	const chars =
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
 	let autoid = "";
 	const buffer = new Uint8Array(length);

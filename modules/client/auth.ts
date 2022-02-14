@@ -1,6 +1,44 @@
 import { App } from "./app.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
-import { User } from "https://baseless.dev/x/shared/deno/auth.ts";
+import {
+	AddSignInEmailPasswordError,
+	AnonymousUserError,
+	AuthIdentifier,
+	CreateUserError,
+	DeleteUserError,
+	EmailNeedsConfirmationError,
+	EmailNotFoundError,
+	PasswordResetError,
+	SetPasswordResetError,
+	SetValidationCodeError,
+	SignInEmailPasswordError,
+	UpdateUserError,
+	UserAlreadyExistsError,
+	UserNeedsAnEmailError,
+	UserNotFoundError,
+	ValidationCodeError,
+} from "https://baseless.dev/x/shared/auth.ts";
+
+export class User<Metadata = Record<never, never>> {
+	public constructor(
+		/**
+		 * Unique identifier of the user
+		 */
+		public id: AuthIdentifier,
+		/**
+		 * Unique email of the user
+		 */
+		public email: string | null,
+		/**
+		 * Has user confirmed his email?
+		 */
+		public emailConfirmed: boolean,
+		/**
+		 * Metadata of the object
+		 */
+		public metadata: Metadata,
+	) {}
+}
 
 /**
  * Class representing Baseless Auth service.
@@ -150,6 +188,31 @@ export enum Persistence {
 	None = "none",
 }
 
+const errorMap = new Map<string, new () => Error>([
+	["CreateUserError", CreateUserError],
+	["DeleteUserError", DeleteUserError],
+	["UpdateUserError", UpdateUserError],
+	["UserNotFoundError", UserNotFoundError],
+	["AnonymousUserError", AnonymousUserError],
+	["EmailNotFoundError", EmailNotFoundError],
+	["PasswordResetError", PasswordResetError],
+	["ValidationCodeError", ValidationCodeError],
+	["SetPasswordResetError", SetPasswordResetError],
+	["UserNeedsAnEmailError", UserNeedsAnEmailError],
+	["UserAlreadyExistsError", UserAlreadyExistsError],
+	["SetValidationCodeError", SetValidationCodeError],
+	["SignInEmailPasswordError", SignInEmailPasswordError],
+	["EmailNeedsConfirmationError", EmailNeedsConfirmationError],
+	["AddSignInEmailPasswordError", AddSignInEmailPasswordError],
+]);
+
+function authErrorCodeToError(errorCode: string): Error | undefined {
+	if (errorMap.has(errorCode)) {
+		const error = errorMap.get(errorCode)!;
+		return new error();
+	}
+}
+
 /**
  * Returns the Auth instance associated with the provided `BaselessApp`.
  */
@@ -158,19 +221,19 @@ export function getAuth(app: App) {
 }
 
 async function getOrRefreshTokens(auth: Auth) {
-	const { id_token } = auth.app._tokens ?? {};
-	if (!id_token) {
+	const tokens = await auth._storage.getTokens();
+	if (!tokens) {
 		return null;
 	}
 
 	try {
-		let { payload } = await jwtVerify(id_token, auth.app.clientPublicKey);
+		let { payload } = await jwtVerify(tokens.id_token, auth.app.clientPublicKey);
 		if (!payload.exp || payload.exp - Date.now() / 1000 <= 5 * 60) {
 			// Refresh tokens
 			return Promise.reject("NOTIMPLEMENTED");
 		}
 
-		return auth.app._tokens!;
+		return tokens;
 	} catch (_err) {
 		return null;
 	}
@@ -345,15 +408,30 @@ export async function signInWithEmailAndPassword(
 	});
 	const res = await fetch(req);
 	const json = await res.json();
-	console.log(json);
-	debugger;
+	const result = json["1"];
+	if ("id_token" in result && "access_token" in result) {
+		const { id_token, access_token, refresh_token } = result;
+		auth._storage.setTokens({ id_token, access_token, refresh_token });
+		const payload = await getIdTokenResult(auth) ?? {};
+		if ("sub" in payload && "email" in payload && "emailConfirmed" in payload && "metadata" in payload) {
+			const user = new User<Record<never, never>>(
+				payload.sub!,
+				payload.email as string,
+				payload.emailConfirmed as boolean,
+				payload.metadata as Record<never, never>,
+			);
+			auth._currentUser = user;
+			return user;
+		}
+	}
+	throw new SignInEmailPasswordError();
 }
 
 /**
  * Signs out the current user.
  */
-export function signOut(auth: Auth) {
-	return Promise.reject("NOTIMPLEMENTED");
+export async function signOut(auth: Auth) {
+	await auth._storage.setTokens(undefined);
 }
 
 /**

@@ -3,5 +3,8 @@
 	"deno.lint": true,
 	"deno.config": "./deno.json",
 	"deno.importMap": "./import-map.json",
-	"deno.unstable": true
+	"deno.unstable": true,
+	"deno.codeLens.referencesAllFunctions": true,
+	"deno.codeLens.references": true,
+	"deno.codeLens.implementations": true
 }

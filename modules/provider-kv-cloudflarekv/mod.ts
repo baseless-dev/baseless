@@ -1,14 +1,6 @@
-import {
-	IKVProvider,
-	KVScanFilter,
-	KVSetOptions,
-} from "https://baseless.dev/x/provider/deno/kv.ts";
-import {
-	IKVValue,
-	KeyNotFoundError,
-	KVData,
-} from "https://baseless.dev/x/shared/deno/kv.ts";
-import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
+import { IKVProvider, KVScanFilter, KVSetOptions } from "https://baseless.dev/x/provider/kv.ts";
+import { IKVValue, KeyNotFoundError, KVData } from "https://baseless.dev/x/shared/kv.ts";
+import { logger } from "https://baseless.dev/x/logger/mod.ts";
 import "./cloudflare-workers.d.ts";
 
 export class CloudflareKVValue<Metadata> implements IKVValue<Metadata> {
@@ -61,9 +53,7 @@ export class CloudflareKVProvider implements IKVProvider {
 			.catch(() => {
 				throw new KeyNotFoundError(key);
 			})
-			.then(({ metadata, value }) =>
-				new CloudflareKVValue(key, metadata as Metadata, value as KVData)
-			);
+			.then(({ metadata, value }) => new CloudflareKVValue(key, metadata as Metadata, value as KVData));
 	}
 
 	public list<Metadata>(
@@ -106,9 +96,7 @@ export class CloudflareKVProvider implements IKVProvider {
 							filterFns.push((doc) => !op["nin"].includes(doc[prop]));
 						}
 					}
-					results = results.filter((doc) =>
-						filterFns.every((fn) => fn(doc.metadata))
-					);
+					results = results.filter((doc) => filterFns.every((fn) => fn(doc.metadata)));
 				}
 				return results;
 			});
@@ -121,9 +109,7 @@ export class CloudflareKVProvider implements IKVProvider {
 		options?: KVSetOptions,
 	): Promise<void> {
 		const kvoptions: KVNamespacePutOptions = options
-			? "expireAt" in options
-				? { expiration: options.expireAt.getTime() / 1000 }
-				: { expirationTtl: options.expireIn }
+			? "expireAt" in options ? { expiration: options.expireAt.getTime() / 1000 } : { expirationTtl: options.expireIn }
 			: {};
 		return this.ns.put(key, data ?? "", {
 			metadata,

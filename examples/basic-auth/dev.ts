@@ -45,6 +45,8 @@ const restart = debounce(() => {
 			"deno",
 			"run",
 			"--allow-net",
+			"--allow-read",
+			"--allow-write",
 			"--import-map=../../import-map.json",
 			"./server.ts",
 		],

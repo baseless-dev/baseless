@@ -1,22 +1,13 @@
-import * as log from "https://baseless.dev/x/logger/deno/mod.ts";
-import {
-	auth,
-	database,
-	functions,
-	mail,
-	Server,
-} from "https://baseless.dev/x/server/deno/mod.ts";
-import {
-	importPKCS8,
-	importSPKI,
-} from "https://deno.land/x/jose@v4.3.7/key/import.ts";
+import * as log from "https://baseless.dev/x/logger/mod.ts";
+import { auth, database, functions, mail, Server } from "https://baseless.dev/x/server/mod.ts";
+import { importPKCS8, importSPKI } from "https://deno.land/x/jose@v4.3.7/key/import.ts";
 import "./app.ts";
-import { MemoryClientProvider } from "https://baseless.dev/x/provider-client-memory/deno/mod.ts";
-import { Client } from "https://baseless.dev/x/provider/deno/client.ts";
-import { SqliteKVProvider } from "https://baseless.dev/x/provider-kv-sqlite/deno/mod.ts";
-import { AuthOnKvProvider } from "https://baseless.dev/x/provider-auth-on-kv/deno/mod.ts";
-import { DatabaseOnKvProvider } from "https://baseless.dev/x/provider-db-on-kv/deno/mod.ts";
-import { LoggerMailProvider } from "https://baseless.dev/x/provider-mail-logger/deno/mod.ts";
+import { MemoryClientProvider } from "https://baseless.dev/x/provider-client-memory/mod.ts";
+import { Client } from "https://baseless.dev/x/provider/client.ts";
+import { SqliteKVProvider } from "https://baseless.dev/x/provider-kv-sqlite/mod.ts";
+import { AuthOnKvProvider } from "https://baseless.dev/x/provider-auth-on-kv/mod.ts";
+import { DatabaseOnKvProvider } from "https://baseless.dev/x/provider-db-on-kv/mod.ts";
+import { LoggerMailProvider } from "https://baseless.dev/x/provider-mail-logger/mod.ts";
 
 const publicKey = await importSPKI(
 	"-----BEGIN PUBLIC KEY-----MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvYSmNTflBIr2Q2z/oVSR+SfhSfelM+ZL/wb+4LenIaRSLdNm8JGD5TI4i1n3qRyPTxbqa70n4Jwx9H8hLMs/qYml0wCEAmrAqqXixku4gz6TtO25D8cXPlquCfNVRO2Dt7CK4ZCUgwVizqJC6+ZIM6fiTI4/rIU6SRb/ZClHuaGspYx4BVW+2AxgzckaojNosiof/7oac4WZck109jCEVE201E8YUumSZtkAxuzFnzPYFKyK4hztpZScSLvvM4Cty7LkwzZLuTkFXgspJ3SzFa6WR9vLleL4GmMBe0Cq8NU8DhdrNgkAt0Ngksf4mFaTpS4p+bKFEdwchVTUzRKlLQIDAQAB-----END PUBLIC KEY-----",
@@ -72,9 +63,9 @@ const clientProvider = new MemoryClientProvider([
 	),
 ]);
 
-const kvProvider = new SqliteKVProvider(":memory:");
-const kvBackendAuth = new SqliteKVProvider(":memory:");
-const kvBackendDb = new SqliteKVProvider(":memory:");
+const kvProvider = new SqliteKVProvider("kv.db");
+const kvBackendAuth = new SqliteKVProvider("auth.db");
+const kvBackendDb = new SqliteKVProvider("db.db");
 const authProvider = new AuthOnKvProvider(kvBackendAuth);
 const databaseProvider = new DatabaseOnKvProvider(kvBackendDb);
 const mailProvider = new LoggerMailProvider();

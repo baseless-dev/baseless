@@ -1,6 +1,6 @@
-import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
-import { Message } from "https://baseless.dev/x/shared/deno/mail.ts";
-import { IMailProvider } from "https://baseless.dev/x/provider/deno/mail.ts";
+import { logger } from "https://baseless.dev/x/logger/mod.ts";
+import { Message } from "https://baseless.dev/x/shared/mail.ts";
+import { IMailProvider } from "https://baseless.dev/x/provider/mail.ts";
 
 /**
  * Mail provider that output to console the message sent

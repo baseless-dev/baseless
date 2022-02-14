@@ -1,4 +1,4 @@
-import { auth, functions } from "https://baseless.dev/x/server/deno/mod.ts";
+import { auth, functions } from "https://baseless.dev/x/server/mod.ts";
 
 auth.allowAnonymousUser(true).allowSignMethodPassword(true);
 

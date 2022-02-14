@@ -33,9 +33,7 @@ export class App {
 			headers: {
 				"Content-Type": "application/json",
 				"X-BASELESS-CLIENT-ID": this.clientId,
-				...(this._tokens?.access_token
-					? { "Authorization": `Bearer ${this._tokens.access_token}` }
-					: {}),
+				...(this._tokens?.access_token ? { "Authorization": `Bearer ${this._tokens.access_token}` } : {}),
 			},
 		});
 	}

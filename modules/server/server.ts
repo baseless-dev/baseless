@@ -8,20 +8,17 @@ import {
 	NoopDatabaseProvider,
 	NoopKVProvider,
 	NoopMailProvider,
-} from "https://baseless.dev/x/provider/deno/mod.ts";
-import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
+} from "https://baseless.dev/x/provider/mod.ts";
+import { logger } from "https://baseless.dev/x/logger/mod.ts";
 import { AuthController, AuthDescriptor } from "./auth.ts";
 import { DatabaseController, DatabaseDescriptor } from "./database.ts";
 import { FunctionsDescriptor, FunctionsHttpHandler } from "./functions.ts";
 import { MailDescriptor } from "./mail.ts";
-import { Commands, Result, Results, validator } from "./schema.ts";
-import { AuthIdentifier } from "https://baseless.dev/x/shared/deno/auth.ts";
+import { Command, Commands, Result, Results, validator } from "./schema.ts";
+import { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
-import { Context } from "https://baseless.dev/x/provider/deno/context.ts";
-import {
-	collection,
-	doc,
-} from "https://baseless.dev/x/shared/deno/database.ts";
+import { Context } from "https://baseless.dev/x/provider/context.ts";
+import { collection, doc } from "https://baseless.dev/x/shared/database.ts";
 
 export class Server {
 	private logger = logger("server");
@@ -59,8 +56,7 @@ export class Server {
 		const responseInit: ResponseInit = {
 			headers: {
 				"Access-Control-Allow-Origin": "*",
-				"Access-Control-Allow-Headers":
-					"Origin, Authorization, Content-Type, X-BASELESS-CLIENT-ID",
+				"Access-Control-Allow-Headers": "Origin, Authorization, Content-Type, X-BASELESS-CLIENT-ID",
 			},
 		};
 
@@ -230,109 +226,16 @@ export class Server {
 			];
 		}
 
-		const promises: Promise<[string, Result]>[] = Object.entries(commands)
+		const promises = Object.entries(commands)
 			.map(([key, cmd]) => {
-				switch (cmd.cmd) {
-					case "auth.create-anonymous-user":
-						return this.authController.createAnonymousUser(request, context)
-							.then(
-								(res) => [key, res],
-							);
-					case "auth.add-sign-with-email-password":
-						return this.authController.addSignWithEmailPassword(
-							request,
-							context,
-							cmd.locale,
-							cmd.email,
-							cmd.password,
-						).then((res) => [key, res]);
-					case "auth.create-user-with-email-password":
-						return this.authController.createUserWithEmail(
-							request,
-							context,
-							cmd.locale,
-							cmd.email,
-							cmd.password,
-						).then((res) => [key, res]);
-					case "auth.send-email-validation-code":
-						return this.authController.sendValidationEmail(
-							request,
-							context,
-							cmd.locale,
-							cmd.email,
-						).then((res) => [key, res]);
-					case "auth.validate-email":
-						return this.authController.validateEmailWithCode(
-							request,
-							context,
-							cmd.email,
-							cmd.code,
-						).then((res) => [key, res]);
-					case "auth.send-password-reset-code":
-						return this.authController.sendPasswordResetEmail(
-							request,
-							context,
-							cmd.locale,
-							cmd.email,
-						).then((res) => [key, res]);
-					case "auth.reset-password":
-						return this.authController.resetPasswordWithCode(
-							request,
-							context,
-							cmd.email,
-							cmd.code,
-							cmd.password,
-						).then((res) => [key, res]);
-					case "auth.sign-with-email-password":
-						return this.authController.signWithEmailPassword(
-							request,
-							context,
-							cmd.email,
-							cmd.password,
-						).then((res) => [key, res]);
-					case "db.get":
-						return this.databaseController.get(
-							request,
-							context,
-							doc(cmd.ref),
-						).then((res) => [key, res]);
-					case "db.list":
-						return this.databaseController.list(
-							request,
-							context,
-							collection(cmd.ref),
-							cmd.filter,
-						).then((res) => [key, res]);
-					case "db.create":
-						return this.databaseController.create(
-							request,
-							context,
-							doc(cmd.ref),
-							cmd.metadata,
-							cmd.data,
-						).then((res) => [key, res]);
-					case "db.update":
-						return this.databaseController.update(
-							request,
-							context,
-							doc(cmd.ref),
-							cmd.metadata,
-							cmd.data,
-						).then((res) => [key, res]);
-					case "db.delete":
-						return this.databaseController.delete(
-							request,
-							context,
-							doc(cmd.ref),
-						).then((res) => [key, res]);
-					default:
-						return Promise.resolve([key, { error: "METHOD_NOT_ALLOWED" }]);
-				}
+				return this.handleCommand(context, request, cmd)
+					.then((result) => [key, result] as const)
+					.catch((err: unknown) => [key, { error: err instanceof Error ? err.name : "Unknown" } as Result] as const);
 			});
 
 		const responses = await Promise.all(promises);
-		const results = responses.reduce((results, [key, res]) => {
-			results[key] = res;
+		const results = responses.reduce((results, [key, result]) => {
+			results[key] = result;
 			return results;
 		}, {} as Results);
 
@@ -340,5 +243,102 @@ export class Server {
 			new Response(JSON.stringify(results), { ...responseInit, status: 200 }),
 			waitUntilCollection,
 		];
+	}
+
+	private handleCommand(context: Context, request: Request, cmd: Command): Promise<Result> {
+		let p: Promise<Result>;
+		if (cmd.cmd === "auth.create-anonymous-user") {
+			p = this.authController.createAnonymousUser(request, context);
+		} else if (cmd.cmd === "auth.add-sign-with-email-password") {
+			p = this.authController.addSignWithEmailPassword(
+				request,
+				context,
+				cmd.locale,
+				cmd.email,
+				cmd.password,
+			);
+		} else if (cmd.cmd === "auth.create-user-with-email-password") {
+			p = this.authController.createUserWithEmail(
+				request,
+				context,
+				cmd.locale,
+				cmd.email,
+				cmd.password,
+			);
+		} else if (cmd.cmd === "auth.send-email-validation-code") {
+			p = this.authController.sendValidationEmail(
+				request,
+				context,
+				cmd.locale,
+				cmd.email,
+			);
+		} else if (cmd.cmd === "auth.validate-email") {
+			p = this.authController.validateEmailWithCode(
+				request,
+				context,
+				cmd.email,
+				cmd.code,
+			);
+		} else if (cmd.cmd === "auth.send-password-reset-code") {
+			p = this.authController.sendPasswordResetEmail(
+				request,
+				context,
+				cmd.locale,
+				cmd.email,
+			);
+		} else if (cmd.cmd === "auth.reset-password") {
+			p = this.authController.resetPasswordWithCode(
+				request,
+				context,
+				cmd.email,
+				cmd.code,
+				cmd.password,
+			);
+		} else if (cmd.cmd === "auth.sign-with-email-password") {
+			p = this.authController.signWithEmailPassword(
+				request,
+				context,
+				cmd.email,
+				cmd.password,
+			);
+		} else if (cmd.cmd === "db.get") {
+			p = this.databaseController.get(
+				request,
+				context,
+				doc(cmd.ref),
+			);
+		} else if (cmd.cmd === "db.list") {
+			p = this.databaseController.list(
+				request,
+				context,
+				collection(cmd.ref),
+				cmd.filter,
+			);
+		} else if (cmd.cmd === "db.create") {
+			p = this.databaseController.create(
+				request,
+				context,
+				doc(cmd.ref),
+				cmd.metadata,
+				cmd.data,
+			);
+		} else if (cmd.cmd === "db.update") {
+			p = this.databaseController.update(
+				request,
+				context,
+				doc(cmd.ref),
+				cmd.metadata,
+				cmd.data,
+			);
+		} else if (cmd.cmd === "db.delete") {
+			p = this.databaseController.delete(
+				request,
+				context,
+				doc(cmd.ref),
+			);
+		} else {
+			p = Promise.reject({ error: "Unknown" } as Result);
+		}
+		return p;
 	}
 }

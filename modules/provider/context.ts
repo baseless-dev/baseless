@@ -1,4 +1,4 @@
-import { AuthIdentifier } from "https://baseless.dev/x/shared/deno/auth.ts";
+import { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
 import { IAuthProvider } from "./auth.ts";
 import { IDatabaseProvider } from "./database.ts";
 import { IKVProvider } from "./kv.ts";

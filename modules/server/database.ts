@@ -1,13 +1,7 @@
-import {
-	DatabaseScanFilter,
-	IDocument,
-} from "https://baseless.dev/x/provider/deno/database.ts";
-import { Context } from "https://baseless.dev/x/provider/deno/context.ts";
-import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
-import {
-	CollectionReference,
-	DocumentReference,
-} from "https://baseless.dev/x/shared/deno/database.ts";
+import { DatabaseScanFilter, IDocument } from "https://baseless.dev/x/provider/database.ts";
+import { Context } from "https://baseless.dev/x/provider/context.ts";
+import { logger } from "https://baseless.dev/x/logger/mod.ts";
+import { CollectionReference, DocumentReference } from "https://baseless.dev/x/shared/database.ts";
 import { Result } from "./schema.ts";
 
 function refToRegExp(ref: string) {

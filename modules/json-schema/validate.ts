@@ -2,13 +2,7 @@ import { deepCompareStrict } from "./deep-compare-strict.ts";
 import { dereference } from "./dereference.ts";
 import { fastFormat } from "./format.ts";
 import { encodePointer } from "./pointer.ts";
-import {
-	InstanceType,
-	OutputUnit,
-	Schema,
-	SchemaDraft,
-	ValidationResult,
-} from "./types.ts";
+import { InstanceType, OutputUnit, Schema, SchemaDraft, ValidationResult } from "./types.ts";
 import { ucs2length } from "./ucs2-length.ts";
 
 export type Evaluated = Record<string | number, boolean>;
@@ -127,9 +121,7 @@ export function validate(
 	}
 
 	if ($recursiveRef === "#") {
-		const refSchema = recursiveAnchor === null
-			? (lookup[__absolute_recursive_ref__!] as Schema)
-			: recursiveAnchor;
+		const refSchema = recursiveAnchor === null ? (lookup[__absolute_recursive_ref__!] as Schema) : recursiveAnchor;
 		const keywordLocation = `${schemaLocation}/$recursiveRef`;
 		const result = validate(
 			instance,
@@ -227,8 +219,7 @@ export function validate(
 				instanceLocation,
 				keyword: "type",
 				keywordLocation: `${schemaLocation}/type`,
-				error:
-					`Instance type "${instanceType}" is invalid. Expected "${$type}".`,
+				error: `Instance type "${instanceType}" is invalid. Expected "${$type}".`,
 			});
 		}
 	} else if ($type !== undefined && instanceType !== $type) {
@@ -406,8 +397,7 @@ export function validate(
 				instanceLocation,
 				keyword: "oneOf",
 				keywordLocation,
-				error:
-					`Instance does not match exactly one subschema (${matches} matches).`,
+				error: `Instance does not match exactly one subschema (${matches} matches).`,
 			});
 		}
 	}
@@ -553,8 +543,7 @@ export function validate(
 								instanceLocation,
 								keyword: "dependentRequired",
 								keywordLocation,
-								error:
-									`Instance has "${key}" but does not have "${dependantKey}".`,
+								error: `Instance has "${key}" but does not have "${dependantKey}".`,
 							});
 						}
 					}
@@ -583,8 +572,7 @@ export function validate(
 								instanceLocation,
 								keyword: "dependentSchemas",
 								keywordLocation,
-								error:
-									`Instance has "${key}" but does not match dependant schema.`,
+								error: `Instance has "${key}" but does not match dependant schema.`,
 							},
 							...result.errors,
 						);
@@ -605,8 +593,7 @@ export function validate(
 									instanceLocation,
 									keyword: "dependencies",
 									keywordLocation,
-									error:
-										`Instance has "${key}" but does not have "${dependantKey}".`,
+									error: `Instance has "${key}" but does not have "${dependantKey}".`,
 								});
 							}
 						}
@@ -627,8 +614,7 @@ export function validate(
 									instanceLocation,
 									keyword: "dependencies",
 									keywordLocation,
-									error:
-										`Instance has "${key}" but does not match dependant schema.`,
+									error: `Instance has "${key}" but does not match dependant schema.`,
 								},
 								...result.errors,
 							);
@@ -710,8 +696,7 @@ export function validate(
 								instanceLocation,
 								keyword: "patternProperties",
 								keywordLocation,
-								error:
-									`Property "${key}" matches pattern "${pattern}" but does not match associated schema.`,
+								error: `Property "${key}" matches pattern "${pattern}" but does not match associated schema.`,
 							},
 							...result.errors,
 						);
@@ -746,8 +731,7 @@ export function validate(
 							instanceLocation,
 							keyword: "additionalProperties",
 							keywordLocation,
-							error:
-								`Property "${key}" does not match additional properties schema.`,
+							error: `Property "${key}" does not match additional properties schema.`,
 						},
 						...result.errors,
 					);
@@ -780,8 +764,7 @@ export function validate(
 								instanceLocation,
 								keyword: "unevaluatedProperties",
 								keywordLocation,
-								error:
-									`Property "${key}" does not match unevaluated properties schema.`,
+								error: `Property "${key}" does not match unevaluated properties schema.`,
 							},
 							...result.errors,
 						);
@@ -938,16 +921,14 @@ export function validate(
 					instanceLocation,
 					keyword: "contains",
 					keywordLocation: `${schemaLocation}/contains`,
-					error:
-						`Array is empty. It must contain at least one item matching the schema.`,
+					error: `Array is empty. It must contain at least one item matching the schema.`,
 				});
 			} else if ($minContains !== undefined && length < $minContains) {
 				errors.push({
 					instanceLocation,
 					keyword: "minContains",
 					keywordLocation: `${schemaLocation}/minContains`,
-					error:
-						`Array has less items (${length}) than minContains (${$minContains}).`,
+					error: `Array has less items (${length}) than minContains (${$minContains}).`,
 				});
 			} else {
 				const keywordLocation = `${schemaLocation}/contains`;
@@ -1000,8 +981,7 @@ export function validate(
 						instanceLocation,
 						keyword: "maxContains",
 						keywordLocation: `${schemaLocation}/maxContains`,
-						error:
-							`Array may contain at most ${$maxContains} items matching schema. ${contained} items were found.`,
+						error: `Array may contain at most ${$maxContains} items matching schema. ${contained} items were found.`,
 					});
 				}
 			}
@@ -1072,9 +1052,7 @@ export function validate(
 					instanceLocation,
 					keyword: "minimum",
 					keywordLocation: `${schemaLocation}/minimum`,
-					error: `${instance} is less than ${
-						$exclusiveMinimum ? "or equal to " : ""
-					} ${$minimum}.`,
+					error: `${instance} is less than ${$exclusiveMinimum ? "or equal to " : ""} ${$minimum}.`,
 				});
 			}
 			if (
@@ -1086,9 +1064,7 @@ export function validate(
 					instanceLocation,
 					keyword: "maximum",
 					keywordLocation: `${schemaLocation}/maximum`,
-					error: `${instance} is greater than ${
-						$exclusiveMaximum ? "or equal to " : ""
-					} ${$maximum}.`,
+					error: `${instance} is greater than ${$exclusiveMaximum ? "or equal to " : ""} ${$maximum}.`,
 				});
 			}
 		} else {
@@ -1121,8 +1097,7 @@ export function validate(
 					instanceLocation,
 					keyword: "exclusiveMaximum",
 					keywordLocation: `${schemaLocation}/exclusiveMaximum`,
-					error:
-						`${instance} is greater than or equal to ${$exclusiveMaximum}.`,
+					error: `${instance} is greater than or equal to ${$exclusiveMaximum}.`,
 				});
 			}
 		}
@@ -1141,9 +1116,7 @@ export function validate(
 			}
 		}
 	} else if (instanceType === "string") {
-		const length = $minLength === undefined && $maxLength === undefined
-			? 0
-			: ucs2length(instance);
+		const length = $minLength === undefined && $maxLength === undefined ? 0 : ucs2length(instance);
 		if ($minLength !== undefined && length < $minLength) {
 			errors.push({
 				instanceLocation,

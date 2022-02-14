@@ -15,10 +15,10 @@
 			"https://deno.land/x/jose@v4.3.7/types.d.ts": "jose@^4.3.7"
 		},
 		"browser": {
-			"https://baseless.dev/x/shared/deno/auth.ts": "https://baseless.dev/x/shared/browser/auth.js",
-			"https://baseless.dev/x/shared/deno/database.ts": "https://baseless.dev/x/shared/browser/database.js",
-			"https://baseless.dev/x/shared/deno/kv.ts": "https://baseless.dev/x/shared/browser/kv.js",
-			"https://baseless.dev/x/shared/deno/mail.ts": "https://baseless.dev/x/shared/browser/mail.js"
+			"https://baseless.dev/x/shared/auth.ts": "https://baseless.dev/w/shared/auth.js",
+			"https://baseless.dev/x/shared/database.ts": "https://baseless.dev/w/shared/database.js",
+			"https://baseless.dev/x/shared/kv.ts": "https://baseless.dev/w/shared/kv.js",
+			"https://baseless.dev/x/shared/mail.ts": "https://baseless.dev/w/shared/mail.js"
 		}
 	}
 }

@@ -1,19 +1,19 @@
-import { KVScanFilter } from "https://baseless.dev/x/provider/deno/kv.ts";
-import { Validator } from "https://baseless.dev/x/json-schema/deno/validator.ts";
-import { Schema } from "https://baseless.dev/x/json-schema/deno/types.ts";
+import { KVScanFilter } from "https://baseless.dev/x/provider/kv.ts";
+import { Validator } from "https://baseless.dev/x/json-schema/validator.ts";
+import { Schema } from "https://baseless.dev/x/json-schema/types.ts";
 
 export type Commands = { [id: string]: Command };
 
 export type Command =
 	| { cmd: "fn.call"; ref: string }
 	| { cmd: "db.get"; ref: string }
-	| { cmd: "db.create"; ref: string; metadata: object; data?: object }
-	| { cmd: "db.update"; ref: string; metadata: object; data?: object }
-	| { cmd: "db.list"; ref: string; filter?: KVScanFilter<object> }
+	| { cmd: "db.create"; ref: string; metadata: Record<string, unknown>; data?: Record<string, unknown> }
+	| { cmd: "db.update"; ref: string; metadata: Record<string, unknown>; data?: Record<string, unknown> }
+	| { cmd: "db.list"; ref: string; filter?: KVScanFilter<Record<string, unknown>> }
 	| { cmd: "db.delete"; ref: string }
 	| { cmd: "kv.get"; key: string }
-	| { cmd: "kv.set"; key: string; metadata: object; data?: object }
-	| { cmd: "kv.list"; prefix: string; filter?: KVScanFilter<object> }
+	| { cmd: "kv.set"; key: string; metadata: Record<string, unknown>; data?: Record<string, unknown> }
+	| { cmd: "kv.list"; prefix: string; filter?: KVScanFilter<Record<string, unknown>> }
 	| { cmd: "kv.delete"; key: string }
 	| { cmd: "auth.create-anonymous-user" }
 	| {
@@ -42,10 +42,10 @@ export type Command =
 export type Results = { [id: string]: Result };
 
 export type Result =
-	| { error?: string }
+	| { error?: string; args?: string[] }
 	| { ret: string }
-	| { metadata: object; data?: object }
-	| { docs: { ref: string; metadata: object; data?: object }[] }
+	| { metadata: Record<string, unknown>; data?: Record<string, unknown> }
+	| { docs: { ref: string; metadata: Record<string, unknown>; data?: Record<string, unknown> }[] }
 	| { access_token: string; refresh_token?: string };
 
 const commandsSchema: Schema = {

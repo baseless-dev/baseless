@@ -1,5 +1,5 @@
-import { Message } from "https://baseless.dev/x/shared/deno/mail.ts";
-// import { User } from "https://baseless.dev/x/shared/deno/auth.ts";
+import { Message } from "https://baseless.dev/x/shared/mail.ts";
+// import { User } from "https://baseless.dev/x/shared/auth.ts";
 import { KeyLike } from "https://deno.land/x/jose@v4.3.7/types.d.ts";
 import { Context } from "./context.ts";
 

@@ -1,19 +1,9 @@
-import * as log from "https://baseless.dev/x/logger/deno/mod.ts";
-import {
-	auth,
-	database,
-	functions,
-	mail,
-	Server,
-} from "https://baseless.dev/x/server/deno/mod.ts";
-import {
-	exportPKCS8,
-	exportSPKI,
-	generateKeyPair,
-} from "https://deno.land/x/jose@v4.3.7/index.ts";
+import * as log from "https://baseless.dev/x/logger/mod.ts";
+import { auth, database, functions, mail, Server } from "https://baseless.dev/x/server/mod.ts";
+import { exportPKCS8, exportSPKI, generateKeyPair } from "https://deno.land/x/jose@v4.3.7/index.ts";
 import "./app.ts";
-import { MemoryClientProvider } from "https://baseless.dev/x/provider-client-memory/deno/mod.ts";
-import { Client } from "https://baseless.dev/x/provider/deno/client.ts";
+import { MemoryClientProvider } from "https://baseless.dev/x/provider-client-memory/mod.ts";
+import { Client } from "https://baseless.dev/x/provider/client.ts";
 
 const { publicKey, privateKey } = await generateKeyPair("RS256", {
 	extractable: true,

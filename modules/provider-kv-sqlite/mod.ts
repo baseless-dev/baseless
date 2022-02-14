@@ -1,15 +1,7 @@
-import {
-	IKVProvider,
-	KVScanFilter,
-	KVSetOptions,
-} from "https://baseless.dev/x/provider/deno/kv.ts";
-import {
-	IKVValue,
-	KeyNotFoundError,
-	KVData,
-} from "https://baseless.dev/x/shared/deno/kv.ts";
+import { IKVProvider, KVScanFilter, KVSetOptions } from "https://baseless.dev/x/provider/kv.ts";
+import { IKVValue, KeyNotFoundError, KVData } from "https://baseless.dev/x/shared/kv.ts";
 import { DB, SqliteOptions } from "https://deno.land/x/sqlite@v3.2.0/mod.ts";
-import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
+import { logger } from "https://baseless.dev/x/logger/mod.ts";
 
 export class SqliteNotOpenedError extends Error {
 	public name = "SqliteNotOpenedError";
@@ -50,7 +42,7 @@ export class SqliteKVProvider implements IKVProvider {
 	constructor(path: string, mode?: SqliteOptions["mode"]);
 	constructor(
 		path_or_db: DB | string,
-		mode: SqliteOptions["mode"] = "write",
+		mode: SqliteOptions["mode"] = "create",
 	) {
 		if (path_or_db instanceof DB) {
 			this.options = { db: path_or_db };
@@ -177,9 +169,7 @@ export class SqliteKVProvider implements IKVProvider {
 						filterFns.push((row) => !op["nin"].includes(row[prop]));
 					}
 				}
-				return values.filter((row) =>
-					filterFns.every((fn) => fn(row.metadata))
-				);
+				return values.filter((row) => filterFns.every((fn) => fn(row.metadata)));
 			}
 			return values;
 		} catch (err) {
@@ -200,9 +190,7 @@ export class SqliteKVProvider implements IKVProvider {
 			throw new SqliteNotOpenedError();
 		}
 		const expireAt = options
-			? "expireAt" in options
-				? options.expireAt.getTime() / 1000
-				: options.expireIn + new Date().getTime() / 1000
+			? "expireAt" in options ? options.expireAt.getTime() / 1000 : options.expireIn + new Date().getTime() / 1000
 			: null;
 		try {
 			if (data instanceof ReadableStream) {

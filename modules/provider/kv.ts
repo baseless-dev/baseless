@@ -1,4 +1,4 @@
-import { IKVValue, KVData } from "https://baseless.dev/x/shared/deno/kv.ts";
+import { IKVValue, KVData } from "https://baseless.dev/x/shared/kv.ts";
 import { NoopProviderError } from "./mod.ts";
 
 /**

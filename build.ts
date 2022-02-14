@@ -1,17 +1,7 @@
 import { parse } from "https://deno.land/std@0.120.0/flags/mod.ts";
 import { expandGlob } from "https://deno.land/std@0.120.0/fs/expand_glob.ts";
-import {
-	basename,
-	dirname,
-	fromFileUrl,
-	join,
-	relative,
-	resolve,
-} from "https://deno.land/std@0.120.0/path/mod.ts";
-import {
-	createProject,
-	ts,
-} from "https://deno.land/x/ts_morph/bootstrap/mod.ts";
+import { basename, dirname, fromFileUrl, join, relative, resolve } from "https://deno.land/std@0.120.0/path/mod.ts";
+import { createProject, ts } from "https://deno.land/x/ts_morph/bootstrap/mod.ts";
 import { debounce } from "https://deno.land/std@0.121.0/async/debounce.ts";
 
 export async function build() {

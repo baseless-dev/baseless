@@ -1,16 +1,7 @@
-import {
-	auth,
-	database,
-	functions,
-	mail,
-	Server,
-} from "https://baseless.dev/x/server/deno/mod.ts";
-import { MemoryClientProvider } from "https://baseless.dev/x/provider-client-memory/deno/mod.ts";
-import { Client } from "https://baseless.dev/x/provider/deno/client.ts";
-import {
-	importPKCS8,
-	importSPKI,
-} from "https://deno.land/x/jose@v4.3.7/key/import.ts";
+import { auth, database, functions, mail, Server } from "https://baseless.dev/x/server/mod.ts";
+import { MemoryClientProvider } from "https://baseless.dev/x/provider-client-memory/mod.ts";
+import { Client } from "https://baseless.dev/x/provider/client.ts";
+import { importPKCS8, importSPKI } from "https://deno.land/x/jose@v4.3.7/key/import.ts";
 import "./app.ts";
 
 let server: Server | undefined;

@@ -3,19 +3,16 @@ import {
 	DocumentAlreadyExistsError,
 	DocumentNotFoundError,
 	DocumentReference,
-} from "https://baseless.dev/x/shared/deno/database.ts";
+} from "https://baseless.dev/x/shared/database.ts";
 import {
 	DatabaseScanFilter,
 	DatabaseSetOptions,
 	IDatabaseProvider,
 	IDocument,
-} from "https://baseless.dev/x/provider/deno/database.ts";
-import { IKVProvider } from "https://baseless.dev/x/provider/deno/kv.ts";
-import {
-	IKVValue,
-	KeyNotFoundError,
-} from "https://baseless.dev/x/shared/deno/kv.ts";
-import { logger } from "https://baseless.dev/x/logger/deno/mod.ts";
+} from "https://baseless.dev/x/provider/database.ts";
+import { IKVProvider } from "https://baseless.dev/x/provider/kv.ts";
+import { IKVValue, KeyNotFoundError } from "https://baseless.dev/x/shared/kv.ts";
+import { logger } from "https://baseless.dev/x/logger/mod.ts";
 
 const EOC = "/";
 
@@ -95,9 +92,7 @@ export class DatabaseOnKvProvider implements IDatabaseProvider {
 		reference: DocumentReference,
 	): Promise<IDocument<Metadata, Data>> {
 		const key = DocumentReferenceToKey(reference);
-		return this.backend.get<Metadata>(key).then((value) =>
-			new Document(reference, value)
-		);
+		return this.backend.get<Metadata>(key).then((value) => new Document(reference, value));
 	}
 
 	/**
@@ -110,11 +105,7 @@ export class DatabaseOnKvProvider implements IDatabaseProvider {
 		const prefix = `${reference}/${EOC}`;
 		return this.backend
 			.list(prefix, filter)
-			.then((values) =>
-				values.map((value) =>
-					new Document(keyToDocumentReference(value.key), value)
-				)
-			);
+			.then((values) => values.map((value) => new Document(keyToDocumentReference(value.key), value)));
 	}
 
 	/**

@@ -90,9 +90,7 @@ export function doc(
 	...segments: string[]
 ) {
 	if (collection instanceof CollectionReference) {
-		return segments.length
-			? new DocumentReference(collection, segments[0])
-			: new DocumentReference(collection);
+		return segments.length ? new DocumentReference(collection, segments[0]) : new DocumentReference(collection);
 	}
 	segments.unshift(collection);
 	if (segments.length === 1 && segments[0][0] === "/") {

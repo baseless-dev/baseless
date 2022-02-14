@@ -1,7 +1,4 @@
-import {
-	AuthIdentifier,
-	User,
-} from "https://baseless.dev/x/shared/deno/auth.ts";
+import { AuthIdentifier, User } from "https://baseless.dev/x/shared/auth.ts";
 import { NoopProviderError } from "./mod.ts";
 
 /**

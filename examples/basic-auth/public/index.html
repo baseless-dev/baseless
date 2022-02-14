@@ -28,12 +28,13 @@
 		<script type="importmap">
 			{
 				"imports": {
-					"https://baseless.dev/x/client@next/": "http://localhost:8081/client/"
+					"https://baseless.dev/w/client/": "http://localhost:8081/client/browser/",
+					"https://baseless.dev/w/shared/": "http://localhost:8081/shared/browser/"
 				}
 			}
 		</script>
 		<script defer type="module">
-			import { initializeApp } from "https://baseless.dev/x/client@next/browser/app.js";
+			import { initializeApp } from "https://baseless.dev/w/client/app.js";
 			import {
 				getAuth,
 				createUserWithEmailAndPassword,
@@ -42,7 +43,7 @@
 				signInWithEmailAndPassword,
 				setPersistence,
 				Persistence,
-			} from "https://baseless.dev/x/client@next/browser/auth.js";
+			} from "https://baseless.dev/w/client/auth.js";
 
 			const app = await initializeApp({
 				baselessUrl: "http://localhost:8787/",
@@ -61,27 +62,17 @@
 			const params = new URLSearchParams(window.location.search);
 			const action = params.get("action");
 
+			const nav = {
+				"login": loginForm,
+				"register": registerForm,
+				"validate": validateForm,
+				"pwreset": pwresetForm
+			};
+
 			function goto(section) {
-				if (section === "signin") {
-					loginForm.style.display = "block";
-					registerForm.style.display = "none";
-					validateForm.style.display = "none";
-					pwresetForm.style.display = "none";
-				} else if (section === "register") {
-					loginForm.style.display = "none";
-					registerForm.style.display = "block";
-					validateForm.style.display = "none";
-					pwresetForm.style.display = "none";
-				} else if (section === "validate") {
-					registerForm.style.display = "none";
-					loginForm.style.display = "none";
-					validateForm.style.display = "block";
-					pwresetForm.style.display = "none";
-				} else if (section === "pwreset") {
-					registerForm.style.display = "none";
-					loginForm.style.display = "none";
-					validateForm.style.display = "none";
-					pwresetForm.style.display = "block";
+				section = section ?? "login";
+				for (const [key, elem] of Object.entries(nav)) {
+					elem.style.display = key === section ? "block" : "none"
 				}
 			}
 
@@ -127,9 +118,9 @@
 				debugger;
 			});
 
-			registerForm.querySelector("[data-role=goto-signin]").addEventListener("click", (e) => {
+			registerForm.querySelector("[data-role=goto-login]").addEventListener("click", (e) => {
 				e.preventDefault();
-				goto("signin");
+				goto("login");
 			});
 
 			loginForm.querySelector("[data-role=goto-register]").addEventListener("click", (e) => {
@@ -239,7 +230,7 @@
 						<h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Register a new account</h2>
 						<p class="text-center text-sm text-gray-600">
 							Or
-							<a href="#" data-role="goto-signin" class="font-medium text-baseless hover:text-baseless-700"> sign in with your email </a>
+							<a href="#" data-role="goto-login" class="font-medium text-baseless hover:text-baseless-700"> sign in with your email </a>
 						</p>
 
 						<div>

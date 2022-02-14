@@ -47,10 +47,18 @@ jobs:
         run: |
           echo "[" > artifacts/payload.json
 
-          for path in $(find ./dist -type f -path "./dist/*/deno/*" -or -path "./dist/*/browser/*" 2>/dev/null); do
+          for path in $(find ./dist -type f -path "./dist/*/deno/*" 2>/dev/null); do
             module=$(echo "$path" | cut -d "/" -f3)
-            pathname=$(echo "$path" | cut -d "/" -f4-)
-            key=$module@$GITHUB_REF_NAME/$pathname
+            pathname=$(echo "$path" | cut -d "/" -f5-)
+            key=x/$module@$GITHUB_REF_NAME/$pathname
+            value=$(base64 -w 0 "$path")
+            echo "{\"key\":\"$key\",\"base64\":true,\"value\":\"$value\"}," >> artifacts/payload.json
+          done
+
+          for path in $(find ./dist -type f -path "./dist/*/browser/*" 2>/dev/null); do
+            module=$(echo "$path" | cut -d "/" -f3)
+            pathname=$(echo "$path" | cut -d "/" -f5-)
+            key=w/$module@$GITHUB_REF_NAME/$pathname
             value=$(base64 -w 0 "$path")
             echo "{\"key\":\"$key\",\"base64\":true,\"value\":\"$value\"}," >> artifacts/payload.json
           done

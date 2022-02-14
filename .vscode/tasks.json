@@ -3,29 +3,41 @@
 	"tasks": [
 		{
 			"type": "deno",
+			"command": "run",
+			"args": [
+				"--unstable",
+				"-A",
+				"build.ts",
+				"--watch"
+			],
+			"isBackground": true,
+			"label": "deno: build.ts --watch"
+		},
+		{
+			"type": "deno",
 			"command": "fmt",
-			"args": ["--options-use-tabs", "--watch"],
+			"args": [
+				"--config",
+				"./deno.json",
+				"--watch"
+			],
 			"isBackground": true,
 			"group": "test",
-			"label": "deno: fmt --watch"
+			"label": "deno: fmt --watch",
+			"problemMatcher": []
 		},
 		{
 			"type": "deno",
 			"command": "lint",
-			"args": ["--watch"],
-			"problemMatcher": [
-				"$deno-lint"
+			"args": [
+				"--config",
+				"./deno.json",
+				"--watch"
 			],
 			"isBackground": true,
 			"group": "test",
-			"label": "deno: lint --watch"
-		},
-		{
-			"type": "deno",
-			"command": "run",
-			"args": ["--unstable", "-A", "build.ts", "--watch"],
-			"isBackground": true,
-			"label": "deno: build.ts --watch"
+			"label": "deno: lint --watch",
+			"problemMatcher": []
 		}
 	]
 }

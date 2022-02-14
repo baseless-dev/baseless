@@ -18,6 +18,7 @@ import {
 	UserNotFoundError,
 	ValidationCodeError,
 } from "https://baseless.dev/x/shared/auth.ts";
+import { UnknownError } from "https://baseless.dev/x/shared/server.ts";
 
 export class User<Metadata = Record<never, never>> {
 	public constructor(
@@ -189,6 +190,7 @@ export enum Persistence {
 }
 
 const errorMap = new Map<string, new () => Error>([
+	["UnknownError", UnknownError],
 	["CreateUserError", CreateUserError],
 	["DeleteUserError", DeleteUserError],
 	["UpdateUserError", UpdateUserError],
@@ -424,7 +426,7 @@ export async function signInWithEmailAndPassword(
 			return user;
 		}
 	}
-	throw new SignInEmailPasswordError();
+	throw authErrorCodeToError(result["error"]);
 }
 
 /**

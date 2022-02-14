@@ -16,6 +16,7 @@ import { FunctionsDescriptor, FunctionsHttpHandler } from "./functions.ts";
 import { MailDescriptor } from "./mail.ts";
 import { Command, Commands, Result, Results, validator } from "./schema.ts";
 import { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
+import { UnknownError } from "https://baseless.dev/x/shared/server.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
 import { Context } from "https://baseless.dev/x/provider/context.ts";
 import { collection, doc } from "https://baseless.dev/x/shared/database.ts";
@@ -230,7 +231,13 @@ export class Server {
 			.map(([key, cmd]) => {
 				return this.handleCommand(context, request, cmd)
 					.then((result) => [key, result] as const)
-					.catch((err: unknown) => [key, { error: err instanceof Error ? err.name : "Unknown" } as Result] as const);
+					.catch((err: unknown) => {
+						if (err instanceof Error) {
+							return [key, { error: err.name }] as const;
+						}
+						this.logger.warn(`Unknown error, got ${err}`);
+						return [key, { error: "UnknownError" }] as const;
+					});
 			});
 
 		const responses = await Promise.all(promises);
@@ -337,7 +344,7 @@ export class Server {
 				doc(cmd.ref),
 			);
 		} else {
-			p = Promise.reject({ error: "Unknown" } as Result);
+			p = Promise.reject(new UnknownError());
 		}
 		return p;
 	}

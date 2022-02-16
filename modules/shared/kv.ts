@@ -24,6 +24,26 @@ export interface IKVValue<Metadata> {
 }
 
 /**
+ * Filter operator
+ */
+export type KVScanFilterOp<T> =
+	| { eq: T }
+	| { neq: T }
+	| { gt: T }
+	| { gte: T }
+	| { lt: T }
+	| { lte: T }
+	| { in: T[] }
+	| { nin: T[] };
+
+/**
+ * Filter object
+ */
+export type KVScanFilter<Model> = {
+	[key in keyof Model]: KVScanFilterOp<Model[key]>;
+};
+
+/**
  * Document not found error
  */
 export class KeyNotFoundError extends Error {

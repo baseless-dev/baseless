@@ -1,5 +1,7 @@
-import { IKVValue, KVData } from "https://baseless.dev/x/shared/kv.ts";
+import { IKVValue, KVData, KVScanFilter } from "https://baseless.dev/x/shared/kv.ts";
 import { NoopProviderError } from "./mod.ts";
+
+export type { KVScanFilter } from "https://baseless.dev/x/shared/kv.ts";
 
 /**
  * Options when getting a value from the kv
@@ -22,26 +24,6 @@ export type KVSetOptions =
 		 */
 		expireIn: number;
 	};
-
-/**
- * Filter operator
- */
-export type KVScanFilterOp<T> =
-	| { eq: T }
-	| { neq: T }
-	| { gt: T }
-	| { gte: T }
-	| { lt: T }
-	| { lte: T }
-	| { in: T[] }
-	| { nin: T[] };
-
-/**
- * Filter object
- */
-export type KVScanFilter<Model> = {
-	[key in keyof Model]: KVScanFilterOp<Model[key]>;
-};
 
 /**
  * KV Provider

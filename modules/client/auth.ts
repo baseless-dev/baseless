@@ -50,35 +50,40 @@ export class Auth {
 	 * @internal
 	 */
 	public constructor(public readonly app: App) {
-		this._storage = new SessionStorage(this);
+		this.storage = new SessionStorage(this);
 		this.languageCode = "en";
+	}
+
+	protected currentUser: User | undefined;
+
+	public getCurrentUser() {
+		return this.currentUser;
 	}
 
 	/**
 	 * @internal
 	 */
-	public _currentUser: User | undefined;
+	public setCurrentUser(user: User | undefined) {
+		this.currentUser = user;
+	}
+
+	protected storage: IStorage;
+
+	public getStorage() {
+		return this.storage;
+	}
 
 	/**
 	 * @internal
 	 */
-	public _storage: IStorage;
+	public setStorage(storage: IStorage) {
+		this.storage = storage;
+	}
 
 	/**
 	 * Language code to be sent as local on supported commands
 	 */
 	public languageCode: string;
-
-	private tokenChangeHandlers: TokenChangeHandler[] = [];
-
-	/**
-	 * @internal
-	 */
-	public _onTokensChange(
-		handler: TokenChangeHandler,
-	): void {
-		this.tokenChangeHandlers.push(handler);
-	}
 }
 
 export type Tokens = {
@@ -108,7 +113,7 @@ export class LocalStorage implements IStorage {
 	getTokens(): Promise<Tokens | undefined> {
 		return new Promise((resolve) => {
 			const value = localStorage.getItem(
-				`baseless-${this.auth.app.clientId}-tokens`,
+				`baseless-${this.auth.app.getClientId()}-tokens`,
 			);
 			try {
 				if (value) {
@@ -122,7 +127,7 @@ export class LocalStorage implements IStorage {
 	setTokens(tokens: Tokens | undefined): Promise<void> {
 		return new Promise((resolve) => {
 			localStorage.setItem(
-				`baseless-${this.auth.app.clientId}-tokens`,
+				`baseless-${this.auth.app.getClientId()}-tokens`,
 				JSON.stringify(tokens),
 			);
 			return resolve();
@@ -140,7 +145,7 @@ export class SessionStorage implements IStorage {
 	getTokens(): Promise<Tokens | undefined> {
 		return new Promise((resolve) => {
 			const value = sessionStorage.getItem(
-				`baseless-${this.auth.app.clientId}-tokens`,
+				`baseless-${this.auth.app.getClientId()}-tokens`,
 			);
 			try {
 				if (value) {
@@ -154,7 +159,7 @@ export class SessionStorage implements IStorage {
 	setTokens(tokens: Tokens | undefined): Promise<void> {
 		return new Promise((resolve) => {
 			sessionStorage.setItem(
-				`baseless-${this.auth.app.clientId}-tokens`,
+				`baseless-${this.auth.app.getClientId()}-tokens`,
 				JSON.stringify(tokens),
 			);
 			return resolve();
@@ -223,13 +228,13 @@ export function getAuth(app: App) {
 }
 
 async function getOrRefreshTokens(auth: Auth) {
-	const tokens = await auth._storage.getTokens();
+	const tokens = await auth.getStorage().getTokens();
 	if (!tokens) {
 		return null;
 	}
 
 	try {
-		let { payload } = await jwtVerify(tokens.id_token, auth.app.clientPublicKey);
+		let { payload } = await jwtVerify(tokens.id_token, auth.app.getClientPublicKey());
 		if (!payload.exp || payload.exp - Date.now() / 1000 <= 5 * 60) {
 			// Refresh tokens
 			return Promise.reject("NOTIMPLEMENTED");
@@ -265,7 +270,7 @@ export async function getIdTokenResult(auth: Auth) {
 	if (tokens) {
 		const { payload } = await jwtVerify(
 			tokens.id_token,
-			auth.app.clientPublicKey,
+			auth.app.getClientPublicKey(),
 		);
 		return payload;
 	}
@@ -291,19 +296,13 @@ export async function createUserWithEmailAndPassword(
 	email: string,
 	password: string,
 ) {
-	const req = new Request(auth.app.prepareRequest(), {
-		body: JSON.stringify({
-			"1": {
-				cmd: "auth.create-user-with-email-password",
-				email,
-				password,
-				locale: auth.languageCode,
-			},
-		}),
+	const res = await auth.app.send({
+		cmd: "auth.create-user-with-email-password",
+		email,
+		password,
+		locale: auth.languageCode,
 	});
-	const res = await fetch(req);
-	const json = await res.json();
-	console.log(json);
+	console.log(res);
 	debugger;
 }
 
@@ -320,18 +319,8 @@ export function sendEmailVerification(auth: Auth) {
  * Applies a verification code sent to the user by email or other out-of-band mechanism.
  */
 export async function validateEmail(auth: Auth, code: string, email: string) {
-	const req = new Request(auth.app.prepareRequest(), {
-		body: JSON.stringify({
-			"1": {
-				cmd: "auth.validate-email",
-				email,
-				code,
-			},
-		}),
-	});
-	const res = await fetch(req);
-	const json = await res.json();
-	console.log(json);
+	const res = await auth.app.send({ cmd: "auth.validate-email", email, code });
+	console.log(res);
 	debugger;
 }
 
@@ -362,25 +351,26 @@ export function resetPassword(
  * This makes it easy for a user signing in to specify whether their session should be remembered or not. It also makes it easier to never persist the `Auth` state for applications that are shared by other users or have sensitive data.
  */
 export async function setPersistence(auth: Auth, persistence: Persistence) {
-	const oldPersistence = auth._storage.getPersistence();
+	const storage = auth.getStorage();
+	const oldPersistence = storage.getPersistence();
 	if (oldPersistence !== persistence) {
 		// Get old tokens
-		const oldTokens = await auth._storage.getTokens();
+		const oldTokens = await storage.getTokens();
 		// Clear tokens from previous storage
-		await auth._storage.setTokens(undefined);
+		await storage.setTokens(undefined);
 		switch (persistence) {
 			case Persistence.Local:
-				auth._storage = new LocalStorage(auth);
+				auth.setStorage(new LocalStorage(auth));
 				break;
 			case Persistence.Session:
-				auth._storage = new SessionStorage(auth);
+				auth.setStorage(new SessionStorage(auth));
 				break;
 			case Persistence.None:
-				auth._storage = new MemoryStorage();
+				auth.setStorage(new MemoryStorage());
 				break;
 		}
 		// Set old tokens in new storage
-		auth._storage.setTokens(oldTokens);
+		storage.setTokens(oldTokens);
 	}
 }
 
@@ -403,17 +393,10 @@ export async function signInWithEmailAndPassword(
 	email: string,
 	password: string,
 ) {
-	const req = new Request(auth.app.prepareRequest(), {
-		body: JSON.stringify({
-			"1": { cmd: "auth.sign-with-email-password", email, password },
-		}),
-	});
-	const res = await fetch(req);
-	const json = await res.json();
-	const result = json["1"];
-	if ("id_token" in result && "access_token" in result) {
-		const { id_token, access_token, refresh_token } = result;
-		auth._storage.setTokens({ id_token, access_token, refresh_token });
+	const res = await auth.app.send({ cmd: "auth.sign-with-email-password", email, password });
+	if ("id_token" in res && "access_token" in res) {
+		const { id_token, access_token, refresh_token } = res;
+		auth.getStorage().setTokens({ id_token, access_token, refresh_token });
 		const payload = await getIdTokenResult(auth) ?? {};
 		if ("sub" in payload && "email" in payload && "emailConfirmed" in payload && "metadata" in payload) {
 			const user = new User<Record<never, never>>(
@@ -422,18 +405,21 @@ export async function signInWithEmailAndPassword(
 				payload.emailConfirmed as boolean,
 				payload.metadata as Record<never, never>,
 			);
-			auth._currentUser = user;
+			auth.setCurrentUser(user);
 			return user;
 		}
+	} else if ("error" in res) {
+		throw authErrorCodeToError(res["error"]);
+	} else {
+		throw new UnknownError();
 	}
-	throw authErrorCodeToError(result["error"]);
 }
 
 /**
  * Signs out the current user.
  */
 export async function signOut(auth: Auth) {
-	await auth._storage.setTokens(undefined);
+	await auth.getStorage().setTokens(undefined);
 }
 
 /**

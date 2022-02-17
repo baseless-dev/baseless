@@ -1,4 +1,4 @@
-import { App } from "./app.ts";
+import { App, MemoryStorage } from "./app.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
 import {
 	AddSignInEmailPasswordError,
@@ -49,10 +49,13 @@ export class Auth {
 	 * Construct an `Auth` object
 	 * @internal
 	 */
-	public constructor(public readonly app: App) {
-		this.storage = new SessionStorage(this);
-		this.languageCode = "en";
-	}
+	public constructor(
+		public readonly app: App,
+		/**
+		 * Language code to be sent as local on supported commands
+		 */
+		public languageCode: string = "en",
+	) {}
 
 	protected currentUser: User | undefined;
 
@@ -65,126 +68,6 @@ export class Auth {
 	 */
 	public setCurrentUser(user: User | undefined) {
 		this.currentUser = user;
-	}
-
-	protected storage: IStorage;
-
-	public getStorage() {
-		return this.storage;
-	}
-
-	/**
-	 * @internal
-	 */
-	public setStorage(storage: IStorage) {
-		this.storage = storage;
-	}
-
-	/**
-	 * Language code to be sent as local on supported commands
-	 */
-	public languageCode: string;
-}
-
-export type Tokens = {
-	id_token: string;
-	access_token: string;
-	refresh_token?: string;
-};
-
-export type TokenChangeHandler = (
-	tokens: Tokens | undefined,
-	user: User | undefined,
-) => Promise<void>;
-
-export interface IStorage {
-	getPersistence(): Persistence;
-	getTokens(): Promise<Tokens | undefined>;
-	setTokens(tokens: Tokens | undefined): Promise<void>;
-}
-
-export class LocalStorage implements IStorage {
-	constructor(protected auth: Auth) {}
-
-	getPersistence(): Persistence {
-		return Persistence.Local;
-	}
-
-	getTokens(): Promise<Tokens | undefined> {
-		return new Promise((resolve) => {
-			const value = localStorage.getItem(
-				`baseless-${this.auth.app.getClientId()}-tokens`,
-			);
-			try {
-				if (value) {
-					return resolve(JSON.parse(value) as Tokens);
-				}
-			} catch (_err) {}
-			return resolve(undefined);
-		});
-	}
-
-	setTokens(tokens: Tokens | undefined): Promise<void> {
-		return new Promise((resolve) => {
-			localStorage.setItem(
-				`baseless-${this.auth.app.getClientId()}-tokens`,
-				JSON.stringify(tokens),
-			);
-			return resolve();
-		});
-	}
-}
-
-export class SessionStorage implements IStorage {
-	constructor(protected auth: Auth) {}
-
-	getPersistence(): Persistence {
-		return Persistence.Session;
-	}
-
-	getTokens(): Promise<Tokens | undefined> {
-		return new Promise((resolve) => {
-			const value = sessionStorage.getItem(
-				`baseless-${this.auth.app.getClientId()}-tokens`,
-			);
-			try {
-				if (value) {
-					return resolve(JSON.parse(value) as Tokens);
-				}
-			} catch (_err) {}
-			return resolve(undefined);
-		});
-	}
-
-	setTokens(tokens: Tokens | undefined): Promise<void> {
-		return new Promise((resolve) => {
-			sessionStorage.setItem(
-				`baseless-${this.auth.app.getClientId()}-tokens`,
-				JSON.stringify(tokens),
-			);
-			return resolve();
-		});
-	}
-}
-
-export class MemoryStorage implements IStorage {
-	private tokens: Tokens | undefined;
-
-	getPersistence(): Persistence {
-		return Persistence.None;
-	}
-
-	getTokens(): Promise<Tokens | undefined> {
-		return new Promise((resolve) => {
-			return resolve(this.tokens);
-		});
-	}
-
-	setTokens(tokens: Tokens | undefined): Promise<void> {
-		return new Promise((resolve) => {
-			this.tokens = tokens;
-			return resolve();
-		});
 	}
 }
 
@@ -224,11 +107,14 @@ function authErrorCodeToError(errorCode: string): Error | undefined {
  * Returns the Auth instance associated with the provided `BaselessApp`.
  */
 export function getAuth(app: App) {
-	return new Auth(app);
+	const auth = new Auth(app);
+	const persistence = localStorage.getItem(`baseless_persistence_${app.getClientId()}`) as Persistence;
+	setPersistence(auth, persistence ?? Persistence.None);
+	return auth;
 }
 
 async function getOrRefreshTokens(auth: Auth) {
-	const tokens = await auth.getStorage().getTokens();
+	const tokens = await auth.app.getTokens();
 	if (!tokens) {
 		return null;
 	}
@@ -350,27 +236,16 @@ export function resetPassword(
  *
  * This makes it easy for a user signing in to specify whether their session should be remembered or not. It also makes it easier to never persist the `Auth` state for applications that are shared by other users or have sensitive data.
  */
-export async function setPersistence(auth: Auth, persistence: Persistence) {
-	const storage = auth.getStorage();
-	const oldPersistence = storage.getPersistence();
-	if (oldPersistence !== persistence) {
-		// Get old tokens
-		const oldTokens = await storage.getTokens();
-		// Clear tokens from previous storage
-		await storage.setTokens(undefined);
-		switch (persistence) {
-			case Persistence.Local:
-				auth.setStorage(new LocalStorage(auth));
-				break;
-			case Persistence.Session:
-				auth.setStorage(new SessionStorage(auth));
-				break;
-			case Persistence.None:
-				auth.setStorage(new MemoryStorage());
-				break;
-		}
-		// Set old tokens in new storage
-		storage.setTokens(oldTokens);
+export function setPersistence(auth: Auth, persistence: Persistence) {
+	localStorage.setItem(`baseless_persistence_${auth.app.getClientId()}`, persistence);
+	switch (persistence) {
+		case Persistence.Local:
+			return auth.app.setStorage(localStorage);
+		case Persistence.Session:
+			return auth.app.setStorage(sessionStorage);
+		case Persistence.None:
+		default:
+			return auth.app.setStorage(new MemoryStorage());
 	}
 }
 
@@ -396,7 +271,7 @@ export async function signInWithEmailAndPassword(
 	const res = await auth.app.send({ cmd: "auth.sign-with-email-password", email, password });
 	if ("id_token" in res && "access_token" in res) {
 		const { id_token, access_token, refresh_token } = res;
-		auth.getStorage().setTokens({ id_token, access_token, refresh_token });
+		auth.app.setTokens({ id_token, access_token, refresh_token });
 		const payload = await getIdTokenResult(auth) ?? {};
 		if ("sub" in payload && "email" in payload && "emailConfirmed" in payload && "metadata" in payload) {
 			const user = new User<Record<never, never>>(
@@ -419,7 +294,7 @@ export async function signInWithEmailAndPassword(
  * Signs out the current user.
  */
 export async function signOut(auth: Auth) {
-	await auth.getStorage().setTokens(undefined);
+	await auth.app.setTokens(undefined);
 }
 
 /**

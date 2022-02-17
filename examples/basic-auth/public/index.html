@@ -91,7 +91,7 @@
 				const password = loginForm.querySelector("[name=password]");
 				const rememberMe = loginForm.querySelector("[name=remember-me]");
 
-				await setPersistence(auth, rememberMe ? Persistence.Local : Persistence.Session);
+				await setPersistence(auth, rememberMe.checked ? Persistence.Local : Persistence.Session);
 
 				const result = await signInWithEmailAndPassword(auth, email.value, password.value);
 				console.log(result);

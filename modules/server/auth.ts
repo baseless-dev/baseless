@@ -4,6 +4,7 @@ import {
 	CreateUserError,
 	EmailNeedsConfirmationError,
 	PasswordResetError,
+	RefreshTokensError,
 	SetPasswordResetError,
 	SetValidationCodeError,
 	SignInEmailPasswordError,
@@ -14,6 +15,7 @@ import { Context } from "https://baseless.dev/x/provider/context.ts";
 import { Client } from "https://baseless.dev/x/provider/client.ts";
 import { autoid } from "https://baseless.dev/x/shared/autoid.ts";
 import { SignJWT } from "https://deno.land/x/jose@v4.3.7/jwt/sign.ts";
+import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
 import { Result } from "./schema.ts";
 import { logger } from "https://baseless.dev/x/logger/mod.ts";
 
@@ -148,6 +150,7 @@ export class AuthController {
 	private async _createJWTs(
 		context: Context,
 		user: User<unknown>,
+		scope = "*",
 	): Promise<{ id_token: string; access_token: string; refresh_token: string }> {
 		const { algKey, privateKey } = context.client;
 		const id_token = await new SignJWT({
@@ -156,21 +159,24 @@ export class AuthController {
 			emailConfirmed: user.emailConfirmed,
 		})
 			.setSubject(user.id)
+			.setIssuedAt()
 			.setExpirationTime("1week")
 			.setIssuer(context.client.principal)
 			.setAudience(context.client.principal)
 			.setProtectedHeader({ alg: algKey })
 			.sign(privateKey);
-		const access_token = await new SignJWT({ scope: "*" })
+		const access_token = await new SignJWT({ scope })
 			.setSubject(user.id)
+			.setIssuedAt()
 			.setExpirationTime("15min")
 			.setIssuer(context.client.principal)
 			.setAudience(context.client.principal)
 			.setProtectedHeader({ alg: algKey })
 			.sign(privateKey);
-		const refresh_token = await new SignJWT({ scope: "*" })
+		const refresh_token = await new SignJWT({ scope })
 			.setSubject(user.id)
-			.setExpirationTime("1week")
+			.setIssuedAt()
+			.setExpirationTime("2hour")
 			.setIssuer(context.client.principal)
 			.setAudience(context.client.principal)
 			.setJti(user.refreshTokenId)
@@ -398,6 +404,22 @@ export class AuthController {
 		} catch (err: unknown) {
 			this.logger.error(`Could sign in with email and password, got ${err}`);
 			throw new SignInEmailPasswordError();
+		}
+	}
+
+	public async refreshTokens(
+		_request: Request,
+		context: Context,
+		refresh_token: string,
+	): Promise<Result> {
+		try {
+			const { publicKey } = context.client;
+			const { payload } = await jwtVerify(refresh_token, publicKey);
+			const user = await context.auth.getUser(payload.sub!);
+			return await this._createJWTs(context, user, `${payload.scope ?? "*"}`);
+		} catch (err: unknown) {
+			this.logger.error(`Could sign in with email and password, got ${err}`);
+			throw new RefreshTokensError();
 		}
 	}
 }

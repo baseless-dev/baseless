@@ -1,7 +1,7 @@
 import { importSPKI } from "https://deno.land/x/jose@v4.3.7/key/import.ts";
 import { KeyLike } from "https://deno.land/x/jose@v4.3.7/types.d.ts";
 import { Command, Result } from "https://baseless.dev/x/shared/server.ts";
-import { EventEmitter } from "./event.ts";
+import { Auth } from "./auth.ts";
 
 /**
  * A BaselessApp holds the initialization information for a collection of services.
@@ -12,77 +12,60 @@ export class App {
 	 * @internal
 	 */
 	public constructor(
-		protected readonly clientId: string,
-		protected readonly clientPublicKey: KeyLike,
-		protected storage: Storage,
-		protected transport: ITransport,
+		protected readonly _clientId: string,
+		protected readonly _clientPublicKey: KeyLike,
+		protected _storage: Storage,
+		protected _transport: ITransport,
 	) {}
 
-	protected tokensChangeEvent = new EventEmitter<[Tokens | undefined]>();
+	protected _auth?: Auth;
+
+	public getAuth(): Auth | undefined {
+		return this._auth;
+	}
+
+	public setAuth(auth: Auth) {
+		this._auth = auth;
+	}
 
 	public getClientId() {
-		return this.clientId;
+		return this._clientId;
 	}
 
 	public getClientPublicKey() {
-		return this.clientPublicKey;
+		return this._clientPublicKey;
 	}
 
 	public getStorage() {
-		return this.storage;
+		return this._storage;
 	}
 
 	public setStorage(storage: Storage, migrateData = true, clearPrevious = true) {
-		const newStorage = new PrefixedStorage(`baseless_${this.clientId}`, storage);
+		const newStorage = new PrefixedStorage(`baseless_${this._clientId}`, storage);
 		if (migrateData) {
-			const l = this.storage.length;
+			const l = this._storage.length;
 			for (let i = 0; i < l; ++i) {
-				const key = this.storage.key(i)!;
-				const value = this.storage.getItem(key)!;
+				const key = this._storage.key(i)!;
+				const value = this._storage.getItem(key)!;
 				newStorage.setItem(key, value);
 			}
 		}
 		if (clearPrevious) {
-			this.storage.clear();
+			this._storage.clear();
 		}
-		this.storage = newStorage;
+		this._storage = newStorage;
 	}
 
 	public getTransport() {
-		return this.transport;
+		return this._transport;
 	}
 
 	public setTransport(transport: ITransport) {
-		this.transport = transport;
+		this._transport = transport;
 	}
 
 	public send(command: Command): Promise<Result> {
-		return this.transport.send(this, command);
-	}
-
-	public getTokens(): Tokens | undefined {
-		try {
-			const tokens = JSON.parse(this.storage.getItem("tokens") ?? "");
-			if ("id_token" in tokens && "access_token" in tokens) {
-				return tokens;
-			}
-			return undefined;
-		} catch (_err) {
-			return undefined;
-		}
-	}
-
-	public setTokens(tokens: Tokens | undefined) {
-		if (tokens) {
-			this.storage.setItem("tokens", JSON.stringify(tokens));
-		} else {
-			this.storage.removeItem("tokens");
-		}
-		this.tokensChangeEvent.emit(tokens);
-	}
-
-	public onTokensChange(handler: (tokens: Tokens | undefined) => void) {
-		return this.tokensChangeEvent.listen(handler);
+		return this._transport.send(this, command);
 	}
 }
 
@@ -96,7 +79,7 @@ export class FetchTransport implements ITransport {
 	) {}
 
 	async send(app: App, command: Command): Promise<Result> {
-		const tokens = app.getTokens();
+		const tokens = app.getAuth()?.getTokens();
 		const clientId = app.getClientId();
 		const request = new Request(this.baselessUrl, {
 			method: "POST",
@@ -191,19 +174,13 @@ class PrefixedStorage implements Storage {
 	}
 
 	removeItem(key: string): void {
-		this.storage.delete(`${this.prefix}_${key}`);
+		this.storage.removeItem(`${this.prefix}_${key}`);
 	}
 
 	setItem(key: string, value: string): void {
 		this.storage.setItem(`${this.prefix}_${key}`, value);
 	}
 }
-
-export type Tokens = {
-	id_token: string;
-	access_token: string;
-	refresh_token?: string;
-};
 
 /**
  * Creates and initializes a `BaselessApp`.

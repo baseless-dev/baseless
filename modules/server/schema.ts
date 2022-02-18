@@ -203,6 +203,13 @@ const commandsSchema: Schema = {
 				},
 				required: ["email", "code", "password"],
 			},
+			{
+				properties: {
+					cmd: { const: "auth.refresh-tokens" },
+					refresh_token: { type: "string" },
+				},
+				required: ["refresh_token"],
+			},
 		],
 	},
 };

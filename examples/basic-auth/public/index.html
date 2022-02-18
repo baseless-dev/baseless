@@ -43,6 +43,7 @@
 				signInWithEmailAndPassword,
 				setPersistence,
 				Persistence,
+				onAuthStateChanged
 			} from "https://baseless.dev/w/client/auth.js";
 
 			const app = await initializeApp({
@@ -54,6 +55,17 @@
 			});
 
 			const auth = getAuth(app);
+
+			window.app = app;
+			window.auth = auth;
+			
+			onAuthStateChanged(auth, (user, session) => {
+				if (user) {
+					console.log(`Hello`, user, session);
+				} else {
+					console.log(`Bye`);
+				}
+			});
 
 			const loginForm = document.querySelector("#login");
 			const registerForm = document.querySelector("#register");

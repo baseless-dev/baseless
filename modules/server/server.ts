@@ -308,6 +308,12 @@ export class Server {
 				cmd.email,
 				cmd.password,
 			);
+		} else if (cmd.cmd === "auth.refresh-tokens") {
+			p = this.authController.refreshTokens(
+				request,
+				context,
+				cmd.refresh_token,
+			);
 		} else if (cmd.cmd === "db.get") {
 			p = this.databaseController.get(
 				request,

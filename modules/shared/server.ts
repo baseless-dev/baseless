@@ -42,6 +42,10 @@ export type Command =
 		email: string;
 		code: string;
 		password: string;
+	}
+	| {
+		cmd: "auth.refresh-tokens";
+		refresh_token: string;
 	};
 
 export type Results = { [id: string]: Result };

@@ -19,6 +19,7 @@ import {
 	ValidationCodeError,
 } from "https://baseless.dev/x/shared/auth.ts";
 import { UnknownError } from "https://baseless.dev/x/shared/server.ts";
+import { EventEmitter } from "./event.ts";
 
 export class User<Metadata = Record<never, never>> {
 	public constructor(
@@ -41,6 +42,14 @@ export class User<Metadata = Record<never, never>> {
 	) {}
 }
 
+export class Session {
+	public constructor(
+		public readonly issueAt: Date,
+		public readonly expireAt: Date,
+		public readonly scope: string,
+	) {}
+}
+
 /**
  * Class representing Baseless Auth service.
  */
@@ -55,21 +64,99 @@ export class Auth {
 		 * Language code to be sent as local on supported commands
 		 */
 		public languageCode: string = "en",
-	) {}
+	) {
+		app.setAuth(this);
+	}
 
-	protected currentUser: User | undefined;
+	protected _eventOnAuthStateChange = new EventEmitter<[User, Session] | [undefined, undefined]>();
+	protected _currentUser: User | undefined;
+	protected _currentSession: Session | undefined;
+	protected _timerTokenExpired = 0;
 
 	public getCurrentUser() {
-		return this.currentUser;
+		return this._currentUser;
 	}
 
-	/**
-	 * @internal
-	 */
-	public setCurrentUser(user: User | undefined) {
-		this.currentUser = user;
+	public getCurrentSession() {
+		return this._currentSession;
+	}
+
+	public getTokens(): Tokens | undefined {
+		try {
+			const tokens = JSON.parse(this.app.getStorage().getItem("tokens") ?? "");
+			if ("id_token" in tokens && "access_token" in tokens) {
+				return tokens;
+			}
+			return undefined;
+		} catch (_err) {
+			return undefined;
+		}
+	}
+
+	public async setTokens(tokens: Tokens | undefined) {
+		if (tokens) {
+			const id_token = await getJWTPayload(this, tokens.id_token) ?? {};
+			const access_token = await getJWTPayload(this, tokens.access_token) ?? {};
+			const refresh_token = tokens.refresh_token ? await getJWTPayload(this, tokens.refresh_token) : null;
+
+			const expireAt = Math.max(access_token.exp ?? 0, refresh_token?.exp ?? 0) * 1000;
+			const expiredIn = expireAt - Date.now();
+
+			if (
+				expiredIn <= 0 ||
+				!("sub" in id_token && "email" in id_token && "emailConfirmed" in id_token && "metadata" in id_token)
+			) {
+				this.app.getStorage().removeItem("tokens");
+				this._currentUser = undefined;
+				this._currentSession = undefined;
+				if (this._timerTokenExpired) {
+					clearTimeout(this._timerTokenExpired);
+					this._timerTokenExpired = 0;
+				}
+			} else {
+				const user = new User<Record<never, never>>(
+					id_token.sub!,
+					id_token.email as string,
+					id_token.emailConfirmed as boolean,
+					id_token.metadata as Record<never, never>,
+				);
+				const session = new Session(
+					new Date(access_token.iat! * 1000),
+					new Date(expireAt),
+					`${access_token.scope ?? ""}`,
+				);
+				this._currentUser = user;
+				this._currentSession = session;
+				this.app.getStorage().setItem("tokens", JSON.stringify(tokens));
+
+				if (this._timerTokenExpired) {
+					clearTimeout(this._timerTokenExpired);
+					this._timerTokenExpired = 0;
+				}
+				if (expiredIn > 0) {
+					this._timerTokenExpired = setTimeout(() => {
+						this.setTokens(undefined);
+					}, expiredIn);
+				}
+			}
+		} else {
+			this.app.getStorage().removeItem("tokens");
+			this._currentUser = undefined;
+			this._currentSession = undefined;
+		}
+		this._eventOnAuthStateChange.emit(this._currentUser!, this._currentSession!);
+	}
+
+	public onAuthStateChange(handler: (user: User | undefined, session: Session | undefined) => void) {
+		return this._eventOnAuthStateChange.listen(handler);
 	}
 }
+
+export type Tokens = {
+	id_token: string;
+	access_token: string;
+	refresh_token?: string;
+};
 
 export enum Persistence {
 	Local = "local",
@@ -107,25 +194,44 @@ function authErrorCodeToError(errorCode: string): Error | undefined {
  * Returns the Auth instance associated with the provided `BaselessApp`.
  */
 export function getAuth(app: App) {
-	const auth = new Auth(app);
+	let auth = app.getAuth();
+	if (auth) {
+		return auth;
+	}
+	auth = new Auth(app);
 	const persistence = localStorage.getItem(`baseless_persistence_${app.getClientId()}`) as Persistence;
 	setPersistence(auth, persistence ?? Persistence.None);
+	auth.setTokens(auth.getTokens());
 	return auth;
 }
 
 async function getOrRefreshTokens(auth: Auth) {
-	const tokens = await auth.app.getTokens();
+	const tokens = auth.getTokens();
 	if (!tokens) {
 		return null;
 	}
 
 	try {
-		let { payload } = await jwtVerify(tokens.id_token, auth.app.getClientPublicKey());
-		if (!payload.exp || payload.exp - Date.now() / 1000 <= 5 * 60) {
-			// Refresh tokens
-			return Promise.reject("NOTIMPLEMENTED");
+		const payload = await getJWTPayload(auth, tokens.access_token);
+		const exp = payload?.exp ?? 0;
+		// Access token is expired
+		if (exp - Date.now() / 1000 <= 0) {
+			// Try to refresh the token
+			if (tokens.refresh_token) {
+				const payload = await getJWTPayload(auth, tokens.refresh_token);
+				if (payload && payload.exp && payload.exp - Date.now() / 1000 >= 0) {
+					const res = await auth.app.send({ cmd: "auth.refresh-tokens", refresh_token: tokens.refresh_token });
+					if ("id_token" in res && "access_token" in res) {
+						const { id_token, access_token, refresh_token } = res;
+						const tokens = { id_token, access_token, refresh_token };
+						await auth.setTokens(tokens);
+						return tokens;
+					}
+				}
+			}
+			auth.setTokens(undefined);
+			return null;
 		}
-
 		return tokens;
 	} catch (_err) {
 		return null;
@@ -133,41 +239,55 @@ async function getOrRefreshTokens(auth: Auth) {
 }
 
 /**
- * Returns a JSON Web Token (JWT) used to identify the user to a Firebase service.
+ * Returns a JSON Web Token (JWT) used to identify the user to a Baseless service.
  *
  * Returns the current token if it has not expired or if it will not expire in the next five minutes. Otherwise, this will refresh the token and return a new one.
  */
 export async function getIdToken(auth: Auth) {
 	try {
-		const id_token = await getOrRefreshTokens(auth);
-		return id_token;
+		const { id_token } = await getOrRefreshTokens(auth) ?? {};
+		return id_token ?? null;
 	} catch (_err) {
 		return null;
 	}
 }
 
 /**
- * Returns a deserialized JSON Web Token (JWT) used to identitfy the user to a Firebase service.
+ * Returns a deserialized JSON Web Token (JWT) used to identitfy the user to a Baseless service.
  *
  * Returns the current token if it has not expired or if it will not expire in the next five minutes. Otherwise, this will refresh the token and return a new one.
  */
 export async function getIdTokenResult(auth: Auth) {
 	const tokens = await getOrRefreshTokens(auth);
 	if (tokens) {
-		const { payload } = await jwtVerify(
-			tokens.id_token,
-			auth.app.getClientPublicKey(),
-		);
-		return payload;
+		return getJWTPayload(auth, tokens.id_token);
 	}
 	return null;
 }
 
 /**
+ * Verifies the JWT format (to be a JWS Compact format), verifies the JWS signature, validates the JWT Claims Set and return the payload of the JWT.
+ */
+async function getJWTPayload(auth: Auth, jwt: string) {
+	try {
+		const { payload } = await jwtVerify(
+			jwt,
+			auth.app.getClientPublicKey(),
+		);
+		return payload;
+	} catch (_err) {
+		return null;
+	}
+}
+
+/**
  * Adds an observer for changes to the user's sign-in state.
  */
-export function onAuthStateChanged(auth: Auth) {
-	return Promise.reject("NOTIMPLEMENTED");
+export function onAuthStateChanged(
+	auth: Auth,
+	handler: (user: User | undefined, session: Session | undefined) => void,
+) {
+	return auth.onAuthStateChange(handler);
 }
 
 /**
@@ -271,18 +391,8 @@ export async function signInWithEmailAndPassword(
 	const res = await auth.app.send({ cmd: "auth.sign-with-email-password", email, password });
 	if ("id_token" in res && "access_token" in res) {
 		const { id_token, access_token, refresh_token } = res;
-		auth.app.setTokens({ id_token, access_token, refresh_token });
-		const payload = await getIdTokenResult(auth) ?? {};
-		if ("sub" in payload && "email" in payload && "emailConfirmed" in payload && "metadata" in payload) {
-			const user = new User<Record<never, never>>(
-				payload.sub!,
-				payload.email as string,
-				payload.emailConfirmed as boolean,
-				payload.metadata as Record<never, never>,
-			);
-			auth.setCurrentUser(user);
-			return user;
-		}
+		await auth.setTokens({ id_token, access_token, refresh_token });
+		return auth.getCurrentUser();
 	} else if ("error" in res) {
 		throw authErrorCodeToError(res["error"]);
 	} else {
@@ -294,7 +404,7 @@ export async function signInWithEmailAndPassword(
  * Signs out the current user.
  */
 export async function signOut(auth: Auth) {
-	await auth.app.setTokens(undefined);
+	await auth.setTokens(undefined);
 }
 
 /**

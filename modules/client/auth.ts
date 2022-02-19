@@ -126,7 +126,7 @@ export class Auth {
 					id_result.metadata as Record<never, never>,
 				);
 				const session = new Session(
-					new Date(access_result.iat! * 1000),
+					new Date(id_result.iat! * 1000),
 					new Date(expireAt),
 					`${access_result.scope ?? ""}`,
 				);

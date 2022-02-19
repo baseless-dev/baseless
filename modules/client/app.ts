@@ -2,6 +2,12 @@ import { importSPKI } from "https://deno.land/x/jose@v4.3.7/key/import.ts";
 import { KeyLike } from "https://deno.land/x/jose@v4.3.7/types.d.ts";
 import { Command, Result } from "https://baseless.dev/x/shared/server.ts";
 import { Auth } from "./auth.ts";
+import { Lock } from "./utils.ts";
+import { ITransport } from "./transports/mod.ts";
+import { BatchTransport } from "./transports/batch.ts";
+import { FetchTransport } from "./transports/fetch.ts";
+import { PrefixedStorage } from "./storages/prefixed.ts";
+import { MemoryStorage } from "./storages/memory.ts";
 
 /**
  * A BaselessApp holds the initialization information for a collection of services.
@@ -19,6 +25,7 @@ export class App {
 	) {}
 
 	protected _auth?: Auth;
+	protected _refreshTokensLock = new Lock();
 
 	public getAuth(): Auth | undefined {
 		return this._auth;
@@ -64,121 +71,40 @@ export class App {
 		this._transport = transport;
 	}
 
-	public send(command: Command): Promise<Result> {
+	public async send(command: Command): Promise<Result> {
+		const auth = this.getAuth();
+		if (!this._refreshTokensLock.isLock) {
+			// Check tokens expiration and try to fetch new one if needed
+			const tokens = auth?.getTokens();
+			if (tokens) {
+				const now = new Date();
+				const access_exp = new Date((tokens.access_result.exp ?? 0) * 1000);
+				// Access token is expired
+				if (access_exp <= now) {
+					// If valid refresh token, try refreshing tokens
+					if ("refresh_token" in tokens) {
+						const refresh_exp = new Date((tokens.refresh_result.exp ?? 0) * 1000);
+						if (refresh_exp >= now) {
+							// Prevent other command from refreshing the token
+							this._refreshTokensLock.lock();
+							const res = await this._transport.send(this, {
+								cmd: "auth.refresh-tokens",
+								refresh_token: tokens.refresh_token,
+							});
+							if ("id_token" in res && "access_token" in res) {
+								await auth!.setTokens(res);
+							}
+							// Unlock other commands
+							this._refreshTokensLock.unlock();
+						}
+					}
+				}
+			}
+		} else {
+			// Wait for previous refresh token to finish
+			await this._refreshTokensLock.waiter;
+		}
 		return this._transport.send(this, command);
-	}
-}
-
-export interface ITransport {
-	send(app: App, command: Command): Promise<Result>;
-}
-
-export class FetchTransport implements ITransport {
-	public constructor(
-		public readonly baselessUrl: string,
-	) {}
-
-	async send(app: App, command: Command): Promise<Result> {
-		const tokens = app.getAuth()?.getTokens();
-		const clientId = app.getClientId();
-		const request = new Request(this.baselessUrl, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"X-BASELESS-CLIENT-ID": clientId,
-				...(tokens?.access_token ? { "Authorization": `Bearer ${tokens.access_token}` } : {}),
-			},
-			body: JSON.stringify({ "1": command }),
-		});
-		const response = await fetch(request);
-		const json = await response.json();
-		return json["1"] as Result;
-	}
-}
-
-export class MemoryStorage implements Storage {
-	public constructor(
-		protected store: Map<string, string> = new Map(),
-	) {}
-
-	get length(): number {
-		return this.store.size;
-	}
-
-	clear(): void {
-		this.store.clear();
-	}
-
-	getItem(key: string): string | null {
-		return this.store.get(key) ?? null;
-	}
-
-	key(index: number): string | null {
-		const keys = Array.from(this.store.keys());
-		if (index >= keys.length) {
-			return null;
-		}
-		return keys.at(index) ?? null;
-	}
-
-	removeItem(key: string): void {
-		this.store.delete(key);
-	}
-
-	setItem(key: string, value: string): void {
-		this.store.set(key, value);
-	}
-}
-
-class PrefixedStorage implements Storage {
-	public constructor(
-		protected prefix: string,
-		protected storage: Storage,
-	) {}
-
-	protected *keys(): Generator<string> {
-		const l = this.storage.length;
-		const p = `${this.prefix}_`;
-		const pl = p.length;
-		for (let i = 0; i < l; ++i) {
-			const key = this.storage.key(i)!;
-			if (key.substring(0, pl) === p) {
-				yield key.substring(pl);
-			}
-		}
-	}
-
-	get length(): number {
-		return Array.from(this.keys()).length;
-	}
-
-	clear(): void {
-		const keys = Array.from(this.keys());
-		for (const key of keys) {
-			this.storage.removeItem(`${this.prefix}_${key}`);
-		}
-	}
-
-	getItem(key: string): string | null {
-		return this.storage.getItem(`${this.prefix}_${key}`) ?? null;
-	}
-
-	key(index: number): string | null {
-		let i = 0;
-		for (const key of this.keys()) {
-			if (i++ === index) {
-				return key;
-			}
-		}
-		return null;
-	}
-
-	removeItem(key: string): void {
-		this.storage.removeItem(`${this.prefix}_${key}`);
-	}
-
-	setItem(key: string, value: string): void {
-		this.storage.setItem(`${this.prefix}_${key}`, value);
 	}
 }
 
@@ -192,7 +118,7 @@ export function initializeApp(options: {
 	clientPublicKeyAlg: string;
 }) {
 	const { clientId, clientPublicKey, clientPublicKeyAlg, baselessUrl } = options;
-	const transport = new FetchTransport(baselessUrl);
+	const transport = new BatchTransport(new FetchTransport(baselessUrl));
 	return initializeAppWithTransport({
 		clientId,
 		clientPublicKey,

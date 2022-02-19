@@ -1,4 +1,4 @@
-import { App, MemoryStorage } from "./app.ts";
+import { App } from "./app.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
 import {
 	AddSignInEmailPasswordError,
@@ -19,7 +19,8 @@ import {
 	ValidationCodeError,
 } from "https://baseless.dev/x/shared/auth.ts";
 import { UnknownError } from "https://baseless.dev/x/shared/server.ts";
-import { EventEmitter } from "./event.ts";
+import { EventEmitter } from "./utils.ts";
+import { MemoryStorage } from "./storages/memory.ts";
 
 export class User<Metadata = Record<never, never>> {
 	public constructor(
@@ -68,6 +69,7 @@ export class Auth {
 		app.setAuth(this);
 	}
 
+	protected _tokens: Tokens | undefined;
 	protected _eventOnAuthStateChange = new EventEmitter<[User, Session] | [undefined, undefined]>();
 	protected _currentUser: User | undefined;
 	protected _currentSession: Session | undefined;
@@ -81,32 +83,35 @@ export class Auth {
 		return this._currentSession;
 	}
 
-	public getTokens(): Tokens | undefined {
+	public loadTokensFromStorage() {
 		try {
 			const tokens = JSON.parse(this.app.getStorage().getItem("tokens") ?? "");
 			if ("id_token" in tokens && "access_token" in tokens) {
-				return tokens;
+				this.setTokens(tokens);
 			}
-			return undefined;
-		} catch (_err) {
-			return undefined;
-		}
+		} // deno-lint-ignore no-empty
+		catch (_err) {}
 	}
 
-	public async setTokens(tokens: Tokens | undefined) {
-		if (tokens) {
-			const id_token = await getJWTPayload(this, tokens.id_token) ?? {};
-			const access_token = await getJWTPayload(this, tokens.access_token) ?? {};
-			const refresh_token = tokens.refresh_token ? await getJWTPayload(this, tokens.refresh_token) : null;
+	public getTokens() {
+		return this._tokens;
+	}
 
-			const expireAt = Math.max(access_token.exp ?? 0, refresh_token?.exp ?? 0) * 1000;
+	public async setTokens(tokens: { id_token: string; access_token: string; refresh_token?: string } | undefined) {
+		if (tokens) {
+			const id_result = await getJWTResult(this, tokens.id_token) ?? {};
+			const access_result = await getJWTResult(this, tokens.access_token) ?? {};
+			const refresh_result = tokens.refresh_token ? await getJWTResult(this, tokens.refresh_token) : null;
+
+			const expireAt = Math.max(access_result.exp ?? 0, refresh_result?.exp ?? 0) * 1000;
 			const expiredIn = expireAt - Date.now();
 
 			if (
 				expiredIn <= 0 ||
-				!("sub" in id_token && "email" in id_token && "emailConfirmed" in id_token && "metadata" in id_token)
+				!("sub" in id_result && "email" in id_result && "emailConfirmed" in id_result && "metadata" in id_result)
 			) {
 				this.app.getStorage().removeItem("tokens");
+				this._tokens = undefined;
 				this._currentUser = undefined;
 				this._currentSession = undefined;
 				if (this._timerTokenExpired) {
@@ -115,19 +120,28 @@ export class Auth {
 				}
 			} else {
 				const user = new User<Record<never, never>>(
-					id_token.sub!,
-					id_token.email as string,
-					id_token.emailConfirmed as boolean,
-					id_token.metadata as Record<never, never>,
+					id_result.sub!,
+					id_result.email as string,
+					id_result.emailConfirmed as boolean,
+					id_result.metadata as Record<never, never>,
 				);
 				const session = new Session(
-					new Date(access_token.iat! * 1000),
+					new Date(access_result.iat! * 1000),
 					new Date(expireAt),
-					`${access_token.scope ?? ""}`,
+					`${access_result.scope ?? ""}`,
 				);
+
+				this.app.getStorage().setItem("tokens", JSON.stringify(tokens));
+				this._tokens = {
+					id_token: tokens.id_token,
+					id_result,
+					access_token: tokens.access_token,
+					access_result,
+					refresh_token: tokens.refresh_token!,
+					refresh_result: refresh_result ?? undefined,
+				};
 				this._currentUser = user;
 				this._currentSession = session;
-				this.app.getStorage().setItem("tokens", JSON.stringify(tokens));
 
 				if (this._timerTokenExpired) {
 					clearTimeout(this._timerTokenExpired);
@@ -141,6 +155,7 @@ export class Auth {
 			}
 		} else {
 			this.app.getStorage().removeItem("tokens");
+			this._tokens = undefined;
 			this._currentUser = undefined;
 			this._currentSession = undefined;
 		}
@@ -152,11 +167,64 @@ export class Auth {
 	}
 }
 
-export type Tokens = {
+export type IdToken = {
 	id_token: string;
-	access_token: string;
-	refresh_token?: string;
+	id_result: TokenResult;
 };
+
+export type AccessToken = {
+	access_token: string;
+	access_result: TokenResult;
+};
+
+export type RefreshToken = {
+	refresh_token: string;
+	refresh_result: TokenResult;
+};
+
+export type TokenResult = {
+	/**
+	 * JWT Issuer - [RFC7519#section-4.1.1](https://tools.ietf.org/html/rfc7519#section-4.1.1).
+	 */
+	iss?: string;
+
+	/**
+	 * JWT Subject - [RFC7519#section-4.1.2](https://tools.ietf.org/html/rfc7519#section-4.1.2).
+	 */
+	sub?: string;
+
+	/**
+	 * JWT Audience [RFC7519#section-4.1.3](https://tools.ietf.org/html/rfc7519#section-4.1.3).
+	 */
+	aud?: string | string[];
+
+	/**
+	 * JWT ID - [RFC7519#section-4.1.7](https://tools.ietf.org/html/rfc7519#section-4.1.7).
+	 */
+	jti?: string;
+
+	/**
+	 * JWT Not Before - [RFC7519#section-4.1.5](https://tools.ietf.org/html/rfc7519#section-4.1.5).
+	 */
+	nbf?: number;
+
+	/**
+	 * JWT Expiration Time - [RFC7519#section-4.1.4](https://tools.ietf.org/html/rfc7519#section-4.1.4).
+	 */
+	exp?: number;
+
+	/**
+	 * JWT Issued At - [RFC7519#section-4.1.6](https://tools.ietf.org/html/rfc7519#section-4.1.6).
+	 */
+	iat?: number;
+
+	/**
+	 * Any other JWT Claim Set member.
+	 */
+	[propName: string]: unknown;
+};
+
+export type Tokens = (IdToken & AccessToken) | (IdToken & AccessToken & RefreshToken);
 
 export enum Persistence {
 	Local = "local",
@@ -199,76 +267,16 @@ export function getAuth(app: App) {
 		return auth;
 	}
 	auth = new Auth(app);
-	const persistence = localStorage.getItem(`baseless_persistence_${app.getClientId()}`) as Persistence;
-	setPersistence(auth, persistence ?? Persistence.None);
-	auth.setTokens(auth.getTokens());
+	const savedPersistence = localStorage.getItem(`baseless_persistence_${app.getClientId()}`) as Persistence;
+	setPersistence(auth, savedPersistence ?? Persistence.None);
+	auth.loadTokensFromStorage();
 	return auth;
-}
-
-async function getOrRefreshTokens(auth: Auth) {
-	const tokens = auth.getTokens();
-	if (!tokens) {
-		return null;
-	}
-
-	try {
-		const payload = await getJWTPayload(auth, tokens.access_token);
-		const exp = payload?.exp ?? 0;
-		// Access token is expired
-		if (exp - Date.now() / 1000 <= 0) {
-			// Try to refresh the token
-			if (tokens.refresh_token) {
-				const payload = await getJWTPayload(auth, tokens.refresh_token);
-				if (payload && payload.exp && payload.exp - Date.now() / 1000 >= 0) {
-					const res = await auth.app.send({ cmd: "auth.refresh-tokens", refresh_token: tokens.refresh_token });
-					if ("id_token" in res && "access_token" in res) {
-						const { id_token, access_token, refresh_token } = res;
-						const tokens = { id_token, access_token, refresh_token };
-						await auth.setTokens(tokens);
-						return tokens;
-					}
-				}
-			}
-			auth.setTokens(undefined);
-			return null;
-		}
-		return tokens;
-	} catch (_err) {
-		return null;
-	}
-}
-
-/**
- * Returns a JSON Web Token (JWT) used to identify the user to a Baseless service.
- *
- * Returns the current token if it has not expired or if it will not expire in the next five minutes. Otherwise, this will refresh the token and return a new one.
- */
-export async function getIdToken(auth: Auth) {
-	try {
-		const { id_token } = await getOrRefreshTokens(auth) ?? {};
-		return id_token ?? null;
-	} catch (_err) {
-		return null;
-	}
-}
-
-/**
- * Returns a deserialized JSON Web Token (JWT) used to identitfy the user to a Baseless service.
- *
- * Returns the current token if it has not expired or if it will not expire in the next five minutes. Otherwise, this will refresh the token and return a new one.
- */
-export async function getIdTokenResult(auth: Auth) {
-	const tokens = await getOrRefreshTokens(auth);
-	if (tokens) {
-		return getJWTPayload(auth, tokens.id_token);
-	}
-	return null;
 }
 
 /**
  * Verifies the JWT format (to be a JWS Compact format), verifies the JWS signature, validates the JWT Claims Set and return the payload of the JWT.
  */
-async function getJWTPayload(auth: Auth, jwt: string) {
+async function getJWTResult(auth: Auth, jwt: string): Promise<TokenResult | null> {
 	try {
 		const { payload } = await jwtVerify(
 			jwt,

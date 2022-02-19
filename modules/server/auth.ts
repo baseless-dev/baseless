@@ -168,7 +168,7 @@ export class AuthController {
 		const access_token = await new SignJWT({ scope })
 			.setSubject(user.id)
 			.setIssuedAt()
-			.setExpirationTime("15min")
+			.setExpirationTime("10sec")
 			.setIssuer(context.client.principal)
 			.setAudience(context.client.principal)
 			.setProtectedHeader({ alg: algKey })

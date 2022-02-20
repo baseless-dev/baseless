@@ -25,15 +25,17 @@ export class BatchTransport implements ITransport {
 		bucket.commands.push([command, deferred]);
 		if (!bucket.timer) {
 			bucket.timer = setTimeout(async () => {
-				bucket.timer = 0;
-				const commands = bucket.commands.slice(0, this._batchSize);
-				try {
-					await this._batchTransport.sendBatch(app, commands);
-				} catch (_err) {
-					for (const [, deferred] of commands) {
-						deferred.reject(new UnknownError());
+				while (bucket.commands.length) {
+					const commands = bucket.commands.splice(0, this._batchSize);
+					try {
+						await this._batchTransport.sendBatch(app, commands);
+					} catch (_err) {
+						for (const [, deferred] of commands) {
+							deferred.reject(new UnknownError());
+						}
 					}
 				}
+				bucket.timer = 0;
 			}, 0);
 		}
 

@@ -45,7 +45,7 @@ export default {
 		}
 
 		try {
-			const [response, waitUntil] = await server.handle(request);
+			const [response, waitUntil] = await server.handleRequest(request);
 			for (const p of waitUntil) {
 				ctx.waitUntil(p);
 			}

@@ -51,7 +51,7 @@ export class Server {
 	/**
 	 * Handle the request
 	 */
-	public async handle(
+	public async handleRequest(
 		request: Request,
 	): Promise<[Response, PromiseLike<unknown>[]]> {
 		const responseInit: ResponseInit = {
@@ -252,7 +252,10 @@ export class Server {
 		];
 	}
 
-	private handleCommand(context: Context, request: Request, cmd: Command): Promise<Result> {
+	/**
+	 * Handle a command
+	 */
+	public handleCommand(context: Context, request: Request, cmd: Command): Promise<Result> {
 		let p: Promise<Result>;
 		if (cmd.cmd === "auth.create-anonymous-user") {
 			p = this.authController.createAnonymousUser(request, context);

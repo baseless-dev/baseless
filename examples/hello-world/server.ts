@@ -32,7 +32,7 @@ async function handle(conn: Deno.Conn) {
 	const httpConn = Deno.serveHttp(conn);
 	for await (const event of httpConn) {
 		try {
-			const [response, waitUntil] = await server.handle(event.request);
+			const [response, waitUntil] = await server.handleRequest(event.request);
 			await event.respondWith(response);
 			await Promise.all(waitUntil);
 		} catch (err) {

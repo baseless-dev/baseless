@@ -38,4 +38,6 @@ Deno.test("logger", async (t) => {
 		error("e");
 		assertEquals(logs, []);
 	});
+
+	createLogger(undefined);
 });

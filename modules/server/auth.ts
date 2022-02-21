@@ -320,7 +320,6 @@ export class AuthController {
 			}
 			await context.auth.addSignInMethodPassword(
 				user.id,
-				user.email,
 				await this._hashPassword(password),
 			);
 			await this._sendValidationEmailTo(
@@ -353,7 +352,6 @@ export class AuthController {
 			user = await context.auth.createUser(email, {});
 			await context.auth.addSignInMethodPassword(
 				user.id,
-				email,
 				await this._hashPassword(password),
 			);
 			await this._sendValidationEmailTo(

@@ -22,13 +22,9 @@ export type Logger = (
 	message: string,
 ) => void;
 
-let globalLogger: Logger = (ns, lvl, msg) => {
-	console.log(
-		`${new Date().toISOString()} [${ns}] ${lvl} ${msg}`,
-	);
-};
+let globalLogger: Logger = () => {};
 
-export function createLogger(logger: Logger) {
+export function createLogger(logger: Logger = () => {}) {
 	globalLogger = logger;
 }
 

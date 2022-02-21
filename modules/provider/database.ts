@@ -1,5 +1,5 @@
 import { CollectionReference, DocumentReference } from "https://baseless.dev/x/shared/database.ts";
-import { KVScanFilter, KVSetOptions } from "./kv.ts";
+import type { KVScanFilter, KVSetOptions } from "./kv.ts";
 import { NoopProviderError } from "./mod.ts";
 
 /**

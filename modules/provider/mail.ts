@@ -1,4 +1,4 @@
-import { Message } from "https://baseless.dev/x/shared/mail.ts";
+import type { Message } from "https://baseless.dev/x/shared/mail.ts";
 import { NoopProviderError } from "./mod.ts";
 
 /**

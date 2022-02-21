@@ -38,6 +38,19 @@
 			"group": "test",
 			"label": "deno: lint --watch",
 			"problemMatcher": []
+		},
+		{
+			"type": "deno",
+			"command": "test",
+			"args": [
+				"--config",
+				"./deno.json",
+				"--import-map",
+				"./import-map.json",
+				"--watch"
+			],
+			"isBackground": true,
+			"label": "deno: test --watch"
 		}
 	]
 }

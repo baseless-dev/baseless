@@ -186,7 +186,6 @@ export class AuthController {
 	}
 
 	public async sendValidationEmail(
-		_request: Request,
 		context: Context,
 		locale: string,
 		email: string,
@@ -209,7 +208,6 @@ export class AuthController {
 	}
 
 	public async validateEmailWithCode(
-		_request: Request,
 		context: Context,
 		email: string,
 		code: string,
@@ -224,7 +222,6 @@ export class AuthController {
 	}
 
 	public async sendPasswordResetEmail(
-		_request: Request,
 		context: Context,
 		locale: string,
 		email: string,
@@ -265,7 +262,6 @@ export class AuthController {
 	}
 
 	public async resetPasswordWithCode(
-		_request: Request,
 		context: Context,
 		email: string,
 		code: string,
@@ -285,7 +281,6 @@ export class AuthController {
 	}
 
 	public async createAnonymousUser(
-		_request: Request,
 		context: Context,
 	): Promise<Result> {
 		try {
@@ -305,7 +300,6 @@ export class AuthController {
 	}
 
 	public async addSignWithEmailPassword(
-		_request: Request,
 		context: Context,
 		locale: string,
 		email: string,
@@ -345,7 +339,6 @@ export class AuthController {
 	}
 
 	public async createUserWithEmail(
-		_request: Request,
 		context: Context,
 		locale: string,
 		email: string,
@@ -380,7 +373,6 @@ export class AuthController {
 	}
 
 	public async signWithEmailPassword(
-		_request: Request,
 		context: Context,
 		email: string,
 		password: string,
@@ -408,7 +400,6 @@ export class AuthController {
 	}
 
 	public async refreshTokens(
-		_request: Request,
 		context: Context,
 		refresh_token: string,
 	): Promise<Result> {

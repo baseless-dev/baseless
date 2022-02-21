@@ -127,9 +127,11 @@ export async function build() {
 			for await (
 				const entry of expandGlob(join(root, "**/*.{ts,tsx,js,mjs,jsx}"))
 			) {
-				const dest = join(outDir, relative(root, entry.path));
-				await Deno.mkdir(dirname(dest), { recursive: true });
-				await Deno.copyFile(entry.path, dest);
+				if (!entry.path.match(/[_\.]test\.(ts|tsx|mts|js|mjs|jsx|cjs|cts)$/)) {
+					const dest = join(outDir, relative(root, entry.path));
+					await Deno.mkdir(dirname(dest), { recursive: true });
+					await Deno.copyFile(entry.path, dest);
+				}
 			}
 		}
 

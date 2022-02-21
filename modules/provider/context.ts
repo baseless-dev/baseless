@@ -1,8 +1,8 @@
-import { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
-import { IAuthProvider } from "./auth.ts";
-import { IDatabaseProvider } from "./database.ts";
-import { IKVProvider } from "./kv.ts";
-import { IMailProvider } from "./mail.ts";
+import type { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
+import type { IAuthProvider } from "./auth.ts";
+import type { IDatabaseProvider } from "./database.ts";
+import type { IKVProvider } from "./kv.ts";
+import type { IMailProvider } from "./mail.ts";
 import { Client } from "./client.ts";
 
 /**

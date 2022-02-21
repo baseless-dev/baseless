@@ -1,5 +1,6 @@
 import { logger } from "https://baseless.dev/x/logger/mod.ts";
-import { Client, ClientNotFoundError, IClientProvider } from "https://baseless.dev/x/provider/client.ts";
+import { Client, IClientProvider } from "https://baseless.dev/x/provider/client.ts";
+import { ClientNotFoundError } from "https://baseless.dev/x/shared/client.ts";
 
 /**
  * Mail provider that send email with Sendgrid api

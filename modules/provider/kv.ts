@@ -1,4 +1,4 @@
-import { IKVValue, KVData, KVScanFilter } from "https://baseless.dev/x/shared/kv.ts";
+import type { IKVValue, KVData, KVScanFilter } from "https://baseless.dev/x/shared/kv.ts";
 import { NoopProviderError } from "./mod.ts";
 
 export type { KVScanFilter } from "https://baseless.dev/x/shared/kv.ts";

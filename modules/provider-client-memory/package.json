@@ -16,6 +16,7 @@
 		},
 		"browser": {
 			"https://baseless.dev/x/provider/client.ts": "https://baseless.dev/w/provider/client.js",
+			"https://baseless.dev/x/shared/client.ts": "https://baseless.dev/w/shared/client.js",
 			"https://baseless.dev/x/logger/mod.ts": "https://baseless.dev/w/logger/mod.ts"
 		}
 	}

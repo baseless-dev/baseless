@@ -13,5 +13,10 @@
 			"useTabs": true,
 			"lineWidth": 120
 		}
+	},
+	"test": {
+		"files": {
+			"exclude": ["dist/"]
+		}
 	}
 }

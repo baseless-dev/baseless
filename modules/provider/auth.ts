@@ -1,4 +1,5 @@
-import { AuthIdentifier, User } from "https://baseless.dev/x/shared/auth.ts";
+import type { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
+import { User } from "https://baseless.dev/x/shared/auth.ts";
 import { NoopProviderError } from "./mod.ts";
 
 /**
@@ -28,7 +29,7 @@ export interface IAuthProvider {
 	 */
 	updateUser<Metadata>(
 		userid: AuthIdentifier,
-		metadata: Partial<Metadata>,
+		metadata?: Metadata,
 		email?: string,
 		emailConfirmed?: boolean,
 		refreshTokenId?: string,
@@ -49,7 +50,6 @@ export interface IAuthProvider {
 	 */
 	addSignInMethodPassword(
 		userid: string,
-		email: string,
 		passwordHash: string,
 	): Promise<void>;
 

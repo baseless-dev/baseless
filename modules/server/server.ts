@@ -20,6 +20,7 @@ import { UnknownError } from "https://baseless.dev/x/shared/server.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
 import { Context } from "https://baseless.dev/x/provider/context.ts";
 import { collection, doc } from "https://baseless.dev/x/shared/database.ts";
+import { ClientNotFoundError } from "https://baseless.dev/x/shared/client.ts";
 
 export class Server {
 	private logger = logger("server");
@@ -49,7 +50,7 @@ export class Server {
 	}
 
 	/**
-	 * Handle the request
+	 * Handle a `Request` that may contain a set of `Commands`
 	 */
 	public async handleRequest(
 		request: Request,
@@ -229,7 +230,7 @@ export class Server {
 
 		const promises = Object.entries(commands)
 			.map(([key, cmd]) => {
-				return this.handleCommand(context, request, cmd)
+				return this.processCommand(context, cmd)
 					.then((result) => [key, result] as const)
 					.catch((err: unknown) => {
 						if (err instanceof Error) {
@@ -255,13 +256,53 @@ export class Server {
 	/**
 	 * Handle a command
 	 */
-	public handleCommand(context: Context, request: Request, cmd: Command): Promise<Result> {
+	public async handleCommand(clientId: string, access_token: string | undefined, command: Command): Promise<Result> {
+		const client = await this.clientProvider?.getClientById(clientId);
+		if (!client) {
+			throw new ClientNotFoundError();
+		}
+
+		let currentUserId: AuthIdentifier | undefined;
+
+		if (access_token) {
+			try {
+				const { payload } = await jwtVerify(access_token, client.publicKey, {
+					issuer: client.principal,
+					audience: client.principal,
+				});
+				currentUserId = payload.sub ?? "";
+			} catch (err) {
+				this.logger.warn(
+					`Could not parse Authorization header, got error : ${err}`,
+				);
+			}
+		}
+
+		const waitUntilCollection: PromiseLike<unknown>[] = [];
+		const context: Context = {
+			client,
+			currentUserId,
+			auth: this.authProvider,
+			kv: this.kvProvider,
+			database: this.databaseProvider,
+			mail: this.mailProvider,
+			waitUntil(promise) {
+				waitUntilCollection.push(promise);
+			},
+		};
+
+		return this.processCommand(context, command);
+	}
+
+	/**
+	 * Handle a command
+	 */
+	protected processCommand(context: Context, cmd: Command): Promise<Result> {
 		let p: Promise<Result>;
 		if (cmd.cmd === "auth.create-anonymous-user") {
-			p = this.authController.createAnonymousUser(request, context);
+			p = this.authController.createAnonymousUser(context);
 		} else if (cmd.cmd === "auth.add-sign-with-email-password") {
 			p = this.authController.addSignWithEmailPassword(
-				request,
 				context,
 				cmd.locale,
 				cmd.email,
@@ -269,7 +310,6 @@ export class Server {
 			);
 		} else if (cmd.cmd === "auth.create-user-with-email-password") {
 			p = this.authController.createUserWithEmail(
-				request,
 				context,
 				cmd.locale,
 				cmd.email,
@@ -277,28 +317,24 @@ export class Server {
 			);
 		} else if (cmd.cmd === "auth.send-email-validation-code") {
 			p = this.authController.sendValidationEmail(
-				request,
 				context,
 				cmd.locale,
 				cmd.email,
 			);
 		} else if (cmd.cmd === "auth.validate-email") {
 			p = this.authController.validateEmailWithCode(
-				request,
 				context,
 				cmd.email,
 				cmd.code,
 			);
 		} else if (cmd.cmd === "auth.send-password-reset-code") {
 			p = this.authController.sendPasswordResetEmail(
-				request,
 				context,
 				cmd.locale,
 				cmd.email,
 			);
 		} else if (cmd.cmd === "auth.reset-password") {
 			p = this.authController.resetPasswordWithCode(
-				request,
 				context,
 				cmd.email,
 				cmd.code,
@@ -306,33 +342,28 @@ export class Server {
 			);
 		} else if (cmd.cmd === "auth.sign-with-email-password") {
 			p = this.authController.signWithEmailPassword(
-				request,
 				context,
 				cmd.email,
 				cmd.password,
 			);
 		} else if (cmd.cmd === "auth.refresh-tokens") {
 			p = this.authController.refreshTokens(
-				request,
 				context,
 				cmd.refresh_token,
 			);
 		} else if (cmd.cmd === "db.get") {
 			p = this.databaseController.get(
-				request,
 				context,
 				doc(cmd.ref),
 			);
 		} else if (cmd.cmd === "db.list") {
 			p = this.databaseController.list(
-				request,
 				context,
 				collection(cmd.ref),
 				cmd.filter,
 			);
 		} else if (cmd.cmd === "db.create") {
 			p = this.databaseController.create(
-				request,
 				context,
 				doc(cmd.ref),
 				cmd.metadata,
@@ -340,7 +371,6 @@ export class Server {
 			);
 		} else if (cmd.cmd === "db.update") {
 			p = this.databaseController.update(
-				request,
 				context,
 				doc(cmd.ref),
 				cmd.metadata,
@@ -348,7 +378,6 @@ export class Server {
 			);
 		} else if (cmd.cmd === "db.delete") {
 			p = this.databaseController.delete(
-				request,
 				context,
 				doc(cmd.ref),
 			);

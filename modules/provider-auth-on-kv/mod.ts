@@ -1,5 +1,5 @@
+import { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
 import {
-	AuthIdentifier,
 	PasswordResetError,
 	SetPasswordResetError,
 	User,
@@ -7,9 +7,9 @@ import {
 	UserNotFoundError,
 	ValidationCodeError,
 } from "https://baseless.dev/x/shared/auth.ts";
-import { IAuthProvider } from "https://baseless.dev/x/provider/auth.ts";
+import type { IAuthProvider } from "https://baseless.dev/x/provider/auth.ts";
 import { KeyNotFoundError } from "https://baseless.dev/x/shared/kv.ts";
-import { IKVProvider } from "https://baseless.dev/x/provider/kv.ts";
+import type { IKVProvider } from "https://baseless.dev/x/provider/kv.ts";
 import { autoid } from "https://baseless.dev/x/shared/autoid.ts";
 import { logger } from "https://baseless.dev/x/logger/mod.ts";
 
@@ -37,19 +37,20 @@ export class AuthOnKvProvider implements IAuthProvider {
 	async getUser<Metadata>(userid: AuthIdentifier): Promise<User<Metadata>> {
 		const key = useridToKey(userid);
 		const value = await this.backend.get<
-			Metadata & {
+			{
 				email: string;
 				emailConfirmed: boolean;
 				refreshTokenId: string;
+				metadata: Metadata;
 			}
 		>(key);
-		const { email, emailConfirmed, refreshTokenId, ...metadata } = value.metadata;
+		const { email, emailConfirmed, refreshTokenId, metadata } = value.metadata;
 		return new User(
 			userid,
 			email,
 			emailConfirmed,
 			refreshTokenId,
-			metadata as unknown as Metadata,
+			metadata,
 		);
 	}
 
@@ -59,7 +60,7 @@ export class AuthOnKvProvider implements IAuthProvider {
 	async getUserByEmail<Metadata>(email: string): Promise<User<Metadata>> {
 		try {
 			const { metadata: { userid } } = await this.backend.get(
-				`signin::password::${email}`,
+				`email::${email}`,
 			);
 			const user = await this.getUser<Metadata>(userid);
 			return user;
@@ -79,21 +80,34 @@ export class AuthOnKvProvider implements IAuthProvider {
 		metadata: Metadata,
 	): Promise<User<Metadata>> {
 		const userid = autoid();
-		try {
-			await this.getUser<Metadata>(userid);
+		const existingUser = await this.getUser(userid).catch((_) => null);
+		if (existingUser) {
 			throw new UserAlreadyExistsError(userid);
-		} catch (_err) {
-			const emailConfirmed = false;
-			const refreshTokenId = autoid();
-			return this.backend
-				.set(useridToKey(userid), {
-					...metadata,
-					email,
-					emailConfirmed,
-					refreshTokenId,
-				})
-				.then(() => new User(userid, email, emailConfirmed, refreshTokenId, metadata));
 		}
+		try {
+			await this.getUser(userid);
+		} // deno-lint-ignore no-empty
+		catch (_err) {}
+
+		if (email) {
+			const existingUser = await this.getUserByEmail(email).catch((_) => null);
+			if (existingUser) {
+				throw new UserAlreadyExistsError(userid);
+			}
+		}
+
+		const emailConfirmed = false;
+		const refreshTokenId = autoid();
+		await Promise.all([
+			email ? this.backend.set(`email::${email}`, { userid }) : undefined,
+			this.backend.set(useridToKey(userid), {
+				email,
+				emailConfirmed,
+				refreshTokenId,
+				metadata,
+			}),
+		]);
+		return new User(userid, email, emailConfirmed, refreshTokenId, metadata);
 	}
 
 	/**
@@ -101,28 +115,45 @@ export class AuthOnKvProvider implements IAuthProvider {
 	 */
 	async updateUser<Metadata>(
 		userid: string,
-		metadata: Partial<Metadata>,
+		metadata?: Metadata,
 		email?: string,
 		emailConfirmed?: boolean,
 		refreshTokenId?: string,
 	): Promise<void> {
 		const key = useridToKey(userid);
 		const user = await this.getUser<Metadata>(userid);
-		return this.backend.set(key, {
-			...user.metadata,
-			...metadata,
+		await this.backend.set(key, {
 			email: email ?? user.email,
-			emailConfirmed: emailConfirmed ?? user.emailConfirmed,
+			emailConfirmed: email ? false : emailConfirmed ?? user.emailConfirmed,
 			refreshTokenId: refreshTokenId ?? user.refreshTokenId,
+			metadata: metadata ?? user.metadata,
 		});
+		if (email) {
+			const hadSignInPassword = await this.backend.get(`signin::password::${user.email}`).catch((_) => null);
+			await Promise.all([
+				email ? this.backend.set(`email::${email}`, { userid }) : undefined,
+				email ? this.backend.delete(`signin::password::${user.email}`) : undefined,
+				email ? this.backend.delete(`validationcode::${user.email}`) : undefined,
+				email ? this.backend.delete(`passwordresetcode::${user.email}`) : undefined,
+				hadSignInPassword ? this.backend.set(`signin::password::${email}`, hadSignInPassword.metadata) : undefined,
+			]);
+		}
 	}
 
 	/**
 	 * Delete an IAuth
 	 */
-	deleteUser(userid: AuthIdentifier): Promise<void> {
+	async deleteUser(userid: AuthIdentifier): Promise<void> {
+		const user = await this.getUser(userid);
 		const key = useridToKey(userid);
-		return this.backend.delete(key);
+		await Promise.all([
+			user.email ? this.backend.delete(`email::${user.email}`) : undefined,
+			user.email ? this.backend.delete(`signin::password::${user.email}`) : undefined,
+			this.backend.delete(`validationcode::${user.email}`),
+			this.backend.delete(`passwordresetcode::${user.email}`),
+			this.backend.delete(`usermethod::${userid}::password`),
+			this.backend.delete(key),
+		]);
 	}
 
 	/**
@@ -139,12 +170,12 @@ export class AuthOnKvProvider implements IAuthProvider {
 	 */
 	async addSignInMethodPassword(
 		userid: string,
-		email: string,
 		passwordHash: string,
 	): Promise<void> {
+		const user = await this.getUser(userid);
 		await Promise.all([
 			this.backend.set(`usermethod::${userid}::password`, {}),
-			this.backend.set(`signin::password::${email}`, {
+			this.backend.set(`signin::password::${user.email}`, {
 				passwordHash,
 				userid: userid,
 			}),
@@ -170,7 +201,7 @@ export class AuthOnKvProvider implements IAuthProvider {
 				throw new UserNotFoundError(email);
 			}
 			return await this.getUser(userid);
-		} catch (err) {
+		} catch (_err) {
 			throw new UserNotFoundError(email);
 		}
 	}
@@ -205,7 +236,7 @@ export class AuthOnKvProvider implements IAuthProvider {
 				this.updateUser(value.metadata.userid, {}, undefined, true),
 				this.backend.delete(`validationcode::${email}`),
 			]);
-		} catch (err) {
+		} catch (_err) {
 			throw new ValidationCodeError();
 		}
 	}
@@ -251,12 +282,11 @@ export class AuthOnKvProvider implements IAuthProvider {
 			await Promise.all([
 				this.addSignInMethodPassword(
 					value.metadata.userid,
-					email,
 					passwordHash,
 				),
 				this.backend.delete(`passwordresetcode::${email}`),
 			]);
-		} catch (err) {
+		} catch (_err) {
 			throw new SetPasswordResetError();
 		}
 	}

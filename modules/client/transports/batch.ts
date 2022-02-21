@@ -1,7 +1,7 @@
 import { Command, Result, UnknownError } from "https://baseless.dev/x/shared/server.ts";
 import { App } from "../app.ts";
 import { Deferred } from "../utils.ts";
-import { ITransport } from "./mod.ts";
+import { ITransport } from "./transport.ts";
 
 export interface IBatchableTransport {
 	sendBatch(app: App, commands: [Command, Deferred<Result>][]): Promise<void>;

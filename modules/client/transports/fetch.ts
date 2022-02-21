@@ -1,4 +1,4 @@
-import { ITransport } from "./mod.ts";
+import { ITransport } from "./transport.ts";
 import { IBatchableTransport } from "./batch.ts";
 import { App } from "../app.ts";
 import { Command, Result, UnknownError } from "https://baseless.dev/x/shared/server.ts";

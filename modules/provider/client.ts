@@ -1,7 +1,7 @@
-import { Message } from "https://baseless.dev/x/shared/mail.ts";
+import type { Message } from "https://baseless.dev/x/shared/mail.ts";
 // import { User } from "https://baseless.dev/x/shared/auth.ts";
-import { KeyLike } from "https://deno.land/x/jose@v4.3.7/types.d.ts";
-import { Context } from "./context.ts";
+import type { KeyLike } from "https://deno.land/x/jose@v4.3.7/types.d.ts";
+import type { Context } from "./context.ts";
 
 export type MessageTemplate = Omit<Message, "to">;
 
@@ -62,14 +62,4 @@ export interface IClientProvider {
 	 * Retrieve a Client by it's id
 	 */
 	getClientById(id: string): Promise<Client>;
-}
-
-/**
- * Client not found error
- */
-export class ClientNotFoundError extends Error {
-	public name = "ClientNotFoundError";
-	public constructor(id: string) {
-		super(`Client '${id}' not found.`);
-	}
 }

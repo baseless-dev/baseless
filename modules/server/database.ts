@@ -294,7 +294,6 @@ export class DatabaseController {
 	}
 
 	public async get(
-		_request: Request,
 		context: Context,
 		reference: DocumentReference,
 	): Promise<Result> {
@@ -319,7 +318,6 @@ export class DatabaseController {
 	}
 
 	public async create<Metadata, Data>(
-		_request: Request,
 		context: Context,
 		reference: DocumentReference,
 		metadata: Metadata,
@@ -352,7 +350,6 @@ export class DatabaseController {
 	}
 
 	public async update<Metadata, Data>(
-		_request: Request,
 		context: Context,
 		reference: DocumentReference,
 		metadata: Metadata,
@@ -386,7 +383,6 @@ export class DatabaseController {
 	}
 
 	public async list<Metadata>(
-		_request: Request,
 		context: Context,
 		reference: CollectionReference,
 		filter?: DatabaseScanFilter<Metadata>,
@@ -415,7 +411,6 @@ export class DatabaseController {
 	}
 
 	public async delete(
-		_request: Request,
 		context: Context,
 		reference: DocumentReference,
 	): Promise<Result> {

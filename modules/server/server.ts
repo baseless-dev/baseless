@@ -10,10 +10,8 @@ import {
 	NoopMailProvider,
 } from "https://baseless.dev/x/provider/mod.ts";
 import { logger } from "https://baseless.dev/x/logger/mod.ts";
-import { AuthController, AuthDescriptor } from "./auth.ts";
-import { DatabaseController, DatabaseDescriptor } from "./database.ts";
-import { FunctionsDescriptor, FunctionsHttpHandler } from "./functions.ts";
-import { MailDescriptor } from "./mail.ts";
+import { AuthController } from "./auth.ts";
+import { DatabaseController } from "./database.ts";
 import { Command, Commands, Result, Results, validator } from "./schema.ts";
 import { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
 import { UnknownError } from "https://baseless.dev/x/shared/server.ts";
@@ -21,6 +19,13 @@ import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
 import { Context } from "https://baseless.dev/x/provider/context.ts";
 import { collection, doc } from "https://baseless.dev/x/shared/database.ts";
 import { ClientNotFoundError } from "https://baseless.dev/x/shared/client.ts";
+import {
+	AuthDescriptor,
+	DatabaseDescriptor,
+	FunctionsDescriptor,
+	FunctionsHttpHandler,
+	MailDescriptor,
+} from "https://baseless.dev/x/worker/mod.ts";
 
 export class Server {
 	private logger = logger("server");

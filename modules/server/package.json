@@ -21,6 +21,7 @@
 			"https://baseless.dev/x/provider/mod.ts": "https://baseless.dev/w/provider/mod.js",
 			"https://baseless.dev/x/provider/context.ts": "https://baseless.dev/w/provider/context.js",
 			"https://baseless.dev/x/provider/database.ts": "https://baseless.dev/w/provider/database.js",
+			"https://baseless.dev/x/worker/mod.ts": "https://baseless.dev/w/worker/mod.js",
 			"https://baseless.dev/x/json-schema/validator.ts": "https://baseless.dev/w/json-schema/validator.js",
 			"https://deno.land/x/jose@v4.3.7/key/import.ts": "https://cdnjs.cloudflare.com/ajax/libs/jose/4.3.7/key/import.js",
 			"https://deno.land/x/jose@v4.3.7/jwt/verify.ts": "https://cdnjs.cloudflare.com/ajax/libs/jose/4.3.7/jwt/verify.js",

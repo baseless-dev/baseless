@@ -12,6 +12,7 @@
 		"https://baseless.dev/x/provider-mail-logger/": "./modules/provider-mail-logger/",
 		"https://baseless.dev/x/provider-mail-sendgrid/": "./modules/provider-mail-sendgrid/",
 		"https://baseless.dev/x/server/": "./modules/server/",
-		"https://baseless.dev/x/shared/": "./modules/shared/"
+		"https://baseless.dev/x/shared/": "./modules/shared/",
+		"https://baseless.dev/x/worker/": "./modules/worker/"
 	}
 }

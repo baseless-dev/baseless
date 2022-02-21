@@ -11,6 +11,7 @@
 		"./dist/provider-kv-sqlite",
 		"./dist/provider-mail-sendgrid",
 		"./dist/server",
-		"./dist/shared"
+		"./dist/shared",
+		"./dist/worker"
 	]
 }

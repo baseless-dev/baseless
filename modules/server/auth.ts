@@ -262,6 +262,11 @@ export class AuthController {
 		email: string,
 		password: string,
 	): Promise<Result> {
+		const { authDescriptor } = this;
+		if (!authDescriptor.allowSignMethodPassword) {
+			this.logger.warn(`Sign in with email and password is not allowed.`);
+			throw new CreateUserError();
+		}
 		try {
 			let user = await context.auth.getUserByEmail(email).catch((_) => undefined);
 			if (user) {
@@ -312,6 +317,9 @@ export class AuthController {
 			return await this._createJWTs(context, user);
 		} catch (err: unknown) {
 			this.logger.error(`Could sign in with email and password, got ${err}`);
+			if (err instanceof EmailNeedsConfirmationError) {
+				throw err;
+			}
 			throw new SignInEmailPasswordError();
 		}
 	}

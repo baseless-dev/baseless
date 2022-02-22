@@ -65,6 +65,7 @@ Deno.test("retrieve user with email", async () => {
 	const auth = new AuthOnKvProvider(kv);
 	await auth.createUser("test@example.org", {});
 	assertExists(await auth.getUserByEmail("test@example.org"));
+	await assertRejects(() => auth.getUserByEmail("unknown@example.org"));
 
 	await kv.close();
 });

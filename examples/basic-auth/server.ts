@@ -1,5 +1,6 @@
 import * as log from "https://baseless.dev/x/logger/mod.ts";
-import { auth, database, functions, mail, Server } from "https://baseless.dev/x/server/mod.ts";
+import { Server } from "https://baseless.dev/x/server/mod.ts";
+import { auth, database, functions, mail } from "https://baseless.dev/x/worker/mod.ts";
 import { importPKCS8, importSPKI } from "https://deno.land/x/jose@v4.3.7/key/import.ts";
 import "./app.ts";
 import { MemoryClientProvider } from "https://baseless.dev/x/provider-client-memory/mod.ts";

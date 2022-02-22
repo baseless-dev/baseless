@@ -84,10 +84,6 @@ export class AuthOnKvProvider implements IAuthProvider {
 		if (existingUser) {
 			throw new UserAlreadyExistsError(userid);
 		}
-		try {
-			await this.getUser(userid);
-		} // deno-lint-ignore no-empty
-		catch (_err) {}
 
 		if (email) {
 			const existingUser = await this.getUserByEmail(email).catch((_) => null);

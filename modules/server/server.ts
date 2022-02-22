@@ -1,4 +1,5 @@
 import {
+	Client,
 	IAuthProvider,
 	IClientProvider,
 	IDatabaseProvider,
@@ -79,7 +80,7 @@ export class Server {
 		}
 
 		const client_id = request.headers.get("X-BASELESS-CLIENT-ID") ?? "";
-		const client = await this.clientProvider?.getClientById(client_id);
+		const client = await this.clientProvider?.getClientById(client_id).catch((_) => undefined);
 
 		// Clientid must match a registered client
 		if (!client) {
@@ -133,6 +134,10 @@ export class Server {
 							`Could not parse Authorization header, got error : ${err}`,
 						);
 					}
+				} else {
+					this.logger.warn(
+						`Unknown authorization scheme "${scheme}".`,
+					);
 				}
 			}
 		}
@@ -171,15 +176,20 @@ export class Server {
 					const result = await onCall(request, context);
 					const response = new Response(result.body, {
 						...responseInit,
+						status: result.status,
+						statusText: result.statusText,
 						headers: { ...responseInit.headers, ...result.headers },
 					});
 					return [response, waitUntilCollection];
-				} catch (_err) {
+				} catch (err) {
+					this.logger.error(`Function "${fnName}" encountered an error. Got ${err}`);
 					return [
 						new Response(null, { ...responseInit, status: 500 }),
 						waitUntilCollection,
 					];
 				}
+			} else {
+				this.logger.warn(`Function "${fnName}" is not registered as HTTP function.`);
 			}
 			return [
 				new Response(null, { ...responseInit, status: 405 }),
@@ -188,7 +198,8 @@ export class Server {
 		}
 
 		let commands: Commands | undefined;
-		switch (request.headers.get("Content-Type")?.toLocaleLowerCase()) {
+		const contentType = request.headers.get("Content-Type")?.toLocaleLowerCase();
+		switch (contentType) {
 			case "application/json": {
 				let body = "";
 				if (request.body) {
@@ -223,6 +234,12 @@ export class Server {
 
 				break;
 			}
+			default:
+				this.logger.error(`Expected JSON payload, got "${contentType}".`);
+				return [
+					new Response(null, { ...responseInit, status: 400 }),
+					waitUntilCollection,
+				];
 		}
 
 		// Request did not contain any valid commands

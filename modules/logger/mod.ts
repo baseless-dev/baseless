@@ -58,3 +58,4 @@ export const log = defaultLogger.log;
 export const info = defaultLogger.info;
 export const warn = defaultLogger.warn;
 export const error = defaultLogger.error;
+export const critical = defaultLogger.critical;

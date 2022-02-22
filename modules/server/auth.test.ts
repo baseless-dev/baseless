@@ -16,7 +16,7 @@ import {
 import { SqliteKVProvider } from "https://baseless.dev/x/provider-kv-sqlite/mod.ts";
 import { AuthOnKvProvider } from "https://baseless.dev/x/provider-auth-on-kv/mod.ts";
 import { AuthBuilder } from "https://baseless.dev/x/worker/mod.ts";
-import { createLogger, debug } from "https://baseless.dev/x/logger/mod.ts";
+import { createLogger } from "https://baseless.dev/x/logger/mod.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
 
 async function setupContext() {

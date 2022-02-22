@@ -11,7 +11,7 @@
 				"--watch"
 			],
 			"isBackground": true,
-			"label": "deno: build.ts --watch"
+			"label": "Build (watch)"
 		},
 		{
 			"type": "deno",
@@ -23,7 +23,7 @@
 			],
 			"isBackground": true,
 			"group": "test",
-			"label": "deno: fmt --watch",
+			"label": "Run formatter (watch)",
 			"problemMatcher": []
 		},
 		{
@@ -36,7 +36,7 @@
 			],
 			"isBackground": true,
 			"group": "test",
-			"label": "deno: lint --watch",
+			"label": "Run linter (watch)",
 			"problemMatcher": []
 		},
 		{
@@ -50,7 +50,13 @@
 				"--watch"
 			],
 			"isBackground": true,
-			"label": "deno: test --watch"
+			"label": "Run test (watch)"
+		},
+		{
+			"type": "shell",
+			"command": "deno test --config=./deno.json --import-map=./import-map.json --coverage=./coverage; deno coverage coverage --exclude=json-schema",
+			"label": "Generate coverage",
+			"problemMatcher": []
 		}
 	]
 }

@@ -8,7 +8,9 @@ Deno.test("creates anonymous user", async () => {
 	await kv.open();
 
 	const auth = new AuthOnKvProvider(kv);
-	assertExists(await auth.createUser(null, {}));
+	const user = await auth.createUser(null, {});
+	assertExists(user);
+	assertEquals(await auth.getSignInMethods(user.id), []);
 
 	await kv.close();
 });
@@ -18,6 +20,8 @@ Deno.test("creates user", async () => {
 
 	const auth = new AuthOnKvProvider(kv);
 	const user = await auth.createUser("test@example.org", {});
+
+	assertEquals(await auth.getSignInMethods(user.id), []);
 
 	// User already exist with that email
 	await assertRejects(() => auth.createUser("test@example.org", {}));
@@ -111,8 +115,7 @@ Deno.test("add sign-in with password", async () => {
 	const user = await auth.createUser("test@example.org", {});
 	await auth.addSignInMethodPassword(user.id, "foo");
 
-	const methods = await auth.getSignInMethods(user.id);
-	assertEquals(methods, ["password"]);
+	assertEquals(["password"], await auth.getSignInMethods(user.id));
 
 	await kv.close();
 });

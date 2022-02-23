@@ -1,4 +1,9 @@
-import { assertEquals, assertExists } from "https://deno.land/std@0.118.0/testing/asserts.ts";
+import {
+	assertEquals,
+	assertExists,
+	assertNotEquals,
+	assertRejects,
+} from "https://deno.land/std@0.118.0/testing/asserts.ts";
 import { Server } from "https://baseless.dev/x/server/server.ts";
 import { initializeAppWithTransport } from "./app.ts";
 import { LocalTransport } from "./transports/mod.ts";
@@ -24,9 +29,13 @@ import { createLogger } from "https://baseless.dev/x/logger/mod.ts";
 import {
 	createUserWithEmailAndPassword,
 	getAuth,
+	resetPassword,
+	sendEmailValidation,
+	sendPasswordResetEmail,
 	signInAnonymously,
 	signInWithEmailAndPassword,
 	validateEmail,
+	updatePassword
 } from "./auth.ts";
 
 async function setupServer(
@@ -126,7 +135,33 @@ Deno.test("validate email", async () => {
 		}
 	});
 	await createUserWithEmailAndPassword(auth, "test@example.org", "foobar");
+	assertNotEquals(validationCode, "");
+	await assertRejects(() => validateEmail(auth, "wrong code", "test@example.org"));
+	await assertRejects(() => validateEmail(auth, validationCode, "unknown@example.org"));
 	await validateEmail(auth, validationCode, "test@example.org");
+
+	await disposeApp();
+	await disposeServer();
+});
+
+Deno.test("send email validation", async () => {
+	const { server, dispose: disposeServer, publicKey } = await setupServer({
+		allowAnonymousUser: false,
+		allowSignMethodPassword: true,
+	});
+	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
+
+	await createUserWithEmailAndPassword(auth, "test@example.org", "foobar");
+	let validationCode = "";
+	createLogger((_ns, _lvl, msg) => {
+		const matches = msg.match(/Validation code is "([^"]+)"/);
+		if (matches) {
+			validationCode = matches[1];
+		}
+	});
+	await assertRejects(() => sendEmailValidation(auth, "unknown@example.org"));
+	await sendEmailValidation(auth, "test@example.org");
+	assertNotEquals(validationCode, "");
 
 	await disposeApp();
 	await disposeServer();
@@ -149,6 +184,126 @@ Deno.test("sign-in with email and password", async () => {
 	await createUserWithEmailAndPassword(auth, "test@example.org", "foobar");
 	await validateEmail(auth, validationCode, "test@example.org");
 	const user = await signInWithEmailAndPassword(auth, "test@example.org", "foobar");
+	assertExists(user.id);
+	assertEquals(user.email, "test@example.org");
+	assertEquals(user.emailConfirmed, true);
+
+	await disposeApp();
+	await disposeServer();
+});
+
+Deno.test("send password reset email", async () => {
+	const { server, dispose: disposeServer, publicKey } = await setupServer({
+		allowAnonymousUser: false,
+		allowSignMethodPassword: true,
+	});
+	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
+
+	await createUserWithEmailAndPassword(auth, "test@example.org", "foobar");
+
+	let resetPasswordCode = "";
+	createLogger((_ns, _lvl, msg) => {
+		const matches = msg.match(/Reset password code is "([^"]+)"/);
+		if (matches) {
+			resetPasswordCode = matches[1];
+		}
+	});
+	await assertRejects(() => sendPasswordResetEmail(auth, "unknown@example.org"));
+	await sendPasswordResetEmail(auth, "test@example.org");
+	assertNotEquals(resetPasswordCode, "");
+
+	await disposeApp();
+	await disposeServer();
+});
+
+Deno.test("reset password", async () => {
+	const { server, dispose: disposeServer, publicKey } = await setupServer({
+		allowAnonymousUser: false,
+		allowSignMethodPassword: true,
+	});
+	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
+
+	let validationCode = "";
+	createLogger((_ns, _lvl, msg) => {
+		const matches = msg.match(/Validation code is "([^"]+)"/);
+		if (matches) {
+			validationCode = matches[1];
+		}
+	});
+	await createUserWithEmailAndPassword(auth, "test@example.org", "foobar");
+	assertNotEquals(validationCode, "");
+	await validateEmail(auth, validationCode, "test@example.org");
+
+	let resetPasswordCode = "";
+	createLogger((_ns, _lvl, msg) => {
+		const matches = msg.match(/Reset password code is "([^"]+)"/);
+		if (matches) {
+			resetPasswordCode = matches[1];
+		}
+	});
+	await sendPasswordResetEmail(auth, "test@example.org");
+	assertNotEquals(resetPasswordCode, "");
+	await assertRejects(() => resetPassword(auth, "wrong code", "test@example.org", "moojoo"));
+	await assertRejects(() => resetPassword(auth, resetPasswordCode, "unknown@example.org", "moojoo"));
+	await resetPassword(auth, resetPasswordCode, "test@example.org", "moojoo");
+	const user = await signInWithEmailAndPassword(auth, "test@example.org", "moojoo");
+	assertExists(user.id);
+	assertEquals(user.email, "test@example.org");
+	assertEquals(user.emailConfirmed, true);
+
+	await disposeApp();
+	await disposeServer();
+});
+
+Deno.test("upgrade anonymous user", async () => {
+	const { server, dispose: disposeServer, publicKey } = await setupServer({
+		allowAnonymousUser: true,
+		allowSignMethodPassword: true,
+	});
+	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
+
+	const anonymousUser = await signInAnonymously(auth);
+	assertExists(anonymousUser.id);
+	assertEquals(anonymousUser.email, null);
+	let validationCode = "";
+	createLogger((_ns, _lvl, msg) => {
+		const matches = msg.match(/Validation code is "([^"]+)"/);
+		if (matches) {
+			validationCode = matches[1];
+		}
+	});
+	await createUserWithEmailAndPassword(auth, "test@example.org", "foobar");
+	assertNotEquals(validationCode, "");
+	await validateEmail(auth, validationCode, "test@example.org");
+	const user = await signInWithEmailAndPassword(auth, "test@example.org", "foobar");
+	assertEquals(user.id, anonymousUser.id);
+	assertEquals(user.email, "test@example.org");
+	assertEquals(user.emailConfirmed, true);
+
+	await disposeApp();
+	await disposeServer();
+});
+
+
+Deno.test("update password", async () => {
+	const { server, dispose: disposeServer, publicKey } = await setupServer({
+		allowAnonymousUser: false,
+		allowSignMethodPassword: true,
+	});
+	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
+
+	let validationCode = "";
+	createLogger((_ns, _lvl, msg) => {
+		const matches = msg.match(/Validation code is "([^"]+)"/);
+		if (matches) {
+			validationCode = matches[1];
+		}
+	});
+	await createUserWithEmailAndPassword(auth, "test@example.org", "foobar");
+	await validateEmail(auth, validationCode, "test@example.org");
+	await signInWithEmailAndPassword(auth, "test@example.org", "foobar");
+	await updatePassword(auth, "moojoo");
+	const user = await signInWithEmailAndPassword(auth, "test@example.org", "moojoo");
 	assertExists(user.id);
 	assertEquals(user.email, "test@example.org");
 	assertEquals(user.emailConfirmed, true);

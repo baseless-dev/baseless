@@ -8,6 +8,7 @@ import {
 	SetPasswordResetError,
 	SetValidationCodeError,
 	SignInEmailPasswordError,
+	UpdatePasswordError,
 	User,
 	ValidationCodeError,
 } from "https://baseless.dev/x/shared/auth.ts";
@@ -87,7 +88,7 @@ export class AuthController {
 		const access_token = await new SignJWT({ scope })
 			.setSubject(user.id)
 			.setIssuedAt()
-			.setExpirationTime("10sec")
+			.setExpirationTime("15min")
 			.setIssuer(context.client.principal)
 			.setAudience(context.client.principal)
 			.setProtectedHeader({ alg: algKey })
@@ -180,6 +181,23 @@ export class AuthController {
 		// return new TextDecoder().decode(hash);
 	}
 
+	public async updatePassword(
+		context: Context,
+		newPassword: string,
+	): Promise<Result> {
+		if (!context.currentUserId) {
+			this.logger.error(`Could update password, user not signed-in.`);
+			throw new UpdatePasswordError();
+		}
+		try {
+			await context.auth.updatePassword(context.currentUserId, await this._hashPassword(newPassword));
+			return {};
+		} catch (err: unknown) {
+			this.logger.error(`Could reset password, got ${err}`);
+			throw new UpdatePasswordError();
+		}
+	}
+
 	public async resetPasswordWithCode(
 		context: Context,
 		email: string,
@@ -261,6 +279,7 @@ export class AuthController {
 		locale: string,
 		email: string,
 		password: string,
+		claimAnonymousId?: string,
 	): Promise<Result> {
 		const { authDescriptor } = this;
 		if (!authDescriptor.allowSignMethodPassword) {
@@ -273,7 +292,20 @@ export class AuthController {
 				this.logger.warn(`User already exist for '${email}'.`);
 				return {};
 			}
-			user = await context.auth.createUser(email, {});
+			if (claimAnonymousId) {
+				user = await context.auth.getUser(claimAnonymousId).catch((_) => undefined);
+				if (!user) {
+					this.logger.error(`Can not claim an unknown user.`);
+					throw new CreateUserError();
+				}
+				if (user.email) {
+					this.logger.error(`Can not claim a user with email.`);
+					throw new CreateUserError();
+				}
+				await context.auth.updateUser(user.id, undefined, email);
+			} else {
+				user = await context.auth.createUser(email, {});
+			}
 			await context.auth.addSignInMethodPassword(
 				user.id,
 				await this._hashPassword(password),
@@ -289,7 +321,7 @@ export class AuthController {
 			}
 			return {};
 		} catch (err: unknown) {
-			this.logger.error(`Could create user, got ${err}`);
+			this.logger.error(`Could not create user, got ${err}`);
 			throw new CreateUserError();
 		}
 	}

@@ -159,6 +159,7 @@ const commandsSchema: Schema = {
 					locale: { type: "string" },
 					email: { type: "string" },
 					password: { type: "string" },
+					claimAnonymousId: { type: "string" },
 				},
 				required: ["locale", "email", "password"],
 			},
@@ -202,6 +203,13 @@ const commandsSchema: Schema = {
 					password: { type: "string" },
 				},
 				required: ["email", "code", "password"],
+			},
+			{
+				properties: {
+					cmd: { const: "auth.update-password" },
+					newPassword: { type: "string" },
+				},
+				required: ["newPassword"],
 			},
 			{
 				properties: {

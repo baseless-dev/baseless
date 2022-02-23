@@ -310,11 +310,13 @@ export async function createUserWithEmailAndPassword(
 	email: string,
 	password: string,
 ) {
+	const currentUser = auth.getCurrentUser();
 	const res = await auth.app.send({
 		cmd: "auth.create-user-with-email-password",
 		email,
 		password,
 		locale: auth.languageCode,
+		claimAnonymousId: currentUser && !currentUser.email ? currentUser.id : undefined,
 	});
 	if ("error" in res) {
 		throw authErrorCodeToError(res["error"]);
@@ -322,12 +324,15 @@ export async function createUserWithEmailAndPassword(
 }
 
 /**
- * Sends a verification email to a user.
+ * Sends a validation email to a user.
  *
- * The verification process is completed by calling `validateEmail`.
+ * The validation process is completed by calling `validateEmail`.
  */
-export function sendEmailVerification(auth: Auth) {
-	return Promise.reject("NOTIMPLEMENTED");
+export async function sendEmailValidation(auth: Auth, email: string) {
+	const res = await auth.app.send({ cmd: "auth.send-email-validation-code", locale: auth.languageCode, email });
+	if ("error" in res) {
+		throw authErrorCodeToError(res["error"]);
+	}
 }
 
 /**
@@ -345,20 +350,26 @@ export async function validateEmail(auth: Auth, code: string, email: string) {
  *
  * To complete the password reset, call `resetPassword` with the code supplied in the email sent to the user, along with the new password specified by the user.
  */
-export function sendPasswordResetEmail(auth: Auth, email: string) {
-	return Promise.reject("NOTIMPLEMENTED");
+export async function sendPasswordResetEmail(auth: Auth, email: string) {
+	const res = await auth.app.send({ cmd: "auth.send-password-reset-code", locale: auth.languageCode, email });
+	if ("error" in res) {
+		throw authErrorCodeToError(res["error"]);
+	}
 }
 
 /**
  * Completes the password reset process, given a confirmation code and new password.
  */
-export function resetPassword(
+export async function resetPassword(
 	auth: Auth,
 	code: string,
 	email: string,
 	newPassword: string,
 ) {
-	return Promise.reject("NOTIMPLEMENTED");
+	const res = await auth.app.send({ cmd: "auth.reset-password", email, code, password: newPassword });
+	if ("error" in res) {
+		throw authErrorCodeToError(res["error"]);
+	}
 }
 
 /**
@@ -427,17 +438,11 @@ export async function signOut(auth: Auth) {
 }
 
 /**
- * Updates the user's email address.
- *
- * An email will be sent to the original email address (if it was set) that allows to revoke the email address change, in order to protect them from account hijacking.
- */
-export function updateEmail(auth: Auth, newEmail: string) {
-	return Promise.reject("NOTIMPLEMENTED");
-}
-
-/**
  * Updates the user's password.
  */
-export function updatePassword(auth: Auth, newPassword: string) {
-	return Promise.reject("NOTIMPLEMENTED");
+export async function updatePassword(auth: Auth, newPassword: string) {
+	const res = await auth.app.send({ cmd: "auth.update-password", newPassword });
+	if ("error" in res) {
+		throw authErrorCodeToError(res["error"]);
+	}
 }

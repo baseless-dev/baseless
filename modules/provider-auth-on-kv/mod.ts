@@ -1,4 +1,4 @@
-import { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
+import { AuthIdentifier, UpdatePasswordError } from "https://baseless.dev/x/shared/auth.ts";
 import {
 	PasswordResetError,
 	SetPasswordResetError,
@@ -176,6 +176,25 @@ export class AuthOnKvProvider implements IAuthProvider {
 				userid: userid,
 			}),
 		]);
+	}
+
+	/**
+	 * Update password of user
+	 */
+	async updatePassword(
+		userid: string,
+		newPasswordHash: string,
+	): Promise<void> {
+		try {
+			const user = await this.getUser(userid);
+			await this.backend.get(`usermethod::${userid}::password`);
+			await this.backend.set(`signin::password::${user.email}`, {
+				passwordHash: newPasswordHash,
+				userid: userid,
+			});
+		} catch (_err) {
+			throw new UpdatePasswordError();
+		}
 	}
 
 	/**

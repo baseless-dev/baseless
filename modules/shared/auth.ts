@@ -139,3 +139,10 @@ export class PasswordResetError extends Error {
 export class RefreshTokensError extends Error {
 	public name = "RefreshTokensError";
 }
+
+/**
+ * Update password error
+ */
+export class UpdatePasswordError extends Error {
+	public name = "UpdatePasswordError";
+}

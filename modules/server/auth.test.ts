@@ -299,3 +299,32 @@ Deno.test("refresh tokens", async () => {
 
 	await dispose();
 });
+
+Deno.test("update password", async () => {
+	const { context, dispose, client } = await setupContext();
+	const authDescriptor = new AuthBuilder().allowSignMethodPassword(true).build();
+	const authController = new AuthController(authDescriptor);
+
+	let validationCode = "";
+	createLogger((_ns, _lvl, msg) => {
+		const matches = msg.match(/Validation code is "([^"]+)"/);
+		if (matches) {
+			validationCode = matches[1];
+		}
+	});
+	await authController.createUserWithEmail(context, "en", "test@example.org", "foobar");
+	assertNotEquals(validationCode, "");
+	await authController.validateEmailWithCode(context, "test@example.org", validationCode);
+
+	const tokens = await authController.signWithEmailPassword(context, "test@example.org", "foobar") as Record<
+		string,
+		string
+	>;
+	assertExists("access_token" in tokens);
+	const currentUserId = await getTokenSub(client, tokens.access_token);
+
+	assertEquals({}, await authController.updatePassword({ ...context, currentUserId }, "moojoo"));
+	assertExists(await authController.signWithEmailPassword(context, "test@example.org", "moojoo"));
+
+	await dispose();
+});

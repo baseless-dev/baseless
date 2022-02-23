@@ -54,6 +54,14 @@ export interface IAuthProvider {
 	): Promise<void>;
 
 	/**
+	 * Update password of user
+	 */
+	updatePassword(
+		userid: string,
+		newPasswordHash: string,
+	): Promise<void>;
+
+	/**
 	 * Sign-in with email and passwordHash
 	 */
 	signInWithEmailPassword<Metadata>(
@@ -136,6 +144,13 @@ export class NoopAuthProvider implements IAuthProvider {
 	 * Add sign-in method email-password to userid
 	 */
 	addSignInMethodPassword(): Promise<void> {
+		return Promise.reject(new NoopProviderError());
+	}
+
+	/**
+	 * Update password of user
+	 */
+	updatePassword(): Promise<void> {
 		return Promise.reject(new NoopProviderError());
 	}
 

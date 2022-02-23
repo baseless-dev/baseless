@@ -32,6 +32,7 @@ export type Command =
 		locale: string;
 		email: string;
 		password: string;
+		claimAnonymousId?: string;
 	}
 	| { cmd: "auth.signin-with-email-password"; email: string; password: string }
 	| { cmd: "auth.send-email-validation-code"; locale: string; email: string }
@@ -42,6 +43,10 @@ export type Command =
 		email: string;
 		code: string;
 		password: string;
+	}
+	| {
+		cmd: "auth.update-password";
+		newPassword: string;
 	}
 	| {
 		cmd: "auth.refresh-tokens";

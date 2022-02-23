@@ -336,6 +336,7 @@ export class Server {
 				cmd.locale,
 				cmd.email,
 				cmd.password,
+				cmd.claimAnonymousId,
 			);
 		} else if (cmd.cmd === "auth.send-email-validation-code") {
 			p = this.authController.sendValidationEmail(
@@ -361,6 +362,11 @@ export class Server {
 				cmd.email,
 				cmd.code,
 				cmd.password,
+			);
+		} else if (cmd.cmd === "auth.update-password") {
+			p = this.authController.updatePassword(
+				context,
+				cmd.newPassword,
 			);
 		} else if (cmd.cmd === "auth.signin-with-email-password") {
 			p = this.authController.signWithEmailPassword(

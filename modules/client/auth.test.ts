@@ -34,8 +34,8 @@ import {
 	sendPasswordResetEmail,
 	signInAnonymously,
 	signInWithEmailAndPassword,
+	updatePassword,
 	validateEmail,
-	updatePassword
 } from "./auth.ts";
 
 async function setupServer(
@@ -283,7 +283,6 @@ Deno.test("upgrade anonymous user", async () => {
 	await disposeApp();
 	await disposeServer();
 });
-
 
 Deno.test("update password", async () => {
 	const { server, dispose: disposeServer, publicKey } = await setupServer({

@@ -20,7 +20,7 @@ export type Command =
 	| { cmd: "kv.set"; key: string; metadata: Record<string, unknown>; data?: Record<string, unknown> }
 	| { cmd: "kv.list"; prefix: string; filter?: KVScanFilter<Record<string, unknown>> }
 	| { cmd: "kv.delete"; key: string }
-	| { cmd: "auth.create-anonymous-user" }
+	| { cmd: "auth.signin-anonymously" }
 	| {
 		cmd: "auth.add-sign-with-email-password";
 		locale: string;
@@ -33,7 +33,7 @@ export type Command =
 		email: string;
 		password: string;
 	}
-	| { cmd: "auth.sign-with-email-password"; email: string; password: string }
+	| { cmd: "auth.signin-with-email-password"; email: string; password: string }
 	| { cmd: "auth.send-email-validation-code"; locale: string; email: string }
 	| { cmd: "auth.validate-email"; email: string; code: string }
 	| { cmd: "auth.send-password-reset-code"; locale: string; email: string }

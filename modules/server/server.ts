@@ -321,7 +321,7 @@ export class Server {
 	 */
 	protected processCommand(context: Context, cmd: Command): Promise<Result> {
 		let p: Promise<Result>;
-		if (cmd.cmd === "auth.create-anonymous-user") {
+		if (cmd.cmd === "auth.signin-anonymously") {
 			p = this.authController.createAnonymousUser(context);
 		} else if (cmd.cmd === "auth.add-sign-with-email-password") {
 			p = this.authController.addSignWithEmailPassword(
@@ -362,7 +362,7 @@ export class Server {
 				cmd.code,
 				cmd.password,
 			);
-		} else if (cmd.cmd === "auth.sign-with-email-password") {
+		} else if (cmd.cmd === "auth.signin-with-email-password") {
 			p = this.authController.signWithEmailPassword(
 				context,
 				cmd.email,

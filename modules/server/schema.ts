@@ -141,7 +141,7 @@ const commandsSchema: Schema = {
 			},
 			{
 				properties: {
-					cmd: { const: "auth.create-anonymous-user" },
+					cmd: { const: "auth.signin-anonymously" },
 				},
 			},
 			{
@@ -164,7 +164,7 @@ const commandsSchema: Schema = {
 			},
 			{
 				properties: {
-					cmd: { const: "auth.sign-with-email-password" },
+					cmd: { const: "auth.signin-with-email-password" },
 					email: { type: "string" },
 					password: { type: "string" },
 				},

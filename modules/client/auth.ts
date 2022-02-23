@@ -316,8 +316,9 @@ export async function createUserWithEmailAndPassword(
 		password,
 		locale: auth.languageCode,
 	});
-	console.log(res);
-	debugger;
+	if ("error" in res) {
+		throw authErrorCodeToError(res["error"]);
+	}
 }
 
 /**
@@ -334,8 +335,9 @@ export function sendEmailVerification(auth: Auth) {
  */
 export async function validateEmail(auth: Auth, code: string, email: string) {
 	const res = await auth.app.send({ cmd: "auth.validate-email", email, code });
-	console.log(res);
-	debugger;
+	if ("error" in res) {
+		throw authErrorCodeToError(res["error"]);
+	}
 }
 
 /**
@@ -382,8 +384,17 @@ export function setPersistence(auth: Auth, persistence: Persistence) {
  *
  * If there is already an anonymous user signed in, that user will be returned; otherwise, a new anonymous user identity will be created and returned.
  */
-export function signInAnonymously(auth: Auth) {
-	return Promise.reject("NOTIMPLEMENTED");
+export async function signInAnonymously(auth: Auth) {
+	const res = await auth.app.send({ cmd: "auth.signin-anonymously" });
+	if ("id_token" in res && "access_token" in res) {
+		const { id_token, access_token, refresh_token } = res;
+		await auth.setTokens({ id_token, access_token, refresh_token });
+		return auth.getCurrentUser()!;
+	} else if ("error" in res) {
+		throw authErrorCodeToError(res["error"]);
+	} else {
+		throw new UnknownError();
+	}
 }
 
 /**
@@ -396,11 +407,11 @@ export async function signInWithEmailAndPassword(
 	email: string,
 	password: string,
 ) {
-	const res = await auth.app.send({ cmd: "auth.sign-with-email-password", email, password });
+	const res = await auth.app.send({ cmd: "auth.signin-with-email-password", email, password });
 	if ("id_token" in res && "access_token" in res) {
 		const { id_token, access_token, refresh_token } = res;
 		await auth.setTokens({ id_token, access_token, refresh_token });
-		return auth.getCurrentUser();
+		return auth.getCurrentUser()!;
 	} else if ("error" in res) {
 		throw authErrorCodeToError(res["error"]);
 	} else {

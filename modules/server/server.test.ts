@@ -224,7 +224,7 @@ Deno.test("request with commands returns 200", async () => {
 	const request = new Request("http://test.local/", {
 		method: "POST",
 		headers: { "X-BASELESS-CLIENT-ID": "foo", "Origin": "http://example.org", "Content-Type": "application/json" },
-		body: '{"1": {"cmd": "auth.create-anonymous-user"}}',
+		body: '{"1": {"cmd": "auth.signin-anonymously"}}',
 	});
 	const [response] = await server.handleRequest(request);
 	assertEquals(response.status, 200);

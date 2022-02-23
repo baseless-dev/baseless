@@ -1,4 +1,4 @@
-import { auth, functions } from "https://baseless.dev/x/server/mod.ts";
+import { auth, functions } from "https://baseless.dev/x/worker/mod.ts";
 
 auth.allowAnonymousUser(true).allowSignMethodPassword(true);
 

@@ -182,6 +182,16 @@ Deno.test("create anonymous user", async () => {
 		const authController = new AuthController(authDescriptor);
 		assertExists(await authController.createAnonymousUser(context));
 	}
+	{ // onCreateUser hook
+		let triggered = 0;
+		// deno-lint-ignore require-await
+		const authDescriptor = new AuthBuilder().allowAnonymousUser(true).onCreateUser(async () => {
+			triggered++;
+		}).build();
+		const authController = new AuthController(authDescriptor);
+		assertExists(await authController.createAnonymousUser(context));
+		assertEquals(triggered, 1);
+	}
 
 	await dispose();
 });
@@ -190,7 +200,13 @@ Deno.test("add sign with email password", async () => {
 	const { context, dispose, client } = await setupContext();
 
 	{ // Sign-in anonymously and add sign in with email password
-		const authDescriptor = new AuthBuilder().allowAnonymousUser(true).allowSignMethodPassword(true).build();
+		let triggered = 0;
+		const authDescriptor = new AuthBuilder().allowAnonymousUser(true).allowSignMethodPassword(true).onUpdateUser(
+			// deno-lint-ignore require-await
+			async () => {
+				triggered++;
+			},
+		).build();
 		const authController = new AuthController(authDescriptor);
 		const tokens = await authController.createAnonymousUser(context) as Record<string, string>;
 		assertExists("access_token" in tokens);
@@ -199,6 +215,7 @@ Deno.test("add sign with email password", async () => {
 			{},
 			await authController.addSignWithEmailPassword({ ...context, currentUserId }, "en", "test@example.org", "foobar"),
 		);
+		assertEquals(triggered, 1);
 	}
 
 	await dispose();
@@ -213,10 +230,15 @@ Deno.test("create user with email", async () => {
 		await assertRejects(() => authController.createUserWithEmail(context, "en", "test@example.org", "foobar"));
 	}
 	{ // Sign-in with email and password more than once does not leak "user exists error"
-		const authDescriptor = new AuthBuilder().allowSignMethodPassword(true).build();
+		let triggered = 0;
+		// deno-lint-ignore require-await
+		const authDescriptor = new AuthBuilder().allowSignMethodPassword(true).onCreateUser(async () => {
+			triggered++;
+		}).build();
 		const authController = new AuthController(authDescriptor);
 		assertEquals({}, await authController.createUserWithEmail(context, "en", "test@example.org", "foobar"));
 		assertEquals({}, await authController.createUserWithEmail(context, "en", "test@example.org", "foobar"));
+		assertEquals(triggered, 1);
 	}
 
 	await dispose();

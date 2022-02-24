@@ -90,6 +90,7 @@ const commandsSchema: Schema = {
 					ref: { type: "string" },
 					metadata: { type: "object" },
 					data: { type: "object" },
+					replace: { type: "boolean" },
 				},
 				required: ["ref", "metadata"],
 			},
@@ -107,37 +108,6 @@ const commandsSchema: Schema = {
 					ref: { type: "string" },
 				},
 				required: ["ref"],
-			},
-			{
-				properties: {
-					cmd: { const: "kv.get" },
-					key: { type: "string" },
-				},
-				required: ["key"],
-			},
-			{
-				properties: {
-					cmd: { const: "kv.set" },
-					key: { type: "string" },
-					metadata: { type: "object" },
-					data: { type: ["string", "object"] },
-				},
-				required: ["key", "metadata"],
-			},
-			{
-				properties: {
-					cmd: { const: "kv.list" },
-					prefix: { type: "string" },
-					filter: { "$ref": "#/$defs/filter" },
-				},
-				required: ["prefix"],
-			},
-			{
-				properties: {
-					cmd: { const: "kv.delete" },
-					key: { type: "string" },
-				},
-				required: ["key"],
 			},
 			{
 				properties: {

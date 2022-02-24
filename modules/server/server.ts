@@ -403,6 +403,7 @@ export class Server {
 				doc(cmd.ref),
 				cmd.metadata,
 				cmd.data,
+				cmd.replace,
 			);
 		} else if (cmd.cmd === "db.delete") {
 			p = this.databaseController.delete(

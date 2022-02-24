@@ -13,13 +13,15 @@ export type Command =
 	| { cmd: "fn.call"; ref: string }
 	| { cmd: "db.get"; ref: string }
 	| { cmd: "db.create"; ref: string; metadata: Record<string, unknown>; data?: Record<string, unknown> }
-	| { cmd: "db.update"; ref: string; metadata: Record<string, unknown>; data?: Record<string, unknown> }
+	| {
+		cmd: "db.update";
+		ref: string;
+		metadata: Record<string, unknown>;
+		data?: Record<string, unknown>;
+		replace?: boolean;
+	}
 	| { cmd: "db.list"; ref: string; filter?: KVScanFilter<Record<string, unknown>> }
 	| { cmd: "db.delete"; ref: string }
-	| { cmd: "kv.get"; key: string }
-	| { cmd: "kv.set"; key: string; metadata: Record<string, unknown>; data?: Record<string, unknown> }
-	| { cmd: "kv.list"; prefix: string; filter?: KVScanFilter<Record<string, unknown>> }
-	| { cmd: "kv.delete"; key: string }
 	| { cmd: "auth.signin-anonymously" }
 	| {
 		cmd: "auth.add-sign-with-email-password";

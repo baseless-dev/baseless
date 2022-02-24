@@ -121,3 +121,31 @@ export class DocumentNotFoundError extends Error {
 export class DocumentAlreadyExistsError extends Error {
 	public name = "DocumentAlreadyExistsError";
 }
+
+/**
+ * Create document error
+ */
+export class CreateDocumentError extends Error {
+	public name = "CreateDocumentError";
+}
+
+/**
+ * Update document error
+ */
+export class UpdateDocumentError extends Error {
+	public name = "UpdateDocumentError";
+}
+
+/**
+ * Replace document error
+ */
+export class ReplaceDocumentError extends Error {
+	public name = "ReplaceDocumentError";
+}
+
+/**
+ * Delete document error
+ */
+export class DeleteDocumentError extends Error {
+	public name = "DeleteDocumentError";
+}

@@ -94,63 +94,68 @@ export class DatabaseOnKvProvider implements IDatabaseProvider {
 	/**
 	 * Retrieve documents at prefix
 	 */
-	list<Metadata, Data>(
+	async list<Metadata, Data>(
 		reference: CollectionReference,
 		filter?: DatabaseScanFilter<Metadata>,
 	): Promise<IDocument<Metadata, Data>[]> {
 		const prefix = `${reference}/${EOC}`;
-		return this.backend
-			.list(prefix, filter)
-			.then((values) => values.map((value) => new Document(keyToDocumentReference(value.key), value)));
+		const values = await this.backend.list(prefix, filter);
+		return values.map((value) => new Document(keyToDocumentReference(value.key), value));
 	}
 
 	/**
 	 * Create a document
 	 */
-	create<Metadata, Data>(
+	async create<Metadata, Data>(
 		reference: DocumentReference,
 		metadata: Metadata,
 		data?: Data,
 		options?: DatabaseSetOptions,
 	): Promise<void> {
 		const key = DocumentReferenceToKey(reference);
-		return this.backend.get(key)
-			.then(() => {
-				throw new DocumentAlreadyExistsError();
-			})
-			.catch((err) => {
-				if (err instanceof KeyNotFoundError) {
-					return this.backend.set(key, metadata, JSON.stringify(data), options);
-				}
-				return err;
-			});
+		const value = await this.backend.get(key).catch((_) => undefined);
+		if (value) {
+			throw new DocumentAlreadyExistsError();
+		}
+		return this.backend.set(key, metadata, JSON.stringify(data), options);
 	}
 
 	/**
 	 * Update a document
 	 */
-	update<Metadata, Data>(
+	async update<Metadata, Data>(
 		reference: DocumentReference,
-		metadata: Partial<Metadata>,
+		metadata?: Partial<Metadata>,
 		data?: Partial<Data>,
 		options?: DatabaseSetOptions,
 	): Promise<void> {
 		const key = DocumentReferenceToKey(reference);
-		return this.get(reference)
-			.then(async (doc) =>
-				this.backend.set(
-					key,
-					{ ...doc.metadata, ...metadata },
-					JSON.stringify({ ...await doc.data(), ...data }),
-					options,
-				)
-			)
-			.catch((err) => {
-				if (err instanceof KeyNotFoundError) {
-					throw new DocumentNotFoundError();
-				}
-				return err;
-			});
+		const doc = await this.get(reference);
+		await this.backend.set(
+			key,
+			{ ...doc.metadata, ...metadata },
+			JSON.stringify({ ...await doc.data(), ...data }),
+			options,
+		);
+	}
+
+	/**
+	 * Replace a document
+	 */
+	async replace<Metadata, Data>(
+		reference: DocumentReference,
+		metadata: Metadata,
+		data?: Data,
+		options?: DatabaseSetOptions,
+	): Promise<void> {
+		const key = DocumentReferenceToKey(reference);
+		await this.get(reference);
+		await this.backend.set(
+			key,
+			metadata,
+			JSON.stringify(data),
+			options,
+		);
 	}
 
 	/**

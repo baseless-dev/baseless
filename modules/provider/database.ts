@@ -61,8 +61,18 @@ export interface IDatabaseProvider {
 	 */
 	update<Metadata, Data>(
 		reference: DocumentReference,
-		metadata: Partial<Metadata>,
+		metadata?: Partial<Metadata>,
 		data?: Partial<Data>,
+		options?: DatabaseSetOptions,
+	): Promise<void>;
+
+	/**
+	 * Replace a document
+	 */
+	replace<Metadata, Data>(
+		reference: DocumentReference,
+		metadata: Metadata,
+		data?: Data,
 		options?: DatabaseSetOptions,
 	): Promise<void>;
 
@@ -101,6 +111,13 @@ export class NoopDatabaseProvider implements IDatabaseProvider {
 	 * Update a document
 	 */
 	update(): Promise<void> {
+		return Promise.reject(new NoopProviderError());
+	}
+
+	/**
+	 * Replace a document
+	 */
+	replace(): Promise<void> {
 		return Promise.reject(new NoopProviderError());
 	}
 

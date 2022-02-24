@@ -4,9 +4,12 @@ import { logger } from "https://baseless.dev/x/logger/mod.ts";
 import {
 	CollectionNotFoundError,
 	CollectionReference,
+	CreateDocumentError,
 	DatabaseScanFilter,
+	DeleteDocumentError,
 	DocumentNotFoundError,
 	DocumentReference,
+	UpdateDocumentError,
 } from "https://baseless.dev/x/shared/database.ts";
 import { Result } from "./schema.ts";
 import {
@@ -16,6 +19,7 @@ import {
 	DatabasePermissionHandler,
 	DatabasePermissions,
 } from "https://baseless.dev/x/worker/database.ts";
+import { UnknownError } from "https://baseless.dev/x/shared/server.ts";
 
 class Document<Metadata, Data> implements IDocument<Metadata, Data> {
 	public constructor(
@@ -100,7 +104,8 @@ export class DatabaseController {
 					const doc = await context.database.get(reference);
 					return { metadata: doc.metadata, data: await doc.data() };
 				} catch (err) {
-					return { error: `${err}` };
+					this.logger.error(`Could not get document "${reference}", got ${err}`);
+					throw new DocumentNotFoundError();
 				}
 			}
 		}
@@ -132,7 +137,8 @@ export class DatabaseController {
 					}
 					return {};
 				} catch (err) {
-					return { error: `${err}` };
+					this.logger.error(`Could not create document "${reference}", got ${err}`);
+					throw new CreateDocumentError();
 				}
 			}
 		}
@@ -144,6 +150,7 @@ export class DatabaseController {
 		reference: DocumentReference,
 		metadata: Metadata,
 		data?: Data,
+		replace?: boolean,
 	): Promise<Result> {
 		const result = this._findDocumentDescriptor(reference.toString());
 		if (result) {
@@ -157,15 +164,26 @@ export class DatabaseController {
 				try {
 					if (desc.onUpdate) {
 						const before = await context.database.get(reference);
-						await context.database.update(reference, metadata, data);
-						const after = new Document(reference, metadata, data ?? {});
+						let after: IDocument<Metadata, Data>;
+						if (replace === true) {
+							await context.database.replace(reference, metadata, data);
+							after = new Document(reference, metadata, data ?? {});
+						} else {
+							await context.database.update(reference, metadata, data);
+							after = new Document(reference, { ...before.metadata, ...metadata }, { ...before.data, ...data });
+						}
 						await desc.onUpdate(context, { before, after }, params);
 					} else {
-						await context.database.update(reference, metadata, data);
+						if (replace === true) {
+							await context.database.replace(reference, metadata, data);
+						} else {
+							await context.database.update(reference, metadata, data);
+						}
 					}
 					return {};
 				} catch (err) {
-					return { error: `${err}` };
+					this.logger.error(`Could not update document "${reference}", got ${err}`);
+					throw new UpdateDocumentError();
 				}
 			}
 		}
@@ -193,7 +211,8 @@ export class DatabaseController {
 					);
 					return { docs: docsWithData };
 				} catch (err) {
-					return { error: `${err}` };
+					this.logger.error(`Could not list collection "${reference}", got ${err}`);
+					throw new UnknownError();
 				}
 			}
 		}
@@ -219,7 +238,8 @@ export class DatabaseController {
 					}
 					return {};
 				} catch (err) {
-					return { error: `${err}` };
+					this.logger.error(`Could not delete document "${reference}", got ${err}`);
+					throw new DeleteDocumentError();
 				}
 			}
 		}

@@ -24,7 +24,7 @@ import {
 	mail,
 } from "https://baseless.dev/x/worker/mod.ts";
 import { createLogger } from "https://baseless.dev/x/logger/mod.ts";
-import { collection, createDoc, doc, getDatabase, getDocs } from "./db.ts";
+import { collection, createDoc, deleteDoc, doc, getDatabase, getDoc, getDocs, replaceDoc, updateDoc } from "./db.ts";
 
 async function setupServer(
 	dbDescriptor: DatabaseDescriptor = database.build(),
@@ -70,7 +70,7 @@ async function setupApp(server: Server, publicKey: KeyLike) {
 	return { app, db, dispose };
 }
 
-Deno.test("createDoc", async () => {
+Deno.test("create document", async () => {
 	const builder = new DatabaseBuilder();
 	builder.collection("/posts").permission(DatabasePermissions.Create);
 	builder.collection("/users").permission(DatabasePermissions.List);
@@ -86,11 +86,13 @@ Deno.test("createDoc", async () => {
 	assertExists(postA);
 	assertEquals(postA.metadata.title, "A");
 
+	await assertRejects(() => createDoc(db, doc("/posts/a"), {}));
+
 	await disposeApp();
 	await disposeServer();
 });
 
-Deno.test("getDocs", async () => {
+Deno.test("list documents", async () => {
 	const builder = new DatabaseBuilder();
 	builder.collection("/posts").permission(DatabasePermissions.Create | DatabasePermissions.List);
 	builder.document("/posts/:post").permission(DatabasePermissions.Get);
@@ -118,6 +120,106 @@ Deno.test("getDocs", async () => {
 		assertEquals(posts[0].metadata.title, "B");
 		assertEquals(posts[1].ref.toString(), "/posts/c");
 		assertEquals(posts[1].metadata.title, "C");
+	}
+
+	await disposeApp();
+	await disposeServer();
+});
+
+Deno.test("get document", async () => {
+	const builder = new DatabaseBuilder();
+	builder.collection("/posts").permission(DatabasePermissions.Create | DatabasePermissions.List);
+	builder.document("/posts/:post").permission(DatabasePermissions.Get);
+	const { server, dispose: disposeServer, publicKey } = await setupServer(builder.build());
+	const { db, dispose: disposeApp } = await setupApp(server, publicKey);
+
+	await createDoc(db, doc("/posts/a"), { title: "A" });
+	await createDoc(db, doc("/posts/c"), { title: "C" });
+	await createDoc(db, doc("/posts/b"), { title: "B" });
+
+	{ // Get document
+		const post = await getDoc<{ title: string }>(db, doc("/posts/a"));
+		assertEquals(post.ref.toString(), "/posts/a");
+		assertEquals(post.metadata.title, "A");
+	}
+	{ // Get unknown document
+		await assertRejects(() => getDoc(db, doc("/posts/z")));
+	}
+
+	await disposeApp();
+	await disposeServer();
+});
+
+Deno.test("update document", async () => {
+	const builder = new DatabaseBuilder();
+	builder.collection("/posts").permission(DatabasePermissions.Create | DatabasePermissions.List);
+	builder.document("/posts/:post").permission(DatabasePermissions.Get | DatabasePermissions.Update);
+	const { server, dispose: disposeServer, publicKey } = await setupServer(builder.build());
+	const { db, dispose: disposeApp } = await setupApp(server, publicKey);
+
+	await createDoc(db, doc("/posts/a"), { title: "A" });
+
+	{ // Update document
+		await updateDoc(db, doc("/posts/a"), { content: "AAA..." });
+		const post = await getDoc<{ title: string; content: string }>(db, doc("/posts/a"));
+		assertEquals(post.ref.toString(), "/posts/a");
+		assertEquals(post.metadata.title, "A");
+		assertEquals(post.metadata.content, "AAA...");
+	}
+	{ // Update unknown document
+		await assertRejects(() => updateDoc(db, doc("/posts/z"), { title: "ZZZ" }));
+	}
+
+	await disposeApp();
+	await disposeServer();
+});
+
+Deno.test("replace document", async () => {
+	const builder = new DatabaseBuilder();
+	builder.collection("/posts").permission(DatabasePermissions.Create | DatabasePermissions.List);
+	builder.document("/posts/:post").permission(DatabasePermissions.Get | DatabasePermissions.Update);
+	const { server, dispose: disposeServer, publicKey } = await setupServer(builder.build());
+	const { db, dispose: disposeApp } = await setupApp(server, publicKey);
+
+	await createDoc(db, doc("/posts/a"), { title: "A" });
+
+	{ // Replace document
+		await replaceDoc(db, doc("/posts/a"), { content: "AAA..." });
+		const post = await getDoc<{ title: string; content: string }>(db, doc("/posts/a"));
+		assertEquals(post.ref.toString(), "/posts/a");
+		assertEquals(post.metadata.title, undefined);
+		assertEquals(post.metadata.content, "AAA...");
+	}
+	{ // Replace unknown document
+		await assertRejects(() => replaceDoc(db, doc("/posts/z"), { title: "ZZZ" }));
+	}
+
+	await disposeApp();
+	await disposeServer();
+});
+
+Deno.test("delete document", async () => {
+	const builder = new DatabaseBuilder();
+	builder.collection("/posts").permission(DatabasePermissions.Create | DatabasePermissions.List);
+	builder.document("/posts/:post").permission(DatabasePermissions.Get | DatabasePermissions.Delete);
+	const { server, dispose: disposeServer, publicKey } = await setupServer(builder.build());
+	const { db, dispose: disposeApp } = await setupApp(server, publicKey);
+
+	await createDoc(db, doc("/posts/a"), { title: "A" });
+	await createDoc(db, doc("/posts/c"), { title: "C" });
+	await createDoc(db, doc("/posts/b"), { title: "B" });
+
+	{ // Delete document
+		await deleteDoc(db, doc("/posts/a"));
+		const posts = await getDocs<{ title: string }>(db, collection("/posts"));
+		assertEquals(posts.length, 2);
+		assertEquals(posts[0].ref.toString(), "/posts/b");
+		assertEquals(posts[0].metadata.title, "B");
+		assertEquals(posts[1].ref.toString(), "/posts/c");
+		assertEquals(posts[1].metadata.title, "C");
+	}
+	{ // Delete unknown document
+		await deleteDoc(db, doc("/posts/z"));
 	}
 
 	await disposeApp();

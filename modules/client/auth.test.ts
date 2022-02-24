@@ -17,6 +17,7 @@ import { AuthOnKvProvider } from "https://baseless.dev/x/provider-auth-on-kv/mod
 import { DatabaseOnKvProvider } from "https://baseless.dev/x/provider-db-on-kv/mod.ts";
 import {
 	auth,
+	AuthBuilder,
 	AuthDescriptor,
 	database,
 	DatabaseDescriptor,
@@ -40,16 +41,9 @@ import {
 
 async function setupServer(
 	authDescriptor: AuthDescriptor = auth.build(),
-	dbDescriptor: DatabaseDescriptor = database.build(),
-	functionsDescriptor: FunctionsDescriptor = functions.build(),
-	mailDescriptor: MailDescriptor = mail.build(),
 ) {
 	const authStorage = new SqliteKVProvider(":memory:");
-	const dbStorage = new SqliteKVProvider(":memory:");
-
 	const authProvider = new AuthOnKvProvider(authStorage);
-	const kvProvider = new SqliteKVProvider(":memory:");
-	const dbProvider = new DatabaseOnKvProvider(dbStorage);
 
 	const { privateKey, publicKey } = await generateKeyPair("RS256");
 	const clientProvider = new MemoryClientProvider([
@@ -59,20 +53,15 @@ async function setupServer(
 	await authStorage.open();
 	const dispose = async () => {
 		await authStorage.close();
-		await dbStorage.close();
-		await kvProvider.close();
 	};
 
 	const server = new Server(
 		authDescriptor,
-		dbDescriptor,
-		functionsDescriptor,
-		mailDescriptor,
+		database.build(),
+		functions.build(),
+		mail.build(),
 		clientProvider,
 		authProvider,
-		kvProvider,
-		dbProvider,
-		undefined,
 	);
 
 	return { server, dispose, publicKey };
@@ -94,10 +83,9 @@ async function setupApp(server: Server, publicKey: KeyLike) {
 }
 
 Deno.test("sign-in anonymously", async () => {
-	const { server, dispose: disposeServer, publicKey } = await setupServer({
-		allowAnonymousUser: true,
-		allowSignMethodPassword: false,
-	});
+	const { server, dispose: disposeServer, publicKey } = await setupServer(
+		new AuthBuilder().allowAnonymousUser(true).allowSignMethodPassword(false).build(),
+	);
 	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
 
 	const user = await signInAnonymously(auth);
@@ -109,10 +97,9 @@ Deno.test("sign-in anonymously", async () => {
 });
 
 Deno.test("create user with email", async () => {
-	const { server, dispose: disposeServer, publicKey } = await setupServer({
-		allowAnonymousUser: false,
-		allowSignMethodPassword: true,
-	});
+	const { server, dispose: disposeServer, publicKey } = await setupServer(
+		new AuthBuilder().allowAnonymousUser(false).allowSignMethodPassword(true).build(),
+	);
 	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
 	await createUserWithEmailAndPassword(auth, "test@example.org", "foobar");
 
@@ -121,10 +108,9 @@ Deno.test("create user with email", async () => {
 });
 
 Deno.test("validate email", async () => {
-	const { server, dispose: disposeServer, publicKey } = await setupServer({
-		allowAnonymousUser: false,
-		allowSignMethodPassword: true,
-	});
+	const { server, dispose: disposeServer, publicKey } = await setupServer(
+		new AuthBuilder().allowAnonymousUser(false).allowSignMethodPassword(true).build(),
+	);
 	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
 
 	let validationCode = "";
@@ -145,10 +131,9 @@ Deno.test("validate email", async () => {
 });
 
 Deno.test("send email validation", async () => {
-	const { server, dispose: disposeServer, publicKey } = await setupServer({
-		allowAnonymousUser: false,
-		allowSignMethodPassword: true,
-	});
+	const { server, dispose: disposeServer, publicKey } = await setupServer(
+		new AuthBuilder().allowAnonymousUser(false).allowSignMethodPassword(true).build(),
+	);
 	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
 
 	await createUserWithEmailAndPassword(auth, "test@example.org", "foobar");
@@ -168,10 +153,9 @@ Deno.test("send email validation", async () => {
 });
 
 Deno.test("sign-in with email and password", async () => {
-	const { server, dispose: disposeServer, publicKey } = await setupServer({
-		allowAnonymousUser: false,
-		allowSignMethodPassword: true,
-	});
+	const { server, dispose: disposeServer, publicKey } = await setupServer(
+		new AuthBuilder().allowAnonymousUser(false).allowSignMethodPassword(true).build(),
+	);
 	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
 
 	let validationCode = "";
@@ -193,10 +177,9 @@ Deno.test("sign-in with email and password", async () => {
 });
 
 Deno.test("send password reset email", async () => {
-	const { server, dispose: disposeServer, publicKey } = await setupServer({
-		allowAnonymousUser: false,
-		allowSignMethodPassword: true,
-	});
+	const { server, dispose: disposeServer, publicKey } = await setupServer(
+		new AuthBuilder().allowAnonymousUser(false).allowSignMethodPassword(true).build(),
+	);
 	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
 
 	await createUserWithEmailAndPassword(auth, "test@example.org", "foobar");
@@ -217,10 +200,9 @@ Deno.test("send password reset email", async () => {
 });
 
 Deno.test("reset password", async () => {
-	const { server, dispose: disposeServer, publicKey } = await setupServer({
-		allowAnonymousUser: false,
-		allowSignMethodPassword: true,
-	});
+	const { server, dispose: disposeServer, publicKey } = await setupServer(
+		new AuthBuilder().allowAnonymousUser(false).allowSignMethodPassword(true).build(),
+	);
 	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
 
 	let validationCode = "";
@@ -256,10 +238,9 @@ Deno.test("reset password", async () => {
 });
 
 Deno.test("upgrade anonymous user", async () => {
-	const { server, dispose: disposeServer, publicKey } = await setupServer({
-		allowAnonymousUser: true,
-		allowSignMethodPassword: true,
-	});
+	const { server, dispose: disposeServer, publicKey } = await setupServer(
+		new AuthBuilder().allowAnonymousUser(true).allowSignMethodPassword(true).build(),
+	);
 	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
 
 	const anonymousUser = await signInAnonymously(auth);
@@ -285,10 +266,9 @@ Deno.test("upgrade anonymous user", async () => {
 });
 
 Deno.test("update password", async () => {
-	const { server, dispose: disposeServer, publicKey } = await setupServer({
-		allowAnonymousUser: false,
-		allowSignMethodPassword: true,
-	});
+	const { server, dispose: disposeServer, publicKey } = await setupServer(
+		new AuthBuilder().allowAnonymousUser(false).allowSignMethodPassword(true).build(),
+	);
 	const { auth, dispose: disposeApp } = await setupApp(server, publicKey);
 
 	let validationCode = "";

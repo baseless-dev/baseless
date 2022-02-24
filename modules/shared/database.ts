@@ -1,4 +1,10 @@
 import { autoid } from "./autoid.ts";
+import { KVScanFilter } from "./kv.ts";
+
+/**
+ * Alias of KVScanFilter
+ */
+export type DatabaseScanFilter<Model> = KVScanFilter<Model>;
 
 /**
  * Collection reference

@@ -1,5 +1,5 @@
-import { CollectionReference, DocumentReference } from "https://baseless.dev/x/shared/database.ts";
-import type { KVScanFilter, KVSetOptions } from "./kv.ts";
+import { CollectionReference, DatabaseScanFilter, DocumentReference } from "https://baseless.dev/x/shared/database.ts";
+import type { KVSetOptions } from "./kv.ts";
 import { NoopProviderError } from "./mod.ts";
 
 /**
@@ -21,11 +21,6 @@ export interface IDocument<Metadata, Data> {
 	 */
 	data(): Promise<Partial<Metadata & Data>>;
 }
-
-/**
- * Alias of KVScanFilter
- */
-export type DatabaseScanFilter<Model> = KVScanFilter<Model>;
 
 /**
  * Alias of KVSetOptions

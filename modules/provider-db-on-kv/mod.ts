@@ -1,15 +1,11 @@
 import {
 	CollectionReference,
+	DatabaseScanFilter,
 	DocumentAlreadyExistsError,
 	DocumentNotFoundError,
 	DocumentReference,
 } from "https://baseless.dev/x/shared/database.ts";
-import {
-	DatabaseScanFilter,
-	DatabaseSetOptions,
-	IDatabaseProvider,
-	IDocument,
-} from "https://baseless.dev/x/provider/database.ts";
+import { DatabaseSetOptions, IDatabaseProvider, IDocument } from "https://baseless.dev/x/provider/database.ts";
 import { IKVProvider } from "https://baseless.dev/x/provider/kv.ts";
 import { IKVValue, KeyNotFoundError } from "https://baseless.dev/x/shared/kv.ts";
 import { logger } from "https://baseless.dev/x/logger/mod.ts";

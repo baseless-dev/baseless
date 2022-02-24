@@ -1,9 +1,10 @@
-import { DatabaseScanFilter, IDocument } from "https://baseless.dev/x/provider/database.ts";
+import { IDocument } from "https://baseless.dev/x/provider/database.ts";
 import { Context } from "https://baseless.dev/x/provider/context.ts";
 import { logger } from "https://baseless.dev/x/logger/mod.ts";
 import {
 	CollectionNotFoundError,
 	CollectionReference,
+	DatabaseScanFilter,
 	DocumentNotFoundError,
 	DocumentReference,
 } from "https://baseless.dev/x/shared/database.ts";

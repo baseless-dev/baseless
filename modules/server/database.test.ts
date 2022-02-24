@@ -141,6 +141,29 @@ Deno.test("list documents", async () => {
 	await dispose();
 });
 
+Deno.test("list documents with filter", async () => {
+	const { context, dispose } = await setupContext();
+
+	{ // List documents
+		const db = new DatabaseBuilder();
+		db.collection("/posts").permission(DatabasePermissions.List | DatabasePermissions.Create);
+		db.document("/posts/:post").permission(DatabasePermissions.Get);
+		const dbController = new DatabaseController(db.build());
+
+		await dbController.create(context, doc("/posts/a"), { title: "A" });
+		await dbController.create(context, doc("/posts/c"), { title: "C" });
+		await dbController.create(context, doc("/posts/b"), { title: "B" });
+		assertEquals({
+			docs: [
+				{ ref: "/posts/b", data: {}, metadata: { title: "B" } },
+				{ ref: "/posts/c", data: {}, metadata: { title: "C" } },
+			],
+		}, await dbController.list(context, collection("/posts"), { title: { gt: "A" } }));
+	}
+
+	await dispose();
+});
+
 Deno.test("update document", async () => {
 	const { context, dispose } = await setupContext();
 

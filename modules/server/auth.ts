@@ -178,7 +178,6 @@ export class AuthController {
 		const buffer = new TextEncoder().encode(password);
 		const hash = await crypto.subtle.digest({ name: "SHA-512" }, buffer);
 		return btoa(String.fromCharCode(...new Uint8Array(hash)));
-		// return new TextDecoder().decode(hash);
 	}
 
 	public async updatePassword(

@@ -1,7 +1,12 @@
 import { DatabaseScanFilter, IDocument } from "https://baseless.dev/x/provider/database.ts";
 import { Context } from "https://baseless.dev/x/provider/context.ts";
 import { logger } from "https://baseless.dev/x/logger/mod.ts";
-import { CollectionReference, DocumentReference } from "https://baseless.dev/x/shared/database.ts";
+import {
+	CollectionNotFoundError,
+	CollectionReference,
+	DocumentNotFoundError,
+	DocumentReference,
+} from "https://baseless.dev/x/shared/database.ts";
 import { Result } from "./schema.ts";
 import {
 	DatabaseCollectionDescriptor,
@@ -98,7 +103,7 @@ export class DatabaseController {
 				}
 			}
 		}
-		return { error: "DocumentNotFound" };
+		throw new DocumentNotFoundError();
 	}
 
 	public async create<Metadata, Data>(
@@ -130,7 +135,7 @@ export class DatabaseController {
 				}
 			}
 		}
-		return { error: "DocumentNotFound" };
+		throw new CollectionNotFoundError();
 	}
 
 	public async update<Metadata, Data>(
@@ -163,7 +168,7 @@ export class DatabaseController {
 				}
 			}
 		}
-		return { error: "DocumentNotFound" };
+		throw new DocumentNotFoundError();
 	}
 
 	public async list<Metadata>(
@@ -191,7 +196,7 @@ export class DatabaseController {
 				}
 			}
 		}
-		return { error: "CollectionNotFound" };
+		throw new CollectionNotFoundError();
 	}
 
 	public async delete(
@@ -217,6 +222,6 @@ export class DatabaseController {
 				}
 			}
 		}
-		return { error: "DocumentNotFound" };
+		throw new DocumentNotFoundError();
 	}
 }

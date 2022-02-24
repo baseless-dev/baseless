@@ -120,7 +120,7 @@ export class DatabaseOnKvProvider implements IDatabaseProvider {
 		const key = DocumentReferenceToKey(reference);
 		return this.backend.get(key)
 			.then(() => {
-				throw new DocumentAlreadyExistsError(reference.toString());
+				throw new DocumentAlreadyExistsError();
 			})
 			.catch((err) => {
 				if (err instanceof KeyNotFoundError) {
@@ -151,7 +151,7 @@ export class DatabaseOnKvProvider implements IDatabaseProvider {
 			)
 			.catch((err) => {
 				if (err instanceof KeyNotFoundError) {
-					throw new DocumentNotFoundError(reference.toString());
+					throw new DocumentNotFoundError();
 				}
 				return err;
 			});

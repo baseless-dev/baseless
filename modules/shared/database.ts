@@ -1,15 +1,6 @@
 import { autoid } from "./autoid.ts";
 
 /**
- * Invalid collection path error
- */
-export class InvalidCollectionReferenceError extends Error {
-	public name = "InvalidCollectionReferenceError";
-	public constructor(reference: string) {
-		super(`Invalid collection path '${reference}'.`);
-	}
-}
-/**
  * Collection reference
  */
 export class CollectionReference {
@@ -22,7 +13,7 @@ export class CollectionReference {
 			// All segment must contain something
 			segments.some((s) => s.length === 0)
 		) {
-			throw new InvalidCollectionReferenceError(`/${segments.join("/")}`);
+			throw new InvalidCollectionReferenceError();
 		}
 		this.segments = segments;
 	}
@@ -43,16 +34,6 @@ export function collection(...segments: string[]) {
 }
 
 /**
- * Invalid document identifier error
- */
-export class InvalidDocumentIdentifierError extends Error {
-	public name = "InvalidDocumentIdentifierError";
-	public constructor(id: string) {
-		super(`Invalid document identifier '${id}'.`);
-	}
-}
-
-/**
  * Document reference
  */
 export class DocumentReference {
@@ -66,7 +47,7 @@ export class DocumentReference {
 			id = autoid();
 		}
 		if (!id?.trim() || id.match(/[/]/)) {
-			throw new InvalidDocumentIdentifierError(id ?? "");
+			throw new InvalidDocumentIdentifierError();
 		}
 		this.id = id;
 	}
@@ -101,13 +82,31 @@ export function doc(
 }
 
 /**
+ * Invalid collection path error
+ */
+export class InvalidCollectionReferenceError extends Error {
+	public name = "InvalidCollectionReferenceError";
+}
+
+/**
+ * Invalid document identifier error
+ */
+export class InvalidDocumentIdentifierError extends Error {
+	public name = "InvalidDocumentIdentifierError";
+}
+
+/**
+ * Collection not found error
+ */
+export class CollectionNotFoundError extends Error {
+	public name = "CollectionNotFoundError";
+}
+
+/**
  * Document not found error
  */
 export class DocumentNotFoundError extends Error {
 	public name = "DocumentNotFoundError";
-	public constructor(path: string) {
-		super(`Document '${path}' not found.`);
-	}
 }
 
 /**
@@ -115,7 +114,4 @@ export class DocumentNotFoundError extends Error {
  */
 export class DocumentAlreadyExistsError extends Error {
 	public name = "DocumentAlreadyExistsError";
-	public constructor(path: string) {
-		super(`Document '${path}' already exists.`);
-	}
 }

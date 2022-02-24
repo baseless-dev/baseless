@@ -57,6 +57,16 @@
 			"command": "deno test --config=./deno.json --import-map=./import-map.json --coverage=./coverage; deno coverage coverage --exclude=json-schema",
 			"label": "Generate coverage",
 			"problemMatcher": []
+		},
+		{
+			"type": "deno",
+			"command": "run",
+			"args": [
+				"--unstable",
+				"-A",
+				"build.ts"
+			],
+			"label": "Build"
 		}
 	]
 }

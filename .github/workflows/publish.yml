@@ -1,0 +1,62 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+    branches:
+      - "next"
+      - "beta"
+
+jobs:
+
+  publish:
+    name: Publish to Github
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Build modules
+        run: deno run -A --unstable build.ts
+
+      - name: Move and commit modules
+        shell: bash
+        run: |
+          mkdir artefacts
+          cd artefacts
+
+          git clone --branch modules --depth 1 https://github.com/baseless-dev/baseless.dev .
+
+          for module in $(ls ../dist 2>/dev/null); do
+            rm -fr x/$module@$GITHUB_REF_NAME
+            rm -fr w/$module@$GITHUB_REF_NAME
+            git rm -frq --ignore-unmatch x/$module@$GITHUB_REF_NAME
+            git rm -frq --ignore-unmatch w/$module@$GITHUB_REF_NAME
+          done
+
+          for path in $(find ../dist -type f -path "../dist/*/deno/*" 2>/dev/null); do
+            module=$(echo "$path" | cut -d "/" -f3)
+            pathname=$(echo "$path" | cut -d "/" -f5-)
+            dest=x/$module@$GITHUB_REF_NAME/$pathname
+            mkdir -p $(dirname $dest)
+            cp $path $dest
+            git add $dest
+          done
+
+          for path in $(find ../dist -type f -path "../dist/*/browser/*" 2>/dev/null); do
+            module=$(echo "$path" | cut -d "/" -f3)
+            pathname=$(echo "$path" | cut -d "/" -f5-)
+            dest=w/$module@$GITHUB_REF_NAME/$pathname
+            mkdir -p $(dirname $dest)
+            cp $path $dest
+            git add $dest
+          done
+
+          git commit -m "github actions publish modules from ${GITHUB_SHA}"
+          git push origin modules

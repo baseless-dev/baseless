@@ -1,0 +1,19 @@
+compatibility_date = "2021-12-24"
+type = "javascript"
+name = "baseless-message"
+account_id = "b17e7ad4e6cad0fc022458ad0014bcc5"
+workers_dev = true
+
+[durable_objects]
+bindings = [
+  { name = "CHANNELS", class_name = "Channel" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["EchoServer"]
+
+[[migrations]]
+tag = "v2"
+new_classes = ["Channel"]
+deleted_classes = ["EchoServer"]

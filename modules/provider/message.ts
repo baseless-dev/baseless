@@ -1,4 +1,21 @@
-import { ChannelReference, Participant } from "https://baseless.dev/x/shared/message.ts";
+import { ChannelReference } from "https://baseless.dev/x/shared/message.ts";
+
+export class Participant<Metadata = Record<never, never>> {
+	public constructor(
+		/**
+		 * User ID
+		 */
+		public readonly id: string,
+		/**
+		 * Metadata of this participant
+		 */
+		public readonly metadata: Metadata,
+		/**
+		 * ISocket of the participant
+		 */
+		public readonly webSocket: WebSocket,
+	) {}
+}
 
 export interface IChannel<ChannelMetadata = Record<never, never>, ParticipantMetadata = Record<never, never>> {
 	/**
@@ -14,12 +31,7 @@ export interface IChannel<ChannelMetadata = Record<never, never>, ParticipantMet
 	/**
 	 * List of participants
 	 */
-	participants: Map<string, Participant<ParticipantMetadata>>;
-
-	/**
-	 * Forward Request to this Channel
-	 */
-	forward(request: Request): Promise<Response>;
+	participants: Participant<ParticipantMetadata>[];
 
 	/**
 	 * Broadcast a message to all participant of this channel
@@ -34,17 +46,10 @@ export interface IChannel<ChannelMetadata = Record<never, never>, ParticipantMet
 
 export interface IMessageProvider {
 	/**
-	 * Create a new Channel
-	 */
-	createChannel<ChannelMetadata, ParticipantMetadata>(
-		reference: ChannelReference,
-		metadata: ChannelMetadata,
-	): Promise<IChannel<ChannelMetadata, ParticipantMetadata>>;
-
-	/**
 	 * Retrieve a Channel by it's reference
 	 */
-	getChannel<ChannelMetadata, ParticipantMetadata>(
+	channel<ChannelMetadata, ParticipantMetadata>(
 		reference: ChannelReference,
+		metadata: ChannelMetadata,
 	): Promise<IChannel<ChannelMetadata, ParticipantMetadata>>;
 }

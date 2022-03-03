@@ -13,19 +13,6 @@ export class ChannelReference {
 	}
 }
 
-export class Participant<Metadata = Record<never, never>> {
-	public constructor(
-		/**
-		 * User ID
-		 */
-		public readonly userId: string,
-		/**
-		 * Metadata of this participant
-		 */
-		public readonly metadata: Metadata,
-	) {}
-}
-
 /**
  * Channel not found error
  */

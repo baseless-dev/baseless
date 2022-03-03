@@ -112,7 +112,7 @@ export class DatabaseBuilder {
 	}
 
 	/**
-	 * Create a collection descriptor
+	 * Create a collection builder
 	 */
 	public collection(reference: string) {
 		const builder = new DatabaseCollectionBuilder(reference);
@@ -121,7 +121,7 @@ export class DatabaseBuilder {
 	}
 
 	/**
-	 * Create a document descriptor
+	 * Create a document builder
 	 */
 	public document(reference: string) {
 		const builder = new DatabaseDocumentBuilder(reference);

@@ -64,3 +64,8 @@ export type Result =
 	| { docs: { ref: string; metadata: Record<string, unknown>; data?: Record<string, unknown> }[] }
 	| { access_token: string; refresh_token?: string }
 	| Record<never, never>;
+
+export type MessagePayload =
+	| { id: string; type: "chan.join"; ref: string }
+	| { id: string; type: "chan.leave"; ref: string }
+	| { id: string; type: "chan.send"; ref: string; message: string };

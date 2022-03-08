@@ -1,9 +1,24 @@
 import { Context } from "https://baseless.dev/x/provider/context.ts";
-import { IChannel, Participant } from "https://baseless.dev/x/provider/message.ts";
+import { IChannel, ISession } from "https://baseless.dev/x/provider/message.ts";
 
 function refToRegExp(ref: string) {
 	return new RegExp(`^${ref.replace(/:([\w]+)/g, "(?<$1>[^/]+)")}$`);
 }
+
+/**
+ * Message permission
+ */
+export enum MessagePermissions {
+	None = 0,
+	Connect = 1,
+}
+
+/**
+ * Message permission handler
+ */
+export type MessagePermissionHandler =
+	| MessagePermissions
+	| ((ctx: Context) => Promise<MessagePermissions>);
 
 /**
  * Channel permission
@@ -24,32 +39,31 @@ export type ChannelPermissionHandler =
 /**
  * Channel handler
  */
-export type ChannelHandler<ChannelMetadata, ParticipantMetadata> = (
+export type ChannelHandler<ChannelMetadata> = (
 	ctx: Context,
-	channel: IChannel<ChannelMetadata, ParticipantMetadata>,
+	channel: IChannel<ChannelMetadata>,
 	params: Record<string, string>,
 ) => Promise<void>;
 
 /**
- * Channel participant handler
+ * Channel session handler
  */
-export type ChannelParticipantHandler<
+export type ChannelSessionHandler<
 	ChannelMetadata,
-	ParticipantMetadata,
 > = (
 	ctx: Context,
-	channel: IChannel<ChannelMetadata, ParticipantMetadata>,
-	participant: Participant<ParticipantMetadata>,
+	channel: IChannel<ChannelMetadata>,
+	session: ISession,
 	params: Record<string, string>,
 ) => Promise<void>;
 
 /**
  * Channel message handler
  */
-export type ChannelMessageHandler<ChannelMetadata, ParticipantMetadata> = (
+export type ChannelMessageHandler<ChannelMetadata> = (
 	ctx: Context,
-	channel: IChannel<ChannelMetadata, ParticipantMetadata>,
-	participant: Participant<ParticipantMetadata>,
+	channel: IChannel<ChannelMetadata>,
+	session: ISession,
 	message: string | ArrayBufferLike | Blob | ArrayBufferView,
 	params: Record<string, string>,
 ) => Promise<void>;
@@ -57,22 +71,23 @@ export type ChannelMessageHandler<ChannelMetadata, ParticipantMetadata> = (
 /**
  * Channel descriptor
  */
-export type ChannelDescriptor<ChannelMetadata, ParticipantMetadata> = {
+export type ChannelDescriptor<ChannelMetadata> = {
 	readonly ref: string;
 	readonly matcher: RegExp;
-	readonly onCreate?: ChannelHandler<ChannelMetadata, ParticipantMetadata>;
-	readonly onConnect?: ChannelParticipantHandler<ChannelMetadata, ParticipantMetadata>;
-	readonly onMessage?: ChannelMessageHandler<ChannelMetadata, ParticipantMetadata>;
-	readonly onDisconnect?: ChannelParticipantHandler<ChannelMetadata, ParticipantMetadata>;
-	readonly onEmpty?: ChannelHandler<ChannelMetadata, ParticipantMetadata>;
+	readonly onCreate?: ChannelHandler<ChannelMetadata>;
+	readonly onJoin?: ChannelSessionHandler<ChannelMetadata>;
+	readonly onMessage?: ChannelMessageHandler<ChannelMetadata>;
+	readonly onLeave?: ChannelSessionHandler<ChannelMetadata>;
+	readonly onEmpty?: ChannelHandler<ChannelMetadata>;
 	readonly permission?: ChannelPermissionHandler;
 };
 
 /**
  * Message descriptor
  */
-export type MessageDescriptor<ChannelMetadata, ParticipantMetadata> = {
-	channels: ChannelDescriptor<ChannelMetadata, ParticipantMetadata>[];
+export type MessageDescriptor<ChannelMetadata = Record<never, never>> = {
+	readonly channels: ChannelDescriptor<ChannelMetadata>[];
+	readonly permission?: MessagePermissionHandler;
 };
 
 /**
@@ -80,41 +95,48 @@ export type MessageDescriptor<ChannelMetadata, ParticipantMetadata> = {
  */
 export class MessageBuilder {
 	private channels = new Set<ChannelBuilder>();
+	private permissionHandler?: MessagePermissionHandler;
 
 	/**
 	 * Build the database descriptor
 	 */
-	public build<ChannelMetadata = Record<never, never>, ParticipantMetadata = Record<never, never>>(): MessageDescriptor<
-		ChannelMetadata,
-		ParticipantMetadata
-	> {
+	public build<ChannelMetadata = Record<never, never>>(): MessageDescriptor<ChannelMetadata> {
 		return {
 			channels: Array.from(this.channels).map((b) => b.build()),
+			permission: this.permissionHandler,
 		};
 	}
 
 	/**
 	 * Create a channel builder
 	 */
-	public channel<ChannelMetadata = Record<never, never>, ParticipantMetadata = Record<never, never>>(
+	public channel<ChannelMetadata = Record<never, never>>(
 		reference: string,
-	): ChannelBuilder<ChannelMetadata, ParticipantMetadata> {
+	): ChannelBuilder<ChannelMetadata> {
 		const builder = new ChannelBuilder(reference);
 		this.channels.add(builder);
-		return builder as unknown as ChannelBuilder<ChannelMetadata, ParticipantMetadata>;
+		return builder as unknown as ChannelBuilder<ChannelMetadata>;
+	}
+
+	/**
+	 * Set the security policy handler
+	 */
+	public permission(handler: MessagePermissionHandler) {
+		this.permissionHandler = handler;
+		return this;
 	}
 }
 
 /**
  * Channel builder
  */
-export class ChannelBuilder<ChannelMetadata = Record<never, never>, ParticipantMetadata = Record<never, never>> {
-	private onCreateHandler?: ChannelHandler<ChannelMetadata, ParticipantMetadata>;
+export class ChannelBuilder<ChannelMetadata = Record<never, never>> {
+	private onCreateHandler?: ChannelHandler<ChannelMetadata>;
 
-	private onConnectHandler?: ChannelParticipantHandler<ChannelMetadata, ParticipantMetadata>;
-	private onMessageHandler?: ChannelMessageHandler<ChannelMetadata, ParticipantMetadata>;
-	private onDisconnectHandler?: ChannelParticipantHandler<ChannelMetadata, ParticipantMetadata>;
-	private onEmptyHandler?: ChannelHandler<ChannelMetadata, ParticipantMetadata>;
+	private onJoinHandler?: ChannelSessionHandler<ChannelMetadata>;
+	private onMessageHandler?: ChannelMessageHandler<ChannelMetadata>;
+	private onLeaveHandler?: ChannelSessionHandler<ChannelMetadata>;
+	private onEmptyHandler?: ChannelHandler<ChannelMetadata>;
 	private permissionHandler?: ChannelPermissionHandler;
 
 	/**
@@ -125,14 +147,14 @@ export class ChannelBuilder<ChannelMetadata = Record<never, never>, ParticipantM
 	/**
 	 * Build the channel descriptor
 	 */
-	public build(): ChannelDescriptor<ChannelMetadata, ParticipantMetadata> {
+	public build(): ChannelDescriptor<ChannelMetadata> {
 		return {
 			ref: this.ref,
 			matcher: refToRegExp(this.ref),
 			onCreate: this.onCreateHandler,
-			onConnect: this.onConnectHandler,
+			onJoin: this.onJoinHandler,
 			onMessage: this.onMessageHandler,
-			onDisconnect: this.onDisconnectHandler,
+			onLeave: this.onLeaveHandler,
 			onEmpty: this.onEmptyHandler,
 			permission: this.permissionHandler,
 		};
@@ -141,7 +163,7 @@ export class ChannelBuilder<ChannelMetadata = Record<never, never>, ParticipantM
 	/**
 	 * Set the create handler
 	 */
-	public onCreate(handler: ChannelHandler<ChannelMetadata, ParticipantMetadata>) {
+	public onCreate(handler: ChannelHandler<ChannelMetadata>) {
 		this.onCreateHandler = handler;
 		return this;
 	}
@@ -149,15 +171,15 @@ export class ChannelBuilder<ChannelMetadata = Record<never, never>, ParticipantM
 	/**
 	 * Set the create handler
 	 */
-	public onConnect(handler: ChannelParticipantHandler<ChannelMetadata, ParticipantMetadata>) {
-		this.onConnectHandler = handler;
+	public onJoin(handler: ChannelSessionHandler<ChannelMetadata>) {
+		this.onJoinHandler = handler;
 		return this;
 	}
 
 	/**
 	 * Set the create handler
 	 */
-	public onMessage(handler: ChannelMessageHandler<ChannelMetadata, ParticipantMetadata>) {
+	public onMessage(handler: ChannelMessageHandler<ChannelMetadata>) {
 		this.onMessageHandler = handler;
 		return this;
 	}
@@ -165,15 +187,15 @@ export class ChannelBuilder<ChannelMetadata = Record<never, never>, ParticipantM
 	/**
 	 * Set the create handler
 	 */
-	public onDisconnect(handler: ChannelParticipantHandler<ChannelMetadata, ParticipantMetadata>) {
-		this.onDisconnectHandler = handler;
+	public onLeave(handler: ChannelSessionHandler<ChannelMetadata>) {
+		this.onLeaveHandler = handler;
 		return this;
 	}
 
 	/**
 	 * Set the create handler
 	 */
-	public onEmpty(handler: ChannelHandler<ChannelMetadata, ParticipantMetadata>) {
+	public onEmpty(handler: ChannelHandler<ChannelMetadata>) {
 		this.onEmptyHandler = handler;
 		return this;
 	}
@@ -187,4 +209,4 @@ export class ChannelBuilder<ChannelMetadata = Record<never, never>, ParticipantM
 	}
 }
 
-export const messages = new MessageBuilder();
+export const message = new MessageBuilder();

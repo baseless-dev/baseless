@@ -13,12 +13,11 @@ export interface IMailProvider {
 
 /**
  * Noop Mail Provider
+ *
+ * @internal
  */
 export class NoopMailProvider implements IMailProvider {
-	/**
-	 * Send a message
-	 */
-	public send(): Promise<void> {
+	public send() {
 		return Promise.reject(new NoopProviderError());
 	}
 }

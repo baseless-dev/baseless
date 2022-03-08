@@ -9,6 +9,7 @@ import {
 	Client,
 	Context,
 	NoopAuthProvider,
+	NoopChannelProvider,
 	NoopKVProvider,
 	NoopMailProvider,
 } from "https://baseless.dev/x/provider/mod.ts";
@@ -36,6 +37,7 @@ async function setupContext() {
 		kv: new NoopKVProvider(),
 		database: new DatabaseOnKvProvider(db),
 		mail: new NoopMailProvider(),
+		channel: new NoopChannelProvider(),
 		waitUntil(promise) {
 			waitUntilCollection.push(promise);
 		},

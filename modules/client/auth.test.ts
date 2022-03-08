@@ -25,6 +25,7 @@ import {
 	FunctionsDescriptor,
 	mail,
 	MailDescriptor,
+	message,
 } from "https://baseless.dev/x/worker/mod.ts";
 import { createLogger } from "https://baseless.dev/x/logger/mod.ts";
 import {
@@ -60,6 +61,7 @@ async function setupServer(
 		database.build(),
 		functions.build(),
 		mail.build(),
+		message.build(),
 		clientProvider,
 		authProvider,
 	);

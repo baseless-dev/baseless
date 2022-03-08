@@ -9,6 +9,7 @@ import { AuthController } from "./auth.ts";
 import {
 	Client,
 	Context,
+	NoopChannelProvider,
 	NoopDatabaseProvider,
 	NoopKVProvider,
 	NoopMailProvider,
@@ -35,6 +36,7 @@ async function setupContext() {
 		kv: new NoopKVProvider(),
 		database: new NoopDatabaseProvider(),
 		mail: new NoopMailProvider(),
+		channel: new NoopChannelProvider(),
 		waitUntil(promise) {
 			waitUntilCollection.push(promise);
 		},

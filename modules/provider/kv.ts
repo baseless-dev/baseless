@@ -63,33 +63,23 @@ export interface IKVProvider {
 
 /**
  * Noop KV Provider
+ *
+ * @internal
  */
 export class NoopKVProvider implements IKVProvider {
-	/**
-	 * Retrieve a single key
-	 */
-	get<Metadata>(): Promise<IKVValue<Metadata>> {
+	get() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Retrieve keys at prefix
-	 */
-	list<Metadata>(): Promise<IKVValue<Metadata>[]> {
+	list() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Set a key
-	 */
-	set(): Promise<void> {
+	set() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Delete a key
-	 */
-	delete(): Promise<void> {
+	delete() {
 		return Promise.reject(new NoopProviderError());
 	}
 }

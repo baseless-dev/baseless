@@ -22,6 +22,7 @@ import {
 	DatabasePermissions,
 	functions,
 	mail,
+	message,
 } from "https://baseless.dev/x/worker/mod.ts";
 import { createLogger } from "https://baseless.dev/x/logger/mod.ts";
 import { collection, createDoc, deleteDoc, doc, getDatabase, getDoc, getDocs, replaceDoc, updateDoc } from "./db.ts";
@@ -47,6 +48,7 @@ async function setupServer(
 		dbDescriptor,
 		functions.build(),
 		mail.build(),
+		message.build(),
 		clientProvider,
 		undefined,
 		undefined,

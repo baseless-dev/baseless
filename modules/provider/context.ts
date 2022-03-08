@@ -4,6 +4,7 @@ import type { IDatabaseProvider } from "./database.ts";
 import type { IKVProvider } from "./kv.ts";
 import type { IMailProvider } from "./mail.ts";
 import { Client } from "./client.ts";
+import { IChannelProvider } from "./message.ts";
 
 /**
  * Context
@@ -19,24 +20,29 @@ export interface Context {
 	readonly currentUserId?: AuthIdentifier;
 
 	/**
-	 * Auth service
+	 * Auth provider
 	 */
 	readonly auth: IAuthProvider;
 
 	/**
-	 * Key-value service
+	 * Key-value provider
 	 */
 	readonly kv: IKVProvider;
 
 	/**
-	 * Database service
+	 * Database provider
 	 */
 	readonly database: IDatabaseProvider;
 
 	/**
-	 * Mail service
+	 * Mail provider
 	 */
 	readonly mail: IMailProvider;
+
+	/**
+	 * Message provider
+	 */
+	readonly channel: IChannelProvider;
 
 	/**
 	 * Extend the lifetime of the request until the promise is done without blocking the response

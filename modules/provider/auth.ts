@@ -96,96 +96,59 @@ export interface IAuthProvider {
 
 /**
  * Noop Auth Provider
+ *
+ * @internal
  */
 export class NoopAuthProvider implements IAuthProvider {
-	/**
-	 * Get the IUser of the auth identifier
-	 */
-	getUser<Metadata>(): Promise<User<Metadata>> {
+	getUser() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Get the IUser by email
-	 */
-	getUserByEmail<Metadata>(): Promise<User<Metadata>> {
+	getUserByEmail() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Create user with metadata
-	 */
-	createUser<Metadata>(): Promise<User<Metadata>> {
+	createUser() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Update a IUser
-	 */
-	updateUser(): Promise<void> {
+	updateUser() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Delete a IUser
-	 */
-	deleteUser(): Promise<void> {
+	deleteUser() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Retrieve user sign-in methods
-	 */
-	getSignInMethods(): Promise<string[]> {
+	getSignInMethods() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Add sign-in method email-password to userid
-	 */
-	addSignInMethodPassword(): Promise<void> {
+	addSignInMethodPassword() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Update password of user
-	 */
-	updatePassword(): Promise<void> {
+	updatePassword() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Sign-in with email and passwordHash
-	 */
-	signInWithEmailPassword<Metadata>(): Promise<User<Metadata>> {
+	signInWithEmailPassword() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Set email validation code
-	 */
-	setEmailValidationCode(): Promise<void> {
+	setEmailValidationCode() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Validate email with code
-	 */
-	validateEmailWithCode(): Promise<void> {
+	validateEmailWithCode() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Set password reset code
-	 */
-	setPasswordResetCode(): Promise<void> {
+	setPasswordResetCode() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Reset password with email and code
-	 */
-	resetPasswordWithCode(): Promise<void> {
+	resetPasswordWithCode() {
 		return Promise.reject(new NoopProviderError());
 	}
 }

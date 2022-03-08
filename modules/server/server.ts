@@ -1,31 +1,39 @@
 import {
-	Client,
+	IMessageProvider,
+	NoopAuthProvider,
+	NoopChannelProvider,
+	NoopDatabaseProvider,
+	NoopKVProvider,
+	NoopMailProvider,
+	NoopMessageProvider,
+} from "https://baseless.dev/x/provider/mod.ts";
+import type {
 	IAuthProvider,
+	IChannelProvider,
 	IClientProvider,
 	IDatabaseProvider,
 	IKVProvider,
 	IMailProvider,
-	NoopAuthProvider,
-	NoopDatabaseProvider,
-	NoopKVProvider,
-	NoopMailProvider,
 } from "https://baseless.dev/x/provider/mod.ts";
 import { logger } from "https://baseless.dev/x/logger/mod.ts";
 import { AuthController } from "./auth.ts";
 import { DatabaseController } from "./database.ts";
-import { Command, Commands, Result, Results, validator } from "./schema.ts";
-import { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
+import { MessageController } from "./message.ts";
+import { commandValidator } from "./schema.ts";
+import type { Command, Commands, Result, Results } from "./schema.ts";
+import type { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
 import { UnknownError } from "https://baseless.dev/x/shared/server.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
-import { Context } from "https://baseless.dev/x/provider/context.ts";
+import type { Context } from "https://baseless.dev/x/provider/context.ts";
 import { collection, doc } from "https://baseless.dev/x/shared/database.ts";
 import { ClientNotFoundError } from "https://baseless.dev/x/shared/client.ts";
-import {
+import type {
 	AuthDescriptor,
 	DatabaseDescriptor,
 	FunctionsDescriptor,
 	FunctionsHttpHandler,
 	MailDescriptor,
+	MessageDescriptor,
 } from "https://baseless.dev/x/worker/mod.ts";
 
 export class Server {
@@ -33,17 +41,21 @@ export class Server {
 	private functionsHttpMap = new Map<string, FunctionsHttpHandler>();
 	private authController: AuthController;
 	private databaseController: DatabaseController;
+	private messageController: MessageController;
 
 	public constructor(
 		private authDescriptor: AuthDescriptor,
 		private databaseDescriptor: DatabaseDescriptor,
 		private functionsDescriptor: FunctionsDescriptor,
 		private mailDescriptor: MailDescriptor,
+		private messageDescriptor: MessageDescriptor,
 		private clientProvider: IClientProvider,
 		private authProvider: IAuthProvider = new NoopAuthProvider(),
 		private kvProvider: IKVProvider = new NoopKVProvider(),
 		private databaseProvider: IDatabaseProvider = new NoopDatabaseProvider(),
 		private mailProvider: IMailProvider = new NoopMailProvider(),
+		private messageProvider: IMessageProvider = new NoopMessageProvider(),
+		private channelProvider: IChannelProvider = new NoopChannelProvider(),
 	) {
 		this.functionsHttpMap = new Map(
 			functionsDescriptor.https.filter((http) => http.onCall).map(
@@ -53,6 +65,7 @@ export class Server {
 
 		this.authController = new AuthController(this.authDescriptor);
 		this.databaseController = new DatabaseController(this.databaseDescriptor);
+		this.messageController = new MessageController(this.messageDescriptor, this.messageProvider);
 	}
 
 	/**
@@ -150,6 +163,7 @@ export class Server {
 			kv: this.kvProvider,
 			database: this.databaseProvider,
 			mail: this.mailProvider,
+			channel: this.channelProvider,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},
@@ -217,7 +231,7 @@ export class Server {
 					];
 				}
 
-				const result = validator.validate(commands);
+				const result = commandValidator.validate(commands);
 				if (!result.valid) {
 					this.logger.error(
 						`JSON body did not validate againts schema, got error : ${result.errors}`,
@@ -276,6 +290,94 @@ export class Server {
 	}
 
 	/**
+	 * Handle a `Request` that may contain a set of `Commands`
+	 */
+	public async handleWebSocket(
+		request: Request,
+		upgrader: (request: Request) => Promise<[Response, WebSocket | null]>,
+	): Promise<[Response, PromiseLike<unknown>[]]> {
+		const responseInit: ResponseInit = {
+			headers: {
+				"Access-Control-Allow-Origin": "*",
+				"Access-Control-Allow-Headers": "Origin, Authorization, Content-Type, X-BASELESS-CLIENT-ID",
+			},
+		};
+
+		const url = new URL(request.url);
+
+		// Request must include a client_id in it's params
+		if (url.searchParams.get("client_id") === null) {
+			return [
+				new Response(null, {
+					...responseInit,
+					status: 401,
+				}),
+				[],
+			];
+		}
+
+		const client_id = url.searchParams.get("client_id") ?? "";
+		const client = await this.clientProvider?.getClientById(client_id).catch((_) => undefined);
+
+		// Clientid must match a registered client
+		if (!client) {
+			this.logger.info(`Client ID "${client_id}" not found.`);
+			return [
+				new Response(null, {
+					...responseInit,
+					status: 401,
+				}),
+				[],
+			];
+		}
+
+		let currentUserId: AuthIdentifier | undefined;
+		if (url.searchParams.get("access_token")) {
+			const access_token = url.searchParams.get("access_token") ?? "";
+			try {
+				const { payload } = await jwtVerify(access_token, client.publicKey, {
+					issuer: client.principal,
+					audience: client.principal,
+				});
+				currentUserId = payload.sub ?? "";
+			} catch (err) {
+				this.logger.warn(
+					`Could not parse access_token param, got error : ${err}`,
+				);
+			}
+		}
+
+		const waitUntilCollection: PromiseLike<unknown>[] = [];
+		const context: Context = {
+			client,
+			currentUserId,
+			auth: this.authProvider,
+			kv: this.kvProvider,
+			database: this.databaseProvider,
+			mail: this.mailProvider,
+			channel: this.channelProvider,
+			waitUntil(promise) {
+				waitUntilCollection.push(promise);
+			},
+		};
+
+		try {
+			return this.messageController.accept(request, context, upgrader);
+		} catch (err) {
+			this.logger.warn(
+				`Could not accept WebSocket, got error : ${err}`,
+			);
+			return [
+				new Response(null, {
+					...responseInit,
+					status: 500,
+				}),
+				[],
+			];
+		}
+	}
+
+	/**
 	 * Handle a command
 	 */
 	public async handleCommand(clientId: string, access_token: string | undefined, command: Command): Promise<Result> {
@@ -308,6 +410,7 @@ export class Server {
 			kv: this.kvProvider,
 			database: this.databaseProvider,
 			mail: this.mailProvider,
+			channel: this.channelProvider,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},

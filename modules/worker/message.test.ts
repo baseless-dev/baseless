@@ -8,11 +8,14 @@ Deno.test("channel ref", () => {
 		channels: [{
 			ref: "/foo",
 			matcher: /^\/foo$/,
+			onJoin: undefined,
 			onCreate: undefined,
+			onLeave: undefined,
 			onMessage: undefined,
 			onEmpty: undefined,
 			permission: undefined,
 		}],
+		permission: undefined,
 	}, builder.build());
 });
 
@@ -30,7 +33,7 @@ Deno.test("channel ref", () => {
 // 	//   1. set display name & status
 // 	//   2. broadcast new participant has joined
 // 	//   3. send others info to participant
-// 	.onConnect(async (_, channel, participant) => {
+// 	.onJoin(async (_, channel, participant) => {
 // 		participant.metadata.displayName = "New nick";
 // 		participant.metadata.status = "online";
 // 		channel.broadcast(
@@ -41,7 +44,7 @@ Deno.test("channel ref", () => {
 // 		}
 // 	})
 // 	// When participant is disconnected, broadcast that participant has left
-// 	.onDisconnect(async (_, channel, participant) => {
+// 	.onLeave(async (_, channel, participant) => {
 // 		channel.broadcast(JSON.stringify({ type: "left", participantId: participant.id }));
 // 	})
 // 	// When a participant send message

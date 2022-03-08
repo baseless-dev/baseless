@@ -192,4 +192,38 @@ const commandsSchema: Schema = {
 	},
 };
 
-export const validator = new Validator(commandsSchema);
+const messageSchema: Schema = {
+	type: "object",
+	required: ["id", "type"],
+	oneOf: [
+		{
+			properties: {
+				id: { type: "string" },
+				type: { const: "chan.join" },
+				ref: { type: "string" },
+			},
+			required: ["ref"],
+		},
+		{
+			properties: {
+				id: { type: "string" },
+				type: { const: "chan.leave" },
+				ref: { type: "string" },
+			},
+			required: ["ref"],
+		},
+		{
+			properties: {
+				id: { type: "string" },
+				type: { const: "chan.send" },
+				ref: { type: "string" },
+				message: { type: "string" },
+			},
+			required: ["ref", "message"],
+		},
+	],
+};
+
+export const commandValidator = new Validator(commandsSchema);
+
+export const messageValidator = new Validator(messageSchema);

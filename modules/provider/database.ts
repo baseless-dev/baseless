@@ -84,47 +84,31 @@ export interface IDatabaseProvider {
 
 /**
  * Noop Database Provider
+ *
+ * @internal
  */
 export class NoopDatabaseProvider implements IDatabaseProvider {
-	/**
-	 * Retrieve a single document
-	 */
-	get<Metadata, Data>(): Promise<IDocument<Metadata, Data>> {
+	get() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Retrieve documents at prefix
-	 */
-	list<Metadata, Data>(): Promise<IDocument<Metadata, Data>[]> {
+	list() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Create a document
-	 */
-	create(): Promise<void> {
+	create() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Update a document
-	 */
-	update(): Promise<void> {
+	update() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Replace a document
-	 */
-	replace(): Promise<void> {
+	replace() {
 		return Promise.reject(new NoopProviderError());
 	}
 
-	/**
-	 * Delete a document
-	 */
-	delete(): Promise<void> {
+	delete() {
 		return Promise.reject(new NoopProviderError());
 	}
 }

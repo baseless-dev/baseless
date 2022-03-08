@@ -1,1 +1,0 @@
-# Baseless Message Provider Memory

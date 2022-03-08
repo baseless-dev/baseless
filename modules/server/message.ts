@@ -106,6 +106,7 @@ export class MessageController {
 									// Can join channel
 									if ((permission & ChannelPermissions.Send) > 0) {
 										const ref = channel(payload.ref);
+										session.socket.send(JSON.stringify({ id: payload.id }));
 										await this.messageProvider.send(context, session, ref, payload.message);
 										return;
 									} else {

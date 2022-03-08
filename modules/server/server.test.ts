@@ -311,24 +311,11 @@ Deno.test("request with invalid access token returns 200", async () => {
 	await dispose();
 });
 
-function assertOnMessage(websocket: WebSocket, message?: string, timeout = 2 * 1000): Promise<void> {
-	const defer = new Deferred<void>();
-
-	const timer = setTimeout(() => defer.reject(), timeout);
-	defer.promise.finally(() => {
-		websocket.onmessage = null;
-		clearTimeout(timer);
-	});
-
-	websocket.onmessage = (event) => {
-		if (!message || event.data === message) {
-			defer.resolve();
-		} else {
-			defer.reject();
-		}
-	};
-
-	return defer.promise;
+async function assertOnMessage(websocket: WebSocket, message?: string, timeout = 2 * 1000): Promise<void> {
+	const msg = await getOneMessage(websocket, timeout);
+	if (message) {
+		assertEquals(msg, message);
+	}
 }
 
 function getOneMessage(websocket: WebSocket, timeout = 2 * 1000): Promise<string> {
@@ -608,6 +595,7 @@ Deno.test("websocket send message to channel broadcast back message", async () =
 	ws.send(JSON.stringify({ id: "1", type: "chan.join", ref: "/chat/abc" }));
 	await assertOnMessage(ws, JSON.stringify({ id: "1" }));
 	ws.send(JSON.stringify({ id: "2", type: "chan.send", ref: "/chat/abc", message: "foo" }));
+	await assertOnMessage(ws, JSON.stringify({ id: "2" }));
 	await assertOnMessage(ws, JSON.stringify({ type: "chan.send", ref: "/chat/abc", from: sessionId, message: "foo" }));
 
 	await new Promise((r) => setTimeout(r, 100));

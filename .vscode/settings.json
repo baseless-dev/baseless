@@ -6,5 +6,10 @@
 	"deno.unstable": true,
 	"deno.codeLens.referencesAllFunctions": true,
 	"deno.codeLens.references": true,
-	"deno.codeLens.implementations": true
+	"deno.codeLens.implementations": true,
+	"explorer.experimental.fileNesting.enabled": true,
+	"explorer.experimental.fileNesting.expand": false,
+	"explorer.experimental.fileNesting.patterns": {
+		"*.ts": "$(capture).test.ts"
+	}
 }

@@ -8,7 +8,7 @@ export class FunctionsDescriptor {
 		public readonly https: ReadonlyArray<FunctionsHttpDescriptor>,
 	) {}
 
-	public getHttp(path: string): FunctionsHttpDescriptor | undefined {
+	public getHttpDescriptor(path: string): FunctionsHttpDescriptor | undefined {
 		for (const http of this.https) {
 			if (http.path === path) {
 				return http;

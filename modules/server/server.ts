@@ -177,7 +177,7 @@ export class Server {
 
 		if (url.pathname.length > 1) {
 			const fnName = url.pathname.substring(1);
-			const desc = this.functionsDescriptor.getHttp(fnName);
+			const desc = this.functionsDescriptor.getHttpDescriptor(fnName);
 			if (desc) {
 				try {
 					const result = await desc.onCall(request, context);

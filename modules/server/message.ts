@@ -1,13 +1,8 @@
 import { logger } from "https://baseless.dev/x/logger/mod.ts";
-import {
-	ChannelDescriptor,
-	ChannelPermissionHandler,
-	ChannelPermissions,
-	MessagePermissions,
-} from "https://baseless.dev/x/worker/message.ts";
+import { ChannelPermissions, MessagePermissions } from "https://baseless.dev/x/worker/message.ts";
 import type { MessageDescriptor } from "https://baseless.dev/x/worker/message.ts";
 import type { Context } from "https://baseless.dev/x/provider/context.ts";
-import type { IMessageProvider, ISession, Message } from "https://baseless.dev/x/provider/message.ts";
+import type { IMessageProvider, ISession } from "https://baseless.dev/x/provider/message.ts";
 import { autoid } from "https://baseless.dev/x/shared/autoid.ts";
 import { messageValidator } from "./schema.ts";
 import type { MessagePayload } from "https://baseless.dev/x/shared/server.ts";
@@ -26,9 +21,7 @@ export class MessageController {
 		context: Context,
 		upgrader: (request: Request) => Promise<[Response, WebSocket | null]>,
 	): Promise<[Response, PromiseLike<unknown>[]]> {
-		const permission = typeof this.messageDescriptor.permission === "function"
-			? await this.messageDescriptor.permission(context)
-			: this.messageDescriptor.permission ?? MessagePermissions.None;
+		const permission = await this.messageDescriptor.permission(context);
 
 		// Does not have connect permission
 		if ((permission & MessagePermissions.Connect) === 0) {
@@ -64,12 +57,9 @@ export class MessageController {
 							this.logger.error(`Session ${session.id}, malformed payload : ${JSON.stringify(result.errors)}`);
 						} else {
 							if (payload.type === "chan.join") {
-								const result = this._findChannelDescriptor(payload.ref);
-								if (result) {
-									const [desc, params] = result;
-									const permission = typeof desc.permission === "function"
-										? await desc.permission(context, params)
-										: desc.permission ?? MessagePermissions.None;
+								const [desc, params] = this.messageDescriptor.getChannelDescriptor(payload.ref) ?? [];
+								if (desc && params) {
+									const permission = await desc.permission(context, params);
 
 									// Can join channel
 									if ((permission & ChannelPermissions.Join) > 0) {
@@ -86,7 +76,7 @@ export class MessageController {
 								session.socket.send(JSON.stringify({ id: payload.id, error: "ChannelNotFoundError" }));
 								return;
 							} else if (payload.type === "chan.leave") {
-								const result = this._findChannelDescriptor(payload.ref);
+								const result = this.messageDescriptor.getChannelDescriptor(payload.ref);
 								if (result) {
 									const ref = channel(payload.ref);
 									await this.messageProvider.leave(context, session, ref);
@@ -96,12 +86,9 @@ export class MessageController {
 								session.socket.send(JSON.stringify({ id: payload.id, error: "MessageSendError" }));
 								return;
 							} else if (payload.type === "chan.send") {
-								const result = this._findChannelDescriptor(payload.ref);
-								if (result) {
-									const [desc, params] = result;
-									const permission = typeof desc.permission === "function"
-										? await desc.permission(context, params)
-										: desc.permission ?? MessagePermissions.None;
+								const [desc, params] = this.messageDescriptor.getChannelDescriptor(payload.ref) ?? [];
+								if (desc && params) {
+									const permission = await desc.permission(context, params);
 
 									// Can join channel
 									if ((permission & ChannelPermissions.Send) > 0) {
@@ -134,20 +121,5 @@ export class MessageController {
 				[],
 			];
 		}
-	}
-
-	private _findChannelDescriptor<Metadata>(
-		ref: string,
-	):
-		| [ChannelDescriptor<Metadata>, Record<string, string>]
-		| undefined {
-		const channels = this.messageDescriptor.channels;
-		for (const desc of channels) {
-			const match = ref.match(desc.matcher);
-			if (match) {
-				return [desc, match.groups ?? {}];
-			}
-		}
-		return undefined;
 	}
 }

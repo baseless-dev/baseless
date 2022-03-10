@@ -18,7 +18,7 @@ export enum MessagePermissions {
  */
 export type MessagePermissionHandler =
 	| MessagePermissions
-	| ((ctx: Context) => Promise<MessagePermissions>);
+	| ((context: Context) => Promise<MessagePermissions>);
 
 /**
  * Channel permission
@@ -34,13 +34,13 @@ export enum ChannelPermissions {
  */
 export type ChannelPermissionHandler =
 	| ChannelPermissions
-	| ((ctx: Context, params: Record<string, string>) => Promise<ChannelPermissions>);
+	| ((context: Context, params: Record<string, string>) => Promise<ChannelPermissions>);
 
 /**
  * Channel handler
  */
 export type ChannelHandler<ChannelMetadata> = (
-	ctx: Context,
+	context: Context,
 	channel: IChannel<ChannelMetadata>,
 	params: Record<string, string>,
 ) => Promise<void>;
@@ -51,7 +51,7 @@ export type ChannelHandler<ChannelMetadata> = (
 export type ChannelSessionHandler<
 	ChannelMetadata,
 > = (
-	ctx: Context,
+	context: Context,
 	channel: IChannel<ChannelMetadata>,
 	session: ISession,
 	params: Record<string, string>,
@@ -61,7 +61,7 @@ export type ChannelSessionHandler<
  * Channel message handler
  */
 export type ChannelMessageHandler<ChannelMetadata> = (
-	ctx: Context,
+	context: Context,
 	channel: IChannel<ChannelMetadata>,
 	session: ISession,
 	message: string | ArrayBufferLike | Blob | ArrayBufferView,
@@ -71,24 +71,99 @@ export type ChannelMessageHandler<ChannelMetadata> = (
 /**
  * Channel descriptor
  */
-export type ChannelDescriptor<ChannelMetadata> = {
-	readonly ref: string;
-	readonly matcher: RegExp;
-	readonly onCreate?: ChannelHandler<ChannelMetadata>;
-	readonly onJoin?: ChannelSessionHandler<ChannelMetadata>;
-	readonly onMessage?: ChannelMessageHandler<ChannelMetadata>;
-	readonly onLeave?: ChannelSessionHandler<ChannelMetadata>;
-	readonly onEmpty?: ChannelHandler<ChannelMetadata>;
-	readonly permission?: ChannelPermissionHandler;
-};
+export class ChannelDescriptor {
+	public constructor(
+		public readonly reference: string,
+		private readonly onCreateHandler?: ChannelHandler<unknown>,
+		private readonly onJoinHandler?: ChannelSessionHandler<unknown>,
+		private readonly onMessageHandler?: ChannelMessageHandler<unknown>,
+		private readonly onLeaveHandler?: ChannelSessionHandler<unknown>,
+		private readonly onEmptyHandler?: ChannelHandler<unknown>,
+		private readonly permissionHandler?: ChannelPermissionHandler,
+	) {
+		this.matcher = refToRegExp(reference);
+	}
+
+	private matcher: RegExp;
+
+	public match(reference: string): undefined | Record<string, string> {
+		const match = reference.match(this.matcher);
+		if (match) {
+			return match.groups ?? {};
+		}
+	}
+
+	public onCreate(context: Context, channel: IChannel<unknown>, params: Record<string, string>): Promise<void> {
+		return this.onCreateHandler?.(context, channel, params) ?? Promise.resolve();
+	}
+
+	public onJoin(
+		context: Context,
+		channel: IChannel<unknown>,
+		session: ISession,
+		params: Record<string, string>,
+	): Promise<void> {
+		return this.onJoinHandler?.(context, channel, session, params) ?? Promise.resolve();
+	}
+
+	public onMessage(
+		context: Context,
+		channel: IChannel<unknown>,
+		session: ISession,
+		message: string | ArrayBufferLike | Blob | ArrayBufferView,
+		params: Record<string, string>,
+	): Promise<void> {
+		return this.onMessageHandler?.(context, channel, session, message, params) ?? Promise.resolve();
+	}
+
+	public onLeave(
+		context: Context,
+		channel: IChannel<unknown>,
+		session: ISession,
+		params: Record<string, string>,
+	): Promise<void> {
+		return this.onLeaveHandler?.(context, channel, session, params) ?? Promise.resolve();
+	}
+
+	public onEmpty(context: Context, channel: IChannel<unknown>, params: Record<string, string>): Promise<void> {
+		return this.onEmptyHandler?.(context, channel, params) ?? Promise.resolve();
+	}
+
+	public permission(context: Context, params: Record<string, string>): Promise<ChannelPermissions> {
+		if (typeof this.permissionHandler === "function") {
+			return this.permissionHandler(context, params);
+		}
+		return Promise.resolve(this.permissionHandler ?? ChannelPermissions.None);
+	}
+}
 
 /**
  * Message descriptor
  */
-export type MessageDescriptor<ChannelMetadata = Record<never, never>> = {
-	readonly channels: ChannelDescriptor<ChannelMetadata>[];
-	readonly permission?: MessagePermissionHandler;
-};
+export class MessageDescriptor {
+	public constructor(
+		public readonly channels: ReadonlyArray<ChannelDescriptor>,
+		private readonly permissionHandler?: MessagePermissionHandler,
+	) {}
+
+	public getChannelDescriptor(
+		reference: string,
+	): [ChannelDescriptor, Record<string, string>] | undefined {
+		for (const channel of this.channels) {
+			const groups = channel.match(reference);
+			if (groups) {
+				return [channel, groups];
+			}
+		}
+	}
+
+	public permission(context: Context): Promise<MessagePermissions> {
+		if (typeof this.permissionHandler === "function") {
+			return this.permissionHandler(context);
+		}
+		return Promise.resolve(this.permissionHandler ?? MessagePermissions.None);
+	}
+}
 
 /**
  * Message builder
@@ -100,11 +175,11 @@ export class MessageBuilder {
 	/**
 	 * Build the database descriptor
 	 */
-	public build<ChannelMetadata = Record<never, never>>(): MessageDescriptor<ChannelMetadata> {
-		return {
-			channels: Array.from(this.channels).map((b) => b.build()),
-			permission: this.permissionHandler,
-		};
+	public build(): MessageDescriptor {
+		return new MessageDescriptor(
+			Array.from(this.channels).map((b) => b.build()),
+			this.permissionHandler,
+		);
 	}
 
 	/**
@@ -147,17 +222,16 @@ export class ChannelBuilder<ChannelMetadata = Record<never, never>> {
 	/**
 	 * Build the channel descriptor
 	 */
-	public build(): ChannelDescriptor<ChannelMetadata> {
-		return {
-			ref: this.ref,
-			matcher: refToRegExp(this.ref),
-			onCreate: this.onCreateHandler,
-			onJoin: this.onJoinHandler,
-			onMessage: this.onMessageHandler,
-			onLeave: this.onLeaveHandler,
-			onEmpty: this.onEmptyHandler,
-			permission: this.permissionHandler,
-		};
+	public build(): ChannelDescriptor {
+		return new ChannelDescriptor(
+			this.ref,
+			this.onCreateHandler,
+			this.onJoinHandler,
+			this.onMessageHandler,
+			this.onLeaveHandler,
+			this.onEmptyHandler,
+			this.permissionHandler,
+		);
 	}
 
 	/**

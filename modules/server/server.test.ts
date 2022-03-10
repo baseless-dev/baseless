@@ -17,6 +17,7 @@ import {
 	database,
 	DatabaseDescriptor,
 	functions,
+	FunctionsBuilder,
 	FunctionsDescriptor,
 	mail,
 	MailDescriptor,
@@ -192,14 +193,9 @@ Deno.test("request with pathname trigger unknown function returns 405", async ()
 });
 
 Deno.test("request with pathname trigger function", async () => {
-	const { server, dispose } = await setupServer(undefined, undefined, {
-		https: [{
-			path: "test",
-			onCall(_req, _ctx) {
-				return Promise.resolve(new Response(null, { status: 418 }));
-			},
-		}],
-	});
+	const fnBuilder = new FunctionsBuilder();
+	fnBuilder.http("test").onCall(() => Promise.resolve(new Response(null, { status: 418 })));
+	const { server, dispose } = await setupServer(undefined, undefined, fnBuilder.build());
 	const request = new Request("http://test.local/test", {
 		method: "GET",
 		headers: { "X-BASELESS-CLIENT-ID": "foo", "Origin": "http://example.org" },
@@ -211,14 +207,11 @@ Deno.test("request with pathname trigger function", async () => {
 });
 
 Deno.test("request with pathname trigger function that throws returns 500", async () => {
-	const { server, dispose } = await setupServer(undefined, undefined, {
-		https: [{
-			path: "test",
-			onCall(_req, _ctx) {
-				throw new Error("Log me!");
-			},
-		}],
+	const fnBuilder = new FunctionsBuilder();
+	fnBuilder.http("test").onCall(() => {
+		throw new Error("Log me!");
 	});
+	const { server, dispose } = await setupServer(undefined, undefined, fnBuilder.build());
 	const request = new Request("http://test.local/test", {
 		method: "GET",
 		headers: { "X-BASELESS-CLIENT-ID": "foo", "Origin": "http://example.org" },

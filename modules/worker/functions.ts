@@ -3,9 +3,19 @@ import { Context } from "https://baseless.dev/x/provider/context.ts";
 /**
  * Functions descriptor
  */
-export type FunctionsDescriptor = {
-	readonly https: ReadonlyArray<FunctionsHttpDescriptor>;
-};
+export class FunctionsDescriptor {
+	public constructor(
+		public readonly https: ReadonlyArray<FunctionsHttpDescriptor>,
+	) {}
+
+	public getHttp(path: string): FunctionsHttpDescriptor | undefined {
+		for (const http of this.https) {
+			if (http.path === path) {
+				return http;
+			}
+		}
+	}
+}
 
 /**
  * Functions builder
@@ -14,9 +24,9 @@ export class FunctionsBuilder {
 	private httpFunctions = new Set<FunctionsHttpBuilder>();
 
 	public build(): FunctionsDescriptor {
-		return {
-			https: Array.from(this.httpFunctions).map((b) => b.build()),
-		};
+		return new FunctionsDescriptor(
+			Array.from(this.httpFunctions).map((b) => b.build()),
+		);
 	}
 
 	/**
@@ -34,16 +44,22 @@ export class FunctionsBuilder {
  */
 export type FunctionsHttpHandler = (
 	request: Request,
-	ctx: Context,
+	context: Context,
 ) => Promise<Response>;
 
 /**
  * Functions Http descriptor
  */
-export type FunctionsHttpDescriptor = {
-	readonly path: string;
-	readonly onCall?: FunctionsHttpHandler;
-};
+export class FunctionsHttpDescriptor {
+	public constructor(
+		public readonly path: string,
+		private readonly onCallHandler?: FunctionsHttpHandler,
+	) {}
+
+	public onCall(request: Request, context: Context): Promise<Response> {
+		return this.onCallHandler?.(request, context) ?? Promise.resolve(new Response(null, { status: 500 }));
+	}
+}
 
 /**
  * Functions Http builder
@@ -60,10 +76,10 @@ export class FunctionsHttpBuilder {
 	 * Build a functions http descriptor
 	 */
 	public build(): FunctionsHttpDescriptor {
-		return {
-			path: this.path,
-			onCall: this.onCallHandler,
-		};
+		return new FunctionsHttpDescriptor(
+			this.path,
+			this.onCallHandler,
+		);
 	}
 
 	/**

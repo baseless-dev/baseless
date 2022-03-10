@@ -2,20 +2,34 @@ import { Context } from "https://baseless.dev/x/provider/context.ts";
 import { User } from "https://baseless.dev/x/shared/auth.ts";
 
 export type AuthHandler<Metadata> = (
-	ctx: Context,
-	auth: User<Metadata>,
+	context: Context,
+	user: User<Metadata>,
 ) => Promise<void>;
 
 /**
  * Auth descriptor
  */
-export type AuthDescriptor = {
-	readonly allowAnonymousUser: boolean;
-	readonly allowSignMethodPassword: boolean;
-	readonly onCreateUser?: AuthHandler<unknown>;
-	readonly onUpdateUser?: AuthHandler<unknown>;
-	readonly onDeleteUser?: AuthHandler<unknown>;
-};
+export class AuthDescriptor {
+	public constructor(
+		public readonly allowAnonymousUser: boolean,
+		public readonly allowSignMethodPassword: boolean,
+		private readonly onCreateUserHandler?: AuthHandler<unknown>,
+		private readonly onUpdateUserHandler?: AuthHandler<unknown>,
+		private readonly onDeleteUserHandler?: AuthHandler<unknown>,
+	) {}
+
+	public onCreateUser<Metadata>(context: Context, user: User<Metadata>): Promise<void> {
+		return this.onCreateUserHandler?.(context, user) ?? Promise.resolve();
+	}
+
+	public onUpdateUser<Metadata>(context: Context, user: User<Metadata>): Promise<void> {
+		return this.onUpdateUserHandler?.(context, user) ?? Promise.resolve();
+	}
+
+	public onDeleteUser<Metadata>(context: Context, user: User<Metadata>): Promise<void> {
+		return this.onDeleteUserHandler?.(context, user) ?? Promise.resolve();
+	}
+}
 
 /**
  * Auth builder
@@ -31,13 +45,13 @@ export class AuthBuilder {
 	 * Build the auth descriptor
 	 */
 	public build(): AuthDescriptor {
-		return {
-			allowAnonymousUser: this.allowAnonymousUserValue ?? false,
-			allowSignMethodPassword: this.allowSignMethodPasswordValue ?? false,
-			onCreateUser: this.onCreateUserHandler,
-			onUpdateUser: this.onUpdateUserHandler,
-			onDeleteUser: this.onDeleteUserHandler,
-		};
+		return new AuthDescriptor(
+			this.allowAnonymousUserValue ?? false,
+			this.allowSignMethodPasswordValue ?? false,
+			this.onCreateUserHandler,
+			this.onUpdateUserHandler,
+			this.onDeleteUserHandler,
+		);
 	}
 
 	/**

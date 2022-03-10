@@ -5,9 +5,15 @@ export type MailHandler = (message: Message) => Promise<void>;
 /**
  * Mail descriptor
  */
-export type MailDescriptor = {
-	readonly onMessageSent?: MailHandler;
-};
+export class MailDescriptor {
+	public constructor(
+		private readonly onMessageSentHandler?: MailHandler,
+	) {}
+
+	public onMessageSent(message: Message): Promise<void> {
+		return this.onMessageSentHandler?.(message) ?? Promise.resolve();
+	}
+}
 
 /**
  * Mail builder
@@ -19,9 +25,9 @@ export class MailBuilder {
 	 * Build the auth descriptor
 	 */
 	public build(): MailDescriptor {
-		return {
-			onMessageSent: this.onMessageSentHandler,
-		};
+		return new MailDescriptor(
+			this.onMessageSentHandler,
+		);
 	}
 
 	/**

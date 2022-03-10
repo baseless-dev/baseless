@@ -1,5 +1,6 @@
 import { IDocument } from "https://baseless.dev/x/provider/database.ts";
 import { Context } from "https://baseless.dev/x/provider/context.ts";
+import { CollectionReference, DocumentReference } from "https://baseless.dev/x/shared/database.ts";
 
 function refToRegExp(ref: string) {
 	return new RegExp(`^${ref.replace(/:([\w]+)/g, "(?<$1>[^/]+)")}$`);
@@ -37,8 +38,8 @@ export interface IDocumentChange<Metadata, Data> {
  * Database document handler
  */
 export type DatabaseDocumentHandler<Metadata, Data> = (
-	ctx: Context,
-	doc: IDocument<Metadata, Data>,
+	context: Context,
+	document: IDocument<Metadata, Data>,
 	params: Record<string, string>,
 ) => Promise<void>;
 
@@ -46,7 +47,7 @@ export type DatabaseDocumentHandler<Metadata, Data> = (
  * Database document change handler
  */
 export type DatabaseDocumentChangeHandler<Metadata, Data> = (
-	ctx: Context,
+	context: Context,
 	change: IDocumentChange<Metadata, Data>,
 	params: Record<string, string>,
 ) => Promise<void>;
@@ -57,42 +58,122 @@ export type DatabaseDocumentChangeHandler<Metadata, Data> = (
 export type DatabasePermissionHandler =
 	| DatabasePermissions
 	| ((
-		ctx: Context,
+		context: Context,
 		params: Record<string, string>,
 	) => Promise<DatabasePermissions>);
 
 /**
  * Database descriptor
  */
-export type DatabaseDescriptor = {
-	readonly collections: ReadonlyArray<
-		DatabaseCollectionDescriptor<unknown, unknown>
-	>;
-	readonly documents: ReadonlyArray<
-		DatabaseDocumentDescriptor<unknown, unknown>
-	>;
-};
+export class DatabaseDescriptor {
+	public constructor(
+		public readonly collections: ReadonlyArray<DatabaseCollectionDescriptor>,
+		public readonly documents: ReadonlyArray<DatabaseDocumentDescriptor>,
+	) {}
+
+	public getCollectionDescriptor(
+		reference: string,
+	): [DatabaseCollectionDescriptor, Record<string, string>] | undefined {
+		for (const collection of this.collections) {
+			const groups = collection.match(reference);
+			if (groups) {
+				return [collection, groups];
+			}
+		}
+	}
+
+	public getDocumentDescriptor(reference: string): [DatabaseDocumentDescriptor, Record<string, string>] | undefined {
+		for (const document of this.documents) {
+			const groups = document.match(reference);
+			if (groups) {
+				return [document, groups];
+			}
+		}
+	}
+}
 
 /**
  * Database collection descriptor
  */
-export type DatabaseCollectionDescriptor<Metadata, Data> = {
-	readonly ref: string;
-	readonly matcher: RegExp;
-	readonly onCreate?: DatabaseDocumentHandler<Metadata, Data>;
-	readonly permission?: DatabasePermissionHandler;
-};
+export class DatabaseCollectionDescriptor {
+	public constructor(
+		public readonly reference: string,
+		private readonly onCreateHandler?: DatabaseDocumentHandler<unknown, unknown>,
+		private readonly permissionHandler?: DatabasePermissionHandler,
+	) {
+		this.matcher = refToRegExp(reference);
+	}
+
+	private matcher: RegExp;
+
+	public match(reference: string): undefined | Record<string, string> {
+		const match = reference.match(this.matcher);
+		if (match) {
+			return match.groups ?? {};
+		}
+	}
+
+	public onCreate(
+		context: Context,
+		document: IDocument<unknown, unknown>,
+		params: Record<string, string>,
+	): Promise<void> {
+		return this.onCreateHandler?.(context, document, params) ?? Promise.resolve();
+	}
+
+	public permission(context: Context, params: Record<string, string>): Promise<DatabasePermissions> {
+		if (typeof this.permissionHandler === "function") {
+			return this.permissionHandler(context, params);
+		}
+		return Promise.resolve(this.permissionHandler ?? DatabasePermissions.None);
+	}
+}
 
 /**
  * Database document descriptor
  */
-export type DatabaseDocumentDescriptor<Metadata, Data> = {
-	readonly ref: string;
-	readonly matcher: RegExp;
-	readonly onUpdate?: DatabaseDocumentChangeHandler<Metadata, Data>;
-	readonly onDelete?: DatabaseDocumentHandler<Metadata, Data>;
-	readonly permission?: DatabasePermissionHandler;
-};
+export class DatabaseDocumentDescriptor {
+	public constructor(
+		public readonly reference: string,
+		private readonly onUpdateHandler?: DatabaseDocumentChangeHandler<unknown, unknown>,
+		private readonly onDeleteHandler?: DatabaseDocumentHandler<unknown, unknown>,
+		private readonly permissionHandler?: DatabasePermissionHandler,
+	) {
+		this.matcher = refToRegExp(reference);
+	}
+
+	private matcher: RegExp;
+
+	public match(reference: string): undefined | Record<string, string> {
+		const match = reference.match(this.matcher);
+		if (match) {
+			return match.groups ?? {};
+		}
+	}
+
+	public onUpdate(
+		context: Context,
+		change: IDocumentChange<unknown, unknown>,
+		params: Record<string, string>,
+	): Promise<void> {
+		return this.onUpdateHandler?.(context, change, params) ?? Promise.resolve();
+	}
+
+	public onDelete(
+		context: Context,
+		document: IDocument<unknown, unknown>,
+		params: Record<string, string>,
+	): Promise<void> {
+		return this.onDeleteHandler?.(context, document, params) ?? Promise.resolve();
+	}
+
+	public permission(context: Context, params: Record<string, string>): Promise<DatabasePermissions> {
+		if (typeof this.permissionHandler === "function") {
+			return this.permissionHandler(context, params);
+		}
+		return Promise.resolve(this.permissionHandler ?? DatabasePermissions.None);
+	}
+}
 
 /**
  * Database builder
@@ -105,10 +186,10 @@ export class DatabaseBuilder {
 	 * Build the database descriptor
 	 */
 	public build(): DatabaseDescriptor {
-		return {
-			collections: Array.from(this.collections).map((b) => b.build()),
-			documents: Array.from(this.documents).map((b) => b.build()),
-		};
+		return new DatabaseDescriptor(
+			Array.from(this.collections).map((b) => b.build()),
+			Array.from(this.documents).map((b) => b.build()),
+		);
 	}
 
 	/**
@@ -145,13 +226,12 @@ export class DatabaseCollectionBuilder<Metadata = unknown, Data = unknown> {
 	/**
 	 * Build the database collection descriptor
 	 */
-	public build(): DatabaseCollectionDescriptor<Metadata, Data> {
-		return {
-			ref: this.ref,
-			matcher: refToRegExp(this.ref),
-			onCreate: this.onCreateHandler,
-			permission: this.permissionHandler,
-		};
+	public build(): DatabaseCollectionDescriptor {
+		return new DatabaseCollectionDescriptor(
+			this.ref,
+			this.onCreateHandler,
+			this.permissionHandler,
+		);
 	}
 
 	/**
@@ -187,14 +267,13 @@ export class DatabaseDocumentBuilder<Metadata = unknown, Data = unknown> {
 	/**
 	 * Build the database document descriptor
 	 */
-	public build(): DatabaseDocumentDescriptor<Metadata, Data> {
-		return {
-			ref: this.ref,
-			matcher: refToRegExp(this.ref),
-			onUpdate: this.onUpdateHandler,
-			onDelete: this.onDeleteHandler,
-			permission: this.permissionHandler,
-		};
+	public build(): DatabaseDocumentDescriptor {
+		return new DatabaseDocumentDescriptor(
+			this.ref,
+			this.onUpdateHandler,
+			this.onDeleteHandler,
+			this.permissionHandler,
+		);
 	}
 
 	/**

@@ -38,7 +38,6 @@ import type {
 
 export class Server {
 	private logger = logger("server");
-	private functionsHttpMap = new Map<string, FunctionsHttpHandler>();
 	private authController: AuthController;
 	private databaseController: DatabaseController;
 	private messageController: MessageController;
@@ -57,12 +56,6 @@ export class Server {
 		private messageProvider: IMessageProvider = new NoopMessageProvider(),
 		private channelProvider: IChannelProvider = new NoopChannelProvider(),
 	) {
-		this.functionsHttpMap = new Map(
-			functionsDescriptor.https.filter((http) => http.onCall).map(
-				(http) => [http.path, http.onCall!],
-			),
-		);
-
 		this.authController = new AuthController(this.authDescriptor);
 		this.databaseController = new DatabaseController(this.databaseDescriptor);
 		this.messageController = new MessageController(this.messageDescriptor, this.messageProvider);
@@ -184,10 +177,10 @@ export class Server {
 
 		if (url.pathname.length > 1) {
 			const fnName = url.pathname.substring(1);
-			if (this.functionsHttpMap.has(fnName)) {
+			const desc = this.functionsDescriptor.getHttp(fnName);
+			if (desc) {
 				try {
-					const onCall = this.functionsHttpMap.get(fnName)!;
-					const result = await onCall(request, context);
+					const result = await desc.onCall(request, context);
 					const response = new Response(result.body, {
 						...responseInit,
 						status: result.status,

@@ -225,9 +225,7 @@ export class AuthController {
 				throw new AnonymousUserError();
 			}
 			const user = await context.auth.createUser(null, {});
-			if (authDescriptor.onCreateUser) {
-				context.waitUntil(authDescriptor.onCreateUser(context, user));
-			}
+			context.waitUntil(authDescriptor.onCreateUser(context, user));
 			return await this._createJWTs(context, user);
 		} catch (err: unknown) {
 			this.logger.error(`Could create anonymous user, got ${err}`);
@@ -263,9 +261,7 @@ export class AuthController {
 				locale,
 				email,
 			);
-			if (authDescriptor.onUpdateUser) {
-				context.waitUntil(authDescriptor.onUpdateUser(context, user));
-			}
+			context.waitUntil(authDescriptor.onUpdateUser(context, user));
 			return {};
 		} catch (err: unknown) {
 			this.logger.error(`Could add sign in method with email password, got ${err}`);
@@ -315,9 +311,7 @@ export class AuthController {
 				email,
 			);
 			const { authDescriptor } = this;
-			if (authDescriptor.onCreateUser) {
-				context.waitUntil(authDescriptor.onCreateUser(context, user));
-			}
+			context.waitUntil(authDescriptor.onCreateUser(context, user));
 			return {};
 		} catch (err: unknown) {
 			this.logger.error(`Could not create user, got ${err}`);

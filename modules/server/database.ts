@@ -41,64 +41,13 @@ export class DatabaseController {
 		private databaseDescriptor: DatabaseDescriptor,
 	) {}
 
-	private _findCollectionDescriptor<Metadata, Data>(
-		ref: string,
-	):
-		| [DatabaseCollectionDescriptor<Metadata, Data>, Record<string, string>]
-		| undefined {
-		const collections = this.databaseDescriptor.collections;
-		for (const desc of collections) {
-			const match = ref.match(desc.matcher);
-			if (match) {
-				return [desc, match.groups ?? {}];
-			}
-		}
-		return undefined;
-	}
-
-	private _findDocumentDescriptor<Metadata, Data>(
-		ref: string,
-	):
-		| [DatabaseDocumentDescriptor<Metadata, Data>, Record<string, string>]
-		| undefined {
-		const documents = this.databaseDescriptor.documents;
-		for (const desc of documents) {
-			const match = ref.match(desc.matcher);
-			if (match) {
-				return [desc, match.groups ?? {}];
-			}
-		}
-		return undefined;
-	}
-
-	private async _getPermission(
-		context: Context,
-		params: Record<string, string>,
-		handler?: DatabasePermissionHandler,
-	) {
-		if (typeof handler === "function") {
-			return await handler(context, params);
-		} else {
-			return handler ?? DatabasePermissions.None;
-		}
-	}
-
-	private _testPermission(flag: number, permission: DatabasePermissions) {
-		return (flag & permission) > 0;
-	}
-
 	public async get(
 		context: Context,
 		reference: DocumentReference,
 	): Promise<Result> {
-		const result = this._findDocumentDescriptor(reference.toString());
-		if (result) {
-			const [desc, params] = result;
-			const permission = await this._getPermission(
-				context,
-				params ?? {},
-				desc.permission,
-			);
+		const [desc, params] = this.databaseDescriptor.getDocumentDescriptor(reference.toString()) ?? [];
+		if (desc && params) {
+			const permission = await desc.permission(context, params);
 			if ((permission & DatabasePermissions.Get) > 0) {
 				try {
 					const doc = await context.database.get(reference);
@@ -118,23 +67,14 @@ export class DatabaseController {
 		metadata: Metadata,
 		data?: Data,
 	): Promise<Result> {
-		const result = this._findCollectionDescriptor(
-			reference.collection.toString(),
-		);
-		if (result) {
-			const [desc, params] = result;
-			const flag = await this._getPermission(
-				context,
-				params ?? {},
-				desc.permission,
-			);
-			if (this._testPermission(flag, DatabasePermissions.Create)) {
+		const [desc, params] = this.databaseDescriptor.getCollectionDescriptor(reference.collection.toString()) ?? [];
+		if (desc && params) {
+			const flag = await desc.permission(context, params);
+			if ((flag & DatabasePermissions.Create) > 0) {
 				try {
 					await context.database.create(reference, metadata, data);
-					if (desc.onCreate) {
-						const doc = new Document(reference, metadata, data ?? {});
-						await desc.onCreate(context, doc, params);
-					}
+					const doc = new Document(reference, metadata, data ?? {});
+					await desc.onCreate(context, doc, params);
 					return {};
 				} catch (err) {
 					this.logger.error(`Could not create document "${reference}", got ${err}`);
@@ -152,34 +92,21 @@ export class DatabaseController {
 		data?: Data,
 		replace?: boolean,
 	): Promise<Result> {
-		const result = this._findDocumentDescriptor(reference.toString());
-		if (result) {
-			const [desc, params] = result;
-			const flag = await this._getPermission(
-				context,
-				params ?? {},
-				desc.permission,
-			);
-			if (this._testPermission(flag, DatabasePermissions.Update)) {
+		const [desc, params] = this.databaseDescriptor.getDocumentDescriptor(reference.toString()) ?? [];
+		if (desc && params) {
+			const flag = await desc.permission(context, params);
+			if ((flag & DatabasePermissions.Update) > 0) {
 				try {
-					if (desc.onUpdate) {
-						const before = await context.database.get(reference);
-						let after: IDocument<Metadata, Data>;
-						if (replace === true) {
-							await context.database.replace(reference, metadata, data);
-							after = new Document(reference, metadata, data ?? {});
-						} else {
-							await context.database.update(reference, metadata, data);
-							after = new Document(reference, { ...before.metadata, ...metadata }, { ...before.data, ...data });
-						}
-						await desc.onUpdate(context, { before, after }, params);
+					const before = await context.database.get(reference);
+					let after: IDocument<Metadata, Data>;
+					if (replace === true) {
+						await context.database.replace(reference, metadata, data);
+						after = new Document(reference, metadata, data ?? {});
 					} else {
-						if (replace === true) {
-							await context.database.replace(reference, metadata, data);
-						} else {
-							await context.database.update(reference, metadata, data);
-						}
+						await context.database.update(reference, metadata, data);
+						after = new Document(reference, { ...before.metadata, ...metadata }, { ...before.data, ...data });
 					}
+					await desc.onUpdate(context, { before, after }, params);
 					return {};
 				} catch (err) {
 					this.logger.error(`Could not update document "${reference}", got ${err}`);
@@ -195,11 +122,10 @@ export class DatabaseController {
 		reference: CollectionReference,
 		filter?: DatabaseScanFilter<Metadata>,
 	): Promise<Result> {
-		const result = this._findCollectionDescriptor(reference.toString());
-		if (result) {
-			const [desc, params] = result;
-			const flag = await this._getPermission(context, params, desc.permission);
-			if (this._testPermission(flag, DatabasePermissions.List)) {
+		const [desc, params] = this.databaseDescriptor.getCollectionDescriptor(reference.toString()) ?? [];
+		if (desc && params) {
+			const flag = await desc.permission(context, params);
+			if ((flag & DatabasePermissions.List) > 0) {
 				try {
 					const docs = await context.database.list(reference, filter);
 					const docsWithData = await Promise.all(
@@ -223,21 +149,19 @@ export class DatabaseController {
 		context: Context,
 		reference: DocumentReference,
 	): Promise<Result> {
-		const result = this._findDocumentDescriptor(reference.toString());
-		if (result) {
-			const [desc, params] = result;
-			const flag = await this._getPermission(context, params, desc.permission);
-			if (this._testPermission(flag, DatabasePermissions.Delete)) {
+		const [desc, params] = this.databaseDescriptor.getDocumentDescriptor(reference.toString()) ?? [];
+		if (desc && params) {
+			const flag = await desc.permission(context, params);
+			if ((flag & DatabasePermissions.Delete) > 0) {
 				try {
-					if (desc.onDelete) {
-						const doc = await context.database.get(reference);
-						await context.database.delete(reference);
-						await desc.onDelete(context, doc, params);
-					} else {
-						await context.database.delete(reference);
-					}
+					const doc = await context.database.get(reference);
+					await context.database.delete(reference);
+					await desc.onDelete(context, doc, params);
 					return {};
 				} catch (err) {
+					if (err instanceof DocumentNotFoundError) {
+						return {};
+					}
 					this.logger.error(`Could not delete document "${reference}", got ${err}`);
 					throw new DeleteDocumentError();
 				}

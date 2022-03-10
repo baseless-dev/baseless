@@ -84,11 +84,15 @@ export class DatabaseOnKvProvider implements IDatabaseProvider {
 	/**
 	 * Retrieve a single document
 	 */
-	get<Metadata, Data>(
+	async get<Metadata, Data>(
 		reference: DocumentReference,
 	): Promise<IDocument<Metadata, Data>> {
 		const key = DocumentReferenceToKey(reference);
-		return this.backend.get<Metadata>(key).then((value) => new Document(reference, value));
+		try {
+			return await this.backend.get<Metadata>(key).then((value) => new Document(reference, value));
+		} catch (_err) {
+			throw new DocumentNotFoundError();
+		}
 	}
 
 	/**

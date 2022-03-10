@@ -13,11 +13,9 @@ import {
 } from "https://baseless.dev/x/shared/database.ts";
 import { Result } from "./schema.ts";
 import {
-	DatabaseCollectionDescriptor,
+	DatabaseCollectionPermissions,
 	DatabaseDescriptor,
-	DatabaseDocumentDescriptor,
-	DatabasePermissionHandler,
-	DatabasePermissions,
+	DatabaseDocumentPermissions,
 } from "https://baseless.dev/x/worker/database.ts";
 import { UnknownError } from "https://baseless.dev/x/shared/server.ts";
 
@@ -48,7 +46,7 @@ export class DatabaseController {
 		const [desc, params] = this.databaseDescriptor.getDocumentDescriptor(reference.toString()) ?? [];
 		if (desc && params) {
 			const permission = await desc.permission(context, params);
-			if ((permission & DatabasePermissions.Get) > 0) {
+			if ((permission & DatabaseDocumentPermissions.Get) > 0) {
 				try {
 					const doc = await context.database.get(reference);
 					return { metadata: doc.metadata, data: await doc.data() };
@@ -70,7 +68,7 @@ export class DatabaseController {
 		const [desc, params] = this.databaseDescriptor.getCollectionDescriptor(reference.collection.toString()) ?? [];
 		if (desc && params) {
 			const flag = await desc.permission(context, params);
-			if ((flag & DatabasePermissions.Create) > 0) {
+			if ((flag & DatabaseCollectionPermissions.Create) > 0) {
 				try {
 					await context.database.create(reference, metadata, data);
 					const doc = new Document(reference, metadata, data ?? {});
@@ -95,7 +93,7 @@ export class DatabaseController {
 		const [desc, params] = this.databaseDescriptor.getDocumentDescriptor(reference.toString()) ?? [];
 		if (desc && params) {
 			const flag = await desc.permission(context, params);
-			if ((flag & DatabasePermissions.Update) > 0) {
+			if ((flag & DatabaseDocumentPermissions.Update) > 0) {
 				try {
 					const before = await context.database.get(reference);
 					let after: IDocument<Metadata, Data>;
@@ -125,7 +123,7 @@ export class DatabaseController {
 		const [desc, params] = this.databaseDescriptor.getCollectionDescriptor(reference.toString()) ?? [];
 		if (desc && params) {
 			const flag = await desc.permission(context, params);
-			if ((flag & DatabasePermissions.List) > 0) {
+			if ((flag & DatabaseCollectionPermissions.List) > 0) {
 				try {
 					const docs = await context.database.list(reference, filter);
 					const docsWithData = await Promise.all(
@@ -152,7 +150,7 @@ export class DatabaseController {
 		const [desc, params] = this.databaseDescriptor.getDocumentDescriptor(reference.toString()) ?? [];
 		if (desc && params) {
 			const flag = await desc.permission(context, params);
-			if ((flag & DatabasePermissions.Delete) > 0) {
+			if ((flag & DatabaseDocumentPermissions.Delete) > 0) {
 				try {
 					const doc = await context.database.get(reference);
 					await context.database.delete(reference);

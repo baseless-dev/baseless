@@ -7,16 +7,24 @@ function refToRegExp(ref: string) {
 }
 
 /**
- * Database permission
+ * Database collection permission
  */
-export enum DatabasePermissions {
+export enum DatabaseCollectionPermissions {
 	None = 0,
 	List = 1,
-	Get = 2,
-	Create = 4,
-	Update = 8,
-	Delete = 16,
-	Subscribe = 32,
+	Create = 2,
+	Subscribe = 4,
+}
+
+/**
+ * Database document permission
+ */
+export enum DatabaseDocumentPermissions {
+	None = 0,
+	Get = 1,
+	Update = 2,
+	Delete = 4,
+	Subscribe = 8,
 }
 
 /**
@@ -55,12 +63,22 @@ export type DatabaseDocumentChangeHandler<Metadata, Data> = (
 /**
  * Database permission handler
  */
-export type DatabasePermissionHandler =
-	| DatabasePermissions
+export type DatabaseCollectionPermissionHandler =
+	| DatabaseCollectionPermissions
 	| ((
 		context: Context,
 		params: Record<string, string>,
-	) => Promise<DatabasePermissions>);
+	) => Promise<DatabaseCollectionPermissions>);
+
+/**
+ * Database permission handler
+ */
+export type DatabaseDocumentPermissionHandler =
+	| DatabaseDocumentPermissions
+	| ((
+		context: Context,
+		params: Record<string, string>,
+	) => Promise<DatabaseDocumentPermissions>);
 
 /**
  * Database descriptor
@@ -99,7 +117,7 @@ export class DatabaseCollectionDescriptor {
 	public constructor(
 		public readonly reference: string,
 		private readonly onCreateHandler?: DatabaseDocumentHandler<unknown, unknown>,
-		private readonly permissionHandler?: DatabasePermissionHandler,
+		private readonly permissionHandler?: DatabaseCollectionPermissionHandler,
 	) {
 		this.matcher = refToRegExp(reference);
 	}
@@ -121,11 +139,11 @@ export class DatabaseCollectionDescriptor {
 		return this.onCreateHandler?.(context, document, params) ?? Promise.resolve();
 	}
 
-	public permission(context: Context, params: Record<string, string>): Promise<DatabasePermissions> {
+	public permission(context: Context, params: Record<string, string>): Promise<DatabaseCollectionPermissions> {
 		if (typeof this.permissionHandler === "function") {
 			return this.permissionHandler(context, params);
 		}
-		return Promise.resolve(this.permissionHandler ?? DatabasePermissions.None);
+		return Promise.resolve(this.permissionHandler ?? DatabaseCollectionPermissions.None);
 	}
 }
 
@@ -137,7 +155,7 @@ export class DatabaseDocumentDescriptor {
 		public readonly reference: string,
 		private readonly onUpdateHandler?: DatabaseDocumentChangeHandler<unknown, unknown>,
 		private readonly onDeleteHandler?: DatabaseDocumentHandler<unknown, unknown>,
-		private readonly permissionHandler?: DatabasePermissionHandler,
+		private readonly permissionHandler?: DatabaseDocumentPermissionHandler,
 	) {
 		this.matcher = refToRegExp(reference);
 	}
@@ -167,11 +185,11 @@ export class DatabaseDocumentDescriptor {
 		return this.onDeleteHandler?.(context, document, params) ?? Promise.resolve();
 	}
 
-	public permission(context: Context, params: Record<string, string>): Promise<DatabasePermissions> {
+	public permission(context: Context, params: Record<string, string>): Promise<DatabaseDocumentPermissions> {
 		if (typeof this.permissionHandler === "function") {
 			return this.permissionHandler(context, params);
 		}
-		return Promise.resolve(this.permissionHandler ?? DatabasePermissions.None);
+		return Promise.resolve(this.permissionHandler ?? DatabaseDocumentPermissions.None);
 	}
 }
 
@@ -216,7 +234,7 @@ export class DatabaseBuilder {
  */
 export class DatabaseCollectionBuilder<Metadata = unknown, Data = unknown> {
 	private onCreateHandler?: DatabaseDocumentHandler<Metadata, Data>;
-	private permissionHandler?: DatabasePermissionHandler;
+	private permissionHandler?: DatabaseCollectionPermissionHandler;
 
 	/**
 	 * Construct a new Database document builder
@@ -245,7 +263,7 @@ export class DatabaseCollectionBuilder<Metadata = unknown, Data = unknown> {
 	/**
 	 * Set the security policy handler
 	 */
-	public permission(handler: DatabasePermissionHandler) {
+	public permission(handler: DatabaseCollectionPermissionHandler) {
 		this.permissionHandler = handler;
 		return this;
 	}
@@ -257,7 +275,7 @@ export class DatabaseCollectionBuilder<Metadata = unknown, Data = unknown> {
 export class DatabaseDocumentBuilder<Metadata = unknown, Data = unknown> {
 	private onUpdateHandler?: DatabaseDocumentChangeHandler<Metadata, Data>;
 	private onDeleteHandler?: DatabaseDocumentHandler<Metadata, Data>;
-	private permissionHandler?: DatabasePermissionHandler;
+	private permissionHandler?: DatabaseDocumentPermissionHandler;
 
 	/**
 	 * Construct a new Database document builder
@@ -295,7 +313,7 @@ export class DatabaseDocumentBuilder<Metadata = unknown, Data = unknown> {
 	/**
 	 * Set the security policy handler
 	 */
-	public permission(handler: DatabasePermissionHandler) {
+	public permission(handler: DatabaseDocumentPermissionHandler) {
 		this.permissionHandler = handler;
 		return this;
 	}

@@ -17,7 +17,11 @@ import { SqliteKVProvider } from "https://baseless.dev/x/provider-kv-sqlite/mod.
 import { DatabaseOnKvProvider } from "https://baseless.dev/x/provider-db-on-kv/mod.ts";
 import { createLogger } from "https://baseless.dev/x/logger/mod.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
-import { DatabaseBuilder, DatabasePermissions } from "https://baseless.dev/x/worker/mod.ts";
+import {
+	DatabaseBuilder,
+	DatabaseCollectionPermissions,
+	DatabaseDocumentPermissions,
+} from "https://baseless.dev/x/worker/mod.ts";
 import { DatabaseController } from "./database.ts";
 import { collection, doc } from "https://baseless.dev/x/shared/mod.ts";
 
@@ -60,19 +64,20 @@ Deno.test("create document", async () => {
 	}
 	{ // Create on known collection without Create permission throws
 		const db = new DatabaseBuilder();
-		db.collection("/posts").permission(DatabasePermissions.List);
+		db.collection("/posts").permission(DatabaseCollectionPermissions.List);
 		const dbController = new DatabaseController(db.build());
 		await assertRejects(() => dbController.create(context, doc("/posts/abc"), { title: "A" }));
 	}
 	{ // Create document
 		const db = new DatabaseBuilder();
 		let triggered = 0;
-		db.collection("/posts").permission(DatabasePermissions.List | DatabasePermissions.Create).onCreate(
-			// deno-lint-ignore require-await
-			async () => {
-				triggered++;
-			},
-		);
+		db.collection("/posts").permission(DatabaseCollectionPermissions.List | DatabaseCollectionPermissions.Create)
+			.onCreate(
+				// deno-lint-ignore require-await
+				async () => {
+					triggered++;
+				},
+			);
 		const dbController = new DatabaseController(db.build());
 		assertEquals({}, await dbController.create(context, doc("/posts/abc"), { title: "A" }));
 		assertEquals(triggered, 1);
@@ -91,14 +96,14 @@ Deno.test("get document", async () => {
 	}
 	{ // Get document on known collection without Get permission throws
 		const db = new DatabaseBuilder();
-		db.collection("/posts").permission(DatabasePermissions.List);
+		db.collection("/posts").permission(DatabaseCollectionPermissions.List);
 		const dbController = new DatabaseController(db.build());
 		await assertRejects(() => dbController.get(context, doc("/posts/abc")));
 	}
 	{ // Get document
 		const db = new DatabaseBuilder();
-		db.collection("/posts").permission(DatabasePermissions.List | DatabasePermissions.Create);
-		db.document("/posts/:post").permission(DatabasePermissions.Get);
+		db.collection("/posts").permission(DatabaseCollectionPermissions.List | DatabaseCollectionPermissions.Create);
+		db.document("/posts/:post").permission(DatabaseDocumentPermissions.Get);
 		const dbController = new DatabaseController(db.build());
 
 		await dbController.create(context, doc("/posts/abc"), { title: "A" });
@@ -118,14 +123,14 @@ Deno.test("list documents", async () => {
 	}
 	{ // List document on known collection without List permission throws
 		const db = new DatabaseBuilder();
-		db.collection("/posts").permission(DatabasePermissions.None);
+		db.collection("/posts").permission(DatabaseCollectionPermissions.None);
 		const dbController = new DatabaseController(db.build());
 		await assertRejects(() => dbController.list(context, collection("/posts")));
 	}
 	{ // List documents
 		const db = new DatabaseBuilder();
-		db.collection("/posts").permission(DatabasePermissions.List | DatabasePermissions.Create);
-		db.document("/posts/:post").permission(DatabasePermissions.Get);
+		db.collection("/posts").permission(DatabaseCollectionPermissions.List | DatabaseCollectionPermissions.Create);
+		db.document("/posts/:post").permission(DatabaseDocumentPermissions.Get);
 		const dbController = new DatabaseController(db.build());
 
 		await dbController.create(context, doc("/posts/a"), { title: "A" });
@@ -148,8 +153,8 @@ Deno.test("list documents with filter", async () => {
 
 	{ // List documents
 		const db = new DatabaseBuilder();
-		db.collection("/posts").permission(DatabasePermissions.List | DatabasePermissions.Create);
-		db.document("/posts/:post").permission(DatabasePermissions.Get);
+		db.collection("/posts").permission(DatabaseCollectionPermissions.List | DatabaseCollectionPermissions.Create);
+		db.document("/posts/:post").permission(DatabaseDocumentPermissions.Get);
 		const dbController = new DatabaseController(db.build());
 
 		await dbController.create(context, doc("/posts/a"), { title: "A" });
@@ -176,18 +181,19 @@ Deno.test("update document", async () => {
 	}
 	{ // Update document on known collection without Update permission throws
 		const db = new DatabaseBuilder();
-		db.collection("/posts").permission(DatabasePermissions.List);
+		db.collection("/posts").permission(DatabaseCollectionPermissions.List);
 		const dbController = new DatabaseController(db.build());
 		await assertRejects(() => dbController.update(context, doc("/posts/a"), { title: "AAA" }));
 	}
 	{ // Update document
 		const db = new DatabaseBuilder();
 		let triggered = 0;
-		db.collection("/posts").permission(DatabasePermissions.List | DatabasePermissions.Create);
+		db.collection("/posts").permission(DatabaseCollectionPermissions.List | DatabaseCollectionPermissions.Create);
 		// deno-lint-ignore require-await
-		db.document("/posts/:post").permission(DatabasePermissions.Get | DatabasePermissions.Update).onUpdate(async () => {
-			triggered++;
-		});
+		db.document("/posts/:post").permission(DatabaseDocumentPermissions.Get | DatabaseDocumentPermissions.Update)
+			.onUpdate(async () => {
+				triggered++;
+			});
 		const dbController = new DatabaseController(db.build());
 
 		await dbController.create(context, doc("/posts/a"), { title: "A" });
@@ -211,18 +217,19 @@ Deno.test("delete document", async () => {
 	}
 	{ // Delete document on known collection without Update permission throws
 		const db = new DatabaseBuilder();
-		db.collection("/posts").permission(DatabasePermissions.List);
+		db.collection("/posts").permission(DatabaseCollectionPermissions.List);
 		const dbController = new DatabaseController(db.build());
 		await assertRejects(() => dbController.delete(context, doc("/posts/a")));
 	}
 	{ // Delete document
 		const db = new DatabaseBuilder();
 		let triggered = 0;
-		db.collection("/posts").permission(DatabasePermissions.List | DatabasePermissions.Create);
+		db.collection("/posts").permission(DatabaseCollectionPermissions.List | DatabaseCollectionPermissions.Create);
 		// deno-lint-ignore require-await
-		db.document("/posts/:post").permission(DatabasePermissions.Get | DatabasePermissions.Delete).onDelete(async () => {
-			triggered++;
-		});
+		db.document("/posts/:post").permission(DatabaseDocumentPermissions.Get | DatabaseDocumentPermissions.Delete)
+			.onDelete(async () => {
+				triggered++;
+			});
 		const dbController = new DatabaseController(db.build());
 
 		await dbController.create(context, doc("/posts/a"), { title: "A" });

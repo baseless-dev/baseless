@@ -18,8 +18,9 @@ import {
 	auth,
 	database,
 	DatabaseBuilder,
+	DatabaseCollectionPermissions,
 	DatabaseDescriptor,
-	DatabasePermissions,
+	DatabaseDocumentPermissions,
 	functions,
 	mail,
 	message,
@@ -74,10 +75,10 @@ async function setupApp(server: Server, publicKey: KeyLike) {
 
 Deno.test("create document", async () => {
 	const builder = new DatabaseBuilder();
-	builder.collection("/posts").permission(DatabasePermissions.Create);
-	builder.collection("/users").permission(DatabasePermissions.List);
-	builder.document("/posts/:post").permission(DatabasePermissions.Get);
-	builder.document("/users/:user").permission(DatabasePermissions.Get);
+	builder.collection("/posts").permission(DatabaseCollectionPermissions.Create);
+	builder.collection("/users").permission(DatabaseCollectionPermissions.List);
+	builder.document("/posts/:post").permission(DatabaseDocumentPermissions.Get);
+	builder.document("/users/:user").permission(DatabaseDocumentPermissions.Get);
 	const { server, dispose: disposeServer, publicKey } = await setupServer(builder.build());
 	const { db, dispose: disposeApp } = await setupApp(server, publicKey);
 
@@ -96,8 +97,8 @@ Deno.test("create document", async () => {
 
 Deno.test("list documents", async () => {
 	const builder = new DatabaseBuilder();
-	builder.collection("/posts").permission(DatabasePermissions.Create | DatabasePermissions.List);
-	builder.document("/posts/:post").permission(DatabasePermissions.Get);
+	builder.collection("/posts").permission(DatabaseCollectionPermissions.Create | DatabaseCollectionPermissions.List);
+	builder.document("/posts/:post").permission(DatabaseDocumentPermissions.Get);
 	const { server, dispose: disposeServer, publicKey } = await setupServer(builder.build());
 	const { db, dispose: disposeApp } = await setupApp(server, publicKey);
 
@@ -130,8 +131,8 @@ Deno.test("list documents", async () => {
 
 Deno.test("get document", async () => {
 	const builder = new DatabaseBuilder();
-	builder.collection("/posts").permission(DatabasePermissions.Create | DatabasePermissions.List);
-	builder.document("/posts/:post").permission(DatabasePermissions.Get);
+	builder.collection("/posts").permission(DatabaseCollectionPermissions.Create | DatabaseCollectionPermissions.List);
+	builder.document("/posts/:post").permission(DatabaseDocumentPermissions.Get);
 	const { server, dispose: disposeServer, publicKey } = await setupServer(builder.build());
 	const { db, dispose: disposeApp } = await setupApp(server, publicKey);
 
@@ -154,8 +155,8 @@ Deno.test("get document", async () => {
 
 Deno.test("update document", async () => {
 	const builder = new DatabaseBuilder();
-	builder.collection("/posts").permission(DatabasePermissions.Create | DatabasePermissions.List);
-	builder.document("/posts/:post").permission(DatabasePermissions.Get | DatabasePermissions.Update);
+	builder.collection("/posts").permission(DatabaseCollectionPermissions.Create | DatabaseCollectionPermissions.List);
+	builder.document("/posts/:post").permission(DatabaseDocumentPermissions.Get | DatabaseDocumentPermissions.Update);
 	const { server, dispose: disposeServer, publicKey } = await setupServer(builder.build());
 	const { db, dispose: disposeApp } = await setupApp(server, publicKey);
 
@@ -178,8 +179,8 @@ Deno.test("update document", async () => {
 
 Deno.test("replace document", async () => {
 	const builder = new DatabaseBuilder();
-	builder.collection("/posts").permission(DatabasePermissions.Create | DatabasePermissions.List);
-	builder.document("/posts/:post").permission(DatabasePermissions.Get | DatabasePermissions.Update);
+	builder.collection("/posts").permission(DatabaseCollectionPermissions.Create | DatabaseCollectionPermissions.List);
+	builder.document("/posts/:post").permission(DatabaseDocumentPermissions.Get | DatabaseDocumentPermissions.Update);
 	const { server, dispose: disposeServer, publicKey } = await setupServer(builder.build());
 	const { db, dispose: disposeApp } = await setupApp(server, publicKey);
 
@@ -202,8 +203,8 @@ Deno.test("replace document", async () => {
 
 Deno.test("delete document", async () => {
 	const builder = new DatabaseBuilder();
-	builder.collection("/posts").permission(DatabasePermissions.Create | DatabasePermissions.List);
-	builder.document("/posts/:post").permission(DatabasePermissions.Get | DatabasePermissions.Delete);
+	builder.collection("/posts").permission(DatabaseCollectionPermissions.Create | DatabaseCollectionPermissions.List);
+	builder.document("/posts/:post").permission(DatabaseDocumentPermissions.Get | DatabaseDocumentPermissions.Delete);
 	const { server, dispose: disposeServer, publicKey } = await setupServer(builder.build());
 	const { db, dispose: disposeApp } = await setupApp(server, publicKey);
 

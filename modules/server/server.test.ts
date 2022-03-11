@@ -26,60 +26,14 @@ import {
 	MessageDescriptor,
 	MessagePermissions,
 } from "https://baseless.dev/x/worker/mod.ts";
-import { createLogger } from "https://baseless.dev/x/logger/mod.ts";
+import { createLogger, logger } from "https://baseless.dev/x/logger/mod.ts";
 import { Deferred } from "https://baseless.dev/x/client/utils.ts";
 import { Server } from "./server.ts";
-import type { Context, IMessageProvider, ISession } from "https://baseless.dev/x/provider/mod.ts";
-import { ChannelReference } from "https://baseless.dev/x/shared/message.ts";
-
-class TestMessageProvider implements IMessageProvider {
-	private sessions = new Set<ISession>();
-	private channels = new Map<string, Set<ISession>>();
-
-	// deno-lint-ignore require-await
-	async connect(_context: Context, session: ISession): Promise<void> {
-		this.sessions.add(session);
-		session.socket.send(JSON.stringify({ type: "identify", id: session.id }));
-	}
-	// deno-lint-ignore require-await
-	async disconnect(_context: Context, session: ISession): Promise<void> {
-		this.sessions.delete(session);
-	}
-	// deno-lint-ignore require-await
-	async join(_context: Context, session: ISession, ref: ChannelReference): Promise<void> {
-		const key = ref.toString();
-		if (!this.channels.has(key)) {
-			this.channels.set(key, new Set());
-		}
-		const sessions = this.channels.get(key)!;
-		try {
-			sessions.add(session);
-		} // deno-lint-ignore no-empty
-		catch (_err) {}
-	}
-	// deno-lint-ignore require-await
-	async leave(_context: Context, session: ISession, ref: ChannelReference): Promise<void> {
-		const key = ref.toString();
-		if (this.channels.has(key)) {
-			const sessions = this.channels.get(key)!;
-			sessions.delete(session);
-		}
-	}
-	// deno-lint-ignore require-await
-	async send(_context: Context, from: ISession, ref: ChannelReference, message: string): Promise<void> {
-		const key = ref.toString();
-		if (this.channels.has(key)) {
-			const sessions = this.channels.get(key)!;
-			for (const to of sessions) {
-				to.socket.send(JSON.stringify({ type: "chan.send", ref: ref.toString(), from: from.id, message }));
-			}
-		}
-	}
-}
+import { DenoMessageHub } from "https://baseless.dev/x/provider-message-deno/mod.ts";
 
 async function setupServer(
 	authDescriptor: AuthDescriptor = auth.build(),
-	dbDescriptor: DatabaseDescriptor = database.build(),
+	databaseDescriptor: DatabaseDescriptor = database.build(),
 	functionsDescriptor: FunctionsDescriptor = functions.build(),
 	mailDescriptor: MailDescriptor = mail.build(),
 	messageDescriptor: MessageDescriptor = message.build(),
@@ -89,14 +43,14 @@ async function setupServer(
 
 	const authProvider = new AuthOnKvProvider(authStorage);
 	const kvProvider = new SqliteKVProvider(":memory:");
-	const dbProvider = new DatabaseOnKvProvider(dbStorage);
+	const databaseProvider = new DatabaseOnKvProvider(dbStorage);
 
 	const { privateKey, publicKey } = await generateKeyPair("RS256");
 	const clientProvider = new MemoryClientProvider([
 		new Client("foo", "Foobar", ["http://example.org"], "RS256", publicKey, privateKey),
 	]);
 
-	const messageProvider = new TestMessageProvider();
+	const messageHub = new DenoMessageHub(messageDescriptor);
 
 	await authStorage.open();
 	const dispose = async () => {
@@ -105,19 +59,18 @@ async function setupServer(
 		await kvProvider.close();
 	};
 
-	const server = new Server(
+	const server = new Server({
 		authDescriptor,
-		dbDescriptor,
+		databaseDescriptor,
 		functionsDescriptor,
 		mailDescriptor,
 		messageDescriptor,
 		clientProvider,
 		authProvider,
 		kvProvider,
-		dbProvider,
-		undefined,
-		messageProvider,
-	);
+		databaseProvider,
+		messageHub,
+	});
 
 	return { server, dispose };
 }
@@ -307,23 +260,23 @@ Deno.test("request with invalid access token returns 200", async () => {
 async function assertOnMessage(websocket: WebSocket, message?: string, timeout = 2 * 1000): Promise<void> {
 	const msg = await getOneMessage(websocket, timeout);
 	if (message) {
-		assertEquals(msg, message);
+		assertEquals(msg, message, `Expected ${message}, got ${msg}.`);
 	}
 }
 
 function getOneMessage(websocket: WebSocket, timeout = 2 * 1000): Promise<string> {
 	const defer = new Deferred<string>();
 
-	const timer = setTimeout(() => defer.reject(), timeout);
+	const timer = setTimeout(() => {
+		assertEquals(true, false, `Expected a message, timeout reached.`);
+		defer.reject();
+	}, timeout);
 	defer.promise.finally(() => {
 		websocket.onmessage = null;
 		clearTimeout(timer);
 	});
 
-	websocket.onmessage = (event) => {
-		websocket.onmessage = null;
-		defer.resolve(event.data);
-	};
+	websocket.onmessage = (event) => defer.resolve(event.data);
 
 	return defer.promise;
 }
@@ -342,16 +295,6 @@ function assertOnClose(websocket: WebSocket, timeout = 2 * 1000): Promise<void> 
 	return defer.promise;
 }
 
-// deno-lint-ignore require-await
-async function denoWebSocketUpgrader(request: Request): Promise<[Response, WebSocket | null]> {
-	const upgrade = Deno.upgradeWebSocket(request);
-	if (upgrade) {
-		const { response, socket } = upgrade;
-		return [response, socket];
-	}
-	return [new Response(null, { status: 500 }), null];
-}
-
 Deno.test("request upgrade websocket with missing client_id param returns 401", async () => {
 	const { server, dispose } = await setupServer();
 	const listener = Deno.listen({ port: 31000 });
@@ -364,7 +307,7 @@ Deno.test("request upgrade websocket with missing client_id param returns 401", 
 		assertExists(event);
 		const { respondWith, request } = event!;
 
-		const [response] = await server.handleWebSocket(request, denoWebSocketUpgrader);
+		const [response] = await server.handleRequest(request);
 		assertEquals(response.status, 401);
 		await respondWith(response);
 		httpConn.close();
@@ -389,7 +332,7 @@ Deno.test("request upgrade websocket with unknown client_id param returns 401", 
 		assertExists(event);
 		const { respondWith, request } = event!;
 
-		const [response] = await server.handleWebSocket(request, denoWebSocketUpgrader);
+		const [response] = await server.handleRequest(request);
 		assertEquals(response.status, 401);
 		await respondWith(response);
 		httpConn.close();
@@ -414,7 +357,7 @@ Deno.test("websocket with message permission none returns 401", async () => {
 		assertExists(event);
 		const { respondWith, request } = event!;
 
-		const [response] = await server.handleWebSocket(request, denoWebSocketUpgrader);
+		const [response] = await server.handleRequest(request);
 		assertEquals(response.status, 401);
 		await respondWith(response);
 		httpConn.close();
@@ -439,7 +382,7 @@ Deno.test("websocket with message permission connect returns 101", async () => {
 		assertExists(event);
 		const { respondWith, request } = event!;
 
-		const [response] = await server.handleWebSocket(request, denoWebSocketUpgrader);
+		const [response] = await server.handleRequest(request);
 		assertEquals(response.status, 101);
 		await respondWith(response);
 		httpConn.close();
@@ -448,8 +391,8 @@ Deno.test("websocket with message permission connect returns 101", async () => {
 	assertEquals(ws.readyState, ws.OPEN);
 	const data = await getOneMessage(ws);
 	const msg = JSON.parse(data);
-	assertEquals(msg.type, "identify");
-	assertExists(msg.id);
+	assertExists(msg.session);
+	assertExists(msg.session.id);
 
 	ws.close();
 	await assertOnClose(ws);
@@ -470,7 +413,7 @@ Deno.test("websocket joins unknown channel returns ChannelNotFoundError", async 
 		assertExists(event);
 		const { respondWith, request } = event!;
 
-		const [response] = await server.handleWebSocket(request, denoWebSocketUpgrader);
+		const [response] = await server.handleRequest(request);
 		assertEquals(response.status, 101);
 		await respondWith(response);
 		httpConn.close();
@@ -504,7 +447,7 @@ Deno.test("websocket joins channel without join permission returns ChannelPermis
 		assertExists(event);
 		const { respondWith, request } = event!;
 
-		const [response] = await server.handleWebSocket(request, denoWebSocketUpgrader);
+		const [response] = await server.handleRequest(request);
 		assertEquals(response.status, 101);
 		await respondWith(response);
 		httpConn.close();
@@ -538,7 +481,7 @@ Deno.test("websocket send message to channel without send permission returns Cha
 		assertExists(event);
 		const { respondWith, request } = event!;
 
-		const [response] = await server.handleWebSocket(request, denoWebSocketUpgrader);
+		const [response] = await server.handleRequest(request);
 		assertEquals(response.status, 101);
 		await respondWith(response);
 		httpConn.close();
@@ -562,39 +505,68 @@ Deno.test("websocket send message to channel without send permission returns Cha
 
 Deno.test("websocket send message to channel broadcast back message", async () => {
 	const msgBuilder = new MessageBuilder().permission(MessagePermissions.Connect);
-	msgBuilder.channel("/chat/:chatId").permission(ChannelPermissions.Join | ChannelPermissions.Send);
+	msgBuilder
+		.channel("/chat/:chatId")
+		.permission(ChannelPermissions.Join | ChannelPermissions.Send)
+		// deno-lint-ignore require-await
+		.onMessage(async (_ctx, chan, _from, msg, { chatId }) => {
+			for (const participant of chan.participants) {
+				participant.session.socket.send(msg);
+			}
+		});
 	const { server, dispose } = await setupServer(undefined, undefined, undefined, undefined, msgBuilder.build());
 	const listener = Deno.listen({ port: 31000 });
-	const accepting = listener.accept();
-	const ws = new WebSocket("ws://127.0.0.1:31000/?client_id=foo");
+	const ws1 = new WebSocket("ws://127.0.0.1:31000/?client_id=foo");
 	{
-		const conn = await accepting;
+		const conn = await listener.accept();
 		const httpConn = Deno.serveHttp(conn);
 		const event = await httpConn.nextRequest();
 		assertExists(event);
 		const { respondWith, request } = event!;
 
-		const [response] = await server.handleWebSocket(request, denoWebSocketUpgrader);
+		const [response] = await server.handleRequest(request);
 		assertEquals(response.status, 101);
 		await respondWith(response);
 		httpConn.close();
 	}
 
-	assertEquals(ws.readyState, ws.OPEN);
+	assertEquals(ws1.readyState, ws1.OPEN);
+	await getOneMessage(ws1);
 
-	const msg = JSON.parse(await getOneMessage(ws));
-	const sessionId = msg.id;
+	const ws2 = new WebSocket("ws://127.0.0.1:31000/?client_id=foo");
+	{
+		const conn = await listener.accept();
+		const httpConn = Deno.serveHttp(conn);
+		const event = await httpConn.nextRequest();
+		assertExists(event);
+		const { respondWith, request } = event!;
 
-	ws.send(JSON.stringify({ id: "1", type: "chan.join", ref: "/chat/abc" }));
-	await assertOnMessage(ws, JSON.stringify({ id: "1" }));
-	ws.send(JSON.stringify({ id: "2", type: "chan.send", ref: "/chat/abc", message: "foo" }));
-	await assertOnMessage(ws, JSON.stringify({ id: "2" }));
-	await assertOnMessage(ws, JSON.stringify({ type: "chan.send", ref: "/chat/abc", from: sessionId, message: "foo" }));
+		const [response] = await server.handleRequest(request);
+		assertEquals(response.status, 101);
+		await respondWith(response);
+		httpConn.close();
+	}
+
+	assertEquals(ws2.readyState, ws2.OPEN);
+	await getOneMessage(ws2);
+
+	ws1.send(JSON.stringify({ id: "1", type: "chan.join", ref: "/chat/abc" }));
+	await assertOnMessage(ws1, JSON.stringify({ id: "1" }));
+	ws2.send(JSON.stringify({ id: "2", type: "chan.join", ref: "/chat/abc" }));
+	await assertOnMessage(ws2, JSON.stringify({ id: "2" }));
+	ws1.send(JSON.stringify({ id: "3", type: "chan.send", ref: "/chat/abc", message: "foo" }));
+	await Promise.all([
+		assertOnMessage(ws1, JSON.stringify({ id: "3" })),
+		assertOnMessage(ws2, "foo"),
+	]);
+	await assertOnMessage(ws1, "foo");
 
 	await new Promise((r) => setTimeout(r, 100));
 
-	ws.close();
-	await assertOnClose(ws);
+	ws1.close();
+	ws2.close();
+	await assertOnClose(ws1);
+	await assertOnClose(ws2);
 	listener.close();
 	await dispose();
 });

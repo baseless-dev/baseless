@@ -1,5 +1,5 @@
 import type { Message } from "https://baseless.dev/x/shared/mail.ts";
-import { NoopProviderError } from "./mod.ts";
+import { NoopError } from "./mod.ts";
 
 /**
  * Mail Provider
@@ -18,6 +18,6 @@ export interface IMailProvider {
  */
 export class NoopMailProvider implements IMailProvider {
 	public send() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 }

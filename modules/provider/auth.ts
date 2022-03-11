@@ -1,6 +1,6 @@
 import type { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
 import { User } from "https://baseless.dev/x/shared/auth.ts";
-import { NoopProviderError } from "./mod.ts";
+import { NoopError } from "./mod.ts";
 
 /**
  * Auth Provider
@@ -101,54 +101,54 @@ export interface IAuthProvider {
  */
 export class NoopAuthProvider implements IAuthProvider {
 	getUser() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	getUserByEmail() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	createUser() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	updateUser() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	deleteUser() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	getSignInMethods() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	addSignInMethodPassword() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	updatePassword() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	signInWithEmailPassword() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	setEmailValidationCode() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	validateEmailWithCode() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	setPasswordResetCode() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	resetPasswordWithCode() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 }

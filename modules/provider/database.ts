@@ -1,6 +1,6 @@
 import { CollectionReference, DatabaseScanFilter, DocumentReference } from "https://baseless.dev/x/shared/database.ts";
 import type { KVSetOptions } from "./kv.ts";
-import { NoopProviderError } from "./mod.ts";
+import { NoopError } from "./mod.ts";
 
 /**
  * Document
@@ -89,26 +89,26 @@ export interface IDatabaseProvider {
  */
 export class NoopDatabaseProvider implements IDatabaseProvider {
 	get() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	list() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	create() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	update() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	replace() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	delete() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 }

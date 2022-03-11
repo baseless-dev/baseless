@@ -1,5 +1,5 @@
 import type { IKVValue, KVData, KVScanFilter } from "https://baseless.dev/x/shared/kv.ts";
-import { NoopProviderError } from "./mod.ts";
+import { NoopError } from "./mod.ts";
 
 export type { KVScanFilter } from "https://baseless.dev/x/shared/kv.ts";
 
@@ -68,18 +68,18 @@ export interface IKVProvider {
  */
 export class NoopKVProvider implements IKVProvider {
 	get() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	list() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	set() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 
 	delete() {
-		return Promise.reject(new NoopProviderError());
+		return Promise.reject(new NoopError());
 	}
 }

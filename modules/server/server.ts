@@ -1,64 +1,93 @@
 import {
-	IMessageProvider,
+	Client,
 	NoopAuthProvider,
-	NoopChannelProvider,
 	NoopDatabaseProvider,
 	NoopKVProvider,
 	NoopMailProvider,
-	NoopMessageProvider,
+	NoopMessageHub,
 } from "https://baseless.dev/x/provider/mod.ts";
 import type {
 	IAuthProvider,
-	IChannelProvider,
 	IClientProvider,
 	IDatabaseProvider,
 	IKVProvider,
 	IMailProvider,
+	IMessageHub,
 } from "https://baseless.dev/x/provider/mod.ts";
 import { logger } from "https://baseless.dev/x/logger/mod.ts";
 import { AuthController } from "./auth.ts";
 import { DatabaseController } from "./database.ts";
-import { MessageController } from "./message.ts";
-import { commandValidator } from "./schema.ts";
-import type { Command, Commands, Result, Results } from "./schema.ts";
+import { commandValidator } from "https://baseless.dev/x/shared/schema.ts";
+import type { Command, Commands, Result, Results } from "https://baseless.dev/x/shared/schema.ts";
 import type { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
 import { UnknownError } from "https://baseless.dev/x/shared/server.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
 import type { Context } from "https://baseless.dev/x/provider/context.ts";
 import { collection, doc } from "https://baseless.dev/x/shared/database.ts";
 import { ClientNotFoundError } from "https://baseless.dev/x/shared/client.ts";
-import type {
+import {
 	AuthDescriptor,
 	DatabaseDescriptor,
 	FunctionsDescriptor,
-	FunctionsHttpHandler,
 	MailDescriptor,
 	MessageDescriptor,
+	MessagePermissions,
 } from "https://baseless.dev/x/worker/mod.ts";
 
 export class Server {
 	private logger = logger("server");
 	private authController: AuthController;
 	private databaseController: DatabaseController;
-	private messageController: MessageController;
+	public authDescriptor: AuthDescriptor;
+	public databaseDescriptor: DatabaseDescriptor;
+	public functionsDescriptor: FunctionsDescriptor;
+	public mailDescriptor: MailDescriptor;
+	public messageDescriptor: MessageDescriptor;
+	private clientProvider: IClientProvider;
+	private authProvider: IAuthProvider;
+	private kvProvider: IKVProvider;
+	private databaseProvider: IDatabaseProvider;
+	private mailProvider: IMailProvider;
+	private messageHub: IMessageHub;
 
-	public constructor(
-		private authDescriptor: AuthDescriptor,
-		private databaseDescriptor: DatabaseDescriptor,
-		private functionsDescriptor: FunctionsDescriptor,
-		private mailDescriptor: MailDescriptor,
-		private messageDescriptor: MessageDescriptor,
-		private clientProvider: IClientProvider,
-		private authProvider: IAuthProvider = new NoopAuthProvider(),
-		private kvProvider: IKVProvider = new NoopKVProvider(),
-		private databaseProvider: IDatabaseProvider = new NoopDatabaseProvider(),
-		private mailProvider: IMailProvider = new NoopMailProvider(),
-		private messageProvider: IMessageProvider = new NoopMessageProvider(),
-		private channelProvider: IChannelProvider = new NoopChannelProvider(),
-	) {
+	public constructor({
+		authDescriptor,
+		databaseDescriptor,
+		functionsDescriptor,
+		mailDescriptor,
+		messageDescriptor,
+		clientProvider,
+		authProvider,
+		kvProvider,
+		databaseProvider,
+		mailProvider,
+		messageHub,
+	}: {
+		authDescriptor: AuthDescriptor;
+		databaseDescriptor: DatabaseDescriptor;
+		functionsDescriptor: FunctionsDescriptor;
+		mailDescriptor: MailDescriptor;
+		messageDescriptor: MessageDescriptor;
+		clientProvider: IClientProvider;
+		authProvider?: IAuthProvider;
+		kvProvider?: IKVProvider;
+		databaseProvider?: IDatabaseProvider;
+		mailProvider?: IMailProvider;
+		messageHub?: IMessageHub;
+	}) {
+		this.authDescriptor = authDescriptor;
+		this.databaseDescriptor = databaseDescriptor;
+		this.functionsDescriptor = functionsDescriptor;
+		this.mailDescriptor = mailDescriptor;
+		this.messageDescriptor = messageDescriptor;
+		this.clientProvider = clientProvider;
+		this.authProvider = authProvider ?? new NoopAuthProvider();
+		this.kvProvider = kvProvider ?? new NoopKVProvider();
+		this.databaseProvider = databaseProvider ?? new NoopDatabaseProvider();
+		this.mailProvider = mailProvider ?? new NoopMailProvider();
+		this.messageHub = messageHub ?? new NoopMessageHub();
 		this.authController = new AuthController(this.authDescriptor);
 		this.databaseController = new DatabaseController(this.databaseDescriptor);
-		this.messageController = new MessageController(this.messageDescriptor, this.messageProvider);
 	}
 
 	/**
@@ -74,19 +103,74 @@ export class Server {
 			},
 		};
 
-		// Request must include a clientid in it's header
-		if (!request.headers.has("X-BASELESS-CLIENT-ID")) {
-			return [
-				new Response(null, {
-					...responseInit,
-					status: 401,
-				}),
-				[],
-			];
-		}
+		const upgrade = request.headers.get("Upgrade");
+		const url = new URL(request.url);
 
-		const client_id = request.headers.get("X-BASELESS-CLIENT-ID") ?? "";
-		const client = await this.clientProvider?.getClientById(client_id).catch((_) => undefined);
+		let client_id = "";
+		let client: Client | undefined;
+
+		if (upgrade === "websocket") {
+			// Request must include a client_id in it's params
+			if (url.searchParams.get("client_id") === null) {
+				return [
+					new Response(null, {
+						...responseInit,
+						status: 401,
+					}),
+					[],
+				];
+			}
+
+			client_id = url.searchParams.get("client_id") ?? "";
+			client = await this.clientProvider?.getClientById(client_id).catch((_) => undefined);
+		} else {
+			// Request must include a clientid in it's header
+			if (!request.headers.has("X-BASELESS-CLIENT-ID")) {
+				return [
+					new Response(null, {
+						...responseInit,
+						status: 401,
+					}),
+					[],
+				];
+			}
+
+			client_id = request.headers.get("X-BASELESS-CLIENT-ID") ?? "";
+			client = await this.clientProvider?.getClientById(client_id).catch((_) => undefined);
+
+			// Clientid must match a registered client
+			if (!client) {
+				this.logger.info(`Client ID "${client_id}" not found.`);
+				return [
+					new Response(null, {
+						...responseInit,
+						status: 401,
+					}),
+					[],
+				];
+			}
+
+			const originUrl = request.headers.get("Origin");
+
+			// Request's Origin be in client's url
+			if (!originUrl || !client.url.some((url) => url.indexOf(originUrl) > -1)) {
+				this.logger.info(
+					`Request's Origin not allowed for client "${client_id}".`,
+				);
+				return [
+					new Response(null, {
+						...responseInit,
+						status: 401,
+					}),
+					[],
+				];
+			}
+
+			responseInit.headers = {
+				...responseInit.headers,
+				"Access-Control-Allow-Origin": originUrl,
+			};
+		}
 
 		// Clientid must match a registered client
 		if (!client) {
@@ -100,50 +184,47 @@ export class Server {
 			];
 		}
 
-		const originUrl = request.headers.get("Origin");
-
-		// Request's Origin be in client's url
-		if (!originUrl || !client.url.some((url) => url.indexOf(originUrl) > -1)) {
-			this.logger.info(
-				`Request's Origin not allowed for client "${client_id}".`,
-			);
-			return [
-				new Response(null, {
-					...responseInit,
-					status: 401,
-				}),
-				[],
-			];
-		}
-
-		responseInit.headers = {
-			...responseInit.headers,
-			"Access-Control-Allow-Origin": originUrl,
-		};
-
 		let currentUserId: AuthIdentifier | undefined;
-		if (request.headers.get("Authorization")) {
-			const authorization = request.headers.get("Authorization") ?? "";
-			const match = authorization.match(/(?<scheme>[^ ]+) (?<params>.+)/);
-			if (match) {
-				const scheme = match.groups?.scheme.toLowerCase() ?? "";
-				const params = match.groups?.params ?? "";
-				if (scheme === "bearer") {
-					try {
-						const { payload } = await jwtVerify(params, client.publicKey, {
-							issuer: client.principal,
-							audience: client.principal,
-						});
-						currentUserId = payload.sub ?? "";
-					} catch (err) {
+
+		if (upgrade === "websocket") {
+			if (url.searchParams.get("access_token")) {
+				const access_token = url.searchParams.get("access_token") ?? "";
+				try {
+					const { payload } = await jwtVerify(access_token, client.publicKey, {
+						issuer: client.principal,
+						audience: client.principal,
+					});
+					currentUserId = payload.sub ?? "";
+				} catch (err) {
+					this.logger.warn(
+						`Could not parse access_token param, got error : ${err}`,
+					);
+				}
+			}
+		} else {
+			if (request.headers.get("Authorization")) {
+				const authorization = request.headers.get("Authorization") ?? "";
+				const match = authorization.match(/(?<scheme>[^ ]+) (?<params>.+)/);
+				if (match) {
+					const scheme = match.groups?.scheme.toLowerCase() ?? "";
+					const params = match.groups?.params ?? "";
+					if (scheme === "bearer") {
+						try {
+							const { payload } = await jwtVerify(params, client.publicKey, {
+								issuer: client.principal,
+								audience: client.principal,
+							});
+							currentUserId = payload.sub ?? "";
+						} catch (err) {
+							this.logger.warn(
+								`Could not parse Authorization header, got error : ${err}`,
+							);
+						}
+					} else {
 						this.logger.warn(
-							`Could not parse Authorization header, got error : ${err}`,
+							`Unknown authorization scheme "${scheme}".`,
 						);
 					}
-				} else {
-					this.logger.warn(
-						`Unknown authorization scheme "${scheme}".`,
-					);
 				}
 			}
 		}
@@ -156,13 +237,12 @@ export class Server {
 			kv: this.kvProvider,
 			database: this.databaseProvider,
 			mail: this.mailProvider,
-			channel: this.channelProvider,
+			// channel: this.channelProvider,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},
 		};
 
-		const url = new URL(request.url);
 		this.logger.info(`${request.method} ${url.pathname}`);
 
 		if (request.method === "OPTIONS") {
@@ -173,6 +253,29 @@ export class Server {
 				}),
 				waitUntilCollection,
 			];
+		}
+
+		if (upgrade === "websocket") {
+			const permission = await this.messageDescriptor.permission(context);
+
+			// Does not have connect permission
+			if ((permission & MessagePermissions.Connect) === 0) {
+				return [
+					new Response(null, { status: 401 }),
+					[],
+				];
+			}
+
+			try {
+				const response = await this.messageHub.upgrade(request, context);
+				return [response, []];
+			} catch (err) {
+				this.logger.error(`Could not upgrade request to WebSocket, got ${err}`);
+				return [
+					new Response(null, { status: 500 }),
+					[],
+				];
+			}
 		}
 
 		if (url.pathname.length > 1) {
@@ -283,94 +386,6 @@ export class Server {
 	}
 
 	/**
-	 * Handle a `Request` that may contain a set of `Commands`
-	 */
-	public async handleWebSocket(
-		request: Request,
-		upgrader: (request: Request) => Promise<[Response, WebSocket | null]>,
-	): Promise<[Response, PromiseLike<unknown>[]]> {
-		const responseInit: ResponseInit = {
-			headers: {
-				"Access-Control-Allow-Origin": "*",
-				"Access-Control-Allow-Headers": "Origin, Authorization, Content-Type, X-BASELESS-CLIENT-ID",
-			},
-		};
-
-		const url = new URL(request.url);
-
-		// Request must include a client_id in it's params
-		if (url.searchParams.get("client_id") === null) {
-			return [
-				new Response(null, {
-					...responseInit,
-					status: 401,
-				}),
-				[],
-			];
-		}
-
-		const client_id = url.searchParams.get("client_id") ?? "";
-		const client = await this.clientProvider?.getClientById(client_id).catch((_) => undefined);
-
-		// Clientid must match a registered client
-		if (!client) {
-			this.logger.info(`Client ID "${client_id}" not found.`);
-			return [
-				new Response(null, {
-					...responseInit,
-					status: 401,
-				}),
-				[],
-			];
-		}
-
-		let currentUserId: AuthIdentifier | undefined;
-		if (url.searchParams.get("access_token")) {
-			const access_token = url.searchParams.get("access_token") ?? "";
-			try {
-				const { payload } = await jwtVerify(access_token, client.publicKey, {
-					issuer: client.principal,
-					audience: client.principal,
-				});
-				currentUserId = payload.sub ?? "";
-			} catch (err) {
-				this.logger.warn(
-					`Could not parse access_token param, got error : ${err}`,
-				);
-			}
-		}
-
-		const waitUntilCollection: PromiseLike<unknown>[] = [];
-		const context: Context = {
-			client,
-			currentUserId,
-			auth: this.authProvider,
-			kv: this.kvProvider,
-			database: this.databaseProvider,
-			mail: this.mailProvider,
-			channel: this.channelProvider,
-			waitUntil(promise) {
-				waitUntilCollection.push(promise);
-			},
-		};
-
-		try {
-			return this.messageController.accept(request, context, upgrader);
-		} catch (err) {
-			this.logger.warn(
-				`Could not accept WebSocket, got error : ${err}`,
-			);
-			return [
-				new Response(null, {
-					...responseInit,
-					status: 500,
-				}),
-				[],
-			];
-		}
-	}
-
-	/**
 	 * Handle a command
 	 */
 	public async handleCommand(clientId: string, access_token: string | undefined, command: Command): Promise<Result> {
@@ -403,7 +418,7 @@ export class Server {
 			kv: this.kvProvider,
 			database: this.databaseProvider,
 			mail: this.mailProvider,
-			channel: this.channelProvider,
+			// channel: this.channelProvider,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},

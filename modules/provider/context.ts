@@ -42,7 +42,7 @@ export interface Context {
 	/**
 	 * Message provider
 	 */
-	readonly channel: IChannelProvider;
+	// readonly channel: IChannelProvider;
 
 	/**
 	 * Extend the lifetime of the request until the promise is done without blocking the response

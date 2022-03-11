@@ -56,15 +56,15 @@ async function setupServer(
 		await authStorage.close();
 	};
 
-	const server = new Server(
+	const server = new Server({
 		authDescriptor,
-		database.build(),
-		functions.build(),
-		mail.build(),
-		message.build(),
+		databaseDescriptor: database.build(),
+		functionsDescriptor: functions.build(),
+		mailDescriptor: mail.build(),
+		messageDescriptor: message.build(),
 		clientProvider,
 		authProvider,
-	);
+	});
 
 	return { server, dispose, publicKey };
 }

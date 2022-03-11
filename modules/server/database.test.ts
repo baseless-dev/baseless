@@ -41,7 +41,7 @@ async function setupContext() {
 		kv: new NoopKVProvider(),
 		database: new DatabaseOnKvProvider(db),
 		mail: new NoopMailProvider(),
-		channel: new NoopChannelProvider(),
+		// channel: new NoopChannelProvider(),
 		waitUntil(promise) {
 			waitUntilCollection.push(promise);
 		},

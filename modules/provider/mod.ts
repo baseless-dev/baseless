@@ -7,8 +7,8 @@ export * from "./mail.ts";
 export * from "./message.ts";
 
 /**
- * Noop Provider Error
+ * Noop Error
  */
-export class NoopProviderError extends Error {
-	public name = "NoopProviderError";
+export class NoopError extends Error {
+	public name = "NoopError";
 }

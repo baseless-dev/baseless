@@ -1,5 +1,5 @@
 import { Context } from "https://baseless.dev/x/provider/context.ts";
-import { IChannel, ISession } from "https://baseless.dev/x/provider/message.ts";
+import { IChannel, IParticipant } from "https://baseless.dev/x/provider/message.ts";
 
 function refToRegExp(ref: string) {
 	return new RegExp(`^${ref.replace(/:([\w]+)/g, "(?<$1>[^/]+)")}$`);
@@ -53,7 +53,7 @@ export type ChannelSessionHandler<
 > = (
 	context: Context,
 	channel: IChannel<ChannelMetadata>,
-	session: ISession,
+	participant: IParticipant,
 	params: Record<string, string>,
 ) => Promise<void>;
 
@@ -63,7 +63,7 @@ export type ChannelSessionHandler<
 export type ChannelMessageHandler<ChannelMetadata> = (
 	context: Context,
 	channel: IChannel<ChannelMetadata>,
-	session: ISession,
+	participant: IParticipant,
 	message: string | ArrayBufferLike | Blob | ArrayBufferView,
 	params: Record<string, string>,
 ) => Promise<void>;
@@ -100,29 +100,29 @@ export class ChannelDescriptor {
 	public onJoin(
 		context: Context,
 		channel: IChannel<unknown>,
-		session: ISession,
+		participant: IParticipant,
 		params: Record<string, string>,
 	): Promise<void> {
-		return this.onJoinHandler?.(context, channel, session, params) ?? Promise.resolve();
+		return this.onJoinHandler?.(context, channel, participant, params) ?? Promise.resolve();
 	}
 
 	public onMessage(
 		context: Context,
 		channel: IChannel<unknown>,
-		session: ISession,
+		participant: IParticipant,
 		message: string | ArrayBufferLike | Blob | ArrayBufferView,
 		params: Record<string, string>,
 	): Promise<void> {
-		return this.onMessageHandler?.(context, channel, session, message, params) ?? Promise.resolve();
+		return this.onMessageHandler?.(context, channel, participant, message, params) ?? Promise.resolve();
 	}
 
 	public onLeave(
 		context: Context,
 		channel: IChannel<unknown>,
-		session: ISession,
+		participant: IParticipant,
 		params: Record<string, string>,
 	): Promise<void> {
-		return this.onLeaveHandler?.(context, channel, session, params) ?? Promise.resolve();
+		return this.onLeaveHandler?.(context, channel, participant, params) ?? Promise.resolve();
 	}
 
 	public onEmpty(context: Context, channel: IChannel<unknown>, params: Record<string, string>): Promise<void> {
@@ -187,10 +187,10 @@ export class MessageBuilder {
 	 */
 	public channel<ChannelMetadata = Record<never, never>>(
 		reference: string,
-	): ChannelBuilder<ChannelMetadata> {
+	): ChannelBuilder {
 		const builder = new ChannelBuilder(reference);
 		this.channels.add(builder);
-		return builder as unknown as ChannelBuilder<ChannelMetadata>;
+		return builder as unknown as ChannelBuilder;
 	}
 
 	/**
@@ -205,13 +205,13 @@ export class MessageBuilder {
 /**
  * Channel builder
  */
-export class ChannelBuilder<ChannelMetadata = Record<never, never>> {
-	private onCreateHandler?: ChannelHandler<ChannelMetadata>;
+export class ChannelBuilder {
+	private onCreateHandler?: ChannelHandler<unknown>;
 
-	private onJoinHandler?: ChannelSessionHandler<ChannelMetadata>;
-	private onMessageHandler?: ChannelMessageHandler<ChannelMetadata>;
-	private onLeaveHandler?: ChannelSessionHandler<ChannelMetadata>;
-	private onEmptyHandler?: ChannelHandler<ChannelMetadata>;
+	private onJoinHandler?: ChannelSessionHandler<unknown>;
+	private onMessageHandler?: ChannelMessageHandler<unknown>;
+	private onLeaveHandler?: ChannelSessionHandler<unknown>;
+	private onEmptyHandler?: ChannelHandler<unknown>;
 	private permissionHandler?: ChannelPermissionHandler;
 
 	/**
@@ -237,7 +237,7 @@ export class ChannelBuilder<ChannelMetadata = Record<never, never>> {
 	/**
 	 * Set the create handler
 	 */
-	public onCreate(handler: ChannelHandler<ChannelMetadata>) {
+	public onCreate(handler: ChannelHandler<unknown>) {
 		this.onCreateHandler = handler;
 		return this;
 	}
@@ -245,7 +245,7 @@ export class ChannelBuilder<ChannelMetadata = Record<never, never>> {
 	/**
 	 * Set the create handler
 	 */
-	public onJoin(handler: ChannelSessionHandler<ChannelMetadata>) {
+	public onJoin(handler: ChannelSessionHandler<unknown>) {
 		this.onJoinHandler = handler;
 		return this;
 	}
@@ -253,7 +253,7 @@ export class ChannelBuilder<ChannelMetadata = Record<never, never>> {
 	/**
 	 * Set the create handler
 	 */
-	public onMessage(handler: ChannelMessageHandler<ChannelMetadata>) {
+	public onMessage(handler: ChannelMessageHandler<unknown>) {
 		this.onMessageHandler = handler;
 		return this;
 	}
@@ -261,7 +261,7 @@ export class ChannelBuilder<ChannelMetadata = Record<never, never>> {
 	/**
 	 * Set the create handler
 	 */
-	public onLeave(handler: ChannelSessionHandler<ChannelMetadata>) {
+	public onLeave(handler: ChannelSessionHandler<unknown>) {
 		this.onLeaveHandler = handler;
 		return this;
 	}
@@ -269,7 +269,7 @@ export class ChannelBuilder<ChannelMetadata = Record<never, never>> {
 	/**
 	 * Set the create handler
 	 */
-	public onEmpty(handler: ChannelHandler<ChannelMetadata>) {
+	public onEmpty(handler: ChannelHandler<unknown>) {
 		this.onEmptyHandler = handler;
 		return this;
 	}

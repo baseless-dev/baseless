@@ -29,10 +29,10 @@ import { createLogger } from "https://baseless.dev/x/logger/mod.ts";
 import { collection, createDoc, deleteDoc, doc, getDatabase, getDoc, getDocs, replaceDoc, updateDoc } from "./db.ts";
 
 async function setupServer(
-	dbDescriptor: DatabaseDescriptor = database.build(),
+	databaseDescriptor: DatabaseDescriptor = database.build(),
 ) {
 	const dbStorage = new SqliteKVProvider(":memory:");
-	const dbProvider = new DatabaseOnKvProvider(dbStorage);
+	const databaseProvider = new DatabaseOnKvProvider(dbStorage);
 
 	const { privateKey, publicKey } = await generateKeyPair("RS256");
 	const clientProvider = new MemoryClientProvider([
@@ -44,17 +44,15 @@ async function setupServer(
 		await dbStorage.close();
 	};
 
-	const server = new Server(
-		auth.build(),
-		dbDescriptor,
-		functions.build(),
-		mail.build(),
-		message.build(),
+	const server = new Server({
+		authDescriptor: auth.build(),
+		databaseDescriptor,
+		functionsDescriptor: functions.build(),
+		mailDescriptor: mail.build(),
+		messageDescriptor: message.build(),
 		clientProvider,
-		undefined,
-		undefined,
-		dbProvider,
-	);
+		databaseProvider,
+	});
 
 	return { server, dispose, publicKey };
 }

@@ -11,7 +11,7 @@ import {
 	DocumentReference,
 	UpdateDocumentError,
 } from "https://baseless.dev/x/shared/database.ts";
-import { Result } from "./schema.ts";
+import { Result } from "https://baseless.dev/x/shared/schema.ts";
 import {
 	DatabaseCollectionPermissions,
 	DatabaseDescriptor,

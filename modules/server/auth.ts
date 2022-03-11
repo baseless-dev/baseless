@@ -17,7 +17,7 @@ import { Client } from "https://baseless.dev/x/provider/client.ts";
 import { autoid } from "https://baseless.dev/x/shared/autoid.ts";
 import { SignJWT } from "https://deno.land/x/jose@v4.3.7/jwt/sign.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.3.7/jwt/verify.ts";
-import { Result } from "./schema.ts";
+import { Result } from "https://baseless.dev/x/shared/schema.ts";
 import { logger } from "https://baseless.dev/x/logger/mod.ts";
 import { AuthDescriptor } from "https://baseless.dev/x/worker/auth.ts";
 

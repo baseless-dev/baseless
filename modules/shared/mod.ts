@@ -7,3 +7,4 @@ export * from "./mail.ts";
 export * from "./message.ts";
 export * from "./dispose.ts";
 export * from "./server.ts";
+export * from "./schema.ts";

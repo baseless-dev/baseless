@@ -1,5 +1,6 @@
-import { Context } from "https://baseless.dev/x/provider/context.ts";
-import { IChannel, IParticipant } from "https://baseless.dev/x/provider/message.ts";
+import type { Context } from "https://baseless.dev/x/provider/context.ts";
+import type { IChannel, IParticipant } from "https://baseless.dev/x/provider/message.ts";
+import type { ChannelMessage } from "https://baseless.dev/x/shared/message.ts";
 
 function refToRegExp(ref: string) {
 	return new RegExp(`^${ref.replace(/:([\w]+)/g, "(?<$1>[^/]+)")}$`);
@@ -63,8 +64,8 @@ export type ChannelSessionHandler<
 export type ChannelMessageHandler<ChannelMetadata> = (
 	context: Context,
 	channel: IChannel<ChannelMetadata>,
-	participant: IParticipant,
-	message: string | ArrayBufferLike | Blob | ArrayBufferView,
+	participant: IParticipant | undefined,
+	message: ChannelMessage,
 	params: Record<string, string>,
 ) => Promise<void>;
 
@@ -109,8 +110,8 @@ export class ChannelDescriptor {
 	public onMessage(
 		context: Context,
 		channel: IChannel<unknown>,
-		participant: IParticipant,
-		message: string | ArrayBufferLike | Blob | ArrayBufferView,
+		participant: IParticipant | undefined,
+		message: ChannelMessage,
 		params: Record<string, string>,
 	): Promise<void> {
 		return this.onMessageHandler?.(context, channel, participant, message, params) ?? Promise.resolve();

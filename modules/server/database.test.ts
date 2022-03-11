@@ -9,9 +9,9 @@ import {
 	Client,
 	Context,
 	NoopAuthProvider,
-	NoopChannelProvider,
 	NoopKVProvider,
 	NoopMailProvider,
+	NoopMessageProvider,
 } from "https://baseless.dev/x/provider/mod.ts";
 import { SqliteKVProvider } from "https://baseless.dev/x/provider-kv-sqlite/mod.ts";
 import { DatabaseOnKvProvider } from "https://baseless.dev/x/provider-db-on-kv/mod.ts";
@@ -41,7 +41,7 @@ async function setupContext() {
 		kv: new NoopKVProvider(),
 		database: new DatabaseOnKvProvider(db),
 		mail: new NoopMailProvider(),
-		// channel: new NoopChannelProvider(),
+		message: new NoopMessageProvider(),
 		waitUntil(promise) {
 			waitUntilCollection.push(promise);
 		},

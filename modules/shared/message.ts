@@ -24,6 +24,11 @@ export function channel(...segments: string[]) {
 }
 
 /**
+ * Channel message payload
+ */
+export type ChannelMessage = string;
+
+/**
  * Channel not found error
  */
 export class ChannelNotFoundError extends Error {

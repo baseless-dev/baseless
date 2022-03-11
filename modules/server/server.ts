@@ -5,6 +5,7 @@ import {
 	NoopKVProvider,
 	NoopMailProvider,
 	NoopMessageHub,
+	NoopMessageProvider,
 } from "https://baseless.dev/x/provider/mod.ts";
 import type {
 	IAuthProvider,
@@ -13,6 +14,7 @@ import type {
 	IKVProvider,
 	IMailProvider,
 	IMessageHub,
+	IMessageProvider,
 } from "https://baseless.dev/x/provider/mod.ts";
 import { logger } from "https://baseless.dev/x/logger/mod.ts";
 import { AuthController } from "./auth.ts";
@@ -48,6 +50,7 @@ export class Server {
 	private kvProvider: IKVProvider;
 	private databaseProvider: IDatabaseProvider;
 	private mailProvider: IMailProvider;
+	private messageProvider: IMessageProvider;
 	private messageHub: IMessageHub;
 
 	public constructor({
@@ -61,6 +64,7 @@ export class Server {
 		kvProvider,
 		databaseProvider,
 		mailProvider,
+		messageProvider,
 		messageHub,
 	}: {
 		authDescriptor: AuthDescriptor;
@@ -73,6 +77,7 @@ export class Server {
 		kvProvider?: IKVProvider;
 		databaseProvider?: IDatabaseProvider;
 		mailProvider?: IMailProvider;
+		messageProvider?: IMessageProvider;
 		messageHub?: IMessageHub;
 	}) {
 		this.authDescriptor = authDescriptor;
@@ -85,6 +90,7 @@ export class Server {
 		this.kvProvider = kvProvider ?? new NoopKVProvider();
 		this.databaseProvider = databaseProvider ?? new NoopDatabaseProvider();
 		this.mailProvider = mailProvider ?? new NoopMailProvider();
+		this.messageProvider = messageProvider ?? new NoopMessageProvider();
 		this.messageHub = messageHub ?? new NoopMessageHub();
 		this.authController = new AuthController(this.authDescriptor);
 		this.databaseController = new DatabaseController(this.databaseDescriptor);
@@ -237,7 +243,7 @@ export class Server {
 			kv: this.kvProvider,
 			database: this.databaseProvider,
 			mail: this.mailProvider,
-			// channel: this.channelProvider,
+			message: this.messageProvider,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},
@@ -267,10 +273,10 @@ export class Server {
 			}
 
 			try {
-				const response = await this.messageHub.upgrade(request, context);
+				const response = await this.messageHub.transfert(request, context);
 				return [response, []];
 			} catch (err) {
-				this.logger.error(`Could not upgrade request to WebSocket, got ${err}`);
+				this.logger.error(`Could not transfert request to WebSocket, got ${err}`);
 				return [
 					new Response(null, { status: 500 }),
 					[],
@@ -418,7 +424,7 @@ export class Server {
 			kv: this.kvProvider,
 			database: this.databaseProvider,
 			mail: this.mailProvider,
-			// channel: this.channelProvider,
+			message: this.messageProvider,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},

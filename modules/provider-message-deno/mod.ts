@@ -1,11 +1,18 @@
 import { logger } from "https://baseless.dev/x/logger/mod.ts";
-import type { IChannel, IMessageHub, IParticipant, ISession } from "https://baseless.dev/x/provider/message.ts";
+import type {
+	IChannel,
+	IMessageHub,
+	IMessageProvider,
+	IParticipant,
+	ISession,
+} from "https://baseless.dev/x/provider/message.ts";
 import { ChannelPermissions, MessageDescriptor } from "https://baseless.dev/x/worker/message.ts";
 import type { Context } from "https://baseless.dev/x/provider/context.ts";
 import { autoid } from "https://baseless.dev/x/shared/autoid.ts";
 import type { MessagePayload } from "https://baseless.dev/x/shared/server.ts";
 import { messageValidator } from "https://baseless.dev/x/shared/schema.ts";
-import { channel } from "https://baseless.dev/x/shared/message.ts";
+import { channel, ChannelReference } from "https://baseless.dev/x/shared/message.ts";
+import type { ChannelMessage } from "https://baseless.dev/x/shared/message.ts";
 
 export class DenoMessageHub implements IMessageHub {
 	private logger = logger("TestMessageHub");
@@ -17,7 +24,7 @@ export class DenoMessageHub implements IMessageHub {
 	) {}
 
 	// deno-lint-ignore require-await
-	async upgrade(request: Request, context: Context): Promise<Response> {
+	async transfert(request: Request, context: Context): Promise<Response> {
 		const { response, socket } = Deno.upgradeWebSocket(request) ?? {};
 
 		const session: ISession = {
@@ -141,5 +148,22 @@ export class DenoMessageHub implements IMessageHub {
 		};
 
 		return response ?? new Response(null, { status: 500 });
+	}
+
+	async broadcast(context: Context, reference: ChannelReference, message: ChannelMessage): Promise<void> {
+		const ref = reference.toString();
+		const chan = this.channels.get(ref);
+		const [desc, params] = this.messageDescriptor.getChannelDescriptor(ref) ?? [];
+		if (chan && desc && params) {
+			await desc.onMessage(context, chan, undefined, message, params);
+		}
+	}
+}
+
+export class DenoMessageProvider implements IMessageProvider {
+	public constructor(private messageHub: DenoMessageHub) {}
+
+	broadcast(context: Context, reference: ChannelReference, message: ChannelMessage): Promise<void> {
+		return this.messageHub.broadcast(context, reference, message);
 	}
 }

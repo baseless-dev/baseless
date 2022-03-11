@@ -4,7 +4,7 @@ import type { IDatabaseProvider } from "./database.ts";
 import type { IKVProvider } from "./kv.ts";
 import type { IMailProvider } from "./mail.ts";
 import { Client } from "./client.ts";
-import { IChannelProvider } from "./message.ts";
+import { IMessageProvider } from "./message.ts";
 
 /**
  * Context
@@ -42,7 +42,7 @@ export interface Context {
 	/**
 	 * Message provider
 	 */
-	// readonly channel: IChannelProvider;
+	readonly message: IMessageProvider;
 
 	/**
 	 * Extend the lifetime of the request until the promise is done without blocking the response

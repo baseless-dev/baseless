@@ -9,10 +9,10 @@ import { AuthController } from "./auth.ts";
 import {
 	Client,
 	Context,
-	NoopChannelProvider,
 	NoopDatabaseProvider,
 	NoopKVProvider,
 	NoopMailProvider,
+	NoopMessageProvider,
 } from "https://baseless.dev/x/provider/mod.ts";
 import { SqliteKVProvider } from "https://baseless.dev/x/provider-kv-sqlite/mod.ts";
 import { AuthOnKvProvider } from "https://baseless.dev/x/provider-auth-on-kv/mod.ts";
@@ -36,7 +36,7 @@ async function setupContext() {
 		kv: new NoopKVProvider(),
 		database: new NoopDatabaseProvider(),
 		mail: new NoopMailProvider(),
-		// channel: new NoopChannelProvider(),
+		message: new NoopMessageProvider(),
 		waitUntil(promise) {
 			waitUntilCollection.push(promise);
 		},

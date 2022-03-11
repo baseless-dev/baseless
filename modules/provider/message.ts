@@ -1,21 +1,37 @@
+import type { ChannelMessage } from "https://baseless.dev/x/shared/message.ts";
 import { ChannelReference } from "https://baseless.dev/x/shared/message.ts";
 import type { AuthIdentifier } from "https://baseless.dev/x/shared/auth.ts";
-import { Context } from "./context.ts";
+import type { Context } from "./context.ts";
 import { NoopError } from "./mod.ts";
 
+/**
+ * Message hub interface
+ *
+ * Message hub keeps track of the WebSocket connection and handle the channel protocol
+ */
 export interface IMessageHub {
-	upgrade(request: Request, context: Context): Promise<Response>;
+	/**
+	 * Transfert request to this message hub
+	 */
+	transfert(request: Request, context: Context): Promise<Response>;
 }
 
+/**
+ * Noop Message Hub
+ *
+ * @internal
+ */
 export class NoopMessageHub implements IMessageHub {
-	upgrade() {
+	transfert() {
 		return Promise.reject(new NoopError());
 	}
 }
 
-export type Message = string | ArrayBufferLike | Blob | ArrayBufferView;
-export type MessageSender = (message: Message) => void;
+export type MessageSender = (message: ChannelMessage) => void;
 
+/**
+ * Session
+ */
 export interface ISession {
 	/**
 	 * Id of this session
@@ -33,6 +49,9 @@ export interface ISession {
 	readonly socket: WebSocket;
 }
 
+/**
+ * Participant of a specific channel
+ */
 export interface IParticipant<Metadata = Record<never, never>> {
 	/**
 	 * Session information
@@ -45,6 +64,9 @@ export interface IParticipant<Metadata = Record<never, never>> {
 	readonly metadata: Metadata;
 }
 
+/**
+ * Channel
+ */
 export interface IChannel<Channel = Record<never, never>, Participant = Record<never, never>> {
 	/**
 	 * Channel reference
@@ -62,39 +84,23 @@ export interface IChannel<Channel = Record<never, never>, Participant = Record<n
 	readonly participants: IParticipant<Participant>[];
 }
 
-export interface IChannelProvider {
+/**
+ * Message provider
+ */
+export interface IMessageProvider {
 	/**
-	 * Create a Channel
+	 * Broadcast a message to the channel
 	 */
-	create<Metadata>(
-		reference: ChannelReference,
-		metadata: Metadata,
-	): Promise<IChannel<Metadata>>;
-
-	/**
-	 * Retrieve a Channel by it's reference
-	 */
-	get<Metadata>(
-		reference: ChannelReference,
-		metadata: Metadata,
-	): Promise<IChannel<Metadata>>;
-
-	/**
-	 * Delete a Channel by it's reference
-	 */
-	delete(reference: ChannelReference): Promise<void>;
+	broadcast(context: Context, reference: ChannelReference, message: ChannelMessage): Promise<void>;
 }
 
-export class NoopChannelProvider implements IChannelProvider {
-	create() {
-		return Promise.reject(new NoopError());
-	}
-
-	get() {
-		return Promise.reject(new NoopError());
-	}
-
-	delete() {
+/**
+ * Noop message provider
+ *
+ * @internal
+ */
+export class NoopMessageProvider implements IMessageProvider {
+	broadcast() {
 		return Promise.reject(new NoopError());
 	}
 }

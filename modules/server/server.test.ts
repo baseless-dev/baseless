@@ -391,8 +391,7 @@ Deno.test("websocket with message permission connect returns 101", async () => {
 	assertEquals(ws.readyState, ws.OPEN);
 	const data = await getOneMessage(ws);
 	const msg = JSON.parse(data);
-	assertExists(msg.session);
-	assertExists(msg.session.id);
+	assertExists(msg.sessionId);
 
 	ws.close();
 	await assertOnClose(ws);
@@ -511,7 +510,7 @@ Deno.test("websocket send message to channel broadcast back message", async () =
 		// deno-lint-ignore require-await
 		.onMessage(async (_ctx, chan, _from, msg, { chatId }) => {
 			for (const participant of chan.participants) {
-				participant.session.socket.send(msg);
+				participant.send(msg);
 			}
 		});
 	const { server, dispose } = await setupServer(undefined, undefined, undefined, undefined, msgBuilder.build());
@@ -557,9 +556,9 @@ Deno.test("websocket send message to channel broadcast back message", async () =
 	ws1.send(JSON.stringify({ id: "3", type: "chan.send", ref: "/chat/abc", message: "foo" }));
 	await Promise.all([
 		assertOnMessage(ws1, JSON.stringify({ id: "3" })),
-		assertOnMessage(ws2, "foo"),
+		assertOnMessage(ws2, JSON.stringify({ channel: "/chat/abc", message: "foo" })),
 	]);
-	await assertOnMessage(ws1, "foo");
+	await assertOnMessage(ws1, JSON.stringify({ channel: "/chat/abc", message: "foo" }));
 
 	await new Promise((r) => setTimeout(r, 100));
 

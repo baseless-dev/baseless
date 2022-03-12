@@ -54,14 +54,24 @@ export interface ISession {
  */
 export interface IParticipant<Metadata = Record<never, never>> {
 	/**
-	 * Session information
+	 * Id of this session
 	 */
-	readonly session: ISession;
+	readonly sessionId: string;
+
+	/**
+	 * User ID of this session
+	 */
+	readonly userId?: AuthIdentifier;
 
 	/**
 	 * Metadata of this participant
 	 */
 	readonly metadata: Metadata;
+
+	/**
+	 * Send message specific to this participant
+	 */
+	send(message: ChannelMessage): void;
 }
 
 /**

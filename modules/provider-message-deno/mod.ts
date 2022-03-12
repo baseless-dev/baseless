@@ -15,7 +15,7 @@ import { channel, ChannelReference } from "https://baseless.dev/x/shared/message
 import type { ChannelMessage } from "https://baseless.dev/x/shared/message.ts";
 
 export class DenoMessageHub implements IMessageHub {
-	private logger = logger("TestMessageHub");
+	private logger = logger("DenoMessageHub");
 	private sessions = new Set<ISession>();
 	private channels = new Map<string, IChannel>();
 
@@ -25,7 +25,7 @@ export class DenoMessageHub implements IMessageHub {
 
 	// deno-lint-ignore require-await
 	async transfert(request: Request, context: Context): Promise<Response> {
-		const { response, socket } = Deno.upgradeWebSocket(request) ?? {};
+		const { response, socket } = Deno.upgradeWebSocket(request);
 
 		const session: ISession = {
 			id: autoid(),
@@ -34,13 +34,15 @@ export class DenoMessageHub implements IMessageHub {
 		};
 
 		socket.onopen = () => {
+			this.logger.debug(`Session ${session.id} connected.`);
 			this.sessions.add(session);
-			session.socket.send(JSON.stringify({ session }));
+			session.socket.send(JSON.stringify({ sessionId: session.id }));
 		};
 
 		socket.onclose = async () => {
+			this.logger.debug(`Session ${session.id} disconnected.`);
 			for (const [ref, chan] of this.channels.entries()) {
-				const idx = chan.participants.findIndex((participant) => participant.session.id === session.id);
+				const idx = chan.participants.findIndex((participant) => participant.sessionId === session.id);
 				if (idx > 0) {
 					const participant = chan.participants.splice(idx, 1)[0];
 					const [desc, params] = this.messageDescriptor.getChannelDescriptor(ref) ?? [];
@@ -53,6 +55,7 @@ export class DenoMessageHub implements IMessageHub {
 		};
 
 		socket.onmessage = async ({ data }) => {
+			this.logger.debug(`Session ${session.id} sent message.`);
 			try {
 				const payload: MessagePayload = JSON.parse(data.toString());
 				const result = messageValidator.validate(payload);
@@ -78,7 +81,15 @@ export class DenoMessageHub implements IMessageHub {
 								} else {
 									chan = this.channels.get(payload.ref)!;
 								}
-								const participant: IParticipant = { metadata: {}, session };
+								// TODO is sessionId already present in channel?
+								const participant: IParticipant = {
+									metadata: {},
+									sessionId: session.id,
+									userId: session.userId,
+									send(message) {
+										session.socket.send(JSON.stringify({ channel: payload.ref, message }));
+									},
+								};
 								chan.participants.push(participant);
 
 								await desc.onJoin(context, chan, participant, params);
@@ -98,7 +109,7 @@ export class DenoMessageHub implements IMessageHub {
 						if (desc && params) {
 							const chan = this.channels.get(payload.ref);
 							if (chan) {
-								const idx = chan.participants.findIndex((participant) => participant.session.id === session.id);
+								const idx = chan.participants.findIndex((participant) => participant.sessionId === session.id);
 
 								// Participant is in channel?
 								if (idx > 0) {
@@ -122,7 +133,7 @@ export class DenoMessageHub implements IMessageHub {
 							if ((permission & ChannelPermissions.Send) > 0) {
 								const chan = this.channels.get(payload.ref);
 								if (chan) {
-									const participant = chan.participants.find((participant) => participant.session.id === session.id);
+									const participant = chan.participants.find((participant) => participant.sessionId === session.id);
 
 									// Participant is in channel?
 									if (participant) {
@@ -152,6 +163,7 @@ export class DenoMessageHub implements IMessageHub {
 
 	async broadcast(context: Context, reference: ChannelReference, message: ChannelMessage): Promise<void> {
 		const ref = reference.toString();
+		this.logger.debug(`System broadcast to ${ref}.`);
 		const chan = this.channels.get(ref);
 		const [desc, params] = this.messageDescriptor.getChannelDescriptor(ref) ?? [];
 		if (chan && desc && params) {

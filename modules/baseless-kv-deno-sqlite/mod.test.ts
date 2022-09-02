@@ -6,7 +6,7 @@ Deno.test("open & close", async () => {
 	await kv.open();
 	await kv.close();
 });
-Deno.test("set & get", async () => {
+Deno.test("put & get", async () => {
 	const kv = new KVDenoDBProvider(":memory:");
 	await kv.open();
 	await kv.put("/posts/a", "Title A");

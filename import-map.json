@@ -1,7 +1,8 @@
 {
 	"imports": {
+		"https://baseless.dev/x/baseless-client-kv/": "./modules/baseless-client-kv/",
 		"https://baseless.dev/x/baseless-client-memory/": "./modules/baseless-client-memory/",
-		"https://baseless.dev/x/baseless-kv-denodb/": "./modules/baseless-kv-denodb/",
+		"https://baseless.dev/x/baseless-kv-deno-sqlite/": "./modules/baseless-kv-deno-sqlite/",
 		"https://baseless.dev/x/baseless-mail-logger/": "./modules/baseless-mail-logger/",
 		"https://baseless.dev/x/baseless/": "./modules/baseless/"
 	}

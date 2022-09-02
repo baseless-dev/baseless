@@ -1,62 +1,61 @@
-import {
-	KeyNotFoundError,
-	KVGetOptions,
-	KVKey,
-	KVListOptions,
-	KVListResult,
-	KVProvider,
-	KVPutOptions,
-} from "https://baseless.dev/x/baseless/provider/kv.ts";
+import { KeyNotFoundError, KVGetOptions, KVKey, KVListOptions, KVListResult, KVProvider, KVPutOptions } from "https://baseless.dev/x/baseless/provider/kv.ts";
 import { logger } from "https://baseless.dev/x/baseless/logger.ts";
 import { DB, SqliteOptions } from "https://deno.land/x/sqlite@v3.4.1/mod.ts";
 
 export type KVDenoDBProviderOptions = {
-	path: string;
-	mode: SqliteOptions["mode"];
+	readonly path: string;
+	readonly tableName: string;
+	readonly mode: SqliteOptions["mode"];
 } | {
-	db: DB;
+	readonly db: DB;
+	readonly tableName: string;
 };
 
 export class KVDenoDBProvider implements KVProvider {
-	protected options: KVDenoDBProviderOptions;
+	protected readonly options: KVDenoDBProviderOptions;
+	protected readonly logger = logger("baseless-kv-deno-sqlite");
 	protected db?: DB;
-	protected logger = logger("baseless-kv-deno-sqlite");
 
-	constructor(db: DB);
-	constructor(path: string, mode?: SqliteOptions["mode"]);
+	constructor(db: DB, tableName?: string);
+	constructor(path: string, tableName?: string, mode?: SqliteOptions["mode"]);
 	constructor(
 		path_or_db: DB | string,
+		tableName = "kv",
 		mode: SqliteOptions["mode"] = "create",
 	) {
 		if (path_or_db instanceof DB) {
-			this.options = { db: path_or_db };
+			this.options = { db: path_or_db, tableName };
 		} else {
-			this.options = { path: path_or_db, mode };
+			this.options = { path: path_or_db, tableName, mode };
 		}
 	}
 
+	/**
+	 * Open a handle to the SQLite database
+	 */
 	// deno-lint-ignore require-await
 	public async open(): Promise<void> {
 		if ("db" in this.options) {
 			return;
 		}
-		const db = this.options.path === ":memory:"
-			? new DB(undefined, { mode: this.options.mode, memory: true })
-			: new DB(this.options.path, { mode: this.options.mode });
+		const db = this.options.path === ":memory:" ? new DB(undefined, { mode: this.options.mode, memory: true }) : new DB(this.options.path, { mode: this.options.mode });
 		try {
 			db.query(
-				"CREATE TABLE IF NOT EXISTS kv (key TEXT NOT NULL PRIMARY KEY, expireAt INTEGER, value TEXT) WITHOUT ROWID",
+				`CREATE TABLE IF NOT EXISTS ${this.options.tableName} (key TEXT NOT NULL PRIMARY KEY, expireAt INTEGER, value TEXT) WITHOUT ROWID`,
 			);
 			this.logger.debug(`Database initialized.`);
 			this.db = db;
 		} catch (inner) {
-			this.logger.error(`Could not create base table "kv".`);
+			this.logger.error(`Could not create base table '${this.options.tableName}'.`);
 			const err = new SqliteNotOpenedError();
 			err.cause = inner;
 			throw err;
 		}
 	}
 
+	/**
+	 * Close the handle to the SQLite database
+	 */
 	// deno-lint-ignore require-await
 	public async close(): Promise<void> {
 		if ("db" in this.options) {
@@ -86,7 +85,7 @@ export class KVDenoDBProvider implements KVProvider {
 		const now = new Date().getTime() / 1000;
 		try {
 			const rows = this.db.query<[string, number]>(
-				"SELECT value, expireAt FROM kv WHERE key = ? AND (expireAt IS NULL OR expireAt >= ?) LIMIT 1",
+				`SELECT value, expireAt FROM ${this.options.tableName} WHERE key = ? AND (expireAt IS NULL OR expireAt >= ?) LIMIT 1`,
 				[key, now],
 			);
 			if (rows.length === 0) {
@@ -120,12 +119,10 @@ export class KVDenoDBProvider implements KVProvider {
 		if (!this.db) {
 			throw new SqliteNotOpenedError();
 		}
-		const expireAt = options
-			? "expireAt" in options ? options.expireAt.getTime() / 1000 : options.expireIn + new Date().getTime() / 1000
-			: null;
+		const expireAt = options ? "expireAt" in options ? options.expireAt.getTime() / 1000 : options.expireIn + new Date().getTime() / 1000 : null;
 		try {
 			this.db.query(
-				"INSERT OR REPLACE INTO kv (key, expireAt, value) VALUES (?, ?, ?)",
+				`INSERT OR REPLACE INTO ${this.options.tableName} (key, expireAt, value) VALUES (?, ?, ?)`,
 				[
 					key,
 					expireAt,
@@ -151,7 +148,7 @@ export class KVDenoDBProvider implements KVProvider {
 		const now = new Date().getTime() / 1000;
 		try {
 			const rows = this.db.query<[string, string, number]>(
-				"SELECT key, value, expireAt FROM kv WHERE key LIKE ? AND (expireAt IS NULL OR expireAt >= ?) AND key > ? ORDER BY key ASC LIMIT ?",
+				`SELECT key, value, expireAt FROM ${this.options.tableName} WHERE key LIKE ? AND (expireAt IS NULL OR expireAt >= ?) AND key > ? ORDER BY key ASC LIMIT ?`,
 				[prefixMatch, now, cursor, limit],
 			);
 			this.logger.debug(
@@ -186,10 +183,30 @@ export class KVDenoDBProvider implements KVProvider {
 			throw new SqliteNotOpenedError();
 		}
 		try {
-			this.db.query("DELETE FROM kv WHERE key = ?", [key]);
+			this.db.query(`DELETE FROM ${this.options.tableName} WHERE key = ?`, [key]);
 			this.logger.debug(`Key "${key}" deleted.`);
 		} catch (inner) {
 			this.logger.error(`Could not delete key "${key}", got error : ${inner}`);
+			const err = new SqliteUnknownError();
+			err.cause = inner;
+			throw err;
+		}
+	}
+
+	/**
+	 * Delete expired keys
+	 */
+	// deno-lint-ignore require-await
+	async deleteExpiredKeys(): Promise<void> {
+		if (!this.db) {
+			throw new SqliteNotOpenedError();
+		}
+		const now = new Date().getTime() / 1000;
+		try {
+			this.db.query(`DELETE FROM ${this.options.tableName} WHERE (expireAt IS NOT NULL AND expireAt < ?)`, [now]);
+			this.logger.debug(`Expired keys deleted.`);
+		} catch (inner) {
+			this.logger.error(`Could not delete expired keys, got error : ${inner}`);
 			const err = new SqliteUnknownError();
 			err.cause = inner;
 			throw err;

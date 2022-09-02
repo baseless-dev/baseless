@@ -2,17 +2,16 @@
  * Options when getting a key
  */
 export interface KVGetOptions {
-	cacheTtl: number;
+	readonly cacheTtl: number;
 }
 
 /**
  * Options when listing keys
  */
 export interface KVListOptions {
-	prefix: string;
-	cursor?: string;
-	limit?: number;
-	cacheTtl?: number;
+	readonly prefix: string;
+	readonly cursor?: string;
+	readonly limit?: number;
 }
 
 /**
@@ -23,31 +22,31 @@ export type KVPutOptions =
 		/**
 		 * Document will expire at specified date
 		 */
-		expireAt: Date;
+		readonly expireAt: Date;
 	}
 	| {
 		/**
 		 * Document will expire in specified seconds
 		 */
-		expireIn: number;
+		readonly expireIn: number;
 	};
 
 /**
  * KV Key
  */
 export interface KVKey {
-	key: string;
-	expiration?: number;
-	value: string;
+	readonly key: string;
+	readonly expiration?: number;
+	readonly value: string;
 }
 
 /**
  * KV List result
  */
 export interface KVListResult {
-	keys: ReadonlyArray<KVKey>;
-	done: boolean;
-	next?: string;
+	readonly keys: ReadonlyArray<KVKey>;
+	readonly done: boolean;
+	readonly next?: string;
 }
 
 /**
@@ -56,6 +55,8 @@ export interface KVListResult {
 export interface KVProvider {
 	/**
 	 * Retrieve a single key
+	 *
+	 * @throw {@link KeyNotFoundError} This exception is thrown if the key is not found
 	 */
 	get(
 		key: string,

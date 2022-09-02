@@ -2,8 +2,8 @@
  * Client
  */
 export interface Client {
-	id: string;
-	principal: string;
+	readonly id: string;
+	readonly principal: string;
 }
 
 /**
@@ -12,11 +12,15 @@ export interface Client {
 export interface ClientProvider {
 	/**
 	 * Retrieve a Client by it's id
+	 *
+	 * @throws {@link ClientNotFoundError} This exception is thrown if the client is not found
 	 */
 	get(id: string): Promise<Client>;
 
 	/**
 	 * Add new Client
+	 *
+	 * @throws {@link ClientExistsError} This exception is thrown if a client exists with the same {@link Client.id}
 	 */
 	add(client: Client): Promise<void>;
 
@@ -29,8 +33,8 @@ export interface ClientProvider {
 /**
  * Client not found error
  */
-export class ClientFoundError extends Error {
-	public name = "ClientFoundError";
+export class ClientNotFoundError extends Error {
+	public name = "ClientNotFoundError";
 	public constructor(id: string) {
 		super(`Client '${id}' not found.`);
 	}

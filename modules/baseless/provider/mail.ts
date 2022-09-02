@@ -5,27 +5,28 @@ export interface Message {
 	/**
 	 * Destination of the message
 	 */
-	to: string;
+	readonly to: string;
 
 	/**
 	 * Subject of the message
 	 */
-	subject: string;
+	readonly subject: string;
 
 	/**
 	 * Plain text content of the message
 	 */
-	text: string;
+	readonly text: string;
 
 	/**
 	 * HTML content of the message
 	 */
-	html?: string;
+	readonly html?: string;
 }
 
 export interface MailProvider {
 	/**
 	 * Send a message
+	 * @param message The {@link Message} to be sent
 	 */
 	send(message: Message): Promise<void>;
 }

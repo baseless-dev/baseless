@@ -58,6 +58,15 @@ const logSeverityConsoleMethodMap = {
 	[LogLevel.CRITICAL]: console.error,
 } as const;
 
+const logSeverityConsoleColor = {
+	[LogLevel.DEBUG]: "gray",
+	[LogLevel.LOG]: "green",
+	[LogLevel.INFO]: "cyan",
+	[LogLevel.WARN]: "yellow",
+	[LogLevel.ERROR]: "red",
+	[LogLevel.CRITICAL]: "pink",
+} as const;
+
 /**
  * Create a log handler pipe message to the {@link Console}.
  *
@@ -75,7 +84,13 @@ export function createConsoleLogHandler(minLevel = LogLevel.DEBUG): LogHandler {
 	const minSeverity = LogSeverity[minLevel];
 	return (ns, lvl, msg) => {
 		if (LogSeverity[lvl] >= minSeverity) {
-			logSeverityConsoleMethodMap[lvl](`${new Date().toISOString()} [${ns.padEnd(25, " ")}] [${lvl.padEnd(8, " ")}] ${msg}`);
+			const color = logSeverityConsoleColor[lvl];
+			logSeverityConsoleMethodMap[lvl](
+				`%c${new Date().toISOString()} ${ns.padEnd(25, " ")} %c ${lvl} %c${" ".repeat(8 - lvl.length)} ${msg} `,
+				`color: ${color};`,
+				`background-color: ${color}; color: white; font-weight: bold;`,
+				`color: ${color};`,
+			);
 		}
 	};
 }

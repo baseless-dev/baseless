@@ -23,7 +23,7 @@ export interface Message {
 	readonly html?: string;
 }
 
-export interface MailProvider {
+export interface EmailProvider {
 	/**
 	 * Send a message
 	 * @param message The {@link Message} to be sent

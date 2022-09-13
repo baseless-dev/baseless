@@ -1,10 +1,10 @@
-import { MailProvider, Message } from "https://baseless.dev/x/baseless/provider/mail.ts";
+import { EmailProvider, Message } from "https://baseless.dev/x/baseless/provider/email.ts";
 import { Logger, logger, LogLevel, LogLevelMethod } from "https://baseless.dev/x/baseless/logger.ts";
 
 /**
  * A mail provider that log every message
  */
-export class MailLoggerProvider implements MailProvider {
+export class EmailLoggerProvider implements EmailProvider {
 	protected readonly logger = logger("baseless-mail-logger");
 
 	protected readonly logMethod: keyof Logger;

@@ -1,6 +1,9 @@
 {
 	"importMap": "import-map.json",
 	"compilerOptions": {},
+	"tasks": {
+		"hello-world": "deno run --watch --unstable --allow-env --allow-net examples/hello-world/server.ts"
+	},
 	"lint": {
 		"files": {
 			"exclude": ["dist/"]

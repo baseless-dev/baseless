@@ -1,11 +1,6 @@
-import { handleLogin } from "./auth/controller.ts";
 import { Configuration } from "./config.ts";
 import { Context } from "./context.ts";
 import { logger } from "./logger.ts";
-
-const routes = new Map<URLPattern, (context: Context, request: Request, params?: Record<string, string>) => Response | Promise<Response>>([
-	[new URLPattern({ pathname: '/login' }), handleLogin]
-]);
 
 export class Baseless {
 	protected readonly logger = logger("baseless");
@@ -26,18 +21,11 @@ export class Baseless {
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},
-		}
+		};
 
 		let processRequest: Response | Promise<Response> | undefined;
 
-		for (const [route, handler] of routes) {
-			const matches = route.exec(request.url);
-			if (matches) {
-				const params = matches.pathname.groups;
-				processRequest = handler(context, request, params);
-				break;
-			}
-		}
+		processRequest = await this.configuration.auth.render?.(context, request);
 
 		if (!processRequest) {
 			return [

@@ -1,6 +1,5 @@
 import { Context } from "../context.ts";
 import { Identity } from "./identity.ts";
-import { createAuthRenderer } from "./renderer.ts";
 import { AuthenticationMethod, email, password } from "./signInMethod.ts";
 
 export interface AuthConfiguration {
@@ -8,28 +7,17 @@ export interface AuthConfiguration {
 	readonly onCreateIdentity?: AuthHandler;
 	readonly onUpdateIdentity?: AuthHandler;
 	readonly onDeleteIdentity?: AuthHandler;
-	readonly render: AuthRenderer;
+	readonly render?: AuthRenderer;
 }
 
-export type AuthHandler = (context: Context, identity: Identity) => void | Promise<void>;
-
-export interface AuthRenderer {
-	login(context: Context, request: Request): Response | Promise<Response>;
-	password(context: Context, request: Request): Response | Promise<Response>;
-	passwordReset(context: Context, request: Request): Response | Promise<Response>;
-	forgotPassword(context: Context, request: Request): Response | Promise<Response>;
-	otp(context: Context, request: Request): Response | Promise<Response>;
-	hotp(context: Context, request: Request): Response | Promise<Response>;
-	totp(context: Context, request: Request): Response | Promise<Response>;
-	logout(context: Context, request: Request): Response | Promise<Response>;
-}
-
+export type AuthHandler = (context: Context, request: Request, identity: Identity) => void | Promise<void>;
+export type AuthRenderer = (context: Context, request: Request) => Response | undefined | Promise<Response | undefined>;
 export class AuthBuilder {
 	#signInFlow: AuthenticationMethod[] = [email(password())];
 	#onCreateIdentityHandler?: AuthHandler;
 	#onUpdateIdentityHandler?: AuthHandler;
 	#onDeleteIdentityHandler?: AuthHandler;
-	#rendererHandler: AuthRenderer = createAuthRenderer();
+	#rendererHandler?: AuthRenderer;
 
 	/**
 	 * Defines the authentication methods and their login methods
@@ -37,7 +25,7 @@ export class AuthBuilder {
 	 * @returns The builder
 	 */
 	public flow(...flow: AuthenticationMethod[]) {
-		if (!flow.every(m => m instanceof AuthenticationMethod)) {
+		if (!flow.every((m) => m instanceof AuthenticationMethod)) {
 			throw new TypeError(`Wrong type for authentication method.`);
 		}
 		this.#signInFlow = flow;
@@ -94,7 +82,7 @@ export class AuthBuilder {
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,
-			render: this.#rendererHandler
+			render: this.#rendererHandler,
 		};
 	}
 }

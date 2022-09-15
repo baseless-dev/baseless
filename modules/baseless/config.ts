@@ -21,11 +21,9 @@ export class ConfigurationBuilder {
 	 */
 	public build(): Configuration {
 		return {
-			auth: this.#auth.build()
+			auth: this.#auth.build(),
 		};
 	}
 }
-
-
 
 export const config = new ConfigurationBuilder();

@@ -1,4 +1,4 @@
-import { ssr, memoSSR } from "./ssr.ts";
+import { memoSSR, ssr } from "./ssr.ts";
 import { h } from "https://deno.land/x/nano_jsx@v0.0.32/mod.ts";
 import Login from "./Login.tsx";
 import { Context } from "https://baseless.dev/x/baseless/context.ts";

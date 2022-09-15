@@ -1,33 +1,28 @@
 import { Helmet, renderSSR } from "https://deno.land/x/nano_jsx@v0.0.32/mod.ts";
-// Doesn't work with `deno bundle`
-// import { setup } from "https://esm.sh/v94/twind@0.16.17/";
-// import type { TW } from "https://esm.sh/v94/twind@0.16.17/";
-// import { getStyleTag, shim, virtualSheet } from "https://esm.sh/v94/twind@0.16.17/shim/server";
-// import type { VirtualSheet } from "https://esm.sh/v94/twind@0.16.17/shim/server";
-import { setup } from "https://esm.sh/v94/twind@0.16.17/deno/twind.js";
-import type { TW } from "https://esm.sh/v94/twind@0.16.17/twind.d.ts";
-import { getStyleTag, shim, virtualSheet } from "https://esm.sh/v94/twind@0.16.17/deno/shim/server.js";
-import type { VirtualSheet } from "https://esm.sh/v94/twind@0.16.17/shim/server/server.d.ts";
+import { apply, setup } from "https://esm.sh/v94/twind@0.16.17/";
+import type { TW } from "https://esm.sh/v94/twind@0.16.17/";
+import { getStyleTag, shim, virtualSheet } from "https://esm.sh/v94/twind@0.16.17/shim/server";
 
-let sheet: VirtualSheet | undefined;
-function createSheet(): VirtualSheet {
-	if (sheet === undefined) {
-		try {
-			sheet = virtualSheet();
-			setup({ sheet });
-		} catch (err) {
-			sheet = undefined;
-			throw err;
-		}
-	}
-	return sheet;
-}
+const sheet = virtualSheet();
+
+setup({
+	sheet,
+	preflight: {
+		html: apply`h-full`,
+		body: apply`flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 font-sans font-light`,
+		"@import": `url('https://fonts.googleapis.com/css2?family=Roboto:wght@100;300&display=swap')`,
+	},
+	theme: {
+		fontFamily: {
+			"sans": ["Roboto", "Helvetica", "Arial", "sans-serif"],
+		},
+	},
+});
 
 export function ssr(component: CallableFunction, twindOptions?: TW): Response {
 	try {
-		const sheet = createSheet();
 		sheet.reset();
-		const app = renderSSR(component(), {});
+		const app = `${renderSSR(component(), {})}`;
 		shim(app, twindOptions);
 		const { body, head, footer } = Helmet.SSR(app);
 		const style = getStyleTag(sheet);

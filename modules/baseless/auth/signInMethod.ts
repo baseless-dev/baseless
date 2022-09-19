@@ -1,6 +1,7 @@
 export enum AuthenticationType {
 	Anonymous,
 	Email,
+	OAuth,
 }
 
 export enum LoginType {
@@ -30,6 +31,26 @@ export class AuthenticationMethodEmail extends AuthenticationMethod {
 	}
 }
 
+export interface OAuthConfiguration {
+	readonly providerId: string;
+	readonly providerLabel: string;
+	readonly providerIcon: string;
+	readonly clientId: string;
+	readonly clientSecret: string;
+	readonly scope: string[];
+	readonly authorizationEndpoint: string;
+	readonly tokenEndpoint: string;
+	readonly openIdEndpoint: string;
+}
+
+export class AuthenticationMethodOAuth extends AuthenticationMethod {
+	public readonly type = AuthenticationType.OAuth;
+
+	public constructor(public readonly oauthConfiguration: OAuthConfiguration) {
+		super();
+	}
+}
+
 export class LoginMethodOneOf extends LoginMethod {
 	public readonly type = LoginType.OneOf;
 
@@ -48,6 +69,10 @@ export function anonymous() {
 
 export function email(...logInMethods: LoginMethod[]) {
 	return new AuthenticationMethodEmail(logInMethods);
+}
+
+export function oauth(oauthConfiguration: OAuthConfiguration) {
+	return new AuthenticationMethodOAuth(oauthConfiguration);
 }
 
 export function oneOf(...signInMethods: LoginMethod[]) {

@@ -25,9 +25,6 @@ export class AuthBuilder {
 	 * @returns The builder
 	 */
 	public flow(...flow: AuthenticationMethod[]) {
-		if (!flow.every((m) => m instanceof AuthenticationMethod)) {
-			throw new TypeError(`Wrong type for authentication method.`);
-		}
 		this.#signInFlow = flow;
 		return this;
 	}

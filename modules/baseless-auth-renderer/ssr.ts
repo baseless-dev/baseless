@@ -1,4 +1,4 @@
-import { Helmet, renderSSR } from "https://deno.land/x/nano_jsx@v0.0.32/mod.ts";
+import { Helmet } from "https://deno.land/x/nano_jsx@v0.0.32/mod.ts";
 import { apply, setup } from "https://esm.sh/v94/twind@0.16.17/";
 import type { TW } from "https://esm.sh/v94/twind@0.16.17/";
 import { getStyleTag, shim, virtualSheet } from "https://esm.sh/v94/twind@0.16.17/shim/server";
@@ -10,20 +10,22 @@ setup({
 	preflight: {
 		html: apply`h-full`,
 		body: apply`flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 font-sans font-light`,
+		a: apply`unerline text-current`,
+		"svg,img": apply`max-w-full max-h-full m-auto`,
 		"@import": `url('https://fonts.googleapis.com/css2?family=Roboto:wght@100;300&display=swap')`,
 	},
 	theme: {
 		fontFamily: {
 			"sans": ["Roboto", "Helvetica", "Arial", "sans-serif"],
 		},
-		fill: (theme) => theme('colors')
+		fill: (theme) => theme("colors"),
 	},
 });
 
-export function ssr(component: CallableFunction, twindOptions?: TW): Response {
+export function ssr(component: () => string, twindOptions?: TW): Response {
 	try {
 		sheet.reset();
-		const app = `${renderSSR(component(), {})}`;
+		const app = component();
 		shim(app, twindOptions);
 		const { body, head, footer } = Helmet.SSR(app);
 		const style = getStyleTag(sheet);
@@ -34,10 +36,10 @@ export function ssr(component: CallableFunction, twindOptions?: TW): Response {
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		${head.join("\n")}
-		${style}
 	</head>
 	<body>
 		${body}
+		${style}
 		${footer.join("\n")}
 	</body>
 	<html>`,
@@ -62,7 +64,7 @@ export function ssr(component: CallableFunction, twindOptions?: TW): Response {
 	}
 }
 
-export function memoSSR(component: CallableFunction, twindOptions?: TW) {
+export function memoSSR(component: () => string, twindOptions?: TW) {
 	let mresp: Response | undefined;
 	return () => {
 		const resp = mresp ?? (mresp = ssr(component, twindOptions));

@@ -1,35 +1,28 @@
 export enum AuthenticationType {
-	Anonymous,
-	Email,
-	OAuth,
+	Anonymous = "anonymous",
+	Email = "email",
+	OAuth = "oauth",
 }
 
 export enum LoginType {
-	OneOf,
-	Password,
-	OneTimePassword,
-	HashBasedOneTimePassword,
-	TimeBasedOneTimePassword,
+	OneOf = "oneof",
+	Password = "password",
+	OneTimePassword = "one-time-password",
+	HashBasedOneTimePassword = "hash-based-one-time-password",
+	TimeBasedOneTimePassword = "time-based-one-time-password",
 }
 
-export abstract class AuthenticationMethod {
-	public abstract readonly type: AuthenticationType;
-}
+export type AuthenticationMethod =
+	| { readonly type: AuthenticationType.Anonymous }
+	| { readonly type: AuthenticationType.Email; readonly loginMethods: ReadonlyArray<LoginMethod> }
+	| { readonly type: AuthenticationType.OAuth; readonly oauth: OAuthConfiguration };
 
-export abstract class LoginMethod {
-	public abstract readonly type: LoginType;
-}
-
-export class AuthenticationMethodAnonymous extends AuthenticationMethod {
-	public readonly type = AuthenticationType.Anonymous;
-}
-
-export class AuthenticationMethodEmail extends AuthenticationMethod {
-	public readonly type = AuthenticationType.Email;
-	public constructor(public readonly logInMethods: LoginMethod[]) {
-		super();
-	}
-}
+export type LoginMethod =
+	| { readonly type: LoginType.OneOf; readonly loginMethods: ReadonlyArray<LoginMethod> }
+	| { readonly type: LoginType.Password }
+	| { readonly type: LoginType.OneTimePassword }
+	| { readonly type: LoginType.HashBasedOneTimePassword }
+	| { readonly type: LoginType.TimeBasedOneTimePassword };
 
 export interface OAuthConfiguration {
 	readonly providerId: string;
@@ -42,43 +35,22 @@ export interface OAuthConfiguration {
 	readonly tokenEndpoint: string;
 	readonly openIdEndpoint: string;
 }
-
-export class AuthenticationMethodOAuth extends AuthenticationMethod {
-	public readonly type = AuthenticationType.OAuth;
-
-	public constructor(public readonly oauthConfiguration: OAuthConfiguration) {
-		super();
-	}
+export function anonymous(): AuthenticationMethod {
+	return { type: AuthenticationType.Anonymous };
 }
 
-export class LoginMethodOneOf extends LoginMethod {
-	public readonly type = LoginType.OneOf;
-
-	public constructor(public readonly logInMethods: LoginMethod[]) {
-		super();
-	}
+export function email(...loginMethods: LoginMethod[]): AuthenticationMethod {
+	return { type: AuthenticationType.Email, loginMethods };
 }
 
-export class LoginMethodPassword extends LoginMethod {
-	public readonly type = LoginType.Password;
+export function oauth(oauth: OAuthConfiguration): AuthenticationMethod {
+	return { type: AuthenticationType.OAuth, oauth };
 }
 
-export function anonymous() {
-	return new AuthenticationMethodAnonymous();
+export function oneOf(...loginMethods: LoginMethod[]): LoginMethod {
+	return { type: LoginType.OneOf, loginMethods };
 }
 
-export function email(...logInMethods: LoginMethod[]) {
-	return new AuthenticationMethodEmail(logInMethods);
-}
-
-export function oauth(oauthConfiguration: OAuthConfiguration) {
-	return new AuthenticationMethodOAuth(oauthConfiguration);
-}
-
-export function oneOf(...signInMethods: LoginMethod[]) {
-	return new LoginMethodOneOf(signInMethods);
-}
-
-export function password() {
-	return new LoginMethodPassword();
+export function password(): LoginMethod {
+	return { type: LoginType.Password };
 }

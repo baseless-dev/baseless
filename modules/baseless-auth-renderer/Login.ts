@@ -1,22 +1,40 @@
-import { h, Fragment } from "https://deno.land/x/nano_jsx@v0.0.33/mod.ts";
-import { AuthenticationMethod, AuthenticationMethodOAuth, AuthenticationType } from "https://baseless.dev/x/baseless/auth/signInMethod.ts";
+import { AuthenticationMethod, AuthenticationType } from "https://baseless.dev/x/baseless/auth/signInMethod.ts";
+import { Resources } from "./resources.ts";
 
-export default function Login(props: { signInFlow: ReadonlyArray<AuthenticationMethod> }) {
-	const hasEmail = props.signInFlow.some((t) => t.type === AuthenticationType.Email);
-	const oauthMethods = props.signInFlow.filter((t) => t instanceof AuthenticationMethodOAuth) as AuthenticationMethodOAuth[];
+export default function Login({ resources: { icons, locales }, signInFlow }: { resources: Resources; signInFlow: ReadonlyArray<AuthenticationMethod> }) {
+	const locale = "en";
+	const hasEmail = signInFlow.some((method) => method.type === AuthenticationType.Email);
+	const hasAnonymous = signInFlow.some((method) => method.type === AuthenticationType.Anonymous);
+	const oauthMethods = signInFlow.map((method) => {
+		if (method.type === AuthenticationType.OAuth) {
+			const providerKey = method.oauth.providerId;
+			const signInWith = locales[locale].signInWith[providerKey];
+			return {
+				key: providerKey,
+				type: method.type,
+				icon: method.oauth.providerIcon ?? "",
+				label: signInWith?.label ?? "<missing>",
+				dialogHtml: signInWith?.dialogHtml ?? "",
+			};
+		}
+	}).filter((t) => t);
 	const hasOAuth = oauthMethods.length > 0;
-	const hasAnonymous = props.signInFlow.some(t => t.type === AuthenticationType.Anonymous);
-	return (
+
+	return `
+		<helmet data-placement="head">
+			<title>Baseless</title>
+		</helmet>
 		<div class="flex flex-row-reverse min-h-full">
 			<div class="flex flex-1 flex-col justify-center py-12 px-4 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
 				<div class="mx-auto w-full max-w-sm lg:w-96">
 					<div>
 						<h2 class="my-6 text-5xl font-thin tracking-tight text-gray-900">
-							Welcome
+							${locales[locale].welcome}
 						</h2>
 					</div>
 					<div>
-						{hasEmail && (
+						${
+		hasEmail && (`
 							<div class="mt-6">
 								<div>
 									<div class="relative mt-6">
@@ -32,10 +50,9 @@ export default function Login(props: { signInFlow: ReadonlyArray<AuthenticationM
 														<label for="not_an_email" class="relative block rounded-full shadow-md bg-white px-3 py-2 focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2">
 															<div class="pointer-events-none cursor-text">
 																<div class="absolute inset-y-0 left-0 flex items-center pl-4">
-																	<svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-																		<path d="M3 4a2 2 0 00-2 2v1.161l8.441 4.221a1.25 1.25 0 001.118 0L19 7.162V6a2 2 0 00-2-2H3z" />
-																		<path d="M19 8.839l-7.77 3.885a2.75 2.75 0 01-2.46 0L1 8.839V14a2 2 0 002 2h14a2 2 0 002-2V8.839z" />
-																	</svg>
+																	<div class="h-5 w-5 fill-gray-500">
+																		${icons.email}
+																	</div>
 																</div>
 																<span class="block ml-10 text-xs font-medium text-gray-900">E-mail</span>
 															</div>
@@ -60,64 +77,96 @@ export default function Login(props: { signInFlow: ReadonlyArray<AuthenticationM
 									</div>
 								</div>
 							</div>
-						)}
-
-						{hasOAuth && (
+						`) || ""
+	}
+						${
+		hasOAuth && (`
 							<div class="mt-6">
 								<div>
 										<div class="relative mt-6">
 											<p class="text-sm text-gray-600">
-												{hasEmail && (<>
-													Or if you prefer not disclose your personnal information, you can sign in with
-												</>)}
-												{!hasEmail && (<>
+												${
+				hasEmail && (`
+													Or you can sign in with
+												`) || ""
+			}
+												${
+				!hasEmail && (`
 													To keep connected with us please sign in with
-												</>)}
+												`) || ""
+			}
 											</p>
 										</div>
 									<div class="mt-4">
-										{oauthMethods.map((m) => (
-											<a
-												href="#"
-												title={`Sign in with ${m.oauthConfiguration.providerLabel}`}
+										${
+				oauthMethods.map((method) => (`
+											<button
+												title="${method?.label}"}
 												class="inline-flex rounded-full justify-center bg-white p-4 mr-2 text-sm font-medium text-gray-500 shadow-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
 											>
-												<span class="sr-only">Sign in with {m.oauthConfiguration.providerLabel}</span>
-												<div class="h-5 w-5 fill-gray-500" dangerouslySetInnerHTML={{__html: m.oauthConfiguration.providerIcon}} />
-											</a>
-										))}
+												<span class="sr-only">${method?.label}</span>
+												<div class="h-5 w-5 fill-gray-500">${method?.icon}</div>
+											</button>
+										`)).join("")
+			}
 									</div>
 								</div>
 							</div>
-						)}
+						`) || ""
+	}
 
-						{hasAnonymous && (
+						${
+		hasAnonymous && (`
 							<div class="mt-6">
 								<div>
-										<div class="relative mt-6">
-											<p class="text-sm text-gray-600">
-												{(hasEmail || hasOAuth) && (<>
-													Or if you prefer to sign in anonymously
-												</>)}
-												{!(hasEmail || hasOAuth) && (<>
-													To keep connected with us please sign in anonymously
-												</>)}
-											</p>
-										</div>
+									<div class="mt-6">
+										<p class="text-sm text-gray-600">
+											${
+				(hasEmail || hasOAuth) && (`
+												Or you can <a href="#" onclick="document.getElementById('dialog-anonymous').showModal()">sign in anonymous</a>
+											`) || ""
+			}
+											${
+				!(hasEmail || hasOAuth) && (`
+												To keep connected with us please <a href="#" onclick="document.getElementById('dialog-anonymous').showModal()">sign in anonymous</a>
+											`) || ""
+			}
+										</p>
+									</div>
 									<div class="mt-4">
 										<button
 											type="submit"
+											title="${locales[locale].signInWith.anonymous.label}"
 											class="inline-flex rounded-full justify-center bg-white py-2 px-4 mr-2 text-sm font-medium text-gray-500 shadow-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
 										>
 											<div class="h-4 w-4 mr-2 fill-gray-500">
-												<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path d="M224 16c-6.7 0-10.8-2.8-15.5-6.1C201.9 5.4 194 0 176 0c-30.5 0-52 43.7-66 89.4C62.7 98.1 32 112.2 32 128c0 14.3 25 27.1 64.6 35.9c-.4 4-.6 8-.6 12.1c0 17 3.3 33.2 9.3 48H45.4C38 224 32 230 32 237.4c0 1.7 .3 3.4 1 5l38.8 96.9C28.2 371.8 0 423.8 0 482.3C0 498.7 13.3 512 29.7 512H418.3c16.4 0 29.7-13.3 29.7-29.7c0-58.5-28.2-110.4-71.7-143L415 242.4c.6-1.6 1-3.3 1-5c0-7.4-6-13.4-13.4-13.4H342.7c6-14.8 9.3-31 9.3-48c0-4.1-.2-8.1-.6-12.1C391 155.1 416 142.3 416 128c0-15.8-30.7-29.9-78-38.6C324 43.7 302.5 0 272 0c-18 0-25.9 5.4-32.5 9.9c-4.7 3.3-8.8 6.1-15.5 6.1zm56 208H267.6c-16.5 0-31.1-10.6-36.3-26.2c-2.3-7-12.2-7-14.5 0c-5.2 15.6-19.9 26.2-36.3 26.2H168c-22.1 0-40-17.9-40-40V169.6c28.2 4.1 61 6.4 96 6.4s67.8-2.3 96-6.4V184c0 22.1-17.9 40-40 40zm-88 96l16 32L176 480 128 288l64 32zm128-32L272 480 240 352l16-32 64-32z"/></svg>
+												${icons.anonymous}
 											</div>
-											Sign in anonymously
+											${locales[locale].signInWith.anonymous.label}
 										</button>
 									</div>
 								</div>
+								<dialog id="dialog-anonymous" class="p-6 rounded-lg shadow-xl">
+									<h2 class="flex flex-row items-start space-x-3">
+										<div class="flex-shrink-0">
+											<div class="h-5 w-5 fill-gray-500">${icons.anonymous}</div>
+										</div>
+										<div class="text-base font-medium text-gray-900">${locales[locale].signInWith.anonymous.label}</div>
+									</h2>
+
+									<div class="my-5 text-base text-gray-600">
+										${locales[locale].signInWith.anonymous.dialogHtml}
+									</div>
+
+									<form method="dialog">
+										<div class="flex flex-col items-end">
+											<button class="inline-flex items-center rounded border border-transparent bg-indigo-600 px-2.5 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Close</button>
+										</div>
+									</form>
+								</dialog>
 							</div>
-						)}
+						`) || ""
+	}
 					</div>
 				</div>
 			</div>
@@ -225,5 +274,5 @@ export default function Login(props: { signInFlow: ReadonlyArray<AuthenticationM
 				</svg>
 			</div>
 		</div>
-	);
+	`;
 }

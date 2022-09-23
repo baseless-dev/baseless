@@ -7,17 +7,19 @@ export interface AuthConfiguration {
 	readonly onCreateIdentity?: AuthHandler;
 	readonly onUpdateIdentity?: AuthHandler;
 	readonly onDeleteIdentity?: AuthHandler;
-	readonly render?: AuthRenderer;
+	readonly views?: AuthViews;
 }
 
 export type AuthHandler = (context: Context, request: Request, identity: Identity) => void | Promise<void>;
-export type AuthRenderer = (context: Context, request: Request) => Response | undefined | Promise<Response | undefined>;
+export interface AuthViews {
+	login(request: Request, configuration: AuthConfiguration): Response;
+}
 export class AuthBuilder {
 	#signInFlow: AuthenticationMethod[] = [email(password())];
 	#onCreateIdentityHandler?: AuthHandler;
 	#onUpdateIdentityHandler?: AuthHandler;
 	#onDeleteIdentityHandler?: AuthHandler;
-	#rendererHandler?: AuthRenderer;
+	#viewsHandler?: AuthViews;
 
 	/**
 	 * Defines the authentication methods and their login methods
@@ -64,8 +66,8 @@ export class AuthBuilder {
 	 * @param handler The callback
 	 * @returns The builder
 	 */
-	public setRenderer(handler: AuthRenderer) {
-		this.#rendererHandler = handler;
+	public setViews(handler: AuthViews) {
+		this.#viewsHandler = handler;
 		return this;
 	}
 
@@ -79,7 +81,7 @@ export class AuthBuilder {
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,
-			render: this.#rendererHandler,
+			views: this.#viewsHandler,
 		};
 	}
 }

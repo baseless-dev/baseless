@@ -1,9 +1,8 @@
 import { config } from "https://baseless.dev/x/baseless/config.ts";
-import { anonymous, email, oauth, oneOf, password } from "https://baseless.dev/x/baseless/auth/mod.ts";
+import { anonymous, email, oauth, oneOf, password } from "https://baseless.dev/x/baseless/auth/signInMethod.ts";
 import { emailOTP } from "https://baseless.dev/x/baseless-auth-login-otp-email/mod.ts";
-import createRenderer from "https://baseless.dev/x/baseless-auth-renderer/mod.ts";
-import * as defaultIcons from "https://baseless.dev/x/baseless-auth-renderer/icons.ts";
-import enLocale from "https://baseless.dev/x/baseless-auth-renderer/locales/en.ts";
+import createAuthUI from "https://baseless.dev/x/baseless-auth-ui/mod.ts";
+import authUIEn from "https://baseless.dev/x/baseless-auth-ui/locales/en.ts";
 
 config.auth()
 	.flow(
@@ -59,35 +58,19 @@ config.auth()
 			scope: [],
 		}),
 	)
-	.setRenderer(createRenderer({
-		icons: defaultIcons,
-		locales: {
-			"en": {
-				...enLocale,
-				signInWith: {
-					...enLocale.signInWith,
-					google: {
-						label: "Sign in with Google",
-					},
-					twitter: {
-						label: "Sign in with Twitter",
-					},
-					github: {
-						label: "Sign in with Github",
-					},
-					facebook: {
-						label: "Sign in with Facebook",
-					},
-				},
-			},
+	.setViews(createAuthUI({
+		defaultLocale: "en",
+		locales: ["en"],
+		localization: {
+			en: authUIEn,
 		},
 	}))
-	.onCreateIdentity((_ctx, _req, identity) => {
-		console.log(`Identity created ${identity.id}`);
-	})
-	.onUpdateIdentity((_ctx, _req, identity) => {
-		console.log(`Identity updated ${identity.id}`);
-	})
-	.onDeleteIdentity((_ctx, _req, identity) => {
-		console.log(`Identity deleted ${identity.id}`);
-	});
+	// .onCreateIdentity((_ctx, _req, identity) => {
+	// 	console.log(`Identity created ${identity.id}`);
+	// })
+	// .onUpdateIdentity((_ctx, _req, identity) => {
+	// 	console.log(`Identity updated ${identity.id}`);
+	// })
+	// .onDeleteIdentity((_ctx, _req, identity) => {
+	// 	console.log(`Identity deleted ${identity.id}`);
+	// });

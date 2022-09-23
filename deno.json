@@ -1,13 +1,12 @@
 {
-	"importMap": "import-map.json",
+	"importMap": "./import-map.json",
 	"compilerOptions": {
 		"jsxFactory": "h",
 		"jsxFragmentFactory": "Fragment"
 	},
 	"tasks": {
 		"start:hello-world": "deno run --watch --unstable --allow-env --allow-net examples/hello-world/server.ts",
-		"bundle:hello-world": "deno bundle --unstable --no-check examples/hello-world/server.ts examples/hello-world/bundle.js",
-		"compile:hello-world": "deno compile --unstable -A --no-check --output examples/hello-world/hello-world.elf examples/hello-world/bundle.js"
+		"bundle:hello-world": "deno bundle --unstable --no-check examples/hello-world/server.ts examples/hello-world/bundle.js"
 	},
 	"lint": {
 		"files": {

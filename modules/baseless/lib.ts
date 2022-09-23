@@ -1,6 +1,8 @@
 import { Configuration } from "./config.ts";
 import { Context } from "./context.ts";
 import { logger } from "./logger.ts";
+import authRouter from "./auth/controller.ts";
+import { RouteNotFound } from "./router.ts";
 
 export class Baseless {
 	protected readonly logger = logger("baseless");
@@ -23,32 +25,30 @@ export class Baseless {
 			},
 		};
 
-		let processRequest: Response | Promise<Response> | undefined;
-
-		processRequest = await this.configuration.auth.render?.(context, request);
-
-		if (!processRequest) {
-			return [
-				new Response(null, {
-					status: 400,
-				}),
-				waitUntilCollection,
-			];
-		}
-
+		
 		try {
+			const processRequest = authRouter.process(request, { context });
 			return [
 				await processRequest,
 				waitUntilCollection,
 			];
 		} catch (err) {
-			this.logger.error(`Could not handle request ${request.url}, got error : ${err}`);
-			return [
-				new Response(null, {
-					status: 500,
-				}),
-				waitUntilCollection,
-			];
+			if (err instanceof RouteNotFound) {
+				return [
+					new Response(null, {
+						status: 404,
+					}),
+					waitUntilCollection,
+				];
+			} else {
+				this.logger.warn(`Could not handle request ${request.url}, got error : ${err}`);
+				return [
+					new Response(null, {
+						status: 500,
+					}),
+					waitUntilCollection,
+				];
+			}
 		}
 	}
 }

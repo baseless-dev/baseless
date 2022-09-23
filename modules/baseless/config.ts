@@ -1,4 +1,4 @@
-import { AuthBuilder, AuthConfiguration } from "./auth/mod.ts";
+import { AuthBuilder, AuthConfiguration } from "./auth/config.ts";
 
 export interface Configuration {
 	readonly auth: AuthConfiguration;

@@ -2,7 +2,7 @@
 	"imports": {
 		"https://baseless.dev/x/baseless/": "./modules/baseless/",
 		"https://baseless.dev/x/baseless-auth-login-otp-email/": "./modules/baseless-auth-login-otp-email/",
-		"https://baseless.dev/x/baseless-auth-renderer/": "./modules/baseless-auth-renderer/",
+		"https://baseless.dev/x/baseless-auth-ui/": "./modules/baseless-auth-ui/",
 		"https://baseless.dev/x/baseless-client-kv/": "./modules/baseless-client-kv/",
 		"https://baseless.dev/x/baseless-email-logger/": "./modules/baseless-email-logger/",
 		"https://baseless.dev/x/baseless-kv-deno-sqlite/": "./modules/baseless-kv-deno-sqlite/",

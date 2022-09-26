@@ -6,7 +6,13 @@ export class Router<T = {}> {
 	#routes = new Map<Method, Map<URLPattern, RouteHandler<T>>>();
 	#children = new Map<URLPattern, Router<T>>();
 
-	#addRoute(method: Method, pathname: string, handler: RouteHandler<T>) {
+	/**
+	 * Add a new route
+	 * @param method The HTTP method
+	 * @param pathname Pathname of the {@see URLPattern.pathname}
+	 * @param handler Route handler
+	 */
+	add(method: Method, pathname: string, handler: RouteHandler<T>) {
 		const pattern = new URLPattern({ pathname });
 		if (!this.#routes.has(method)) {
 			this.#routes.set(method, new Map());
@@ -33,7 +39,7 @@ export class Router<T = {}> {
 	 * @returns The router
 	 */
 	get(pathname: string, handler: RouteHandler<T>) {
-		this.#addRoute("GET", pathname, handler);
+		this.add("GET", pathname, handler);
 		return this;
 	}
 
@@ -44,7 +50,7 @@ export class Router<T = {}> {
 	 * @returns The router
 	 */
 	post(pathname: string, handler: RouteHandler<T>) {
-		this.#addRoute("POST", pathname, handler);
+		this.add("POST", pathname, handler);
 		return this;
 	}
 
@@ -55,7 +61,7 @@ export class Router<T = {}> {
 	 * @returns The router
 	 */
 	put(pathname: string, handler: RouteHandler<T>) {
-		this.#addRoute("PUT", pathname, handler);
+		this.add("PUT", pathname, handler);
 		return this;
 	}
 
@@ -66,7 +72,7 @@ export class Router<T = {}> {
 	 * @returns The router
 	 */
 	delete(pathname: string, handler: RouteHandler<T>) {
-		this.#addRoute("DELETE", pathname, handler);
+		this.add("DELETE", pathname, handler);
 		return this;
 	}
 

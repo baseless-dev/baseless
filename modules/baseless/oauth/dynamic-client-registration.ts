@@ -42,7 +42,7 @@ export interface ClientInformationResponse extends ClientMetadata {
 	client_id: string;
 	client_secret?: string;
 	client_id_issued_at?: string;
-	client_secret_expires_at: string;
+	client_secret_expires_at?: string;
 }
 
 /**

@@ -1,5 +1,5 @@
-import type { ClientMetadata } from "../oauth/dynamic-client-registration.ts";
-export type { ClientMetadata } from "../oauth/dynamic-client-registration.ts";
+import type { ClientInformationResponse } from "../oauth/dynamic-client-registration.ts";
+export type { ClientInformationResponse } from "../oauth/dynamic-client-registration.ts";
 
 /**
  * Client Provider
@@ -10,14 +10,14 @@ export interface ClientProvider {
 	 *
 	 * @throws {@link ClientNotFoundError} This exception is thrown if the client is not found
 	 */
-	get(id: string): Promise<ClientMetadata>;
+	get(id: string): Promise<ClientInformationResponse>;
 
 	/**
 	 * Add new Client
 	 *
 	 * @throws {@link ClientExistsError} This exception is thrown if a client exists with the same {@link Client.id}
 	 */
-	add(client: ClientMetadata): Promise<void>;
+	add(client: ClientInformationResponse): Promise<void>;
 
 	/**
 	 * Remove a Client

@@ -6,10 +6,10 @@ Deno.test("add & get", async () => {
 	const kv = new KVDenoDBProvider(":memory:");
 	await kv.open();
 	const registry = new ClientKVProvider(kv);
-	await registry.add({ id: "acme", principal: "ACME" });
-	await assertRejects(() => registry.add({ id: "acme", principal: "ACME" }));
+	await registry.add({ client_id: "acme" });
+	await assertRejects(() => registry.add({ client_id: "acme" }));
 	const client = await registry.get("acme");
-	assertEquals(client.principal, "ACME");
+	assertEquals(client.client_id, "acme");
 	await kv.close();
 });
 
@@ -17,7 +17,7 @@ Deno.test("remove", async () => {
 	const kv = new KVDenoDBProvider(":memory:");
 	await kv.open();
 	const registry = new ClientKVProvider(kv);
-	await registry.add({ id: "acme", principal: "ACME" });
+	await registry.add({ client_id: "acme" });
 	assertExists(await registry.get("acme"));
 	await registry.remove("acme");
 	await assertRejects(() => registry.get("acme"));

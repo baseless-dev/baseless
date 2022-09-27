@@ -8,9 +8,8 @@ authRouter.get("/login", ({ request, context }) => {
 });
 
 authRouter.post("/login", async ({ request, context }) => {
-	const post = await request.formData()
+	const post = await request.formData();
 	const email = post.get("not_an_email") ?? post.get("email");
-	console.log(email);
 	return new Response(null, { status: 301 });
 });
 

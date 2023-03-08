@@ -12,12 +12,14 @@ log.setGlobalLogHandler(log.createConsoleLogHandler(log.LogLevel.DEBUG));
 
 const baseless = new Baseless(config.build());
 
-const listener = Deno.listen({ hostname: "0.0.0.0", port: 8787 });
+const listener = Deno.listen({ hostname: "0.0.0.0", port: 8080 });
 
 console.log(``);
 console.log(`  %c START %c       Baseless server started and listening`, "background-color: cyan; font-weight: bold", "");
 for (const netint of Deno.networkInterfaces()) {
-	console.log(`                http://${netint.family === "IPv4" ? netint.address : `[${netint.address}]`}:8787/`);
+	if (netint.family === "IPv4") {
+		console.log(`                http://${netint.address}:8080/`);
+	}
 }
 console.log(``);
 

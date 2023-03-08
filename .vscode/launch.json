@@ -18,7 +18,8 @@
 				"--allow-net",
 				"--inspect"
 			],
-			"attachSimplePort": 9229
+			"attachSimplePort": 9229,
+			"restart": true
 		}
 	]
 }

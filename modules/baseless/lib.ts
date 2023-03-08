@@ -27,7 +27,7 @@ export class Baseless {
 
 		
 		try {
-			const processRequest = authRouter.process(request, { context });
+			const processRequest = authRouter.process(request, context);
 			return [
 				await processRequest,
 				waitUntilCollection,

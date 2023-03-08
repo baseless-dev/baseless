@@ -1,6 +1,4 @@
-import { ssr } from "./ssr.ts";
-import Frame from "./components/Frame.tsx";
-import Login from "./components/Login.tsx";
+import Login from "./components/Login.ts";
 import { Locale, Localization } from "./localization.ts";
 import { AuthConfiguration, AuthViews } from "https://baseless.dev/x/baseless/auth/config.ts";
 
@@ -22,7 +20,7 @@ export default function createAuthUI(uiConfiguration: AuthUIConfiguration): Auth
 			const context: AuthUIContext = {
 				currentLocale,
 			};
-			return ssr(Frame({ children: Login({ context, uiConfiguration, configuration }) }));
+			return new Response(Login({ context, uiConfiguration, configuration }), { headers: { "Content-Type": "text/html; charset=utf-8" } });
 		},
 	};
 }

@@ -1,8 +1,8 @@
 export type Method = "GET" | "POST" | "PUT" | "DELETE";
 
-export type RouteHandler<T = {}> = (options: T & { request: Request; params: Record<string, string>; }) => Promise<Response> | Response;
+export type RouteHandler<T extends unknown[]> = (req: Request, params: Record<string, string>, ...args: T) => Promise<Response> | Response;
 
-export class Router<T = {}> {
+export class Router<T extends unknown[]> {
 	#routes = new Map<Method, Map<URLPattern, RouteHandler<T>>>();
 	#children = new Map<URLPattern, Router<T>>();
 
@@ -81,14 +81,14 @@ export class Router<T = {}> {
 	 * @param request The {@see Request}
 	 * @returns The {@see Response}
 	 */
-	process(request: Request, args: T): Promise<Response> {
+	process(request: Request, ...args: T): Promise<Response> {
 		const method = request.method.toLocaleUpperCase();
 		const routes = this.#routes.get(method as Method);
 		if (routes) {
 			for (const [pattern, handler] of routes) {
 				const result = pattern.exec(request.url);
 				if (result) {
-					return Promise.resolve(handler({ request, params: result.pathname.groups, ...args }));
+					return Promise.resolve(handler(request, result.pathname.groups, ...args));
 				}
 			}
 		}
@@ -96,7 +96,7 @@ export class Router<T = {}> {
 			const result = pattern.exec(request.url);
 			if (result) {
 				const newRequest = new Request(`http://router.local/${result.pathname.groups["0"]}`, request);
-				return router.process(newRequest, args);
+				return router.process(newRequest, ...args);
 			}
 		}
 		const url = new URL(request.url);

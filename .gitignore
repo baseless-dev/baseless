@@ -1,3 +1,4 @@
+.deno
 dist
 coverage
 node_modules

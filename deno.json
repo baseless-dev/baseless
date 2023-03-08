@@ -5,7 +5,7 @@
 		"jsxFragmentFactory": "Fragment"
 	},
 	"tasks": {
-		"start:hello-world": "deno run --watch --unstable --allow-env --allow-net examples/hello-world/server.ts",
+		"start:hello-world": "deno run --watch --unstable --allow-env --allow-net --allow-sys examples/hello-world/server.ts",
 		"bundle:hello-world": "deno run -A modules/baseless/cli/bundle.ts --entry examples/hello-world/server.ts --dist examples/hello-world/dist"
 	},
 	"lint": {

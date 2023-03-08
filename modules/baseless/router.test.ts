@@ -55,10 +55,10 @@ Deno.test("nested route", async () => {
 
 Deno.test("route params", async () => {
 	const router = new Router();
-	router.get("/users/:id", ({ params }) => new Response(params.id));
+	router.get("/users/:id", (_req, params) => new Response(params.id));
 
 	const child = new Router();
-	child.get("/bar", () => new Response("bar"));
+	child.get("/bar", (_, params) => new Response(JSON.stringify(params)));
 
 	router.route("/child/:id", child);
 
@@ -66,5 +66,5 @@ Deno.test("route params", async () => {
 	assertEquals(await router.process(new Request("http://test.local/users/123"), {}).then(r => r.text()), "123");
 	assertRejects(async () => await router.process(new Request("http://test.local/child"), {}).then(r => r.text()));
 	assertRejects(async () => await router.process(new Request("http://test.local/child/456"), {}).then(r => r.text()));
-	assertEquals(await router.process(new Request("http://test.local/child/456/bar"), {}).then(r => r.text()), "bar");
+	assertEquals(await router.process(new Request("http://test.local/child/456/bar"), {}).then(r => r.text()), "{}");
 })

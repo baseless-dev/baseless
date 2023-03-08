@@ -1,10 +1,18 @@
 export type Method = "GET" | "POST" | "PUT" | "DELETE";
 
-export type RouteHandler<T extends unknown[]> = (req: Request, params: Record<string, string>, ...args: T) => Promise<Response> | Response;
+export type AbsolutePath<Path> = Path extends `/${infer A}` ? Path : never;
+export type NamedGroups<Segment> = Segment extends `:${infer Name}` ? Name : never;
+export type ExtractNamedGroupsFromPath<Path> = Path extends `${infer A}/${infer B}` ? NamedGroups<A> | ExtractNamedGroupsFromPath<B> : NamedGroups<Path>;
+export type ExtractNamedGroupsFromAbsolutePath<Path> = Path extends `/${infer A}` ? ExtractNamedGroupsFromPath<A> : never;
+export type ExtractParams<Path> = {
+    [Key in ExtractNamedGroupsFromAbsolutePath<Path>]: string;
+}
 
-export class Router<T extends unknown[]> {
-	#routes = new Map<Method, Map<URLPattern, RouteHandler<T>>>();
-	#children = new Map<URLPattern, Router<T>>();
+export type RouteHandler<Params extends Record<string, string>, Args extends unknown[]> = (req: Request, params: Params, ...args: Args) => Promise<Response> | Response;
+
+export class Router<Args extends unknown[]> {
+	#routes = new Map<Method, Map<URLPattern, RouteHandler<Record<string, string>, Args>>>();
+	#children = new Map<URLPattern, Router<Args>>();
 
 	/**
 	 * Add a new route
@@ -12,7 +20,7 @@ export class Router<T extends unknown[]> {
 	 * @param pathname Pathname of the {@see URLPattern.pathname}
 	 * @param handler Route handler
 	 */
-	add(method: Method, pathname: string, handler: RouteHandler<T>) {
+	add<Path extends string>(method: Method, pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
 		const pattern = new URLPattern({ pathname });
 		if (!this.#routes.has(method)) {
 			this.#routes.set(method, new Map());
@@ -26,7 +34,7 @@ export class Router<T extends unknown[]> {
 	 * @param router The child router
 	 * @returns The router
 	 */
-	route(location: string, router: Router<T>) {
+	route<Path extends string>(location: AbsolutePath<Path>, router: Router<Args>) {
 		const pattern = new URLPattern({ pathname: location+"{/(.*)}?" });
 		this.#children.set(pattern, router);
 		return this;
@@ -38,7 +46,7 @@ export class Router<T extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	get(pathname: string, handler: RouteHandler<T>) {
+	get<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
 		this.add("GET", pathname, handler);
 		return this;
 	}
@@ -49,7 +57,7 @@ export class Router<T extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	post(pathname: string, handler: RouteHandler<T>) {
+	post<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
 		this.add("POST", pathname, handler);
 		return this;
 	}
@@ -60,7 +68,7 @@ export class Router<T extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	put(pathname: string, handler: RouteHandler<T>) {
+	put<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
 		this.add("PUT", pathname, handler);
 		return this;
 	}
@@ -71,7 +79,7 @@ export class Router<T extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	delete(pathname: string, handler: RouteHandler<T>) {
+	delete<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
 		this.add("DELETE", pathname, handler);
 		return this;
 	}
@@ -81,7 +89,7 @@ export class Router<T extends unknown[]> {
 	 * @param request The {@see Request}
 	 * @returns The {@see Response}
 	 */
-	process(request: Request, ...args: T): Promise<Response> {
+	process(request: Request, ...args: Args): Promise<Response> {
 		const method = request.method.toLocaleUpperCase();
 		const routes = this.#routes.get(method as Method);
 		if (routes) {

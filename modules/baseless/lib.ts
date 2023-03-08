@@ -2,7 +2,10 @@ import { Configuration } from "./config.ts";
 import { Context } from "./context.ts";
 import { logger } from "./logger.ts";
 import authRouter from "./auth/controller.ts";
-import { RouteNotFound } from "./router.ts";
+import { RouteNotFound, Router } from "./router.ts";
+
+const router = new Router<[context: Context]>();
+router.route('/auth', authRouter);
 
 export class Baseless {
 	protected readonly logger = logger("baseless");
@@ -27,7 +30,7 @@ export class Baseless {
 
 		
 		try {
-			const processRequest = authRouter.process(request, context);
+			const processRequest = router.process(request, context);
 			return [
 				await processRequest,
 				waitUntilCollection,

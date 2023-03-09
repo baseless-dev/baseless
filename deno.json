@@ -6,16 +6,22 @@
 	},
 	"tasks": {
 		"start:hello-world": "deno run --watch --unstable --allow-env --allow-net --allow-sys examples/hello-world/server.ts",
-		"bundle:hello-world": "deno run -A modules/baseless/cli/bundle.ts --entry examples/hello-world/server.ts --dist examples/hello-world/dist"
+		"bundle:hello-world": "deno run -A modules/baseless/cli/bundle.ts --entry examples/hello-world/server.ts --dist examples/hello-world/dist",
+		"fmt": "DENO_DIR=.deno deno fmt",
+		"lint": "DENO_DIR=.deno deno lint",
+		"cache": "DENO_DIR=.deno deno cache",
+		"info": "DENO_DIR=.deno deno info",
+		"bench": "DENO_DIR=.deno deno bench -A --unstable",
+		"test": "DENO_DIR=.deno deno test -A --unstable --parallel"
 	},
 	"lint": {
 		"files": {
-			"exclude": ["dist/"]
+			"exclude": ["dist/", ".deno/"]
 		}
 	},
 	"fmt": {
 		"files": {
-			"exclude": ["dist/"]
+			"exclude": ["dist/", ".deno/"]
 		},
 		"options": {
 			"useTabs": true,
@@ -24,7 +30,7 @@
 	},
 	"test": {
 		"files": {
-			"exclude": ["dist/"]
+			"exclude": ["dist/", ".deno/"]
 		}
 	}
 }

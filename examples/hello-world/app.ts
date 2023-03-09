@@ -64,13 +64,13 @@ config.auth()
 		localization: {
 			en: authUIEn,
 		},
-	}))
-	// .onCreateIdentity((_ctx, _req, identity) => {
-	// 	console.log(`Identity created ${identity.id}`);
-	// })
-	// .onUpdateIdentity((_ctx, _req, identity) => {
-	// 	console.log(`Identity updated ${identity.id}`);
-	// })
-	// .onDeleteIdentity((_ctx, _req, identity) => {
-	// 	console.log(`Identity deleted ${identity.id}`);
-	// });
+	}));
+// .onCreateIdentity((_ctx, _req, identity) => {
+// 	console.log(`Identity created ${identity.id}`);
+// })
+// .onUpdateIdentity((_ctx, _req, identity) => {
+// 	console.log(`Identity updated ${identity.id}`);
+// })
+// .onDeleteIdentity((_ctx, _req, identity) => {
+// 	console.log(`Identity deleted ${identity.id}`);
+// });

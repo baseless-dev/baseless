@@ -6,21 +6,21 @@ import Layout from "./Layout.ts";
 export interface LoginProps {
 	context: AuthUIContext;
 	uiConfiguration: AuthUIConfiguration;
-	configuration: AuthConfiguration
+	configuration: AuthConfiguration;
 }
 
 export default function Login({ context, uiConfiguration, configuration }: LoginProps) {
 	const l10n = uiConfiguration.localization[context.currentLocale];
-	const hasEmail = configuration.signInFlow.some(m => m.type === AuthenticationType.Email);
-	const oauthMethods = configuration.signInFlow.map(m => {
+	const hasEmail = configuration.signInFlow.some((m) => m.type === AuthenticationType.Email);
+	const oauthMethods = configuration.signInFlow.map((m) => {
 		if (m.type === AuthenticationType.OAuth) {
 			return {
 				type: m.type,
 				icon: m.oauth.providerIcon ?? "",
 				label: l10n.signWithOAuth.signIn(m.oauth.providerLabel),
-			}
+			};
 		}
-	}).filter(m => m);
+	}).filter((m) => m);
 	const hasOAuth = oauthMethods.length > 0;
 	return Layout({ title: l10n.heading }, [`
 		<div class="mx-auto w-full max-w-sm">
@@ -31,7 +31,8 @@ export default function Login({ context, uiConfiguration, configuration }: Login
 				</h2>
 			</div>
 			<div>
-				${hasEmail && `
+				${
+		hasEmail && `
 					<div class="mt-6">
 						<div>
 							<div class="relative mt-6">
@@ -79,8 +80,10 @@ export default function Login({ context, uiConfiguration, configuration }: Login
 							</div>
 						</div>
 					</div>
-				`}
-				${hasOAuth && `
+				`
+	}
+				${
+		hasOAuth && `
 					<div class="mt-6">
 						<div>
 							<div class="relative mt-6">
@@ -89,7 +92,8 @@ export default function Login({ context, uiConfiguration, configuration }: Login
 								</p>
 							</div>
 							<div class="mt-4">
-								${oauthMethods.map((method) => `
+								${
+			oauthMethods.map((method) => `
 									<button
 										title="${method?.label}"
 										class="inline-flex rounded-full justify-center bg-white p-4 mr-2 text-sm font-medium text-gray-500 shadow-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -97,11 +101,13 @@ export default function Login({ context, uiConfiguration, configuration }: Login
 										<span class="sr-only">${method?.label}</span>
 										<div class="h-5 w-5 fill-gray-500">${method?.icon}</div>
 									</button>
-								`).join('')}
+								`).join("")
+		}
 							</div>
 						</div>
 					</div>
-				`}
+				`
+	}
 			</div>
 		</div>
 	`]);

@@ -6,5 +6,13 @@
 	"deno.unstable": true,
 	"deno.codeLens.referencesAllFunctions": true,
 	"deno.codeLens.references": true,
-	"deno.codeLens.implementations": true
+	"deno.codeLens.implementations": true,
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "denoland.vscode-deno",
+	"explorer.fileNesting.enabled": true,
+	"explorer.fileNesting.expand": false,
+	"explorer.fileNesting.patterns": {
+		"deno.json": "deno.lock, import-map.json, .gitignore, .prettierrc",
+		"*.ts": "${capture}.test.ts"
+	}
 }

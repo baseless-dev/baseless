@@ -1,15 +1,14 @@
 import { Command } from "https://deno.land/x/cliffy@v0.25.1/mod.ts";
 import * as esbuild from "https://deno.land/x/esbuild@v0.15.8/mod.js";
-import { join, dirname, isAbsolute, extname } from "https://deno.land/std@0.156.0/path/mod.ts";
+import { dirname, extname, isAbsolute, join } from "https://deno.land/std@0.156.0/path/mod.ts";
 
 const build = new Command()
 	.name("Simple bundler")
 	.description("A bundler script.")
 	.option("--entry <entry:string>", "The entry file", { required: true })
-	.option("--config <config:string>", "The Deno config file", { default: './deno.json' })
-	.option("--dist <dist:string>", "The distribution directory", { default: './public' })
+	.option("--config <config:string>", "The Deno config file", { default: "./deno.json" })
+	.option("--dist <dist:string>", "The distribution directory", { default: "./public" })
 	.action(async (options) => {
-
 		let importMapBase = "";
 		let importMap: { imports: Record<string, string> } | undefined;
 		let denoConfig: Record<string, unknown> = {};
@@ -17,9 +16,11 @@ const build = new Command()
 		try {
 			const denoJson = await Deno.readTextFile(join(Deno.cwd(), options.config));
 			denoConfig = JSON.parse(denoJson) ?? {};
-		} catch (_err) {}
+		} finally {
+			// skip
+		}
 
-		if ('importMap' in denoConfig && typeof denoConfig.importMap === 'string') {
+		if ("importMap" in denoConfig && typeof denoConfig.importMap === "string") {
 			try {
 				const importMapPath = join(dirname(join(Deno.cwd(), options.config)), denoConfig.importMap);
 				importMapBase = dirname(importMapPath);
@@ -43,7 +44,7 @@ const build = new Command()
 					path: new URL(args.path, args.importer).toString(),
 					namespace: "bundle-http",
 				}));
-				build.onLoad({ filter: /.*/, namespace: 'bundle-http' }, async (args) => {
+				build.onLoad({ filter: /.*/, namespace: "bundle-http" }, async (args) => {
 					for (const [url, map] of Object.entries(importMap?.imports ?? {})) {
 						if (args.path.substring(0, url.length) === url) {
 							args.path = join(importMapBase, map, args.path.substring(url.length));
@@ -53,12 +54,12 @@ const build = new Command()
 					if (isAbsolute(args.path)) {
 						const contents = await Deno.readTextFile(args.path);
 						const ext = extname(args.path);
-						return { contents, loader: ext.includes('js') ? 'jsx' : 'tsx' };
+						return { contents, loader: ext.includes("js") ? "jsx" : "tsx" };
 					} else {
-						const response = await fetch(args.path)
+						const response = await fetch(args.path);
 						const contents = await response.text();
-						const contentType = response.headers.get('Content-Type') ?? 'text/javascript; charset=utf-8';
-						return { contents, loader: contentType.includes('javascript') ? 'jsx' : 'tsx' };
+						const contentType = response.headers.get("Content-Type") ?? "text/javascript; charset=utf-8";
+						return { contents, loader: contentType.includes("javascript") ? "jsx" : "tsx" };
 					}
 				});
 			},
@@ -79,7 +80,7 @@ const build = new Command()
 		});
 
 		Deno.exit(0);
-	})
+	});
 
 try {
 	await build.parse(Deno.args);

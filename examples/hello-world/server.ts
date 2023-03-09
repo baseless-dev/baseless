@@ -28,7 +28,8 @@ async function handle(conn: Deno.Conn) {
 	try {
 		for await (const event of httpConn) {
 			try {
-				const [response, waitUntil] = await baseless.handleRequest(event.request);
+				const request = new Request(event.request, { headers: { "x-forwarded-for": conn.remoteAddr.hostname, ...Object.fromEntries(event.request.headers) } });
+				const [response, waitUntil] = await baseless.handleRequest(request);
 				await event.respondWith(response);
 				await Promise.all(waitUntil);
 			} catch (err) {

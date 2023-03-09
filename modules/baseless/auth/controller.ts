@@ -9,7 +9,7 @@ authRouter.get("/login", (request, _params, context) => {
 
 authRouter.post("/login", async (request, _params, _context) => {
 	const post = await request.formData();
-	const email = post.get("not_an_email") ?? post.get("email");
+	const _email = post.get("not_an_email") ?? post.get("email");
 	// TODO validate email in auth flow
 	// TODO get Identity by email
 	// TODO begin login flow

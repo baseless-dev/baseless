@@ -86,7 +86,7 @@ export function createConsoleLogHandler(minLevel = LogLevel.DEBUG): LogHandler {
 		if (LogSeverity[lvl] >= minSeverity) {
 			const color = logSeverityConsoleColor[lvl];
 			logSeverityConsoleMethodMap[lvl](
-				`%c${new Date().toISOString()} ${ns.padEnd(25, " ")} %c ${lvl} %c${" ".repeat(8 - lvl.length)} ${msg} `,
+				`%c${new Date().toISOString()} %c ${lvl} %c ${ns} ${msg} `,
 				`color: ${color};`,
 				`background-color: ${color}; color: white; font-weight: bold;`,
 				`color: ${color};`,

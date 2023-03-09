@@ -24,11 +24,6 @@ export async function handleClientRead(
 	const url = new URL(request.url);
 	const client_id = url.pathname.replace(/^\/+/, "").split("/").pop();
 
-	return new Response(
-		JSON.stringify({ error: "unimplemented" }),
-		{ status: 500, headers: { "Content-Type": "application/json" } },
-	);
-
 	// TODO Fetch client_id
 	// const clientInformation = await clientProvider.get(client_id);
 

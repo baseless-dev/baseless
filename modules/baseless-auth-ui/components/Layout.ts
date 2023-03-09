@@ -854,7 +854,7 @@ export default function Layout({ title }: LayoutProps, children: string[]) {
 </head>
 <body>
 	<div class="flex flex-col justify-center align-items-center min-h-full px-5 py-6">
-		${children.join('')}
+		${children.join("")}
 	</div>
 </body>`;
 }

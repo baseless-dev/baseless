@@ -5,7 +5,7 @@ import authRouter from "./auth/controller.ts";
 import { RouteNotFound, Router } from "./router.ts";
 
 const router = new Router<[context: Context]>();
-router.route('/auth', authRouter);
+router.route("/auth", authRouter);
 
 export class Baseless {
 	protected readonly logger = logger("baseless");
@@ -18,7 +18,8 @@ export class Baseless {
 	 * @returns The response and promise to wait in the background
 	 */
 	public async handleRequest(request: Request): Promise<[Response, PromiseLike<unknown>[]]> {
-		this.logger.debug(`${request.method} ${request.url}`);
+		const ip = request.headers.get("X-Forwarded-For") ?? "";
+		this.logger.log(`${request.method} ${ip} ${request.url}`);
 
 		const waitUntilCollection: PromiseLike<unknown>[] = [];
 		const context: Context = {
@@ -28,7 +29,6 @@ export class Baseless {
 			},
 		};
 
-		
 		try {
 			const processRequest = router.process(request, context);
 			return [

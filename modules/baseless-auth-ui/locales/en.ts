@@ -15,7 +15,7 @@ const localization: Localization = {
 		},
 		signIn(name: string) {
 			return `Sign in with ${name}`;
-		}
+		},
 	},
 };
 

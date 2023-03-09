@@ -5,8 +5,8 @@ export type NamedGroups<Segment> = Segment extends `:${infer Name}` ? Name : nev
 export type ExtractNamedGroupsFromPath<Path> = Path extends `${infer A}/${infer B}` ? NamedGroups<A> | ExtractNamedGroupsFromPath<B> : NamedGroups<Path>;
 export type ExtractNamedGroupsFromAbsolutePath<Path> = Path extends `/${infer A}` ? ExtractNamedGroupsFromPath<A> : never;
 export type ExtractParams<Path> = {
-    [Key in ExtractNamedGroupsFromAbsolutePath<Path>]: string;
-}
+	[Key in ExtractNamedGroupsFromAbsolutePath<Path>]: string;
+};
 
 export type RouteHandler<Params extends Record<string, string>, Args extends unknown[]> = (req: Request, params: Params, ...args: Args) => Promise<Response> | Response;
 
@@ -35,7 +35,7 @@ export class Router<Args extends unknown[]> {
 	 * @returns The router
 	 */
 	route<Path extends string>(location: AbsolutePath<Path>, router: Router<Args>) {
-		const pattern = new URLPattern({ pathname: location+"{/(.*)}?" });
+		const pattern = new URLPattern({ pathname: location + "{/(.*)}?" });
 		this.#children.set(pattern, router);
 		return this;
 	}
@@ -111,7 +111,6 @@ export class Router<Args extends unknown[]> {
 		throw new RouteNotFound(url.pathname);
 	}
 }
-
 
 export class RouteNotFound extends Error {
 	public name = "RouteNotFound";

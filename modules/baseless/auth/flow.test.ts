@@ -1,9 +1,9 @@
-import { assert, assertEquals, assertThrows } from "https://deno.land/std@0.118.0/testing/asserts.ts";
+import { assertEquals, assertThrows } from "https://deno.land/std@0.118.0/testing/asserts.ts";
 import * as flow from "./flow.ts";
 
 const otp = flow.otp({
 	providerId: "email",
-	providerLabel: "One time password by email",
+	providerLabel: {},
 });
 const email = flow.email();
 const password = flow.password();
@@ -11,7 +11,7 @@ const passwordless = flow.chain(email, otp);
 const email_and_password = flow.chain(email, password);
 const google = flow.oauth({
 	providerId: "google",
-	providerLabel: "",
+	providerLabel: {},
 	providerIcon: ``,
 	clientId: "",
 	clientSecret: "",
@@ -22,7 +22,7 @@ const google = flow.oauth({
 });
 const github = flow.oauth({
 	providerId: "github",
-	providerLabel: "",
+	providerLabel: {},
 	providerIcon: ``,
 	clientId: "",
 	clientSecret: "",

@@ -1,6 +1,6 @@
 export interface OAuthConfiguration {
 	readonly providerId: string;
-	readonly providerLabel: string;
+	readonly providerLabel: { [locale: string]: string };
 	readonly providerIcon: string;
 	readonly clientId: string;
 	readonly clientSecret: string;
@@ -12,17 +12,17 @@ export interface OAuthConfiguration {
 
 export interface OTPConfiguration {
 	readonly providerId: string;
-	readonly providerLabel: string;
+	readonly providerLabel: { [locale: string]: string };
 }
 
 export interface TOTPConfiguration {
 	readonly providerId: string;
-	readonly providerLabel: string;
+	readonly providerLabel: { [locale: string]: string };
 }
 
 export interface HOTPConfiguration {
 	readonly providerId: string;
-	readonly providerLabel: string;
+	readonly providerLabel: { [locale: string]: string };
 }
 
 export type AuthStepNodeDefinition =

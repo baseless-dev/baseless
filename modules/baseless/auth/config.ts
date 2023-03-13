@@ -1,9 +1,9 @@
 import { Context } from "../context.ts";
 import { Identity } from "./identity.ts";
-import { AuthenticationMethod, email, password } from "./signInMethod.ts";
+import { AuthStepDefinition, chain, email, password, assertAuthStepDefinition } from "./flow.ts";
 
 export interface AuthConfiguration {
-	readonly signInFlow: ReadonlyArray<AuthenticationMethod>;
+	readonly authFlow: AuthStepDefinition;
 	readonly onCreateIdentity?: AuthHandler;
 	readonly onUpdateIdentity?: AuthHandler;
 	readonly onDeleteIdentity?: AuthHandler;
@@ -15,7 +15,7 @@ export interface AuthViews {
 	login(request: Request, configuration: AuthConfiguration): Response;
 }
 export class AuthBuilder {
-	#signInFlow: AuthenticationMethod[] = [email(password())];
+	#authFlow: AuthStepDefinition = chain(email(), password());
 	#onCreateIdentityHandler?: AuthHandler;
 	#onUpdateIdentityHandler?: AuthHandler;
 	#onDeleteIdentityHandler?: AuthHandler;
@@ -26,8 +26,9 @@ export class AuthBuilder {
 	 * @param flow The allowed authentication methods
 	 * @returns The builder
 	 */
-	public flow(...flow: AuthenticationMethod[]) {
-		this.#signInFlow = flow;
+	public flow(flow: AuthStepDefinition) {
+		assertAuthStepDefinition(flow);
+		this.#authFlow = flow;
 		return this;
 	}
 
@@ -77,7 +78,7 @@ export class AuthBuilder {
 	 */
 	public build(): AuthConfiguration {
 		return {
-			signInFlow: this.#signInFlow,
+			authFlow: this.#authFlow,
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,

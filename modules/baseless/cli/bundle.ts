@@ -1,6 +1,6 @@
 import { Command } from "https://deno.land/x/cliffy@v0.25.1/mod.ts";
 import * as esbuild from "https://deno.land/x/esbuild@v0.15.8/mod.js";
-import { dirname, extname, isAbsolute, join } from "https://deno.land/std@0.156.0/path/mod.ts";
+import { dirname, extname, isAbsolute, join } from "https://deno.land/std@0.179.0/path/mod.ts";
 
 const build = new Command()
 	.name("Simple bundler")

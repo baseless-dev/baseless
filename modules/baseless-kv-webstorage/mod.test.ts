@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "https://deno.land/std@0.118.0/testing/asserts.ts";
+import { assertEquals, assertExists } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { KVWebStorageProvider } from "./mod.ts";
 
 Deno.test("put & get", async () => {

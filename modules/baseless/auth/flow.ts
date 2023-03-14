@@ -37,8 +37,14 @@ export type AuthStepNodeDefinition =
 		readonly config: OAuthConfiguration;
 	};
 
-export interface AuthStepChainDefinition<T extends AuthStepDefinition = AuthStepDefinition> { readonly type: "chain"; steps: T[] }
-export interface AuthStepOneOfDefinition<T extends AuthStepDefinition = AuthStepDefinition> { readonly type: "oneOf"; steps: T[] }
+export interface AuthStepChainDefinition<T extends AuthStepDefinition = AuthStepDefinition> {
+	readonly type: "chain";
+	steps: T[];
+}
+export interface AuthStepOneOfDefinition<T extends AuthStepDefinition = AuthStepDefinition> {
+	readonly type: "oneOf";
+	steps: T[];
+}
 
 export type AuthStepDefinition =
 	| AuthStepNodeDefinition
@@ -46,7 +52,10 @@ export type AuthStepDefinition =
 	| AuthStepOneOfDefinition;
 
 export type AuthStepLeafDefinition = AuthStepNodeDefinition | AuthStepChainDefinition<AuthStepNodeDefinition> | AuthStepOneOfDefinition<AuthStepNodeDefinition>;
-export type AuthStepDecomposedDefinition = AuthStepNodeDefinition | AuthStepChainDefinition<AuthStepNodeDefinition> | AuthStepOneOfDefinition<AuthStepChainDefinition<AuthStepNodeDefinition>>;
+export type AuthStepDecomposedDefinition =
+	| AuthStepNodeDefinition
+	| AuthStepChainDefinition<AuthStepNodeDefinition>
+	| AuthStepOneOfDefinition<AuthStepChainDefinition<AuthStepNodeDefinition>>;
 
 export function isAuthStepDefinition(value?: unknown): value is AuthStepDefinition {
 	return !!value && typeof value === "object" && "type" in value && typeof value.type === "string";
@@ -65,7 +74,7 @@ function isAuthStepLeafDefinition(value?: unknown): value is AuthStepLeafDefinit
 	if (value.type !== "chain" && value.type !== "oneOf") {
 		return true;
 	}
-	return !value.steps.some(step => step.type === "chain" || step.type === "oneOf");
+	return !value.steps.some((step) => step.type === "chain" || step.type === "oneOf");
 }
 
 export function assertAuthStepLeafDefinition(value?: unknown): asserts value is AuthStepLeafDefinition {
@@ -81,7 +90,7 @@ export function isAuthStepDecomposedDefinition(value: unknown): value is AuthSte
 	if (value.type === "chain" && !isAuthStepLeafDefinition(value)) {
 		return false;
 	}
-	if (value.type === "oneOf" && value.steps.some(step => !isAuthStepLeafDefinition(step))) {
+	if (value.type === "oneOf" && value.steps.some((step) => !isAuthStepLeafDefinition(step))) {
 		return false;
 	}
 	return true;
@@ -146,9 +155,8 @@ export function oauth(config: OAuthConfiguration): AuthStepDefinition {
 
 export function authStepIdent(step: AuthStepDefinition): string {
 	if (step.type === "otp" || step.type === "totp" || step.type === "hotp" || step.type === "oauth") {
-		return `${step.type}:${step.config.providerId}`
-	}
-	else if (step.type === "chain" || step.type === "oneOf") {
+		return `${step.type}:${step.config.providerId}`;
+	} else if (step.type === "chain" || step.type === "oneOf") {
 		return `${step.type}(${step.steps.map(authStepIdent)})`;
 	}
 	return step.type;
@@ -159,19 +167,18 @@ export function simplifyAuthStep(step: AuthStepDefinition): AuthStepDefinition {
 		const steps = step.steps.reduce((steps, step) => {
 			step = simplifyAuthStep(step);
 			if (step.type === "chain") {
-				steps.push(...step.steps)
+				steps.push(...step.steps);
 			} else {
 				steps.push(step);
 			}
 			return steps;
 		}, [] as AuthStepDefinition[]);
 		return chain(...steps);
-	}
-	else if (step.type === "oneOf") {
+	} else if (step.type === "oneOf") {
 		const steps = step.steps.reduce((steps, step) => {
 			step = simplifyAuthStep(step);
 			if (step.type === "oneOf") {
-				steps.push(...step.steps)
+				steps.push(...step.steps);
 			} else {
 				steps.push(step);
 			}
@@ -194,12 +201,12 @@ export enum VisitorResult {
 export type Visitor<Context> = {
 	enter: (step: AuthStepDefinition, context: Context) => VisitorResult;
 	leave?: (step: AuthStepDefinition, context: Context) => void;
-}
+};
 
 export function visit<Context = never>(
 	step: AuthStepDefinition,
 	visitor: Visitor<Context>,
-	context: Context
+	context: Context,
 ) {
 	_visit(simplifyAuthStep(step), visitor);
 	return context;
@@ -225,7 +232,7 @@ export function replaceAuthStep(step: AuthStepDefinition, search: AuthStepDefini
 	}
 	if (deep && (step.type === "chain" || step.type === "oneOf")) {
 		let changed = false;
-		const steps = step.steps.map(step => {
+		const steps = step.steps.map((step) => {
 			const replaced = replaceAuthStep(step, search, replace, true);
 			if (replaced !== step) {
 				changed = true;
@@ -255,13 +262,11 @@ export function decomposeAuthStep(step: AuthStepDefinition): AuthStepDecomposedD
 			while (walk.length > 0) {
 				const node = walk.shift()!;
 				if (node.type === "oneOf") {
-					trees.push(...node.steps.map(step => replaceAuthStep(root, node, step)));
+					trees.push(...node.steps.map((step) => replaceAuthStep(root, node, step)));
 					forked = true;
-				}
-				else if (node.type === "chain") {
+				} else if (node.type === "chain") {
 					walk.unshift(...node.steps);
-				}
-				else {
+				} else {
 					steps.push(node);
 				}
 			}
@@ -283,12 +288,12 @@ export interface AuthStepNextValue {
 }
 
 export interface AuthStepNextDone {
-	done: true
+	done: true;
 }
 
 export type AuthStepNext =
 	| AuthStepNextValue
-	| AuthStepNextDone
+	| AuthStepNextDone;
 
 export function nextAuthStep(step: AuthStepDefinition, path: string[]): AuthStepNext {
 	assertAuthStepDecomposedDefinition(step);
@@ -308,8 +313,7 @@ export function nextAuthStep(step: AuthStepDefinition, path: string[]): AuthStep
 			throw new Error(`Invalid path for this step definition.`);
 		}
 		return { done: false, next: step.steps.at(i)! };
-	}
-	else if (step.type === "oneOf") {
+	} else if (step.type === "oneOf") {
 		const nextSteps: AuthStepNext[] = [];
 		for (const inner of step.steps) {
 			try {
@@ -318,21 +322,19 @@ export function nextAuthStep(step: AuthStepDefinition, path: string[]): AuthStep
 				// skip
 			}
 		}
-		if (nextSteps.some(ns => ns.done)) {
+		if (nextSteps.some((ns) => ns.done)) {
 			return { done: true };
 		}
 		if (nextSteps.length === 1) {
 			return nextSteps.at(0)!;
 		} else if (nextSteps.length) {
-			const steps = nextSteps.filter((ns): ns is AuthStepNextValue => !ns.done).map(ns => ns.next);
-			return { done: false, next: simplifyAuthStep(oneOf(...new Set(steps))) }
+			const steps = nextSteps.filter((ns): ns is AuthStepNextValue => !ns.done).map((ns) => ns.next);
+			return { done: false, next: simplifyAuthStep(oneOf(...new Set(steps))) };
 		}
-	}
-	else if (path.length === 0) {
+	} else if (path.length === 0) {
 		return { done: false, next: step };
-	}
-	else if (authStepIdent(step) === path.at(0)!) {
-		return { done: true }
+	} else if (authStepIdent(step) === path.at(0)!) {
+		return { done: true };
 	}
 	throw new Error(`Invalid path for this step definition.`);
 }

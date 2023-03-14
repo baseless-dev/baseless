@@ -1,8 +1,15 @@
 import { Context } from "../context.ts";
 import { Identity } from "./identity.ts";
-import { AuthStepDefinition, chain, email, password, assertAuthStepDefinition } from "./flow.ts";
+import { assertAuthStepDefinition, AuthStepDefinition, chain, email, password } from "./flow.ts";
+
+export interface AuthKeys {
+	readonly algo: string;
+	readonly privateKey: CryptoKey;
+	readonly publicKey: CryptoKey;
+}
 
 export interface AuthConfiguration {
+	readonly authKeys: AuthKeys;
 	readonly authFlow: AuthStepDefinition;
 	readonly onCreateIdentity?: AuthHandler;
 	readonly onUpdateIdentity?: AuthHandler;
@@ -15,11 +22,22 @@ export interface AuthViews {
 	login(request: Request, configuration: AuthConfiguration): Response;
 }
 export class AuthBuilder {
+	#authKeys?: AuthKeys;
 	#authFlow: AuthStepDefinition = chain(email(), password());
 	#onCreateIdentityHandler?: AuthHandler;
 	#onUpdateIdentityHandler?: AuthHandler;
 	#onDeleteIdentityHandler?: AuthHandler;
 	#viewsHandler?: AuthViews;
+
+	/**
+	 * Defines the authentication keys and algorith
+	 * @param keys The keys
+	 * @returns The builder
+	 */
+	public keys(keys: AuthKeys) {
+		this.#authKeys = keys;
+		return this;
+	}
 
 	/**
 	 * Defines the authentication methods and their login methods
@@ -77,7 +95,11 @@ export class AuthBuilder {
 	 * @returns The finalized {@see AuthConfiguration} object
 	 */
 	public build(): AuthConfiguration {
+		if (!this.#authKeys) {
+			throw new Error(`Authentication keys are needed.`);
+		}
 		return {
+			authKeys: this.#authKeys,
 			authFlow: this.#authFlow,
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,

@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "https://deno.land/std@0.118.0/testing/asserts.ts";
+import { assertEquals, assertRejects } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { Router } from "./router.ts";
 
 Deno.test("route get", async () => {

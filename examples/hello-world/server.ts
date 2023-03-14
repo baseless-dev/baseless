@@ -2,7 +2,7 @@ import * as log from "https://baseless.dev/x/baseless/logger.ts";
 // import { KVWebStorageProvider } from "https://baseless.dev/x/baseless-kv-webstorage/mod.ts";
 // import { ClientKVProvider } from "https://baseless.dev/x/baseless-client-kv/mod.ts";
 import { config } from "https://baseless.dev/x/baseless/config.ts";
-import { Baseless } from "https://baseless.dev/x/baseless/lib.ts";
+import { Server } from "https://baseless.dev/x/baseless/server.ts";
 import "./app.ts";
 
 Deno.permissions.request({ name: "net" });
@@ -10,7 +10,7 @@ Deno.permissions.request({ name: "env" });
 
 log.setGlobalLogHandler(log.createConsoleLogHandler(log.LogLevel.DEBUG));
 
-const baseless = new Baseless(config.build());
+const server = new Server(config.build());
 
 const listener = Deno.listen({ hostname: "0.0.0.0", port: 8080 });
 
@@ -29,7 +29,7 @@ async function handle(conn: Deno.Conn) {
 		for await (const event of httpConn) {
 			try {
 				const request = new Request(event.request, { headers: { "x-forwarded-for": conn.remoteAddr.hostname, ...Object.fromEntries(event.request.headers) } });
-				const [response, waitUntil] = await baseless.handleRequest(request);
+				const [response, waitUntil] = await server.handleRequest(request);
 				await event.respondWith(response);
 				await Promise.all(waitUntil);
 			} catch (err) {

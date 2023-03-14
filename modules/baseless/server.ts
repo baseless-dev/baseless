@@ -7,7 +7,7 @@ import { RouteNotFound, Router } from "./router.ts";
 const router = new Router<[context: Context]>();
 router.route("/auth", authRouter);
 
-export class Baseless {
+export class Server {
 	protected readonly logger = logger("baseless");
 
 	public constructor(public readonly configuration: Configuration) {}

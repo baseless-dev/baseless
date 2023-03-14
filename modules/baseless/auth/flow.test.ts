@@ -1,4 +1,4 @@
-import { assertEquals, assertThrows } from "https://deno.land/std@0.118.0/testing/asserts.ts";
+import { assertEquals, assertThrows } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import * as flow from "./flow.ts";
 
 const otp = flow.otp({
@@ -34,7 +34,7 @@ const github = flow.oauth({
 const oauth = flow.oneOf(google, github);
 const nestedChain = flow.chain(
 	flow.chain(email, password),
-	google
+	google,
 );
 const nestedOneOf = flow.oneOf(
 	flow.oneOf(
@@ -63,12 +63,15 @@ Deno.test("simplifyAuthStep", () => {
 	assertEquals(flow.simplifyAuthStep(nestedChain), flow.chain(email, password, google));
 	assertEquals(flow.simplifyAuthStep(nestedOneOf), flow.oneOf(email, google));
 	assertEquals(flow.simplifyAuthStep(nestedComplex), nestedComplex);
-	assertEquals(flow.simplifyAuthStep(realisticFlow), flow.oneOf(
-		flow.chain(email, otp),
-		flow.chain(email, password),
-		google,
-		github
-	));
+	assertEquals(
+		flow.simplifyAuthStep(realisticFlow),
+		flow.oneOf(
+			flow.chain(email, otp),
+			flow.chain(email, password),
+			google,
+			github,
+		),
+	);
 });
 
 Deno.test("visit", () => {
@@ -78,8 +81,8 @@ Deno.test("visit", () => {
 				context.push(step);
 			}
 			return flow.VisitorResult.Continue;
-		}
-	}
+		},
+	};
 	const visit = (step: flow.AuthStepDefinition, context = [] as flow.AuthStepDefinition[]) => flow.visit(step, visitor, context);
 	assertEquals(visit(email), [email]);
 	assertEquals(visit(passwordless), [email, otp]);
@@ -101,7 +104,7 @@ Deno.test("replaceAuthStep", () => {
 
 Deno.test("decomposeAuthStep", () => {
 	assertEquals(flow.decomposeAuthStep(email), email);
-	assertEquals(flow.decomposeAuthStep(nestedChain), flow.chain(email, password, google));
+	assertEquals(flow.decomposeAuthStep(nestedChain), flow.chain(email, password, google) as unknown);
 	assertEquals(flow.decomposeAuthStep(nestedOneOf), flow.oneOf(email, google));
 	assertEquals(flow.decomposeAuthStep(nestedComplex), flow.oneOf(flow.chain(email, password, otp, github), flow.chain(email, google, otp, github)));
 });
@@ -110,26 +113,26 @@ Deno.test("nextAuthStep", () => {
 	assertEquals(flow.nextAuthStep(email, []), { done: false, next: email });
 	assertEquals(flow.nextAuthStep(password, []), { done: false, next: password });
 	assertEquals(flow.nextAuthStep(email_and_password, []), { done: false, next: email });
-	assertEquals(flow.nextAuthStep(email_and_password, ['email']), { done: false, next: password });
-	assertEquals(flow.nextAuthStep(email_and_password, ['email', 'password']), { done: true });
+	assertEquals(flow.nextAuthStep(email_and_password, ["email"]), { done: false, next: password });
+	assertEquals(flow.nextAuthStep(email_and_password, ["email", "password"]), { done: true });
 	assertEquals(flow.nextAuthStep(oauth, []), { done: false, next: oauth });
-	assertEquals(flow.nextAuthStep(oauth, ['oauth:google']), { done: true });
-	assertEquals(flow.nextAuthStep(oauth, ['oauth:github']), { done: true });
+	assertEquals(flow.nextAuthStep(oauth, ["oauth:google"]), { done: true });
+	assertEquals(flow.nextAuthStep(oauth, ["oauth:github"]), { done: true });
 	assertEquals(flow.nextAuthStep(realisticFlow, []), { done: false, next: flow.oneOf(email, google, github) });
-	assertEquals(flow.nextAuthStep(realisticFlow, ['email']), { done: false, next: flow.oneOf(otp, password) });
-	assertEquals(flow.nextAuthStep(realisticFlow, ['email', 'password']), { done: true });
-	assertEquals(flow.nextAuthStep(realisticFlow, ['email', 'otp:email']), { done: true });
-	assertEquals(flow.nextAuthStep(realisticFlow, ['oauth:google']), { done: true });
-	assertEquals(flow.nextAuthStep(realisticFlow, ['oauth:github']), { done: true });
+	assertEquals(flow.nextAuthStep(realisticFlow, ["email"]), { done: false, next: flow.oneOf(otp, password) });
+	assertEquals(flow.nextAuthStep(realisticFlow, ["email", "password"]), { done: true });
+	assertEquals(flow.nextAuthStep(realisticFlow, ["email", "otp:email"]), { done: true });
+	assertEquals(flow.nextAuthStep(realisticFlow, ["oauth:google"]), { done: true });
+	assertEquals(flow.nextAuthStep(realisticFlow, ["oauth:github"]), { done: true });
 	assertThrows(() => flow.nextAuthStep(nestedChain, []));
 	assertThrows(() => flow.nextAuthStep(nestedOneOf, []));
 	assertThrows(() => flow.nextAuthStep(nestedComplex, []));
 	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), []), { done: false, next: email });
-	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ['email']), { done: false, next: flow.oneOf(password, google) });
-	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ['email', 'password']), { done: false, next: otp });
-	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ['email', 'password', 'otp:email']), { done: false, next: github });
-	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ['email', 'password', 'otp:email', 'oauth:github']), { done: true });
-	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ['email', 'oauth:google']), { done: false, next: otp });
-	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ['email', 'oauth:google', 'otp:email']), { done: false, next: github });
-	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ['email', 'oauth:google', 'otp:email', 'oauth:github']), { done: true });
+	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ["email"]), { done: false, next: flow.oneOf(password, google) });
+	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ["email", "password"]), { done: false, next: otp });
+	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ["email", "password", "otp:email"]), { done: false, next: github });
+	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ["email", "password", "otp:email", "oauth:github"]), { done: true });
+	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ["email", "oauth:google"]), { done: false, next: otp });
+	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ["email", "oauth:google", "otp:email"]), { done: false, next: github });
+	assertEquals(flow.nextAuthStep(flow.decomposeAuthStep(nestedComplex), ["email", "oauth:google", "otp:email", "oauth:github"]), { done: true });
 });

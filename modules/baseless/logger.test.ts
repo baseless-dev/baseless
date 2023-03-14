@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.118.0/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { critical, debug, error, info, log, logger, setGlobalLogHandler, voidLogHandler, warn } from "./logger.ts";
 
 Deno.test("log message with global method in default namespace", () => {

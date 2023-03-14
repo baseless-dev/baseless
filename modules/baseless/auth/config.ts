@@ -1,11 +1,12 @@
 import { Context } from "../context.ts";
 import { Identity } from "./identity.ts";
 import { assertAuthStepDefinition, AuthStepDefinition, chain, email, password } from "./flow.ts";
+import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 
 export interface AuthKeys {
 	readonly algo: string;
-	readonly privateKey: CryptoKey;
-	readonly publicKey: CryptoKey;
+	readonly privateKey: KeyLike;
+	readonly publicKey: KeyLike;
 }
 
 export interface AuthConfiguration {

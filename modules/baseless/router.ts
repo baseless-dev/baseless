@@ -1,4 +1,4 @@
-export type Method = "GET" | "POST" | "PUT" | "DELETE";
+export type Method = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "CONNECT" | "OPTIONS" | "TRACE" | "PATCH";
 
 export type AbsolutePath<Path> = Path extends `/${infer A}` ? Path : never;
 export type NamedGroups<Segment> = Segment extends `:${infer Name}` ? Name : never;
@@ -10,9 +10,16 @@ export type ExtractParams<Path> = {
 
 export type RouteHandler<Params extends Record<string, string>, Args extends unknown[]> = (req: Request, params: Params, ...args: Args) => Promise<Response> | Response;
 
-export class Router<Args extends unknown[]> {
-	#routes = new Map<Method, Map<URLPattern, RouteHandler<Record<string, string>, Args>>>();
-	#children = new Map<URLPattern, Router<Args>>();
+export class RouterBuilder<Args extends unknown[]> {
+	#routes = new Map<string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>>();
+
+	/**
+	 * Build a Router
+	 * @returns A router
+	 */
+	build(): Router<Args> {
+		return new Router(new Map(this.#routes));
+	}
 
 	/**
 	 * Add a new route
@@ -20,12 +27,19 @@ export class Router<Args extends unknown[]> {
 	 * @param pathname Pathname of the {@see URLPattern.pathname}
 	 * @param handler Route handler
 	 */
-	add<Path extends string>(method: Method, pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
-		const pattern = new URLPattern({ pathname });
-		if (!this.#routes.has(method)) {
-			this.#routes.set(method, new Map());
+	add<Path extends string>(methods: Method | Method[], pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+		let endpoint = this.#routes.get(pathname);
+		if (!(endpoint instanceof Set)) {
+			endpoint = new Set();
+			this.#routes.set(pathname, endpoint);
 		}
-		this.#routes.get(method)?.set(pattern, handler);
+		if (!Array.isArray(methods)) {
+			methods = [methods];
+		}
+		for (const method of methods) {
+			endpoint.add([method, handler]);
+		}
+		return this;
 	}
 
 	/**
@@ -34,9 +48,21 @@ export class Router<Args extends unknown[]> {
 	 * @param router The child router
 	 * @returns The router
 	 */
-	route<Path extends string>(location: AbsolutePath<Path>, router: Router<Args>) {
-		const pattern = new URLPattern({ pathname: location + "{/(.*)}?" });
-		this.#children.set(pattern, router);
+	route<Path extends string>(pathname: AbsolutePath<Path>, router: RouterBuilder<Args>) {
+		this.#routes.set(pathname, router);
+		return this;
+	}
+
+	/**
+	 * Configure a handler for all method
+	 * @param pathname Pathname of the {@see URLPattern.pathname}
+	 * @param handler Route handler
+	 * @returns The router
+	 */
+	any<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+		for (const method of ["GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"] as Method[]) {
+			this.add(method, pathname, handler);
+		}
 		return this;
 	}
 
@@ -47,8 +73,17 @@ export class Router<Args extends unknown[]> {
 	 * @returns The router
 	 */
 	get<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
-		this.add("GET", pathname, handler);
-		return this;
+		return this.add("GET", pathname, handler);
+	}
+
+	/**
+	 * Configure a HEAD handler
+	 * @param pathname Pathname of the {@see URLPattern.pathname}
+	 * @param handler Route handler
+	 * @returns The router
+	 */
+	head<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+		return this.add("HEAD", pathname, handler);
 	}
 
 	/**
@@ -58,8 +93,7 @@ export class Router<Args extends unknown[]> {
 	 * @returns The router
 	 */
 	post<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
-		this.add("POST", pathname, handler);
-		return this;
+		return this.add("POST", pathname, handler);
 	}
 
 	/**
@@ -69,8 +103,7 @@ export class Router<Args extends unknown[]> {
 	 * @returns The router
 	 */
 	put<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
-		this.add("PUT", pathname, handler);
-		return this;
+		return this.add("PUT", pathname, handler);
 	}
 
 	/**
@@ -80,8 +113,78 @@ export class Router<Args extends unknown[]> {
 	 * @returns The router
 	 */
 	delete<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
-		this.add("DELETE", pathname, handler);
-		return this;
+		return this.add("DELETE", pathname, handler);
+	}
+
+	/**
+	 * Configure a CONNECT handler
+	 * @param pathname Pathname of the {@see URLPattern.pathname}
+	 * @param handler Route handler
+	 * @returns The router
+	 */
+	connect<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+		return this.add("CONNECT", pathname, handler);
+	}
+
+	/**
+	 * Configure a OPTIONS handler
+	 * @param pathname Pathname of the {@see URLPattern.pathname}
+	 * @param handler Route handler
+	 * @returns The router
+	 */
+	options<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+		return this.add("OPTIONS", pathname, handler);
+	}
+
+	/**
+	 * Configure a TRACE handler
+	 * @param pathname Pathname of the {@see URLPattern.pathname}
+	 * @param handler Route handler
+	 * @returns The router
+	 */
+	trace<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+		return this.add("TRACE", pathname, handler);
+	}
+
+	/**
+	 * Configure a PATCH handler
+	 * @param pathname Pathname of the {@see URLPattern.pathname}
+	 * @param handler Route handler
+	 * @returns The router
+	 */
+	patch<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+		return this.add("PATCH", pathname, handler);
+	}
+}
+
+type RouterEndpoint<Args extends unknown[]> = Map<Method, RouteHandler<Record<string, string>, Args>>;
+
+export class Router<Args extends unknown[]> {
+	#routes = new Map<URLPattern, RouterEndpoint<Args>>();
+	#children = new Map<URLPattern, Router<Args>>();
+
+	constructor(routes?: Iterable<[string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>]>) {
+		if (routes) {
+			for (const [pathname, router_or_endpoints] of routes) {
+				if (router_or_endpoints instanceof RouterBuilder) {
+					const pattern = new URLPattern({ pathname: pathname + "{/(.*)}?" });
+					this.#children.set(pattern, router_or_endpoints.build());
+				} else {
+					const pattern = new URLPattern({ pathname });
+					for (const route_or_handler of router_or_endpoints) {
+						const [method, handler] = route_or_handler;
+						let endpoint: RouterEndpoint<Args>;
+						if (!this.#routes.has(pattern)) {
+							endpoint = new Map();
+							this.#routes.set(pattern, endpoint);
+						} else {
+							endpoint = this.#routes.get(pattern)!;
+						}
+						endpoint.set(method, handler);
+					}
+				}
+			}
+		}
 	}
 
 	/**
@@ -90,31 +193,24 @@ export class Router<Args extends unknown[]> {
 	 * @returns The {@see Response}
 	 */
 	process(request: Request, ...args: Args): Promise<Response> {
-		const method = request.method.toLocaleUpperCase();
-		const routes = this.#routes.get(method as Method);
-		if (routes) {
-			for (const [pattern, handler] of routes) {
-				const result = pattern.exec(request.url);
-				if (result) {
-					return Promise.resolve(handler(request, result.pathname.groups, ...args));
-				}
-			}
-		}
 		for (const [pattern, router] of this.#children) {
 			const result = pattern.exec(request.url);
 			if (result) {
-				const newRequest = new Request(`http://router.local/${result.pathname.groups["0"]}`, request);
-				return router.process(newRequest, ...args);
+				const innerRequest = new Request(`http://router.local/${result.pathname.groups["0"]}`, request);
+				return router.process(innerRequest, ...args);
 			}
 		}
-		const url = new URL(request.url);
-		throw new RouteNotFound(url.pathname);
-	}
-}
-
-export class RouteNotFound extends Error {
-	public name = "RouteNotFound";
-	public constructor(route: string) {
-		super(`Route not found for '${route}'.`);
+		const method = request.method.toLocaleUpperCase();
+		for (const [pattern, endpoints] of this.#routes) {
+			const result = pattern.exec(request.url);
+			if (result) {
+				const handler = endpoints.get(method as Method);
+				if (handler) {
+					return Promise.resolve(handler(request, result.pathname.groups, ...args));
+				}
+				return Promise.resolve(new Response(null, { status: 405, headers: { Allow: Array.from(endpoints.keys()).join(', ') } }));
+			}
+		}
+		return Promise.resolve(new Response(null, { status: 404 }));
 	}
 }

@@ -1,16 +1,17 @@
 import { Configuration } from "./config.ts";
 import { Context } from "./context.ts";
-import { logger } from "./logger.ts";
+import { createLogger } from "./logger.ts";
 import authRouter from "./auth/controller.ts";
-import { RouteNotFound, Router } from "./router.ts";
+import { RouterBuilder } from "./router.ts";
 
-const router = new Router<[context: Context]>();
-router.route("/auth", authRouter);
+const router = new RouterBuilder<[context: Context]>()
+	.route("/auth", authRouter)
+	.build();
 
 export class Server {
-	protected readonly logger = logger("baseless");
+	protected readonly logger = createLogger("server");
 
-	public constructor(public readonly configuration: Configuration) {}
+	public constructor(public readonly configuration: Configuration) { }
 
 	/**
 	 * Handle a HTTP request
@@ -36,22 +37,13 @@ export class Server {
 				waitUntilCollection,
 			];
 		} catch (err) {
-			if (err instanceof RouteNotFound) {
-				return [
-					new Response(null, {
-						status: 404,
-					}),
-					waitUntilCollection,
-				];
-			} else {
-				this.logger.warn(`Could not handle request ${request.url}, got error : ${err}`);
-				return [
-					new Response(null, {
-						status: 500,
-					}),
-					waitUntilCollection,
-				];
-			}
+			this.logger.warn(`Could not handle request ${request.url}, got error : ${err}`);
+			return [
+				new Response(null, {
+					status: 500,
+				}),
+				waitUntilCollection,
+			];
 		}
 	}
 }

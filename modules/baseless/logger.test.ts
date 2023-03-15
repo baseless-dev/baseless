@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { critical, debug, error, info, log, logger, setGlobalLogHandler, voidLogHandler, warn } from "./logger.ts";
+import { critical, debug, error, info, log, createLogger, setGlobalLogHandler, voidLogHandler, warn } from "./logger.ts";
 
 Deno.test("log message with global method in default namespace", () => {
 	const logs: { ns: string; lvl: string; msg: string }[] = [];
@@ -28,7 +28,7 @@ Deno.test("log message with named logger", () => {
 	setGlobalLogHandler((ns, lvl, msg) => {
 		logs.push({ ns, lvl, msg });
 	});
-	const l = logger("test");
+	const l = createLogger("test");
 	l.log("a");
 	l.info("b");
 	l.debug("c");

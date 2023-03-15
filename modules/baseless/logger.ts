@@ -127,13 +127,13 @@ export interface Logger {
  * @param namespace The namespace to prefix all message
  * @returns The logger
  */
-export function logger(namespace: string): Logger {
+export function createLogger(namespace: string): Logger {
 	return Object.fromEntries(
 		Object.keys(LogLevel).map((lvl) => [lvl.toLowerCase(), (msg: string) => globalLogHandler(namespace, lvl as LogLevel, msg)]),
 	) as unknown as Logger;
 }
 
-const defaultLogger = logger("default");
+const defaultLogger = createLogger("default");
 
 export const debug = defaultLogger.debug;
 export const log = defaultLogger.log;

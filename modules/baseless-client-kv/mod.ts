@@ -1,9 +1,9 @@
 import { ClientExistsError, ClientInformationResponse, ClientNotFoundError, ClientProvider } from "https://baseless.dev/x/baseless/provider/client.ts";
 import { KeyNotFoundError, KVProvider } from "https://baseless.dev/x/baseless/provider/kv.ts";
-import { logger } from "https://baseless.dev/x/baseless/logger.ts";
+import { createLogger } from "https://baseless.dev/x/baseless/logger.ts";
 
 export class ClientKVProvider implements ClientProvider {
-	protected readonly logger = logger("baseless-client-kv");
+	protected readonly logger = createLogger("baseless-client-kv");
 
 	public constructor(protected readonly kv: KVProvider, protected readonly prefix = "clients") {
 	}

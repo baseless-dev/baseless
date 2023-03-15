@@ -1,6 +1,6 @@
 import { Context } from "../context.ts";
 import { Identity } from "./identity.ts";
-import { assertAuthStepDefinition, AuthStepDefinition, chain, email, password } from "./flow.ts";
+import { assertAuthStepDefinition, AuthStepDecomposedDefinition, AuthStepDefinition, chain, decomposeAuthStep, email, password } from "./flow.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 
 export interface AuthKeys {
@@ -12,6 +12,7 @@ export interface AuthKeys {
 export interface AuthConfiguration {
 	readonly authKeys: AuthKeys;
 	readonly authFlow: AuthStepDefinition;
+	readonly authFlowDecomposed: AuthStepDecomposedDefinition;
 	readonly onCreateIdentity?: AuthHandler;
 	readonly onUpdateIdentity?: AuthHandler;
 	readonly onDeleteIdentity?: AuthHandler;
@@ -102,6 +103,7 @@ export class AuthBuilder {
 		return {
 			authKeys: this.#authKeys,
 			authFlow: this.#authFlow,
+			authFlowDecomposed: decomposeAuthStep(this.#authFlow),
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,

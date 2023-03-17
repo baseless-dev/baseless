@@ -27,6 +27,11 @@ export interface AuthViewLoginParams {
 }
 export interface AuthViews {
 	login(options: AuthViewLoginParams): string;
+	promptEmail(options: AuthViewLoginParams): string;
+	promptPassword(options: AuthViewLoginParams): string;
+	// promptOTP(options: AuthViewLoginParams): string;
+	// promptTOTP(options: AuthViewLoginParams): string;
+	// promptHOTP(options: AuthViewLoginParams): string;
 }
 export class AuthBuilder {
 	#authKeys?: AuthKeys;

@@ -52,14 +52,16 @@ export default function Layout({ title }: LayoutProps, children: string[]) {
 			width: 100%;
 			max-width: 24rem;
 		}
+		figure {
+			display: inline-block;
+			margin: 0;
+			width: 1rem;
+		}
 		header {
 			text-align: center;
 		}
 		header figure {
-			display: inline-block;
-			margin: 0;
 			width: 3rem;
-			height: 3rem;
 			fill: #6b7280;
 		}
 		header h1 {
@@ -70,25 +72,25 @@ export default function Layout({ title }: LayoutProps, children: string[]) {
 			line-height: 2.25rem;
 			color: rgb(31 41 55);
 		}
-		main {
+		.box {
 			margin: 3rem 0 0;
 			background: #ffffff;
 			padding: 1.25rem;
 			border-radius: 3px;
 			box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 		}
-		main ul {
+		#login ul {
 			display: flex;
 			flex-direction: column;
 			list-style: none;
 			margin: 0 -1.25rem;
 			padding: 0;
 		}
-		main ul li {
+		#login ul li {
 			display: flex;
 			flex-direction: row;
 		}
-		main ul li > button {
+		#login ul li > button {
 			position: relative;
 			display: flex;
 			flex-direction: row;
@@ -100,13 +102,13 @@ export default function Layout({ title }: LayoutProps, children: string[]) {
 			cursor: pointer;
 			border: 1px solid transparent;
 		}
-		main ul li > button:not(:disabled):hover,
-		main ul li > button:focus {
+		#login ul li > button:not(:disabled):hover,
+		#login ul li > button:focus {
 			box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 			background: rgb(243 244 246);
 			outline: 0;
 		}
-		main ul li > button > figure {
+		#login ul li > button > figure {
 			display: flex;
 			flex-grow: 0;
 			align-items: center;
@@ -115,10 +117,55 @@ export default function Layout({ title }: LayoutProps, children: string[]) {
 			height: 2.5rem;
 			fill: rgb(55 65 81);
 		}
-		main ul li > button > span {
+		#login ul li > button > span {
 			font-size: 1.25rem;
 			line-height: 1.5rem;
 			color: rgb(55 65 81);
+		}
+		.back {
+			display: flex;
+			flex-direction: row;
+			text-decoration: none;
+			color: inherit;
+			font-size: 0.85rem;
+			line-height: 1rem;
+			background: none;
+			color: rgb(55 65 81);
+			margin: 0 0 0.5rem 0;
+			cursor: pointer;
+		}
+		.back:hover,
+		.back:focus {
+			text-decoration: underline;
+			outline: 0;
+		}
+		.back > figure {
+			flex-grow: 0;
+			margin: 0 0.25rem 0 0;
+		}
+		h2 {
+			margin: 0 0 1rem 0;
+		}
+		input {
+			display: block;
+			width: 100%;
+			padding: 0.5rem 0;
+			border-bottom: 1px solid black;
+			outline: 0;
+			font-size: 1rem;
+		}
+		footer {
+			display: flex;
+			flex-direction: row;
+			justify-content: end;
+			margin: 1rem 0 0 0;
+		}
+		.submit {
+			display: block;
+			padding: 1rem 1.25rem;
+			background: blue;
+			color: white;
+			cursor: pointer;
 		}
 	</style>
 </body>

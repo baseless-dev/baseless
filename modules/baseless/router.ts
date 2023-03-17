@@ -196,7 +196,8 @@ export class Router<Args extends unknown[]> {
 		for (const [pattern, router] of this.#children) {
 			const result = pattern.exec(request.url);
 			if (result) {
-				const innerRequest = new Request(`http://router.local/${result.pathname.groups["0"]}`, request);
+				const url = new URL(request.url);
+				const innerRequest = new Request(`${url.origin}/${result.pathname.groups["0"]}${url.search}`, request);
 				return router.process(innerRequest, ...args);
 			}
 		}

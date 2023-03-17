@@ -49,6 +49,7 @@ const github = oauth({
 config.auth()
 	.flow(oneOf(
 		chain(email(), password()),
+		chain(email(), email(), password()),
 		facebook,
 		google,
 		github

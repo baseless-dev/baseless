@@ -25,17 +25,22 @@ export interface HOTPConfiguration {
 	readonly providerLabel: { [locale: string]: string };
 }
 
+export type AuthStepOTPDefinition =
+	| { readonly type: "otp"; readonly config: OTPConfiguration }
+	| { readonly type: "totp"; readonly config: TOTPConfiguration }
+	| { readonly type: "hotp"; readonly config: HOTPConfiguration };
+
+export type AuthStepOAuthDefinition = {
+	readonly type: "oauth";
+	readonly config: OAuthConfiguration;
+};
+
 export type AuthStepNodeDefinition =
 	| { readonly type: "anonymous" }
 	| { readonly type: "email" }
 	| { readonly type: "password" }
-	| { readonly type: "otp"; readonly config: OTPConfiguration }
-	| { readonly type: "totp"; readonly config: TOTPConfiguration }
-	| { readonly type: "hotp"; readonly config: HOTPConfiguration }
-	| {
-		readonly type: "oauth";
-		readonly config: OAuthConfiguration;
-	};
+	| AuthStepOTPDefinition
+	| AuthStepOAuthDefinition;
 
 export interface AuthStepChainDefinition<T extends AuthStepDefinition = AuthStepDefinition> {
 	readonly type: "chain";
@@ -282,20 +287,36 @@ export function decomposeAuthStep(step: AuthStepDefinition): AuthStepDecomposedD
 	return decomposed.at(0)!;
 }
 
+export function* getImmediateNextAuthStep(step: AuthStepDefinition): Generator<AuthStepDefinition> {
+	if (step.type === "chain") {
+		yield* getImmediateNextAuthStep(step.steps.at(0)!);
+	} else if (step.type === "oneOf") {
+		for (const inner of step.steps) {
+			yield* getImmediateNextAuthStep(inner);
+		}
+	} else {
+		yield step;
+	}
+}
+
+export type AuthStepNextAtPath = AuthStepNodeDefinition | AuthStepOneOfDefinition<AuthStepNodeDefinition>;
+
 export interface AuthStepNextValue {
 	done: false;
-	next: AuthStepDefinition;
+	next: AuthStepNextAtPath;
 }
 
 export interface AuthStepNextDone {
 	done: true;
 }
 
+export class InvalidAuthStepPath extends Error { }
+
 export type AuthStepNext =
 	| AuthStepNextValue
 	| AuthStepNextDone;
 
-export function nextAuthStep(step: AuthStepDefinition, path: string[]): AuthStepNext {
+export function getNextAuthStepAtPath(step: AuthStepDefinition, path: string[]): AuthStepNext {
 	assertAuthStepDecomposedDefinition(step);
 	if (step.type === "chain") {
 		let i = 0;
@@ -310,14 +331,14 @@ export function nextAuthStep(step: AuthStepDefinition, path: string[]): AuthStep
 			return { done: true };
 		}
 		if (i !== pathLen) {
-			throw new Error(`Invalid path for this step definition.`);
+			throw new InvalidAuthStepPath();
 		}
 		return { done: false, next: step.steps.at(i)! };
 	} else if (step.type === "oneOf") {
 		const nextSteps: AuthStepNext[] = [];
 		for (const inner of step.steps) {
 			try {
-				nextSteps.push(nextAuthStep(inner, path));
+				nextSteps.push(getNextAuthStepAtPath(inner, path));
 			} catch (_err) {
 				// skip
 			}
@@ -329,12 +350,12 @@ export function nextAuthStep(step: AuthStepDefinition, path: string[]): AuthStep
 			return nextSteps.at(0)!;
 		} else if (nextSteps.length) {
 			const steps = nextSteps.filter((ns): ns is AuthStepNextValue => !ns.done).map((ns) => ns.next);
-			return { done: false, next: simplifyAuthStep(oneOf(...new Set(steps))) };
+			return { done: false, next: simplifyAuthStep(oneOf(...new Set(steps))) as AuthStepOneOfDefinition<AuthStepNodeDefinition> };
 		}
 	} else if (path.length === 0) {
 		return { done: false, next: step };
 	} else if (authStepIdent(step) === path.at(0)!) {
 		return { done: true };
 	}
-	throw new Error(`Invalid path for this step definition.`);
+	throw new InvalidAuthStepPath();
 }

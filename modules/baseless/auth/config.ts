@@ -1,6 +1,6 @@
 import { Context } from "../context.ts";
 import { Identity } from "./identity.ts";
-import { assertAuthStepDefinition, AuthStepDecomposedDefinition, AuthStepDefinition, chain, decomposeAuthStep, email, password } from "./flow.ts";
+import { assertAuthStepDefinition, AuthStepDecomposedDefinition, AuthStepDefinition, AuthStepNextAtPath, chain, decomposeAuthStep, email, password } from "./flow.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 
 export interface AuthKeys {
@@ -20,8 +20,13 @@ export interface AuthConfiguration {
 }
 
 export type AuthHandler = (context: Context, request: Request, identity: Identity) => void | Promise<void>;
+export interface AuthViewLoginParams {
+	request: Request;
+	context: Context;
+	nextStep: AuthStepNextAtPath;
+}
 export interface AuthViews {
-	login(request: Request, configuration: AuthConfiguration): Response;
+	login(options: AuthViewLoginParams): string;
 }
 export class AuthBuilder {
 	#authKeys?: AuthKeys;

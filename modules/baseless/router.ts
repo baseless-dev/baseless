@@ -208,7 +208,7 @@ export class Router<Args extends unknown[]> {
 				if (handler) {
 					return Promise.resolve(handler(request, result.pathname.groups, ...args));
 				}
-				return Promise.resolve(new Response(null, { status: 405, headers: { Allow: Array.from(endpoints.keys()).join(', ') } }));
+				return Promise.resolve(new Response(null, { status: 405, headers: { Allow: Array.from(endpoints.keys()).join(", ") } }));
 			}
 		}
 		return Promise.resolve(new Response(null, { status: 404 }));

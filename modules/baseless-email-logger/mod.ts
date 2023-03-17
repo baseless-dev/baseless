@@ -1,5 +1,5 @@
 import { EmailProvider, Message } from "https://baseless.dev/x/baseless/provider/email.ts";
-import { Logger, createLogger, LogLevel, LogLevelMethod } from "https://baseless.dev/x/baseless/logger.ts";
+import { createLogger, Logger, LogLevel, LogLevelMethod } from "https://baseless.dev/x/baseless/logger.ts";
 
 /**
  * A mail provider that log every message

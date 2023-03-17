@@ -11,7 +11,7 @@ const router = new RouterBuilder<[context: Context]>()
 export class Server {
 	protected readonly logger = createLogger("server");
 
-	public constructor(public readonly configuration: Configuration) { }
+	public constructor(public readonly configuration: Configuration) {}
 
 	/**
 	 * Handle a HTTP request

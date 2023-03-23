@@ -11,11 +11,15 @@
 			"program": "${workspaceFolder}/examples/hello-world/server.ts",
 			"cwd": "${workspaceFolder}",
 			"runtimeExecutable": "/home/grenierdev/.deno/bin/deno",
+			"env": {
+				"DENO_DIR": ".deno"
+			},
 			"runtimeArgs": [
 				"run",
 				"--unstable",
 				"--allow-env",
 				"--allow-net",
+				"--allow-sys",
 				"--inspect"
 			],
 			"attachSimplePort": 9229,

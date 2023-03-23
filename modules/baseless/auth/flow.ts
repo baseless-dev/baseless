@@ -1,3 +1,5 @@
+export type ProviderLabel = Record<string, string>;
+
 export interface OAuthConfiguration {
 	readonly providerId: string;
 	readonly providerLabel: { [locale: string]: string };
@@ -12,17 +14,17 @@ export interface OAuthConfiguration {
 
 export interface OTPConfiguration {
 	readonly providerId: string;
-	readonly providerLabel: { [locale: string]: string };
+	readonly providerLabel: ProviderLabel;
 }
 
 export interface TOTPConfiguration {
 	readonly providerId: string;
-	readonly providerLabel: { [locale: string]: string };
+	readonly providerLabel: ProviderLabel;
 }
 
 export interface HOTPConfiguration {
 	readonly providerId: string;
-	readonly providerLabel: { [locale: string]: string };
+	readonly providerLabel: ProviderLabel;
 }
 
 export type AuthStepOTPDefinition =
@@ -35,10 +37,21 @@ export type AuthStepOAuthDefinition = {
 	readonly config: OAuthConfiguration;
 };
 
+export type AuthStepEmailDefinition = {
+	readonly type: "email";
+	readonly providerIcon: string;
+	readonly providerLabel: ProviderLabel;
+}
+
+export type AuthStepPasswordDefinition = {
+	readonly type: "password";
+	readonly providerIcon: string;
+	readonly providerLabel: ProviderLabel;
+}
+
 export type AuthStepNodeDefinition =
-	| { readonly type: "anonymous" }
-	| { readonly type: "email" }
-	| { readonly type: "password" }
+	| AuthStepEmailDefinition
+	| AuthStepPasswordDefinition
 	| AuthStepOTPDefinition
 	| AuthStepOAuthDefinition;
 
@@ -127,19 +140,12 @@ export function oneOf(...steps: AuthStepDefinition[]): AuthStepDefinition {
 	return { type: "oneOf", steps };
 }
 
-const ANONYMOUS = Object.freeze({ type: "anonymous" });
-export function anonymous(): AuthStepDefinition {
-	return ANONYMOUS;
+export function email(providerIcon: string, providerLabel: ProviderLabel): AuthStepDefinition {
+	return { type: "email", providerIcon, providerLabel };
 }
 
-const EMAIL = Object.freeze({ type: "email" });
-export function email(): AuthStepDefinition {
-	return EMAIL;
-}
-
-const PASSWORD = Object.freeze({ type: "password" });
-export function password(): AuthStepDefinition {
-	return PASSWORD;
+export function password(providerIcon: string, providerLabel: ProviderLabel): AuthStepDefinition {
+	return { type: "password", providerIcon, providerLabel };
 }
 
 export function otp(config: OTPConfiguration): AuthStepDefinition {

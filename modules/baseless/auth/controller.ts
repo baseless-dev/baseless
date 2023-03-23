@@ -48,6 +48,9 @@ authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
 	const action = url.searchParams.get('action')?.toLowerCase() ?? undefined;
 	try {
 		const possibleActions = Array.from(getImmediateNextAuthStep(nextStep.next)).map(authStepIdent);
+		// TODO remove from possible action unsetuped
+		const isFirstStep = viewstate.flow.length === 0;
+		let isLastStep = false;
 		if (!action) {
 			if (request.method === "GET") {
 				if (possibleActions.length === 1) {
@@ -55,7 +58,7 @@ authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
 					return new Response(null, { status: 301, headers });
 				} else {
 					headers.set("Content-Type", "text/html; charset=utf-8");
-					return new Response(context.config.auth.views?.login({ request, nextStep: nextStep.next, context }), { status: 200, headers });
+					return new Response(context.config.auth.views?.login({ request, steps: nextStep.next, isFirstStep, isLastStep, context }), { status: 200, headers });
 				}
 			} else {
 				headers.set("Location", "./login");
@@ -72,12 +75,13 @@ authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
 			return new Response(null, { status: 301, headers });
 		} else {
 			if (possibleActions.includes(action)) {
+				isLastStep = getNextAuthStepAtPath(context.config.auth.authFlowDecomposed, [...viewstate.flow, action]).done;
 				if (request.method === "GET") {
 					headers.set("Content-Type", "text/html; charset=utf-8");
 					if (action === "email") {
-						return new Response(context.config.auth.views?.promptEmail({ request, nextStep: nextStep.next, context }), { status: 200, headers });
+						return new Response(context.config.auth.views?.promptEmail({ request, steps: nextStep.next, isFirstStep, isLastStep, context }), { status: 200, headers });
 					} else if (action === "password") {
-						return new Response(context.config.auth.views?.promptPassword({ request, nextStep: nextStep.next, context }), { status: 200, headers });
+						return new Response(context.config.auth.views?.promptPassword({ request, steps: nextStep.next, isFirstStep, isLastStep, context }), { status: 200, headers });
 					}
 				} else {
 					const formData = await request.formData();

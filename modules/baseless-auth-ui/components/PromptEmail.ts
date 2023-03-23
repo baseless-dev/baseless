@@ -4,7 +4,7 @@ import { Localization } from "../localization.ts";
 import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
-export default function PromptEmail({ nextStep, currentLocale, localization }: AuthUIContext & AuthViewLoginParams) {
+export default function PromptEmail({ isLastStep, currentLocale, localization }: AuthUIContext & AuthViewLoginParams) {
 	const l10n = localization[currentLocale];
 	return Layout({ title: l10n.heading }, [
 		`<section id="login">
@@ -39,7 +39,7 @@ export default function PromptEmail({ nextStep, currentLocale, localization }: A
 					</main>
 					<footer>
 						<button type="submit" class="submit">
-							Sign in
+							${isLastStep && 'Sign in' || 'Continue'}
 						</button>
 					</footer>
 				</form>

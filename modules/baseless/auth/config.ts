@@ -23,7 +23,9 @@ export type AuthHandler = (context: Context, request: Request, identity: Identit
 export interface AuthViewLoginParams {
 	request: Request;
 	context: Context;
-	nextStep: AuthStepNextAtPath;
+	steps: AuthStepNextAtPath;
+	isFirstStep: boolean;
+	isLastStep: boolean;
 }
 export interface AuthViews {
 	login(options: AuthViewLoginParams): string;
@@ -35,7 +37,7 @@ export interface AuthViews {
 }
 export class AuthBuilder {
 	#authKeys?: AuthKeys;
-	#authFlow: AuthStepDefinition = chain(email(), password());
+	#authFlow?: AuthStepDefinition;
 	#onCreateIdentityHandler?: AuthHandler;
 	#onUpdateIdentityHandler?: AuthHandler;
 	#onDeleteIdentityHandler?: AuthHandler;
@@ -109,6 +111,9 @@ export class AuthBuilder {
 	public build(): AuthConfiguration {
 		if (!this.#authKeys) {
 			throw new Error(`Authentication keys are needed.`);
+		}
+		if (!this.#authFlow) {
+			throw new Error(`Authentication flow is needed.`);
 		}
 		return {
 			authKeys: this.#authKeys,

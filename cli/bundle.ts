@@ -11,6 +11,7 @@ const build = new Command()
 	.option("--entry <entry:string>", "The entry file", { required: true })
 	.option("--config <config:string>", "The Deno config file", { default: "./deno.json" })
 	.option("--dist <dist:string>", "The distribution directory", { default: "./public" })
+	.option("--show-deps <top:number>", "Show the dependencies", { default: 0 })
 	.action(async (options) => {
 		const httpCache = await caches.open(import.meta.url);
 		let importMapBase = "";
@@ -127,19 +128,21 @@ const build = new Command()
 				colors.dim(` (${prettyBytes(stat.size)} ⇒ ${prettyBytes(compressed.byteLength)})`),
 			);
 
-			const sortedDeps = Object.entries(meta.inputs);
-			sortedDeps.sort((a, b) => b[1].bytesInOutput - a[1].bytesInOutput);
+			if (options.showDeps) {
+				const sortedDeps = Object.entries(meta.inputs);
+				sortedDeps.sort((a, b) => b[1].bytesInOutput - a[1].bytesInOutput);
 
-			if (sortedDeps.length > 0) {
-				const moduleCount = sortedDeps.length;
-				let i = 0;
-				const biggestOffenders = sortedDeps.splice(0, 5);
-				for (const [dep, { bytesInOutput }] of biggestOffenders) {
-					console.log(colors.dim(`  ${++i >= moduleCount ? "└" : "├"} ${dep.replace("bundle-http:", "")} (${prettyBytes(bytesInOutput)})`));
-				}
-				if (sortedDeps.length) {
-					const depSize = prettyBytes(sortedDeps.reduce((size, dep) => size + dep[1].bytesInOutput, 0));
-					console.log(colors.dim(`  └ and ${colors.underline(`${sortedDeps.length} others modules`)} (${depSize})`));
+				if (sortedDeps.length > 0) {
+					const moduleCount = sortedDeps.length;
+					let i = 0;
+					const biggestOffenders = sortedDeps.splice(0, options.showDeps);
+					for (const [dep, { bytesInOutput }] of biggestOffenders) {
+						console.log(colors.dim(`  ${++i >= moduleCount ? "└" : "├"} ${dep.replace("bundle-http:", "")} (${prettyBytes(bytesInOutput)})`));
+					}
+					if (sortedDeps.length) {
+						const depSize = prettyBytes(sortedDeps.reduce((size, dep) => size + dep[1].bytesInOutput, 0));
+						console.log(colors.dim(`  └ and ${colors.underline(`${sortedDeps.length} others modules`)} (${depSize})`));
+					}
 				}
 			}
 		}

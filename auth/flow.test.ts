@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import { assertEquals, assertThrows } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import * as flow from "./flow.ts";
 
@@ -5,8 +6,8 @@ const otp = flow.otp({
 	providerId: "email",
 	providerLabel: {},
 });
-const email = flow.email();
-const password = flow.password();
+const email = flow.email("", {});
+const password = flow.password("", {});
 const passwordless = flow.chain(email, otp);
 const email_and_password = flow.chain(email, password);
 const google = flow.oauth({
@@ -92,8 +93,8 @@ Deno.test("visit", () => {
 });
 
 Deno.test("replaceAuthStep", () => {
-	const a = flow.email();
-	const b = flow.password();
+	const a = flow.email("", {});
+	const b = flow.password("", {});
 	const chain = flow.chain(a, b);
 	const oneof = flow.oneOf(a, b);
 	assertEquals(flow.replaceAuthStep(chain, a, b), flow.chain(b, b));

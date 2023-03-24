@@ -1,8 +1,8 @@
-import * as log from "https://baseless.dev/x/baseless/logger.ts";
-// import { KVWebStorageProvider } from "https://baseless.dev/x/baseless-kv-webstorage/mod.ts";
-// import { ClientKVProvider } from "https://baseless.dev/x/baseless-client-kv/mod.ts";
-import { config } from "https://baseless.dev/x/baseless/config.ts";
-import { Server } from "https://baseless.dev/x/baseless/server.ts";
+import * as log from "../../logger.ts";
+// import { KVWebStorageProvider } from "../../providers/kv-webstorage/mod.ts";
+// import { ClientKVProvider } from "../../providers/client-kv/mod.ts";
+import { config } from "../../config.ts";
+import { Server } from "../../server.ts";
 import "./app.ts";
 
 Deno.permissions.request({ name: "net" });

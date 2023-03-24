@@ -41,13 +41,13 @@ export type AuthStepEmailDefinition = {
 	readonly type: "email";
 	readonly providerIcon: string;
 	readonly providerLabel: ProviderLabel;
-}
+};
 
 export type AuthStepPasswordDefinition = {
 	readonly type: "password";
 	readonly providerIcon: string;
 	readonly providerLabel: ProviderLabel;
-}
+};
 
 export type AuthStepNodeDefinition =
 	| AuthStepEmailDefinition
@@ -316,7 +316,7 @@ export interface AuthStepNextDone {
 	done: true;
 }
 
-export class InvalidAuthStepPath extends Error { }
+export class InvalidAuthStepPath extends Error {}
 
 export type AuthStepNext =
 	| AuthStepNextValue

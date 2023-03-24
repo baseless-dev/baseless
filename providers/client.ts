@@ -1,5 +1,5 @@
-import type { ClientInformationResponse } from "../oauth/dynamic-client-registration.ts";
-export type { ClientInformationResponse } from "../oauth/dynamic-client-registration.ts";
+import type { ClientInformationResponse } from "../auth/oauth/dynamic-client-registration.ts";
+export type { ClientInformationResponse } from "../auth/oauth/dynamic-client-registration.ts";
 
 /**
  * Client Provider

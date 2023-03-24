@@ -1,5 +1,5 @@
-import { AuthViewLoginParams } from "https://baseless.dev/x/baseless/auth/config.ts";
-import { AuthStepEmailDefinition, authStepIdent, AuthStepNodeDefinition, AuthStepOAuthDefinition, AuthStepPasswordDefinition } from "https://baseless.dev/x/baseless/auth/flow.ts";
+import { AuthViewLoginParams } from "../../../auth/config.ts";
+import { AuthStepEmailDefinition, authStepIdent, AuthStepNodeDefinition, AuthStepOAuthDefinition, AuthStepPasswordDefinition } from "../../../auth/flow.ts";
 import { Localization } from "../localization.ts";
 import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
@@ -8,7 +8,7 @@ type AuthStepOAuthProps = { step: AuthStepOAuthDefinition; l10n: Localization; c
 type AuthStepEmailProps = { step: AuthStepEmailDefinition; l10n: Localization; currentLocale: string };
 type AuthStepPasswordProps = { step: AuthStepPasswordDefinition; l10n: Localization; currentLocale: string };
 
-export default function Login({ steps, isFirstStep, isLastStep, currentLocale, localization }: AuthUIContext & AuthViewLoginParams) {
+export default function Login({ steps, isFirstStep, currentLocale, localization }: AuthUIContext & AuthViewLoginParams) {
 	const l10n = localization[currentLocale];
 	return Layout({ title: l10n.heading }, [
 		`<section id="login">
@@ -29,7 +29,8 @@ export default function Login({ steps, isFirstStep, isLastStep, currentLocale, l
 							</figure>
 							Choose an other method
 						</button>
-					</form>` || ''}
+					</form>` || ""
+		}
 					<form action="/auth/login" method="GET" autocomplete="off">
 						<ul>
 							${steps.type === "oneOf" && steps.steps.map((step) => AuthStep({ step, l10n, currentLocale })).join("") || ""}

@@ -1,6 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { LogLevel, setGlobalLogHandler } from "https://baseless.dev/x/baseless/logger.ts";
-import { Message } from "https://baseless.dev/x/baseless/provider/email.ts";
+import { LogLevel, setGlobalLogHandler } from "../../logger.ts";
+import { Message } from "../../providers/email.ts";
 import { EmailLoggerProvider } from "./mod.ts";
 
 Deno.test("send", async () => {

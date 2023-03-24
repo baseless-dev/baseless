@@ -1,10 +1,10 @@
-import { AuthViewLoginParams } from "https://baseless.dev/x/baseless/auth/config.ts";
-import { authStepIdent, AuthStepNodeDefinition, AuthStepOAuthDefinition } from "https://baseless.dev/x/baseless/auth/flow.ts";
+import { AuthViewLoginParams } from "../../../auth/config.ts";
+import { authStepIdent, AuthStepNodeDefinition, AuthStepOAuthDefinition } from "../../../auth/flow.ts";
 import { Localization } from "../localization.ts";
 import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
-export default function PromptEmail({ isLastStep, currentLocale, localization }: AuthUIContext & AuthViewLoginParams) {
+export default function PromptPassword({ isLastStep, currentLocale, localization }: AuthUIContext & AuthViewLoginParams) {
 	const l10n = localization[currentLocale];
 	return Layout({ title: l10n.heading }, [
 		`<section id="login">
@@ -17,7 +17,7 @@ export default function PromptEmail({ isLastStep, currentLocale, localization }:
 				</h1>
 			</header>
 			<div class="box">
-				<form action="/auth/login?action=email" method="POST" autocomplete="off">
+				<form action="/auth/login?action=password" method="POST" autocomplete="off">
 					<main>
 						<button type="submit" class="back" name="action" value="back">
 							<figure>
@@ -25,21 +25,21 @@ export default function PromptEmail({ isLastStep, currentLocale, localization }:
 							</figure>
 							Choose an other method
 						</button>
-						<label for="email">
-							<h2>Email address</h2>
+						<label for="password">
+							<h2>Password</h2>
 							<input
-								type="email"
-								name="email"
-								id="email"
+								type="password"
+								name="password"
+								id="password"
 								autofocus
 								class=""
-								placeholder="${l10n.signWithEmail.placeholder}"
+								placeholder=""
 							/>
 						</label>
 					</main>
 					<footer>
 						<button type="submit" class="submit">
-							${isLastStep && 'Sign in' || 'Continue'}
+							${isLastStep && "Sign in" || "Continue"}
 						</button>
 					</footer>
 				</form>

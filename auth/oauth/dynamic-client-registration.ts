@@ -3,7 +3,7 @@
 
 //import { JWK } from "./rfc7517.ts";
 import { JWK } from "https://deno.land/x/jose@v4.9.2/types.d.ts";
-import { ClientProvider } from "../provider/client.ts";
+import { ClientProvider } from "../../providers/client.ts";
 
 export type LanguageSubtag = string;
 export type TranslatableMetadataKeys = "client_name" | "logo_uri" | "contacts" | "tos_uri" | "policy_uri";

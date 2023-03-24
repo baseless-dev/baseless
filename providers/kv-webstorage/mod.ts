@@ -1,5 +1,5 @@
-import { KeyNotFoundError, KVGetOptions, KVKey, KVListOptions, KVListResult, KVProvider, KVPutOptions } from "https://baseless.dev/x/baseless/provider/kv.ts";
-import { createLogger } from "https://baseless.dev/x/baseless/logger.ts";
+import { KeyNotFoundError, KVGetOptions, KVKey, KVListOptions, KVListResult, KVProvider, KVPutOptions } from "../kv.ts";
+import { createLogger } from "../../logger.ts";
 
 export class KVWebStorageProvider implements KVProvider {
 	protected readonly logger = createLogger("baseless-kv-webstorage");

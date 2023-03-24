@@ -1,7 +1,7 @@
 import { Command } from "https://deno.land/x/cliffy@v0.25.1/mod.ts";
 import * as esbuild from "https://deno.land/x/esbuild@v0.15.8/mod.js";
-import { dirname, extname, isAbsolute, join, relative } from "https://deno.land/std@0.179.0/path/mod.ts";
-import * as ansi from "https://deno.land/x/ansi@1.0.1/mod.ts";
+import { dirname, extname, isAbsolute, join } from "https://deno.land/std@0.179.0/path/mod.ts";
+// import * as ansi from "https://deno.land/x/ansi@1.0.1/mod.ts";
 import * as colors from "https://deno.land/std@0.165.0/fmt/colors.ts";
 import { prettyBytes } from "https://deno.land/x/pretty_bytes@v2.0.0/mod.ts";
 
@@ -96,10 +96,13 @@ const build = new Command()
 			bundle: true,
 			minify: true,
 			metafile: true,
+			legalComments: "external",
+			treeShaking: true,
+			sourcemap: "external",
 			target: "esnext",
 			format: "esm",
 			platform: "browser",
-			plugins: [BundleWebPlugin]
+			plugins: [BundleWebPlugin],
 		});
 		console.log(colors.green("✓") + colors.dim(` ${Object.keys(result.metafile!.inputs).length} modules transformed in ${(performance.now() - timeStart).toFixed(0)}ms.`));
 		const outouts = result.metafile!.outputs;

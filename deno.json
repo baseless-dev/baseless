@@ -5,8 +5,8 @@
 		"jsxFragmentFactory": "Fragment"
 	},
 	"tasks": {
-		"start:hello-world": "DENO_DIR=.deno deno run --watch --unstable --allow-env --allow-net --allow-sys examples/hello-world/server.ts",
-		"bundle:hello-world": "DENO_DIR=.deno deno run -A ./cli/bundle.ts --entry examples/hello-world/server.ts --dist examples/hello-world/dist --show-deps 4",
+		"start:hello-world": "DENO_DIR=.deno deno run --watch --unstable --allow-env --allow-net --allow-sys ./server/examples/hello-world/server.ts",
+		"bundle:hello-world": "DENO_DIR=.deno deno run -A ./cli/bundle.ts --entry ./server/examples/hello-world/server.ts --dist ./server/examples/hello-world/dist --show-deps 4",
 		"fmt": "DENO_DIR=.deno deno fmt",
 		"lint": "DENO_DIR=.deno deno lint",
 		"cache": "DENO_DIR=.deno deno cache",

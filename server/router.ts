@@ -13,6 +13,10 @@ export type RouteHandler<Params extends Record<string, string>, Args extends unk
 export class RouterBuilder<Args extends unknown[]> {
 	#routes = new Map<string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>>();
 
+	get routes(): ReadonlyMap<string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>> {
+		return this.#routes;
+	}
+
 	/**
 	 * Build a Router
 	 * @returns A router
@@ -161,24 +165,25 @@ type RouterEndpoint<Args extends unknown[]> = Map<Method, RouteHandler<Record<st
 
 export class Router<Args extends unknown[]> {
 	#routes = new Map<URLPattern, RouterEndpoint<Args>>();
-	#children = new Map<URLPattern, Router<Args>>();
 
-	constructor(routes?: Iterable<[string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>]>) {
-		if (routes) {
-			for (const [pathname, router_or_endpoints] of routes) {
+	constructor(routeDefinitions?: Iterable<[string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>]>) {
+		if (routeDefinitions) {
+			walkRoutes("", this.#routes, routeDefinitions);
+		}
+		function walkRoutes(prefix: string, target: Map<URLPattern, RouterEndpoint<Args>>, routeDefinitions: Iterable<[string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>]>) {
+			for (const [pathname, router_or_endpoints] of routeDefinitions) {
 				if (router_or_endpoints instanceof RouterBuilder) {
-					const pattern = new URLPattern({ pathname: pathname + "{/(.*)}?" });
-					this.#children.set(pattern, router_or_endpoints.build());
+					walkRoutes(prefix + pathname, target, router_or_endpoints.routes);
 				} else {
-					const pattern = new URLPattern({ pathname });
+					const pattern = new URLPattern({ pathname: prefix + pathname });
 					for (const route_or_handler of router_or_endpoints) {
 						const [method, handler] = route_or_handler;
 						let endpoint: RouterEndpoint<Args>;
-						if (!this.#routes.has(pattern)) {
+						if (!target.has(pattern)) {
 							endpoint = new Map();
-							this.#routes.set(pattern, endpoint);
+							target.set(pattern, endpoint);
 						} else {
-							endpoint = this.#routes.get(pattern)!;
+							endpoint = target.get(pattern)!;
 						}
 						endpoint.set(method, handler);
 					}
@@ -193,14 +198,6 @@ export class Router<Args extends unknown[]> {
 	 * @returns The {@see Response}
 	 */
 	process(request: Request, ...args: Args): Promise<Response> {
-		for (const [pattern, router] of this.#children) {
-			const result = pattern.exec(request.url);
-			if (result) {
-				const url = new URL(request.url);
-				const innerRequest = new Request(`${url.origin}/${result.pathname.groups["0"]}${url.search}`, request);
-				return router.process(innerRequest, ...args);
-			}
-		}
 		const method = request.method.toLocaleUpperCase();
 		for (const [pattern, endpoints] of this.#routes) {
 			const result = pattern.exec(request.url);

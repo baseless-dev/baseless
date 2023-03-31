@@ -38,5 +38,5 @@ Deno.test("route params", async () => {
 	assertEquals(await router.process(new Request("http://test.local/users/123"), {}).then((r) => r.text()), "123");
 	assertEquals(await router.process(new Request("http://test.local/child"), {}).then((r) => r.status), 404);
 	assertEquals(await router.process(new Request("http://test.local/child/456"), {}).then((r) => r.status), 404);
-	assertEquals(await router.process(new Request("http://test.local/child/456/bar"), {}).then((r) => r.text()), "{}");
+	assertEquals(await router.process(new Request("http://test.local/child/456/bar"), {}).then((r) => r.text()), `{"id":"456"}`);
 });

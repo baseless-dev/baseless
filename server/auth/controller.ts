@@ -20,6 +20,13 @@ async function getViewStateAndNextStep(request: Request, auth: AuthConfiguration
 	return [viewstate, nextStep];
 }
 
+authRouter.get("/", (request, _params, context) => {
+	// TODO validate session
+	const headers = new Headers();
+	headers.set("Content-Type", "text/html; charset=utf-8");
+	return new Response(context.config.auth.views?.loggedin({ request, context }), { status: 200, headers });
+});
+
 authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
 	// TODO No caching everywhere?
 	let viewstate: ViewState;
@@ -36,7 +43,7 @@ authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
 
 	if (nextStep.done) {
 		// TODO redirect
-		const headers = new Headers({ Location: "/auth/logged" });
+		const headers = new Headers({ Location: "/auth/" });
 		destroyViewState(headers);
 		// TODO create session
 		// TODO save cookie

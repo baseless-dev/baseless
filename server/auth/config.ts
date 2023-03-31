@@ -20,6 +20,10 @@ export interface AuthConfiguration {
 }
 
 export type AuthHandler = (context: Context, request: Request, identity: Identity) => void | Promise<void>;
+export interface AuthViewLoggedParams {
+	request: Request;
+	context: Context;
+}
 export interface AuthViewLoginParams {
 	request: Request;
 	context: Context;
@@ -28,6 +32,7 @@ export interface AuthViewLoginParams {
 	isLastStep: boolean;
 }
 export interface AuthViews {
+	loggedin(options: AuthViewLoggedParams): string;
 	login(options: AuthViewLoginParams): string;
 	promptEmail(options: AuthViewLoginParams): string;
 	promptPassword(options: AuthViewLoginParams): string;

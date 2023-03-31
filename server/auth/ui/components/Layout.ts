@@ -1,10 +1,10 @@
 export interface LayoutProps {
-	title: string;
-	subTitle?: string;
+  title: string;
+  subTitle?: string;
 }
 
 export default function Layout({ title, subTitle }: LayoutProps, children: string[]) {
-	return `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html>
 <head>
 	<meta charset="utf-8">
@@ -708,6 +708,10 @@ video {
   white-space: nowrap;
 }
 
+.rounded-full {
+  border-radius: 9999px;
+}
+
 .rounded-md {
   border-radius: 0.375rem;
 }
@@ -794,6 +798,11 @@ video {
 .text-2xl {
   font-size: 1.5rem;
   line-height: 2rem;
+}
+
+.text-lg {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
 }
 
 .text-sm {
@@ -906,7 +915,6 @@ video {
   --tw-text-opacity: 1;
   color: rgb(17 24 39 / var(--tw-text-opacity));
 }
-
 .focus\\:ring-2:focus {
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);

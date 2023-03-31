@@ -1,8 +1,8 @@
-import * as log from "../../logger.ts";
-// import { KVWebStorageProvider } from "../../providers/kv-webstorage/mod.ts";
-// import { ClientKVProvider } from "../../providers/client-kv/mod.ts";
-import { config } from "../../config.ts";
-import { Server } from "../../server.ts";
+import * as log from "../../server/logger.ts";
+// import { KVWebStorageProvider } from "../../server/providers/kv-webstorage/mod.ts";
+// import { ClientKVProvider } from "../../server/providers/client-kv/mod.ts";
+import { config } from "../../server/config.ts";
+import { Server } from "../../server/server.ts";
 import "./app.ts";
 
 Deno.permissions.request({ name: "net" });

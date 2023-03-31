@@ -21,6 +21,7 @@ async function getViewStateAndNextStep(request: Request, auth: AuthConfiguration
 }
 
 authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
+	// TODO No caching everywhere?
 	let viewstate: ViewState;
 	let nextStep: AuthStepNext;
 	try {

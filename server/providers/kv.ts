@@ -86,9 +86,4 @@ export interface KVProvider {
 /**
  * Document not found error
  */
-export class KeyNotFoundError extends Error {
-	public name = "KeyNotFoundError";
-	public constructor(key: string) {
-		super(`Key not found at '${key}'.`);
-	}
-}
+export class KeyNotFoundError extends Error {}

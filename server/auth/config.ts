@@ -1,5 +1,5 @@
 import { Context } from "../context.ts";
-import { Identity } from "./identity.ts";
+import { Identity } from "../providers/identity.ts";
 import { assertAuthStepDefinition, AuthStepDecomposedDefinition, AuthStepDefinition, AuthStepNextAtPath, decomposeAuthStep } from "./flow.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 

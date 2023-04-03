@@ -170,7 +170,11 @@ export class Router<Args extends unknown[]> {
 		if (routeDefinitions) {
 			walkRoutes("", this.#routes, routeDefinitions);
 		}
-		function walkRoutes(prefix: string, target: Map<URLPattern, RouterEndpoint<Args>>, routeDefinitions: Iterable<[string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>]>) {
+		function walkRoutes(
+			prefix: string,
+			target: Map<URLPattern, RouterEndpoint<Args>>,
+			routeDefinitions: Iterable<[string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>]>,
+		) {
 			for (const [pathname, router_or_endpoints] of routeDefinitions) {
 				if (router_or_endpoints instanceof RouterBuilder) {
 					walkRoutes(prefix + pathname, target, router_or_endpoints.routes);

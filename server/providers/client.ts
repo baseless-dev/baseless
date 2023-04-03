@@ -28,19 +28,9 @@ export interface ClientProvider {
 /**
  * Client not found error
  */
-export class ClientNotFoundError extends Error {
-	public name = "ClientNotFoundError";
-	public constructor(id: string) {
-		super(`Client '${id}' not found.`);
-	}
-}
+export class ClientNotFoundError extends Error {}
 
 /**
  * Client exists error
  */
-export class ClientExistsError extends Error {
-	public name = "ClientExistsError";
-	public constructor(id: string) {
-		super(`Client '${id}' already exists.`);
-	}
-}
+export class ClientExistsError extends Error {}

@@ -10,7 +10,7 @@ import { AuthConfiguration } from "./config.ts";
 
 const authRouter = new RouterBuilder<[context: Context]>();
 
-const logger = createLogger("auth");
+const logger = createLogger("baseless-auth");
 
 authRouter.get("/", () => new Response(null, { status: 301, headers: { Location: "/auth/login" } }));
 
@@ -92,24 +92,57 @@ authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
 						return new Response(context.config.auth.views?.promptPassword({ request, steps: nextStep.next, isFirstStep, isLastStep, context }), { status: 200, headers });
 					}
 				} else {
+					let redirect = "./login";
+					let dirtyViewState = false;
 					const formData = await request.formData();
 					if (formData.get("action")?.toString() === "back") {
 						if (possibleActions.length === 1) {
 							viewstate.flow.pop();
+							dirtyViewState = true;
 						}
 					} else if (action === "email") {
 						const email = formData.get("email");
-						logger.info(`Perform email lookup with ${email}`);
-						// TODO perform email lookup
-						viewstate.flow.push("email");
-					} else if (action === "password") {
+						if (email) {
+							try {
+								const identity = await context.identity.getIdentityByStepIdentifier("email", email.toString());
+								logger.log(`Authentication step email:${email} success.`);
+								viewstate.id = identity;
+								viewstate.flow.push("email");
+								dirtyViewState = true;
+							} catch (_inner) {
+								logger.info(`Authentication step email:${email} failed.`);
+								redirect = "./login?action=email&code=invalid_email";
+							}
+						} else {
+							logger.info(`Authentication step email:**not provided** failed.`);
+							redirect = "./login?action=email&code=invalid_email";
+						}
+					} else if (action === "password" && viewstate.id) {
 						const password = formData.get("password");
-						logger.info(`Perform password challenge ${password}`);
-						// TODO perform password challenge
-						viewstate.flow.push("password");
+						if (password) {
+							try {
+								const passwordMatch = await context.identity.testStepChallenge(viewstate.id, "password", password.toString());
+								if (passwordMatch) {
+									logger.log(`Authentication step password:******** success.`);
+									viewstate.flow.push("password");
+									dirtyViewState = true;
+								} else {
+									logger.info(`Authentication step password:******** failed.`);
+									redirect = "./login?action=password&code=invalid_password";
+								}
+							} catch (_inner) {
+								logger.info(`Authentication step password:******** failed.`);
+								redirect = "./login?action=password&code=invalid_password";
+							}
+						} else {
+							logger.info(`Authentication step password:******** failed.`);
+							redirect = "./login?action=password&code=invalid_password";
+						}
 					}
-					headers.set("Location", "./login");
-					await saveViewState(headers, viewstate, context.config.auth.authKeys.algo, context.config.auth.authKeys.privateKey);
+					headers.set("Location", redirect);
+					if (dirtyViewState) {
+						await saveViewState(headers, viewstate, context.config.auth.authKeys.algo, context.config.auth.authKeys.privateKey);
+					}
 					return new Response(null, { status: 301, headers });
 				}
 				return new Response(null, { status: 501, headers });

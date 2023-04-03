@@ -11,8 +11,8 @@ type AuthStepPasswordProps = { step: AuthStepPasswordDefinition; l10n: Localizat
 export default function Login({ steps, isFirstStep, currentLocale, localization }: AuthUIContext & AuthViewLoginParams) {
 	const l10n = localization[currentLocale];
 	return Layout({
-		title: 'Sign In',
-		subTitle: 'How would you like to continue?',
+		title: "Sign In",
+		subTitle: "How would you like to continue?",
 	}, [
 		`<form action="/auth/login" method="GET" class="space-y-6">
 			<nav class="space-y-1" aria-label="Sidebar">
@@ -20,14 +20,16 @@ export default function Login({ steps, isFirstStep, currentLocale, localization 
 				${steps.type !== "oneOf" && AuthStep({ step: steps, l10n, currentLocale }) || ""}
 			</nav>
 		</form>
-		${!isFirstStep && `<form action="/auth/login" method="POST" autocomplete="off">
+		${
+			!isFirstStep && `<form action="/auth/login" method="POST" autocomplete="off">
 				<button class="mt-6 block text-xs text-gray-500" type="submit" name="action" value="back">
 					<svg class="inline-block h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
 						<path d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z" />
 					</svg>
 					Choose an other method
 				</button>
-			</form>` || ""}`,
+			</form>` || ""
+		}`,
 	]);
 }
 

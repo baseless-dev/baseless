@@ -1,16 +1,31 @@
 import * as log from "../../server/logger.ts";
-// import { KVWebStorageProvider } from "../../server/providers/kv-webstorage/mod.ts";
-// import { ClientKVProvider } from "../../server/providers/client-kv/mod.ts";
 import { config } from "../../server/config.ts";
 import { Server } from "../../server/server.ts";
+import { KVWebStorageProvider } from "../../server/providers/kv-webstorage/mod.ts";
+import { IdentityKVProvider } from "../../server/providers/identity-kv/mod.ts";
 import "./app.ts";
+import { autoid } from "../../shared/autoid.ts";
 
 Deno.permissions.request({ name: "net" });
 Deno.permissions.request({ name: "env" });
 
-log.setGlobalLogHandler(log.createConsoleLogHandler(log.LogLevel.DEBUG));
+log.setGlobalLogHandler(log.createConsoleLogHandler(log.LogLevel.LOG));
 
-const server = new Server(config.build());
+const identityKV = new KVWebStorageProvider(sessionStorage, "hello-world-idp/");
+const identityProvider = new IdentityKVProvider(identityKV);
+
+// Create john's identity
+const johnId = autoid();
+await identityProvider.createIdentity(johnId, {});
+// Assign two email to john's identity
+await identityProvider.assignStepIdentifier(johnId, "email", "john@doe.local");
+await identityProvider.assignStepIdentifier(johnId, "email", "john.doe@corp.local");
+// Assign a password challenge to `123`
+await identityProvider.assignStepChallenge(johnId, "password", "123");
+// Assign a one-time-password to `123456` that's valid for the next 60 seconds
+await identityProvider.assignStepChallenge(johnId, "otp", "666666", 60);
+
+const server = new Server({ configuration: config.build(), identityProvider });
 
 const listener = Deno.listen({ hostname: "0.0.0.0", port: 8080 });
 

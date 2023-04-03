@@ -125,7 +125,7 @@ const build = new Command()
 
 			console.log(
 				color(path) +
-				colors.dim(` (${prettyBytes(stat.size)} ⇒ ${prettyBytes(compressed.byteLength)})`),
+					colors.dim(` (${prettyBytes(stat.size)} ⇒ ${prettyBytes(compressed.byteLength)})`),
 			);
 
 			if (options.showDeps) {

@@ -7,8 +7,8 @@ import Layout from "./Layout.ts";
 export default function Logged({ steps, isFirstStep, currentLocale, localization }: AuthUIContext & AuthViewLoginParams) {
 	const l10n = localization[currentLocale];
 	return Layout({
-		title: 'Signed In',
-		subTitle: 'You are currently logged in with',
+		title: "Signed In",
+		subTitle: "You are currently logged in with",
 	}, [
 		`<div class="text-center">
 			<div class="inline-block">

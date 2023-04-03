@@ -1,17 +1,23 @@
 import { Configuration } from "./config.ts";
 import { Context } from "./context.ts";
 import { createLogger } from "./logger.ts";
-import authRouter from "./auth/controller.ts";
+import authRouter from "./auth/routes.ts";
 import { RouterBuilder } from "./router.ts";
+import { IdentityProvider } from "./providers/identity.ts";
 
 const router = new RouterBuilder<[context: Context]>()
 	.route("/auth", authRouter)
 	.build();
 
 export class Server {
-	protected readonly logger = createLogger("server");
+	#logger = createLogger("server");
+	#configuration: Configuration;
+	#identityProvider: IdentityProvider;
 
-	public constructor(public readonly configuration: Configuration) {}
+	public constructor(options: { configuration: Configuration; identityProvider: IdentityProvider }) {
+		this.#configuration = options.configuration;
+		this.#identityProvider = options.identityProvider;
+	}
 
 	/**
 	 * Handle a HTTP request
@@ -20,11 +26,12 @@ export class Server {
 	 */
 	public async handleRequest(request: Request): Promise<[Response, PromiseLike<unknown>[]]> {
 		const ip = request.headers.get("X-Forwarded-For") ?? "";
-		this.logger.log(`${request.method} ${ip} ${request.url}`);
+		this.#logger.log(`${request.method} ${ip} ${request.url}`);
 
 		const waitUntilCollection: PromiseLike<unknown>[] = [];
 		const context: Context = {
-			config: this.configuration,
+			config: this.#configuration,
+			identity: this.#identityProvider,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},
@@ -37,7 +44,7 @@ export class Server {
 				waitUntilCollection,
 			];
 		} catch (err) {
-			this.logger.warn(`Could not handle request ${request.url}, got error : ${err}`);
+			this.#logger.warn(`Could not handle request ${request.url}, got error : ${err}`);
 			return [
 				new Response(null, {
 					status: 500,

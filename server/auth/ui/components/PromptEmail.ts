@@ -6,7 +6,7 @@ import Layout from "./Layout.ts";
 
 export default function PromptEmail({ isLastStep, currentLocale, localization }: AuthUIContext & AuthViewLoginParams) {
 	const l10n = localization[currentLocale];
-	return Layout({ title: 'Enter your email' }, [
+	return Layout({ title: "Enter your email" }, [
 		`<form action="/auth/login?action=email" method="POST" autocomplete="off">
 			<div class="mt-2 flex rounded-md shadow-sm">
 				<div class="relative flex flex-grow items-stretch focus-within:z-10">
@@ -24,7 +24,7 @@ export default function PromptEmail({ isLastStep, currentLocale, localization }:
 					/>
 				</div>
 				<button type="submit" class="relative -ml-px inline-flex items-center gap-x-1.5 rounded-r-md px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-					${isLastStep ? 'Sign In' : 'Continue'}
+					${isLastStep ? "Sign In" : "Continue"}
 				</button>
 			</div>
 		</form>

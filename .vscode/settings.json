@@ -1,6 +1,7 @@
 {
 	"deno.enable": true,
 	"deno.lint": true,
+	"deno.cache": ".deno",
 	"deno.config": "./deno.json",
 	"deno.importMap": "./import-map.json",
 	"deno.unstable": true,
@@ -14,6 +15,5 @@
 	"explorer.fileNesting.patterns": {
 		"deno.json": "deno.lock, import-map.json, .gitignore, .prettierrc",
 		"*.ts": "${capture}.test.ts"
-	},
-	"deno.cache": ".deno"
+	}
 }

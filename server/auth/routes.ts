@@ -12,8 +12,6 @@ const authRouter = new RouterBuilder<[context: Context]>();
 
 const logger = createLogger("baseless-auth");
 
-authRouter.get("/", () => new Response(null, { status: 301, headers: { Location: "/auth/login" } }));
-
 async function getViewStateAndNextStep(request: Request, auth: AuthConfiguration): Promise<[viewstate: ViewState, next: AuthStepNext]> {
 	const viewstate = await initViewState(request, auth);
 	const nextStep = getNextAuthStepAtPath(auth.authFlowDecomposed, viewstate.flow);
@@ -22,19 +20,18 @@ async function getViewStateAndNextStep(request: Request, auth: AuthConfiguration
 
 authRouter.get("/", (request, _params, context) => {
 	// TODO validate session
-	const headers = new Headers();
-	headers.set("Content-Type", "text/html; charset=utf-8");
+	const headers = new Headers({ "Cache-Control": "no-cache", "Content-Type": "text/html; charset=utf-8" });
 	return new Response(context.config.auth.views?.loggedin({ request, context }), { status: 200, headers });
 });
 
 authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
-	// TODO No caching everywhere?
+	// TODO rate limit
+	const headers = new Headers({ "Cache-Control": "no-cache" });
 	let viewstate: ViewState;
 	let nextStep: AuthStepNext;
 	try {
 		[viewstate, nextStep] = await getViewStateAndNextStep(request, context.config.auth);
 	} catch (_err) {
-		const headers = new Headers();
 		destroyViewState(headers);
 		headers.set("Location", "./login?code=reached_invalid_flow");
 		logger.error(`Authentication flow reached invalid flow.`);
@@ -43,14 +40,13 @@ authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
 
 	if (nextStep.done) {
 		// TODO redirect
-		const headers = new Headers({ Location: "/auth/" });
+		headers.set("Location", `./`);
 		destroyViewState(headers);
 		// TODO create session
 		// TODO save cookie
 		return new Response(null, { status: 301, headers });
 	}
 
-	const headers = new Headers();
 	const url = new URL(request.url);
 
 	const action = url.searchParams.get("action")?.toLowerCase() ?? undefined;
@@ -78,7 +74,7 @@ authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
 				return new Response(null, { status: 301, headers });
 			}
 		} else if (action === "reset") {
-			const headers = new Headers({ Location: "./login" });
+			const headers = new Headers({ Location: "./login", });
 			destroyViewState(headers);
 			return new Response(null, { status: 301, headers });
 		} else {
@@ -104,11 +100,16 @@ authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
 						const email = formData.get("email");
 						if (email) {
 							try {
-								const identity = await context.identity.getIdentityByStepIdentifier("email", email.toString());
-								logger.log(`Authentication step email:${email} success.`);
-								viewstate.id = identity;
-								viewstate.flow.push("email");
-								dirtyViewState = true;
+								const identity = await context.identity.getIdentityByIdentification("email", email.toString());
+								if (!viewstate.id || viewstate.id === identity) {
+									logger.log(`Authentication step email:${email} success.`);
+									viewstate.id = identity;
+									viewstate.flow.push("email");
+									dirtyViewState = true;
+								} else {
+									logger.info(`Authentication step email:${email} failed.`);
+									redirect = "./login?action=email&code=invalid_email";
+								}
 							} catch (_inner) {
 								logger.info(`Authentication step email:${email} failed.`);
 								redirect = "./login?action=email&code=invalid_email";
@@ -121,7 +122,7 @@ authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
 						const password = formData.get("password");
 						if (password) {
 							try {
-								const passwordMatch = await context.identity.testStepChallenge(viewstate.id, "password", password.toString());
+								const passwordMatch = await context.identity.testIdentityChallenge(viewstate.id, "password", password.toString());
 								if (passwordMatch) {
 									logger.log(`Authentication step password:******** success.`);
 									viewstate.flow.push("password");

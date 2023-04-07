@@ -44,16 +44,16 @@ Deno.test("deleteIdentityById", async () => {
 	assertRejects(() => ip.getIdentityById(id1));
 });
 
-Deno.test("assignStepIdentifier, getIdentityByStepIdentifier, listStepIdentifier", async () => {
+Deno.test("assignIdentityIdentification, getIdentityByIdentification, listIdentityIdentification", async () => {
 	const kv = new KVWebStorageProvider(sessionStorage, "identity-kv-test-assignAuthenticationStep/");
 	const ip = new IdentityKVProvider(kv);
 	const id1 = autoid();
 	const id2 = autoid();
 	await ip.createIdentity(id1, {});
-	await ip.assignStepIdentifier(id1, "email", "john@doe.local");
-	assertRejects(() => ip.assignStepIdentifier(id2, "email", "john@doe.local"));
-	assertEquals(await ip.getIdentityByStepIdentifier("email", "john@doe.local"), id1);
-	assertEquals(await ip.listStepIdentifier(id1), [{ identifier: "email", uniqueId: "john@doe.local" }]);
+	await ip.assignIdentityIdentification(id1, "email", "john@doe.local");
+	assertRejects(() => ip.assignIdentityIdentification(id2, "email", "john@doe.local"));
+	assertEquals(await ip.getIdentityByIdentification("email", "john@doe.local"), id1);
+	assertEquals(await ip.listIdentityIdentification(id1), [{ identifier: "email", uniqueId: "john@doe.local" }]);
 });
 
 Deno.test("unassignStepIdentifier", async () => {
@@ -62,12 +62,12 @@ Deno.test("unassignStepIdentifier", async () => {
 	const id1 = autoid();
 	const id2 = autoid();
 	await ip.createIdentity(id1, {});
-	await ip.assignStepIdentifier(id1, "email", "john@doe.local");
-	assertEquals(await ip.listStepIdentifier(id1), [{ identifier: "email", uniqueId: "john@doe.local" }]);
-	await ip.unassignStepIdentifier(id1, "email", "john@doe.local");
-	assertEquals(await ip.listStepIdentifier(id1), []);
+	await ip.assignIdentityIdentification(id1, "email", "john@doe.local");
+	assertEquals(await ip.listIdentityIdentification(id1), [{ identifier: "email", uniqueId: "john@doe.local" }]);
+	await ip.unassignIdentityIdentification(id1, "email", "john@doe.local");
+	assertEquals(await ip.listIdentityIdentification(id1), []);
 
-	await ip.assignStepIdentifier(id2, "email", "john@doe.local");
+	await ip.assignIdentityIdentification(id2, "email", "john@doe.local");
 });
 
 Deno.test("assignStepChallenge, listStepChallenge, testStepChallenge", async () => {
@@ -76,11 +76,11 @@ Deno.test("assignStepChallenge, listStepChallenge, testStepChallenge", async () 
 	const id1 = autoid();
 	const id2 = autoid();
 	await ip.createIdentity(id1, {});
-	await ip.assignStepChallenge(id1, "password", "123");
-	assertEquals(await ip.listStepChallenge(id1), [{ identifier: "password", challenge: "123" }]);
-	assertEquals(await ip.testStepChallenge(id1, "password", "123"), true);
-	assertEquals(await ip.testStepChallenge(id1, "password", "abc"), false);
-	assertEquals(await ip.testStepChallenge(id2, "password", "123"), false);
+	await ip.assignIdentityChallenge(id1, "password", "123");
+	assertEquals(await ip.listIdentityChallenge(id1), [{ identifier: "password", challenge: "123" }]);
+	assertEquals(await ip.testIdentityChallenge(id1, "password", "123"), true);
+	assertEquals(await ip.testIdentityChallenge(id1, "password", "abc"), false);
+	assertEquals(await ip.testIdentityChallenge(id2, "password", "123"), false);
 });
 
 Deno.test("unassignStepChallenge", async () => {
@@ -88,11 +88,11 @@ Deno.test("unassignStepChallenge", async () => {
 	const ip = new IdentityKVProvider(kv);
 	const id1 = autoid();
 	await ip.createIdentity(id1, {});
-	await ip.assignStepChallenge(id1, "password", "123");
-	await ip.assignStepChallenge(id1, "otp", "123456");
-	assertEquals(await ip.listStepChallenge(id1), [{ identifier: "otp", challenge: "123456" }, { identifier: "password", challenge: "123" }]);
-	await ip.unassignStepChallenge(id1, "password", "123");
-	assertEquals(await ip.listStepChallenge(id1), [{ identifier: "otp", challenge: "123456" }]);
-	await ip.unassignStepChallenge(id1, "otp", "123456");
-	assertEquals(await ip.listStepChallenge(id1), []);
+	await ip.assignIdentityChallenge(id1, "password", "123");
+	await ip.assignIdentityChallenge(id1, "otp", "123456");
+	assertEquals(await ip.listIdentityChallenge(id1), [{ identifier: "otp", challenge: "123456" }, { identifier: "password", challenge: "123" }]);
+	await ip.unassignIdentityChallenge(id1, "password", "123");
+	assertEquals(await ip.listIdentityChallenge(id1), [{ identifier: "otp", challenge: "123456" }]);
+	await ip.unassignIdentityChallenge(id1, "otp", "123456");
+	assertEquals(await ip.listIdentityChallenge(id1), []);
 });

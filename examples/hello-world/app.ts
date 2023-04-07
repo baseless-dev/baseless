@@ -62,7 +62,6 @@ const master = password(svgPass, { en: "Sign in with Master" });
 config.auth()
 	.flow(oneOf(
 		chain(mail, pass),
-		// chain(mail, mail, pass, pass),
 		// facebook,
 		// google,
 		github,

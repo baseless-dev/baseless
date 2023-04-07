@@ -97,7 +97,7 @@ export interface IdentityProvider {
 	 * @param identifier The {@link authStepIdent} (ex. email, oauth:github)
 	 * @param uniqueId The unique Id (ex. john@doe.local, grenierdev)
 	 */
-	getIdentityByStepIdentifier(identifier: string, uniqueId: string): Promise<AutoId>;
+	getIdentityByIdentification(identifier: string, uniqueId: string): Promise<AutoId>;
 
 	/**
 	 * Assign {@link authStepIdent} identifier to an {@link Identity}
@@ -105,13 +105,13 @@ export interface IdentityProvider {
 	 * @param identifier The {@link authStepIdent} (ex. email, oauth:github)
 	 * @param uniqueId The unique Id (ex. john@doe.local, grenierdev)
 	 */
-	assignStepIdentifier(identityId: AutoId, identifier: string, uniqueId: string): Promise<void>;
+	assignIdentityIdentification(identityId: AutoId, identifier: string, uniqueId: string): Promise<void>;
 
 	/**
 	 * List all {@link authStepIdent} identifier assigned to an {@link Identity}
 	 * @param identityId The {@link Identity.id}
 	 */
-	listStepIdentifier(identityId: AutoId): Promise<{ identifier: string; uniqueId: string }[]>;
+	listIdentityIdentification(identityId: AutoId): Promise<{ identifier: string; uniqueId: string }[]>;
 
 	/**
 	 * Unassign {@link IdentityAuthStep} identifier to an {@link Identity}
@@ -119,7 +119,7 @@ export interface IdentityProvider {
 	 * @param identifier The {@link authStepIdent} (ex. email, oauth:github)
 	 * @param uniqueId The unique Id (ex. john@doe.local, grenierdev)
 	 */
-	unassignStepIdentifier(identityId: AutoId, identifier: string, uniqueId: string): Promise<void>;
+	unassignIdentityIdentification(identityId: AutoId, identifier: string, uniqueId: string): Promise<void>;
 
 	/**
 	 * Test {@link authStepIdent} challenge for an {@link Identity}
@@ -128,7 +128,7 @@ export interface IdentityProvider {
 	 * @param challenge The challenge (ex. encrypted password, 6 digits code)
 	 * @returns Wether the challenge failed or not
 	 */
-	testStepChallenge(identityId: AutoId, identifier: string, challenge: string): Promise<boolean>;
+	testIdentityChallenge(identityId: AutoId, identifier: string, challenge: string): Promise<boolean>;
 
 	/**
 	 * Assign {@link authStepIdent} challenge to an {@link Identity}
@@ -137,7 +137,8 @@ export interface IdentityProvider {
 	 * @param challenge The challenge (ex. encrypted password, 6 digits code)
 	 * @param expireIn The number of seconds at wich the challenge expires
 	 */
-	assignStepChallenge(identityId: AutoId, identifier: string, challenge: string, expireIn?: number): Promise<void>;
+	assignIdentityChallenge(identityId: AutoId, identifier: string, challenge: string, expireIn?: number): Promise<void>;
+
 	/**
 	 * Assign {@link authStepIdent} challenge to an {@link Identity}
 	 * @param identityId The {@link Identity.id}
@@ -145,13 +146,13 @@ export interface IdentityProvider {
 	 * @param challenge The challenge (ex. encrypted password, 6 digits code)
 	 * @param expireAt The Date at wich the challenge expires
 	 */
-	assignStepChallenge(identityId: AutoId, identifier: string, challenge: string, expireAt?: Date): Promise<void>;
+	assignIdentityChallenge(identityId: AutoId, identifier: string, challenge: string, expireAt?: Date): Promise<void>;
 
 	/**
 	 * List all {@link authStepIdent} challenge assigned to an {@link Identity}
 	 * @param identityId The {@link Identity.id}
 	 */
-	listStepChallenge(identityId: AutoId): Promise<{ identifier: string; challenge: string }[]>;
+	listIdentityChallenge(identityId: AutoId): Promise<{ identifier: string; challenge: string }[]>;
 
 	/**
 	 * Unassign {@link authStepIdent} challenge to an {@link Identity}
@@ -159,30 +160,30 @@ export interface IdentityProvider {
 	 * @param identifier The {@link authStepIdent} (ex. password, otp)
 	 * @param challenge The unique Id (ex. encrypted password, 6 digits code)
 	 */
-	unassignStepChallenge(identityId: AutoId, identifier: string, challenge: string): Promise<void>;
+	unassignIdentityChallenge(identityId: AutoId, identifier: string, challenge: string): Promise<void>;
 }
 
 /**
  * Invalid Identity Error
  */
-export class InvalidIdentityError extends Error {}
+export class InvalidIdentityError extends Error { }
 /**
  * Invalid Identity Authentication Step Error
  */
-export class InvalidIdentityAuthenticationStepError extends Error {}
+export class InvalidIdentityAuthenticationStepError extends Error { }
 /**
  * Identity Not Found Error
  */
-export class IdentityNotFoundError extends Error {}
+export class IdentityNotFoundError extends Error { }
 /**
  * Identity Exists Error
  */
-export class IdentityExistsError extends Error {}
+export class IdentityExistsError extends Error { }
 /**
  * Identity Authentication Step Not Found Error
  */
-export class IdentityAuthenticationStepNotFoundError extends Error {}
+export class IdentityAuthenticationStepNotFoundError extends Error { }
 /**
  * Identity Authentication Step Exists Error
  */
-export class IdentityAuthenticationStepExistsError extends Error {}
+export class IdentityAuthenticationStepExistsError extends Error { }

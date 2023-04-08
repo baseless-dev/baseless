@@ -1,14 +1,14 @@
 import { assertEquals, assertExists } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { KVWebStorageProvider } from "./mod.ts";
+import { WebStorageKVProvider } from "./mod.ts";
 
 Deno.test("put & get", async () => {
-	const kv = new KVWebStorageProvider(sessionStorage, "baseless-kv-webstorage-test-put");
+	const kv = new WebStorageKVProvider(sessionStorage, "baseless-kv-webstorage-test-put");
 	await kv.put("/posts/a", "Title A");
 	const key = await kv.get("/posts/a");
 	assertEquals(key.value, "Title A");
 });
 Deno.test("list", async () => {
-	const kv = new KVWebStorageProvider(sessionStorage, "baseless-kv-webstorage-test-list");
+	const kv = new WebStorageKVProvider(sessionStorage, "baseless-kv-webstorage-test-list");
 	await Promise.all([
 		kv.put("/posts/a", "Title A"),
 		kv.put("/posts/b", "Title B"),
@@ -47,7 +47,7 @@ Deno.test("list", async () => {
 	assertEquals(result3.keys[2].value, "Title D");
 });
 Deno.test("delete", async () => {
-	const kv = new KVWebStorageProvider(sessionStorage, "baseless-kv-webstorage-test-delete");
+	const kv = new WebStorageKVProvider(sessionStorage, "baseless-kv-webstorage-test-delete");
 	await Promise.all([
 		kv.put("/posts/a", "Title A"),
 		kv.put("/posts/b", "Title B"),

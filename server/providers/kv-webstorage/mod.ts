@@ -1,7 +1,7 @@
 import { KeyNotFoundError, KVGetOptions, KVKey, KVListOptions, KVListResult, KVProvider, KVPutOptions } from "../kv.ts";
 import { createLogger } from "../../logger.ts";
 
-export class KVWebStorageProvider implements KVProvider {
+export class WebStorageKVProvider implements KVProvider {
 	protected readonly logger = createLogger("baseless-kv-webstorage");
 
 	public constructor(protected readonly storage: Storage, protected readonly prefix = "kv") {

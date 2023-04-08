@@ -2,7 +2,7 @@ import { ClientExistsError, ClientInformationResponse, ClientNotFoundError, Clie
 import { KeyNotFoundError, KVProvider } from "../kv.ts";
 import { createLogger } from "../../logger.ts";
 
-export class ClientKVProvider implements ClientProvider {
+export class KVClientProvider implements ClientProvider {
 	protected readonly logger = createLogger("baseless-client-kv");
 
 	public constructor(protected readonly kv: KVProvider, protected readonly prefix = "clients") {

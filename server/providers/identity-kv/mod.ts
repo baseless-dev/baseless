@@ -15,7 +15,7 @@ import { createLogger } from "../../logger.ts";
 import { KeyNotFoundError, KVProvider, KVPutOptions } from "../kv.ts";
 import { assertAutoId, AutoId } from "../../../shared/autoid.ts";
 
-export class IdentityKVProvider implements IdentityProvider {
+export class KVIdentityProvider implements IdentityProvider {
 	#logger = createLogger("baseless-identity-kv");
 
 	public constructor(protected readonly kv: KVProvider, protected readonly prefix = "identities") {

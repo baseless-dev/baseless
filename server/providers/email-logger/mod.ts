@@ -4,7 +4,7 @@ import { createLogger, Logger, LogLevel, LogLevelMethod } from "../../logger.ts"
 /**
  * A mail provider that log every message
  */
-export class EmailLoggerProvider implements EmailProvider {
+export class LoggerEmailProvider implements EmailProvider {
 	protected readonly logger = createLogger("baseless-mail-logger");
 
 	protected readonly logMethod: keyof Logger;

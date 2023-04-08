@@ -2,7 +2,7 @@ import { KeyNotFoundError, KVGetOptions, KVKey, KVListOptions, KVListResult, KVP
 import { createLogger } from "../../logger.ts";
 import { DB, SqliteOptions } from "https://deno.land/x/sqlite@v3.4.1/mod.ts";
 
-export type KVDenoDBProviderOptions = {
+export type SqliteKVProviderOptions = {
 	readonly path: string;
 	readonly tableName: string;
 	readonly mode: SqliteOptions["mode"];
@@ -11,8 +11,8 @@ export type KVDenoDBProviderOptions = {
 	readonly tableName: string;
 };
 
-export class KVDenoDBProvider implements KVProvider {
-	protected readonly options: KVDenoDBProviderOptions;
+export class SqliteKVProvider implements KVProvider {
+	protected readonly options: SqliteKVProviderOptions;
 	protected readonly logger = createLogger("baseless-kv-sqlite");
 	protected db?: DB;
 

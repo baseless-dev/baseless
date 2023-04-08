@@ -1,8 +1,9 @@
 import Login from "./components/Login.ts";
 import { Locale, Localization } from "./localization.ts";
-import { AuthViewLoginParams, AuthViews } from "../../auth/config.ts";
+import { AuthenticationViewLoginParams, AuthViews } from "../../auth/config.ts";
 import PromptEmail from "./components/PromptEmail.ts";
 import PromptPassword from "./components/PromptPassword.ts";
+import PromptOTP from "./components/PromptOTP.ts";
 import Logged from "./components/Logged.ts";
 
 export interface AuthUIConfiguration {
@@ -17,7 +18,7 @@ export interface AuthUIContext extends AuthUIConfiguration {
 
 export default function createAuthUI(uiConfiguration: AuthUIConfiguration): AuthViews {
 	return {
-		loggedin(params: AuthViewLoginParams): string {
+		index(params: AuthenticationViewLoginParams): string {
 			const url = new URL(params.request.url);
 			const currentLocale = url.searchParams.get("locale") ?? uiConfiguration.defaultLocale;
 			const context: AuthUIContext = {
@@ -26,7 +27,7 @@ export default function createAuthUI(uiConfiguration: AuthUIConfiguration): Auth
 			};
 			return Logged({ ...context, ...params });
 		},
-		login(params: AuthViewLoginParams): string {
+		promptChoice(params: AuthenticationViewLoginParams): string {
 			const url = new URL(params.request.url);
 			const currentLocale = url.searchParams.get("locale") ?? uiConfiguration.defaultLocale;
 			const context: AuthUIContext = {
@@ -35,7 +36,7 @@ export default function createAuthUI(uiConfiguration: AuthUIConfiguration): Auth
 			};
 			return Login({ ...context, ...params });
 		},
-		promptEmail(params: AuthViewLoginParams): string {
+		promptEmail(params: AuthenticationViewLoginParams): string {
 			const url = new URL(params.request.url);
 			const currentLocale = url.searchParams.get("locale") ?? uiConfiguration.defaultLocale;
 			const context: AuthUIContext = {
@@ -44,7 +45,7 @@ export default function createAuthUI(uiConfiguration: AuthUIConfiguration): Auth
 			};
 			return PromptEmail({ ...context, ...params });
 		},
-		promptPassword(params: AuthViewLoginParams): string {
+		promptPassword(params: AuthenticationViewLoginParams): string {
 			const url = new URL(params.request.url);
 			const currentLocale = url.searchParams.get("locale") ?? uiConfiguration.defaultLocale;
 			const context: AuthUIContext = {
@@ -52,6 +53,15 @@ export default function createAuthUI(uiConfiguration: AuthUIConfiguration): Auth
 				currentLocale,
 			};
 			return PromptPassword({ ...context, ...params });
+		},
+		promptOTP(params: AuthenticationViewLoginParams): string {
+			const url = new URL(params.request.url);
+			const currentLocale = url.searchParams.get("locale") ?? uiConfiguration.defaultLocale;
+			const context: AuthUIContext = {
+				...uiConfiguration,
+				currentLocale,
+			};
+			return PromptOTP({ ...context, ...params });
 		},
 	};
 }

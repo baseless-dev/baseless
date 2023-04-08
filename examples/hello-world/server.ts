@@ -21,8 +21,6 @@ await identityProvider.createIdentity(johnId, {});
 await identityProvider.assignIdentityIdentification(johnId, "email", "john@doe.local");
 // Assign a password challenge to `123`
 await identityProvider.assignIdentityChallenge(johnId, "password", "123");
-// Assign a one-time-password to `123456` that's valid for the next 60 seconds
-await identityProvider.assignIdentityChallenge(johnId, "otp", "666666", 60);
 
 const server = new Server({ configuration: config.build(), identityProvider });
 

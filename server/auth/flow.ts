@@ -1,335 +1,286 @@
-export type ProviderLabel = Record<string, string>;
+import { AutoId } from "../../shared/autoid.ts";
+import { Context } from "../context.ts";
+import { createLogger } from "../logger.ts";
 
-export interface OAuthConfiguration {
-	readonly providerId: string;
-	readonly providerLabel: { [locale: string]: string };
-	readonly providerIcon: string;
+export type AuthenticationStep = AuthenticationIdentification | AuthenticationChallenge | AuthenticationSequence | AuthenticationChoice;
+
+export function isAuthenticationStep(value?: unknown): value is AuthenticationStep {
+	return value instanceof AuthenticationIdentification || value instanceof AuthenticationChallenge || value instanceof AuthenticationSequence || value instanceof AuthenticationChoice;
+}
+
+export function assertAuthenticationStep(value?: unknown): asserts value is AuthenticationStep {
+	if (!isAuthenticationStep(value)) {
+		throw new Error("Expected `value` to be an AuthenticationStep.");
+	}
+}
+
+export abstract class AuthenticationIdentification {
+	constructor(
+		public readonly id: string,
+		public readonly icon: string,
+		public readonly label: Record<string, string>,
+		public readonly prompt: "email" | "action",
+	) { }
+
+	abstract identify(request: Request, context: Context): Promise<AutoId | Response>;
+}
+
+export abstract class AuthenticationChallenge {
+	constructor(
+		public readonly id: string,
+		public readonly icon: string,
+		public readonly label: Record<string, string>,
+		public readonly prompt: "password" | "otp",
+	) { }
+	send?: (request: Request, context: Context, identity: AutoId) => Promise<void>;
+	abstract challenge(request: Request, context: Context, identity: AutoId): Promise<boolean | Response>;
+}
+
+export class AuthenticationSequence {
+	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) { }
+	get id(): string {
+		return `sequence(${this.steps.map(s => s.id)})`;
+	}
+}
+
+export function sequence(...steps: AuthenticationStep[]) {
+	return new AuthenticationSequence(steps);
+}
+
+export class AuthenticationChoice {
+	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) { }
+	get id(): string {
+		return `choice(${this.choices.map(s => s.id)})`;
+	}
+}
+
+export function oneOf(...choices: AuthenticationStep[]) {
+	return new AuthenticationChoice(choices);
+}
+
+export class AuthenticationIdentificationEmail extends AuthenticationIdentification {
+	constructor({ icon, label }: { icon: string; label: Record<string, string> }) {
+		super("email", icon, label, "email");
+	}
+	async identify(request: Request, context: Context): Promise<AutoId> {
+		const formData = await request.formData();
+		const email = formData.get("email");
+		if (!email) {
+			throw new Error();
+		}
+		return await context.identity.getIdentityByIdentification("email", email.toString());
+	}
+}
+
+export function email(options: ConstructorParameters<typeof AuthenticationIdentificationEmail>[0]) {
+	return new AuthenticationIdentificationEmail(options);
+}
+
+export class AuthenticationChallengePassword extends AuthenticationChallenge {
+	constructor({ icon, label }: { icon: string; label: Record<string, string> }) {
+		super("password", icon, label, "password");
+	}
+	async challenge(request: Request, context: Context, identity: AutoId): Promise<boolean> {
+		const formData = await request.formData();
+		const password = formData.get("password");
+		if (!password) {
+			throw new Error();
+		}
+		return await context.identity.testIdentityChallenge(identity, "password", password.toString());
+	}
+}
+
+export function password(options: ConstructorParameters<typeof AuthenticationChallengePassword>[0]) {
+	return new AuthenticationChallengePassword(options);
+}
+
+export class AuthenticationIdentificationOAuth extends AuthenticationIdentification {
 	readonly clientId: string;
 	readonly clientSecret: string;
 	readonly scope: string[];
 	readonly authorizationEndpoint: string;
 	readonly tokenEndpoint: string;
 	readonly openIdEndpoint: string;
-}
-
-export interface OTPConfiguration {
-	readonly providerId: string;
-	readonly providerLabel: ProviderLabel;
-}
-
-export interface TOTPConfiguration {
-	readonly providerId: string;
-	readonly providerLabel: ProviderLabel;
-}
-
-export interface HOTPConfiguration {
-	readonly providerId: string;
-	readonly providerLabel: ProviderLabel;
-}
-
-export type AuthStepOTPDefinition =
-	| { readonly type: "otp"; readonly config: OTPConfiguration }
-	| { readonly type: "totp"; readonly config: TOTPConfiguration }
-	| { readonly type: "hotp"; readonly config: HOTPConfiguration };
-
-export type AuthStepOAuthDefinition = {
-	readonly type: "oauth";
-	readonly config: OAuthConfiguration;
-};
-
-export type AuthStepEmailDefinition = {
-	readonly type: "email";
-	readonly providerIcon: string;
-	readonly providerLabel: ProviderLabel;
-};
-
-export type AuthStepPasswordDefinition = {
-	readonly type: "password";
-	readonly providerIcon: string;
-	readonly providerLabel: ProviderLabel;
-};
-
-export type AuthStepNodeDefinition =
-	| AuthStepEmailDefinition
-	| AuthStepPasswordDefinition
-	| AuthStepOTPDefinition
-	| AuthStepOAuthDefinition;
-
-export interface AuthStepChainDefinition<T extends AuthStepDefinition = AuthStepDefinition> {
-	readonly type: "chain";
-	steps: T[];
-}
-export interface AuthStepOneOfDefinition<T extends AuthStepDefinition = AuthStepDefinition> {
-	readonly type: "oneOf";
-	steps: T[];
-}
-
-export type AuthStepDefinition =
-	| AuthStepNodeDefinition
-	| AuthStepChainDefinition
-	| AuthStepOneOfDefinition;
-
-export type AuthStepLeafDefinition = AuthStepNodeDefinition | AuthStepChainDefinition<AuthStepNodeDefinition> | AuthStepOneOfDefinition<AuthStepNodeDefinition>;
-export type AuthStepDecomposedDefinition =
-	| AuthStepNodeDefinition
-	| AuthStepChainDefinition<AuthStepNodeDefinition>
-	| AuthStepOneOfDefinition<AuthStepChainDefinition<AuthStepNodeDefinition>>;
-
-export function isAuthStepDefinition(value?: unknown): value is AuthStepDefinition {
-	return !!value && typeof value === "object" && "type" in value && typeof value.type === "string";
-}
-
-export function assertAuthStepDefinition(value?: unknown): asserts value is AuthStepDefinition {
-	if (!isAuthStepDefinition(value)) {
-		throw new TypeError(`Value is not a valid step.`);
+	constructor(options: {
+		icon: string;
+		label: Record<string, string>;
+		provider: string;
+		clientId: string;
+		clientSecret: string;
+		scope: string[];
+		authorizationEndpoint: string;
+		tokenEndpoint: string;
+		openIdEndpoint: string;
+	}) {
+		super(`oauth:${options.provider}`, options.icon, options.label, "action");
+		this.clientId = options.clientId;
+		this.clientSecret = options.clientSecret;
+		this.scope = options.scope;
+		this.authorizationEndpoint = options.authorizationEndpoint;
+		this.tokenEndpoint = options.tokenEndpoint;
+		this.openIdEndpoint = options.openIdEndpoint;
+	}
+	async identify(request: Request, context: Context): Promise<AutoId> {
+		const formData = await request.formData();
+		throw new Error("Not implemented");
 	}
 }
 
-function isAuthStepLeafDefinition(value?: unknown): value is AuthStepLeafDefinition {
-	if (!isAuthStepDefinition(value)) {
-		return false;
+export function oauth(options: ConstructorParameters<typeof AuthenticationIdentificationOAuth>[0]) {
+	return new AuthenticationIdentificationOAuth(options);
+}
+
+export class AuthenticationChallengeOTPLogger extends AuthenticationChallenge {
+	#logger = createLogger("auth-otp-logger");
+	constructor({ icon, label }: { icon: string; label: Record<string, string> }) {
+		super("otp:logger", icon, label, "otp");
 	}
-	if (value.type !== "chain" && value.type !== "oneOf") {
-		return true;
+	send = async (_request: Request, context: Context, identity: AutoId) => {
+		// TODO actually generate code
+		const code = "123456";
+		await context.identity.assignIdentityChallenge(identity, "otp:logger", code, 120);
+		this.#logger.warn(`The OTP code is ${code}.`);
+		return;
 	}
-	return !value.steps.some((step) => step.type === "chain" || step.type === "oneOf");
-}
-
-export function assertAuthStepLeafDefinition(value?: unknown): asserts value is AuthStepLeafDefinition {
-	if (!isAuthStepLeafDefinition(value)) {
-		throw new TypeError(`Value is not a valid leaf step.`);
-	}
-}
-
-export function isAuthStepDecomposedDefinition(value: unknown): value is AuthStepDecomposedDefinition {
-	if (!isAuthStepDefinition(value)) {
-		return false;
-	}
-	if (value.type === "chain" && !isAuthStepLeafDefinition(value)) {
-		return false;
-	}
-	if (value.type === "oneOf" && value.steps.some((step) => !isAuthStepLeafDefinition(step))) {
-		return false;
-	}
-	return true;
-}
-
-export function assertAuthStepDecomposedDefinition(value: unknown): asserts value is AuthStepDecomposedDefinition {
-	if (!isAuthStepDecomposedDefinition(value)) {
-		throw new TypeError(`Value is not a decomposed step.`);
-	}
-}
-
-export function chain(...steps: AuthStepDefinition[]): AuthStepChainDefinition {
-	if (steps.length === 0) {
-		throw new RangeError(`Expected at least one Step, got 0.`);
-	}
-	for (const step of steps) {
-		assertAuthStepDefinition(step);
-	}
-	return { type: "chain", steps };
-}
-
-export function oneOf(...steps: AuthStepDefinition[]): AuthStepDefinition {
-	if (steps.length === 0) {
-		throw new RangeError(`Expected at least one Step, got 0.`);
-	}
-	for (const step of steps) {
-		assertAuthStepDefinition(step);
-	}
-	return { type: "oneOf", steps };
-}
-
-export function email(providerIcon: string, providerLabel: ProviderLabel): AuthStepDefinition {
-	return { type: "email", providerIcon, providerLabel };
-}
-
-export function password(providerIcon: string, providerLabel: ProviderLabel): AuthStepDefinition {
-	return { type: "password", providerIcon, providerLabel };
-}
-
-export function otp(config: OTPConfiguration): AuthStepDefinition {
-	return { type: "otp", config };
-}
-
-export function totp(config: TOTPConfiguration): AuthStepDefinition {
-	return { type: "totp", config };
-}
-
-export function hotp(config: HOTPConfiguration): AuthStepDefinition {
-	return { type: "hotp", config };
-}
-
-export function oauth(config: OAuthConfiguration): AuthStepDefinition {
-	return { type: "oauth", config };
-}
-
-export function authStepIdent(step: AuthStepDefinition): string {
-	if (step.type === "otp" || step.type === "totp" || step.type === "hotp" || step.type === "oauth") {
-		return `${step.type}:${step.config.providerId}`;
-	} else if (step.type === "chain" || step.type === "oneOf") {
-		return `${step.type}(${step.steps.map(authStepIdent)})`;
-	}
-	return step.type;
-}
-
-export function simplifyAuthStep(step: AuthStepDefinition): AuthStepDefinition {
-	if (step.type === "chain") {
-		const steps = step.steps.reduce((steps, step) => {
-			step = simplifyAuthStep(step);
-			if (step.type === "chain") {
-				steps.push(...step.steps);
-			} else {
-				steps.push(step);
-			}
-			return steps;
-		}, [] as AuthStepDefinition[]);
-		return chain(...steps);
-	} else if (step.type === "oneOf") {
-		const steps = step.steps.reduce((steps, step) => {
-			step = simplifyAuthStep(step);
-			if (step.type === "oneOf") {
-				steps.push(...step.steps);
-			} else {
-				steps.push(step);
-			}
-			return steps;
-		}, [] as AuthStepDefinition[]);
-		if (steps.length === 1) {
-			return steps.at(0)!;
+	async challenge(request: Request, context: Context, identity: AutoId): Promise<boolean> {
+		const formData = await request.formData();
+		const code = formData.get("code");
+		if (!code) {
+			throw new Error();
 		}
-		return oneOf(...steps);
+		return await context.identity.testIdentityChallenge(identity, "otp:logger", code.toString());
+	}
+}
+
+export function otpLogger(options: ConstructorParameters<typeof AuthenticationChallengeOTPLogger>[0]) {
+	return new AuthenticationChallengeOTPLogger(options);
+}
+
+export function simplify(step: AuthenticationStep): AuthenticationStep {
+	if (step instanceof AuthenticationSequence) {
+		const steps = step.steps.reduce((steps, step) => {
+			step = simplify(step);
+			if (step instanceof AuthenticationSequence) {
+				steps.push(...step.steps);
+			} else {
+				steps.push(step);
+			}
+			return steps;
+		}, [] as AuthenticationStep[]);
+		return sequence(...steps);
+	}
+	else if (step instanceof AuthenticationChoice) {
+		const choices = step.choices.reduce((choices, step) => {
+			step = simplify(step);
+			if (step instanceof AuthenticationChoice) {
+				choices.push(...step.choices);
+			} else {
+				choices.push(step);
+			}
+			return choices;
+		}, [] as AuthenticationStep[]);
+		if (choices.length === 1) {
+			return choices.at(0)!;
+		}
+		return oneOf(...choices);
 	}
 	return step;
 }
 
-export enum VisitorResult {
-	Break = "break",
-	Continue = "continue",
-	Skip = "skip",
-}
-
-export type Visitor<Context> = {
-	enter: (step: AuthStepDefinition, context: Context) => VisitorResult;
-	leave?: (step: AuthStepDefinition, context: Context) => void;
-};
-
-export function visit<Context = never>(
-	step: AuthStepDefinition,
-	visitor: Visitor<Context>,
-	context: Context,
-) {
-	_visit(simplifyAuthStep(step), visitor);
-	return context;
-	function _visit(step: AuthStepDefinition, { enter, leave }: Visitor<Context>): VisitorResult {
-		const result = enter(step, context);
-		if (result === VisitorResult.Continue) {
-			if (step.type === "chain" || step.type === "oneOf") {
-				for (const inner of step.steps) {
-					if (_visit(inner, { enter, leave }) === VisitorResult.Break) {
-						break;
-					}
-				}
-			}
-		}
-		leave?.(step, context);
-		return result;
-	}
-}
-
-export function replaceAuthStep(step: AuthStepDefinition, search: AuthStepDefinition, replace: AuthStepDefinition, deep = true): AuthStepDefinition {
+export function replace(step: AuthenticationStep, search: AuthenticationStep, replacement: AuthenticationStep): AuthenticationStep {
 	if (step === search) {
-		return replace;
+		return replacement;
 	}
-	if (deep && (step.type === "chain" || step.type === "oneOf")) {
+	if (step instanceof AuthenticationSequence || step instanceof AuthenticationChoice) {
 		let changed = false;
-		const steps = step.steps.map((step) => {
-			const replaced = replaceAuthStep(step, search, replace, true);
+		const stepsToReplace = step instanceof AuthenticationSequence ? step.steps : step.choices;
+		const steps = stepsToReplace.map(step => {
+			const replaced = replace(step, search, replacement);
 			if (replaced !== step) {
 				changed = true;
 			}
 			return replaced;
 		});
 		if (changed) {
-			return { type: step.type, steps };
+			return step instanceof AuthenticationSequence ? sequence(...steps) : oneOf(...steps);
 		}
 	}
 	return step;
 }
 
-export function decomposeAuthStep(step: AuthStepDefinition): AuthStepDecomposedDefinition {
-	const decomposed: AuthStepDecomposedDefinition[] = [];
-	const trees: AuthStepDefinition[] = [simplifyAuthStep(step)];
+function isLeafAuthenticationStep(step: AuthenticationStep): boolean {
+	if (!(step instanceof AuthenticationSequence || step instanceof AuthenticationChoice)) {
+		return true;
+	}
+	if (step instanceof AuthenticationSequence && step.steps.every(step => !(step instanceof AuthenticationSequence || step instanceof AuthenticationChoice))) {
+		return true;
+	}
+	if (step instanceof AuthenticationChoice && step.choices.every(step => !(step instanceof AuthenticationSequence || step instanceof AuthenticationChoice))) {
+		return true;
+	}
+	return false;
+}
+
+export function flatten(step: AuthenticationStep): AuthenticationStep {
+	const decomposed: AuthenticationStep[] = [];
+	const trees: AuthenticationStep[] = [simplify(step)];
 
 	while (trees.length) {
 		const root = trees.shift()!;
-
-		if (isAuthStepLeafDefinition(root)) {
-			decomposed.push(root as AuthStepDecomposedDefinition);
+		if (isLeafAuthenticationStep(root)) {
+			decomposed.push(root);
 		} else {
-			const steps: AuthStepDefinition[] = [];
 			let forked = false;
-			const walk: AuthStepDefinition[] = [root];
-			while (walk.length > 0) {
+			const steps: AuthenticationStep[] = [];
+			const walk: AuthenticationStep[] = [root];
+			while (walk.length) {
 				const node = walk.shift()!;
-				if (node.type === "oneOf") {
-					trees.push(...node.steps.map((step) => replaceAuthStep(root, node, step)));
+				if (node instanceof AuthenticationChoice) {
+					trees.push(...node.choices.map(step => replace(root, node, step)));
 					forked = true;
-				} else if (node.type === "chain") {
+				} else if (node instanceof AuthenticationSequence) {
 					walk.unshift(...node.steps);
 				} else {
 					steps.push(node);
 				}
 			}
 			if (!forked) {
-				trees.push({ type: root.type, steps } as AuthStepDefinition);
+				trees.push(root instanceof AuthenticationSequence ? sequence(...steps) : oneOf(...steps));
 			}
 		}
 	}
 
 	if (decomposed.length > 1) {
-		return oneOf(...decomposed) as AuthStepDecomposedDefinition;
+		return oneOf(...decomposed);
 	}
 	return decomposed.at(0)!;
 }
 
-export function* getImmediateNextAuthStep(step: AuthStepDefinition): Generator<AuthStepDefinition> {
-	if (step.type === "chain") {
-		yield* getImmediateNextAuthStep(step.steps.at(0)!);
-	} else if (step.type === "oneOf") {
-		for (const inner of step.steps) {
-			yield* getImmediateNextAuthStep(inner);
+export function* getNextIdentificationOrChallenge(step: AuthenticationStep): Generator<AuthenticationIdentification | AuthenticationChallenge> {
+	if (step instanceof AuthenticationSequence) {
+		yield* getNextIdentificationOrChallenge(step.steps.at(0)!);
+	} else if (step instanceof AuthenticationChoice) {
+		for (const inner of step.choices) {
+			yield* getNextIdentificationOrChallenge(inner);
 		}
-	} else {
-		yield step;
+	} else if (step) {
+		yield step as AuthenticationIdentification | AuthenticationChallenge;
 	}
 }
 
-export type AuthStepNextAtPath = AuthStepNodeDefinition | AuthStepOneOfDefinition<AuthStepNodeDefinition>;
+export type NextAuthenticationStepResult =
+	| { done: false; next: AuthenticationStep }
+	| { done: true };
 
-export interface AuthStepNextValue {
-	done: false;
-	next: AuthStepNextAtPath;
-}
+export class NextAuthenticationStepError extends Error { }
 
-export interface AuthStepNextDone {
-	done: true;
-}
-
-export class InvalidAuthStepPath extends Error {}
-
-export type AuthStepNext =
-	| AuthStepNextValue
-	| AuthStepNextDone;
-
-export function getNextAuthStepAtPath(step: AuthStepDefinition, path: string[]): AuthStepNext {
-	assertAuthStepDecomposedDefinition(step);
-	if (step.type === "chain") {
+export function getNextAuthenticationStepAtPath(step: AuthenticationStep, path: string[]): NextAuthenticationStepResult {
+	if (step instanceof AuthenticationSequence) {
 		let i = 0;
 		const stepLen = step.steps.length;
 		const pathLen = path.length;
 		for (; i < pathLen; ++i) {
-			if (authStepIdent(step.steps.at(i)!) !== path[i]) {
+			if (step.steps[i].id !== path[i]) {
 				break;
 			}
 		}
@@ -337,14 +288,14 @@ export function getNextAuthStepAtPath(step: AuthStepDefinition, path: string[]):
 			return { done: true };
 		}
 		if (i !== pathLen) {
-			throw new InvalidAuthStepPath();
+			throw new NextAuthenticationStepError();
 		}
 		return { done: false, next: step.steps.at(i)! };
-	} else if (step.type === "oneOf") {
-		const nextSteps: AuthStepNext[] = [];
-		for (const inner of step.steps) {
+	} else if (step instanceof AuthenticationChoice) {
+		const nextSteps: NextAuthenticationStepResult[] = [];
+		for (const inner of step.choices) {
 			try {
-				nextSteps.push(getNextAuthStepAtPath(inner, path));
+				nextSteps.push(getNextAuthenticationStepAtPath(inner, path));
 			} catch (_err) {
 				// skip
 			}
@@ -355,13 +306,19 @@ export function getNextAuthStepAtPath(step: AuthStepDefinition, path: string[]):
 		if (nextSteps.length === 1) {
 			return nextSteps.at(0)!;
 		} else if (nextSteps.length) {
-			const steps = nextSteps.filter((ns): ns is AuthStepNextValue => !ns.done).map((ns) => ns.next);
-			return { done: false, next: simplifyAuthStep(oneOf(...new Set(steps))) as AuthStepOneOfDefinition<AuthStepNodeDefinition> };
+			// const steps = nextSteps.filter((ns): ns is AuthStepNextValue => !ns.done).map((ns) => ns.next);
+			const steps = nextSteps.reduce((steps, step) => {
+				if (step.done === false) {
+					steps.push(step.next);
+				}
+				return steps;
+			}, [] as AuthenticationStep[]);
+			return { done: false, next: simplify(oneOf(...new Set(steps))) };
 		}
 	} else if (path.length === 0) {
 		return { done: false, next: step };
-	} else if (authStepIdent(step) === path.at(0)!) {
+	} else if (step.id === path.at(0)!) {
 		return { done: true };
 	}
-	throw new InvalidAuthStepPath();
+	throw new NextAuthenticationStepError();
 }

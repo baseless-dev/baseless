@@ -1,51 +1,49 @@
 import { Context } from "../context.ts";
 import { Identity } from "../providers/identity.ts";
-import { assertAuthStepDefinition, AuthStepDecomposedDefinition, AuthStepDefinition, AuthStepNextAtPath, decomposeAuthStep } from "./flow.ts";
+import { assertAuthenticationStep, AuthenticationStep, NextAuthenticationStepResult, flatten } from "./flow.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 
-export interface AuthKeys {
+export interface AuthenticationKeys {
 	readonly algo: string;
 	readonly privateKey: KeyLike;
 	readonly publicKey: KeyLike;
 }
 
-export interface AuthConfiguration {
-	readonly authKeys: AuthKeys;
-	readonly authFlow: AuthStepDefinition;
-	readonly authFlowDecomposed: AuthStepDecomposedDefinition;
-	readonly onCreateIdentity?: AuthHandler;
-	readonly onUpdateIdentity?: AuthHandler;
-	readonly onDeleteIdentity?: AuthHandler;
+export interface AuthenticationConfiguration {
+	readonly keys: AuthenticationKeys;
+	readonly flow: AuthenticationStep;
+	readonly flattenedFlow: AuthenticationStep;
+	readonly onCreateIdentity?: AuthenticationHandler;
+	readonly onUpdateIdentity?: AuthenticationHandler;
+	readonly onDeleteIdentity?: AuthenticationHandler;
 	readonly views?: AuthViews;
 }
 
-export type AuthHandler = (context: Context, request: Request, identity: Identity) => void | Promise<void>;
-export interface AuthViewLoggedParams {
+export type AuthenticationHandler = (context: Context, request: Request, identity: Identity) => void | Promise<void>;
+export interface AuthenticationViewLoggedParams {
 	request: Request;
 	context: Context;
 }
-export interface AuthViewLoginParams {
+export interface AuthenticationViewLoginParams {
 	request: Request;
 	context: Context;
-	steps: AuthStepNextAtPath;
+	step: AuthenticationStep;
 	isFirstStep: boolean;
 	isLastStep: boolean;
 }
 export interface AuthViews {
-	loggedin(options: AuthViewLoggedParams): string;
-	login(options: AuthViewLoginParams): string;
-	promptEmail(options: AuthViewLoginParams): string;
-	promptPassword(options: AuthViewLoginParams): string;
-	// promptOTP(options: AuthViewLoginParams): string;
-	// promptTOTP(options: AuthViewLoginParams): string;
-	// promptHOTP(options: AuthViewLoginParams): string;
+	index(options: AuthenticationViewLoggedParams): string;
+	promptChoice(options: AuthenticationViewLoginParams): string;
+	promptEmail(options: AuthenticationViewLoginParams): string;
+	promptPassword(options: AuthenticationViewLoginParams): string;
+	promptOTP(options: AuthenticationViewLoginParams): string;
 }
 export class AuthBuilder {
-	#authKeys?: AuthKeys;
-	#authFlow?: AuthStepDefinition;
-	#onCreateIdentityHandler?: AuthHandler;
-	#onUpdateIdentityHandler?: AuthHandler;
-	#onDeleteIdentityHandler?: AuthHandler;
+	#authKeys?: AuthenticationKeys;
+	#authFlow?: AuthenticationStep;
+	#onCreateIdentityHandler?: AuthenticationHandler;
+	#onUpdateIdentityHandler?: AuthenticationHandler;
+	#onDeleteIdentityHandler?: AuthenticationHandler;
 	#viewsHandler?: AuthViews;
 
 	/**
@@ -53,7 +51,7 @@ export class AuthBuilder {
 	 * @param keys The keys
 	 * @returns The builder
 	 */
-	public keys(keys: AuthKeys) {
+	public keys(keys: AuthenticationKeys) {
 		this.#authKeys = keys;
 		return this;
 	}
@@ -63,8 +61,8 @@ export class AuthBuilder {
 	 * @param flow The allowed authentication methods
 	 * @returns The builder
 	 */
-	public flow(flow: AuthStepDefinition) {
-		assertAuthStepDefinition(flow);
+	public flow(flow: AuthenticationStep) {
+		assertAuthenticationStep(flow);
 		this.#authFlow = flow;
 		return this;
 	}
@@ -74,7 +72,7 @@ export class AuthBuilder {
 	 * @param handler The callback
 	 * @returns The builder
 	 */
-	public onCreateIdentity(handler: AuthHandler) {
+	public onCreateIdentity(handler: AuthenticationHandler) {
 		this.#onCreateIdentityHandler = handler;
 		return this;
 	}
@@ -84,7 +82,7 @@ export class AuthBuilder {
 	 * @param handler The callback
 	 * @returns The builder
 	 */
-	public onUpdateIdentity(handler: AuthHandler) {
+	public onUpdateIdentity(handler: AuthenticationHandler) {
 		this.#onUpdateIdentityHandler = handler;
 		return this;
 	}
@@ -94,7 +92,7 @@ export class AuthBuilder {
 	 * @param handler The callback
 	 * @returns The builder
 	 */
-	public onDeleteIdentity(handler: AuthHandler) {
+	public onDeleteIdentity(handler: AuthenticationHandler) {
 		this.#onDeleteIdentityHandler = handler;
 		return this;
 	}
@@ -113,7 +111,7 @@ export class AuthBuilder {
 	 * Finalize the {@see AuthConfiguration}
 	 * @returns The finalized {@see AuthConfiguration} object
 	 */
-	public build(): AuthConfiguration {
+	public build(): AuthenticationConfiguration {
 		if (!this.#authKeys) {
 			throw new Error(`Authentication keys are needed.`);
 		}
@@ -121,9 +119,9 @@ export class AuthBuilder {
 			throw new Error(`Authentication flow is needed.`);
 		}
 		return {
-			authKeys: this.#authKeys,
-			authFlow: this.#authFlow,
-			authFlowDecomposed: decomposeAuthStep(this.#authFlow),
+			keys: this.#authKeys,
+			flow: this.#authFlow,
+			flattenedFlow: flatten(this.#authFlow),
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,

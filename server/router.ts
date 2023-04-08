@@ -1,19 +1,22 @@
 export type Method = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "CONNECT" | "OPTIONS" | "TRACE" | "PATCH";
 
 export type AbsolutePath<Path> = Path extends `/${infer A}` ? Path : never;
-export type NamedGroups<Segment> = Segment extends `:${infer Name}` ? Name : never;
+export type OptionalNamedGroups<Segment> = Segment extends `:${infer Name}?` ? Name : never;
+export type NamedGroups<Segment> = Segment extends `:${infer Name}?` ? never : Segment extends `:${infer Name}` ? Name : never;
 export type ExtractNamedGroupsFromPath<Path> = Path extends `${infer A}/${infer B}` ? NamedGroups<A> | ExtractNamedGroupsFromPath<B> : NamedGroups<Path>;
 export type ExtractNamedGroupsFromAbsolutePath<Path> = Path extends `/${infer A}` ? ExtractNamedGroupsFromPath<A> : never;
-export type ExtractParams<Path> = {
-	[Key in ExtractNamedGroupsFromAbsolutePath<Path>]: string;
-};
+export type ExtractOptionalNamedGroupsFromPath<Path> = Path extends `${infer A}/${infer B}` ? NamedGroups<A> | ExtractOptionalNamedGroupsFromPath<B> : OptionalNamedGroups<Path>;
+export type ExtractOptionalNamedGroupsFromAbsolutePath<Path> = Path extends `/${infer A}` ? ExtractOptionalNamedGroupsFromPath<A> : never;
+export type ExtractParams<Path> =
+	& { [Key in ExtractNamedGroupsFromAbsolutePath<Path>]: string; }
+	& { [Key in ExtractOptionalNamedGroupsFromAbsolutePath<Path>]?: string; };
 
-export type RouteHandler<Params extends Record<string, string>, Args extends unknown[]> = (req: Request, params: Params, ...args: Args) => Promise<Response> | Response;
+export type RouteHandler<Params extends Record<string, string | undefined>, Args extends unknown[]> = (req: Request, params: Params, ...args: Args) => Promise<Response> | Response;
 
 export class RouterBuilder<Args extends unknown[]> {
-	#routes = new Map<string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>>();
+	#routes = new Map<string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string | undefined>, Args>]>>();
 
-	get routes(): ReadonlyMap<string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>> {
+	get routes(): ReadonlyMap<string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string | undefined>, Args>]>> {
 		return this.#routes;
 	}
 
@@ -41,7 +44,8 @@ export class RouterBuilder<Args extends unknown[]> {
 			methods = [methods];
 		}
 		for (const method of methods) {
-			endpoint.add([method, handler]);
+			// deno-lint-ignore no-explicit-any
+			endpoint.add([method, handler as any]);
 		}
 		return this;
 	}

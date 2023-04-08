@@ -5,154 +5,125 @@ import { deleteCookie, getCookies, setCookie } from "https://deno.land/std@0.179
 import { RouterBuilder } from "../router.ts";
 import { Context } from "../context.ts";
 import { createLogger } from "../logger.ts";
-import { authStepIdent, AuthStepNext, getImmediateNextAuthStep, getNextAuthStepAtPath } from "./flow.ts";
-import { AuthConfiguration } from "./config.ts";
+import { getNextAuthenticationStepAtPath, NextAuthenticationStepResult, getNextIdentificationOrChallenge, AuthenticationChoice, AuthenticationIdentification, AuthenticationChallenge, AuthenticationSequence } from "./flow.ts";
+import { AuthenticationConfiguration } from "./config.ts";
 
 const authRouter = new RouterBuilder<[context: Context]>();
 
 const logger = createLogger("baseless-auth");
 
-async function getViewStateAndNextStep(request: Request, auth: AuthConfiguration): Promise<[viewstate: ViewState, next: AuthStepNext]> {
+async function getViewStateAndNextStep(request: Request, auth: AuthenticationConfiguration): Promise<[viewstate: ViewState, next: NextAuthenticationStepResult]> {
 	const viewstate = await initViewState(request, auth);
-	const nextStep = getNextAuthStepAtPath(auth.authFlowDecomposed, viewstate.flow);
-	return [viewstate, nextStep];
+	const next = getNextAuthenticationStepAtPath(auth.flattenedFlow, viewstate.flow);
+	return [viewstate, next];
 }
 
 authRouter.get("/", (request, _params, context) => {
 	// TODO validate session
 	const headers = new Headers({ "Cache-Control": "no-cache", "Content-Type": "text/html; charset=utf-8" });
-	return new Response(context.config.auth.views?.loggedin({ request, context }), { status: 200, headers });
+	return new Response(context.config.auth.views?.index({ request, context }), { status: 200, headers });
 });
 
-authRouter.add(["GET", "POST"], "/login", async (request, _params, context) => {
+authRouter.add(["GET", "POST"], "/login/:action?", async (request, params, context) => {
 	// TODO rate limit
 	const headers = new Headers({ "Cache-Control": "no-cache" });
 	let viewstate: ViewState;
-	let nextStep: AuthStepNext;
+	let nextResult: NextAuthenticationStepResult;
 	try {
-		[viewstate, nextStep] = await getViewStateAndNextStep(request, context.config.auth);
+		[viewstate, nextResult] = await getViewStateAndNextStep(request, context.config.auth);
 	} catch (_err) {
 		destroyViewState(headers);
-		headers.set("Location", "./login?code=reached_invalid_flow");
+		headers.set("Location", "/auth/login?code=invalid_flow");
 		logger.error(`Authentication flow reached invalid flow.`);
 		return new Response(null, { status: 301, headers });
 	}
 
-	if (nextStep.done) {
+	if (nextResult.done) {
 		// TODO redirect
-		headers.set("Location", `./`);
+		headers.set("Location", `/auth/`);
 		destroyViewState(headers);
 		// TODO create session
 		// TODO save cookie
 		return new Response(null, { status: 301, headers });
 	}
 
-	const url = new URL(request.url);
+	const action = params.action?.toLowerCase();
+	const possibleSteps = Array.from(getNextIdentificationOrChallenge(nextResult.next));
 
-	const action = url.searchParams.get("action")?.toLowerCase() ?? undefined;
-	try {
-		const possibleActions = Array.from(getImmediateNextAuthStep(nextStep.next)).map(authStepIdent);
-		// TODO remove from possible action unsetuped
-		const isFirstStep = viewstate.flow.length === 0;
-		let isLastStep = false;
+	// TODO back action?
+
+	const step = action ? possibleSteps.find(step => step.id === action) : nextResult.next;
+	const isFirstStep = viewstate.flow.length === 0;
+
+	if (!step) {
+		headers.set("Location", `/auth/login?code=invalid_action`);
+		return new Response(null, { status: 301, headers });
+	} else if (step instanceof AuthenticationChoice) {
+		headers.set("Content-Type", "text/html; charset=utf-8");
+		return new Response(context.config.auth.views?.promptChoice({ request, step, isFirstStep, isLastStep: false, context }), { status: 200, headers });
+	} else if (!(step instanceof AuthenticationSequence)) {
 		if (!action) {
-			if (request.method === "GET") {
-				if (possibleActions.length === 1) {
-					headers.set("Location", `./login?action=${possibleActions.at(0)}`);
-					return new Response(null, { status: 301, headers });
-				} else {
-					headers.set("Content-Type", "text/html; charset=utf-8");
-					return new Response(context.config.auth.views?.login({ request, steps: nextStep.next, isFirstStep, isLastStep, context }), { status: 200, headers });
-				}
-			} else {
-				headers.set("Location", "./login");
-				const formData = await request.formData();
-				if (formData.get("action")?.toString() === "back") {
-					viewstate.flow.pop();
-					await saveViewState(headers, viewstate, context.config.auth.authKeys.algo, context.config.auth.authKeys.privateKey);
-				}
-				return new Response(null, { status: 301, headers });
-			}
-		} else if (action === "reset") {
-			const headers = new Headers({ Location: "./login", });
-			destroyViewState(headers);
-			return new Response(null, { status: 301, headers });
-		} else {
-			if (possibleActions.includes(action)) {
-				isLastStep = getNextAuthStepAtPath(context.config.auth.authFlowDecomposed, [...viewstate.flow, action]).done;
-				if (request.method === "GET") {
-					headers.set("Content-Type", "text/html; charset=utf-8");
-					if (action === "email") {
-						return new Response(context.config.auth.views?.promptEmail({ request, steps: nextStep.next, isFirstStep, isLastStep, context }), { status: 200, headers });
-					} else if (action === "password") {
-						return new Response(context.config.auth.views?.promptPassword({ request, steps: nextStep.next, isFirstStep, isLastStep, context }), { status: 200, headers });
-					}
-				} else {
-					let redirect = "./login";
-					let dirtyViewState = false;
-					const formData = await request.formData();
-					if (formData.get("action")?.toString() === "back") {
-						if (possibleActions.length === 1) {
-							viewstate.flow.pop();
-							dirtyViewState = true;
-						}
-					} else if (action === "email") {
-						const email = formData.get("email");
-						if (email) {
-							try {
-								const identity = await context.identity.getIdentityByIdentification("email", email.toString());
-								if (!viewstate.id || viewstate.id === identity) {
-									logger.log(`Authentication step email:${email} success.`);
-									viewstate.id = identity;
-									viewstate.flow.push("email");
-									dirtyViewState = true;
-								} else {
-									logger.info(`Authentication step email:${email} failed.`);
-									redirect = "./login?action=email&code=invalid_email";
-								}
-							} catch (_inner) {
-								logger.info(`Authentication step email:${email} failed.`);
-								redirect = "./login?action=email&code=invalid_email";
-							}
-						} else {
-							logger.info(`Authentication step email:**not provided** failed.`);
-							redirect = "./login?action=email&code=invalid_email";
-						}
-					} else if (action === "password" && viewstate.id) {
-						const password = formData.get("password");
-						if (password) {
-							try {
-								const passwordMatch = await context.identity.testIdentityChallenge(viewstate.id, "password", password.toString());
-								if (passwordMatch) {
-									logger.log(`Authentication step password:******** success.`);
-									viewstate.flow.push("password");
-									dirtyViewState = true;
-								} else {
-									logger.info(`Authentication step password:******** failed.`);
-									redirect = "./login?action=password&code=invalid_password";
-								}
-							} catch (_inner) {
-								logger.info(`Authentication step password:******** failed.`);
-								redirect = "./login?action=password&code=invalid_password";
-							}
-						} else {
-							logger.info(`Authentication step password:******** failed.`);
-							redirect = "./login?action=password&code=invalid_password";
-						}
-					}
-					headers.set("Location", redirect);
-					if (dirtyViewState) {
-						await saveViewState(headers, viewstate, context.config.auth.authKeys.algo, context.config.auth.authKeys.privateKey);
-					}
-					return new Response(null, { status: 301, headers });
-				}
-				return new Response(null, { status: 501, headers });
-			}
-			headers.set("Location", "./login?code=invalid_action");
+			headers.set("Location", `/auth/login/${step.id}`);
 			return new Response(null, { status: 301, headers });
 		}
-	} catch (err) {
-		logger.error(err.toString());
+		const isLastStep = getNextAuthenticationStepAtPath(context.config.auth.flattenedFlow, [...viewstate.flow, action]).done;
+		if (request.method === "GET") {
+			if (viewstate.id && step instanceof AuthenticationChallenge && step.send) {
+				// TODO rate limit
+				await step.send(request, context, viewstate.id);
+			}
+			if (step.prompt === "email") {
+				headers.set("Content-Type", "text/html; charset=utf-8");
+				return new Response(context.config.auth.views?.promptEmail({ request, step, isFirstStep, isLastStep, context }), { status: 200, headers });
+			} else if (step.prompt === "password") {
+				headers.set("Content-Type", "text/html; charset=utf-8");
+				return new Response(context.config.auth.views?.promptPassword({ request, step, isFirstStep, isLastStep, context }), { status: 200, headers });
+			} else if (step.prompt === "otp") {
+				headers.set("Content-Type", "text/html; charset=utf-8");
+				return new Response(context.config.auth.views?.promptOTP({ request, step, isFirstStep, isLastStep, context }), { status: 200, headers });
+			} else if (step.prompt === "action") {
+				return new Response(null, { status: 501, headers });
+			}
+		} else if (step instanceof AuthenticationIdentification) {
+			// TODO rate limit
+
+			const result = await step.identify(request, context);
+			if (result instanceof Response) {
+				return result;
+			}
+			if (result && !viewstate.id || viewstate.id === result) {
+				logger.log(`Authentication identification ${step.id} success.`);
+				viewstate.id = result;
+				viewstate.flow.push(step.id);
+				headers.set("Location", "/auth/login");
+				await saveViewState(headers, viewstate, context.config.auth.keys.algo, context.config.auth.keys.privateKey);
+				return new Response(null, { status: 301, headers });
+			} else {
+				logger.info(`Authentication identification ${step.id} failed.`);
+				headers.set("Location", `/auth/login/${action}?code=failed`);
+				return new Response(null, { status: 301, headers });
+			}
+		} else if (step instanceof AuthenticationChallenge) {
+			// TODO rate limit
+
+			if (viewstate.id) {
+				const result = await step.challenge(request, context, viewstate.id);
+				if (result instanceof Response) {
+					return result;
+				}
+				if (result) {
+					logger.log(`Authentication challenge ${step.id} success.`);
+					viewstate.flow.push(step.id);
+					headers.set("Location", "/auth/login");
+					await saveViewState(headers, viewstate, context.config.auth.keys.algo, context.config.auth.keys.privateKey);
+					return new Response(null, { status: 301, headers });
+				} else {
+					logger.info(`Authentication challenge ${step.id} failed.`);
+					headers.set("Location", `/auth/login/${action}?code=failed`);
+					return new Response(null, { status: 301, headers });
+				}
+			}
+		}
 	}
 	logger.critical(`Authentication views did not produce any output.`);
 	return new Response(null, { status: 500, headers });
@@ -187,11 +158,11 @@ async function serializeViewState(viewstate: ViewState, alg: string, privateKey:
 		.sign(privateKey);
 }
 
-async function initViewState(request: Request, auth: AuthConfiguration): Promise<ViewState> {
+async function initViewState(request: Request, auth: AuthenticationConfiguration): Promise<ViewState> {
 	const cookies = getCookies(request.headers);
 	let viewstate: ViewState;
 	try {
-		viewstate = await deserializeViewState(cookies.viewstate?.toString() ?? "", auth.authKeys.publicKey);
+		viewstate = await deserializeViewState(cookies.viewstate?.toString() ?? "", auth.keys.publicKey);
 	} catch (_err) {
 		viewstate = { flow: [] };
 	}

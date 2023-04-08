@@ -1,13 +1,13 @@
-import { AuthViewLoginParams } from "../../../auth/config.ts";
-import { authStepIdent, AuthStepNodeDefinition, AuthStepOAuthDefinition } from "../../../auth/flow.ts";
-import { Localization } from "../localization.ts";
+import { AuthenticationViewLoginParams } from "../../../auth/config.ts";
+// import { authStepIdent, AuthStepNodeDefinition, AuthStepOAuthDefinition } from "../../../auth/flow.ts";
+// import { Localization } from "../localization.ts";
 import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
-export default function PromptCode({ isLastStep, currentLocale, localization }: AuthUIContext & AuthViewLoginParams) {
+export default function PromptOTP({ step, isFirstStep, isLastStep, currentLocale, localization }: AuthUIContext & AuthenticationViewLoginParams) {
 	const l10n = localization[currentLocale];
 	return Layout({ title: "Enter code", subTitle: "Enter the code that you received by email" }, [
-		`<form action="/auth/login?action=code" method="POST" autocomplete="off">
+		`<form action="/auth/login/${step.id}" method="POST" autocomplete="off">
 			<div class="mt-2 flex rounded-md shadow-sm">
 				<div class="relative flex flex-grow items-stretch focus-within:z-10">
 					<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -29,14 +29,6 @@ export default function PromptCode({ isLastStep, currentLocale, localization }: 
 				</button>
 			</div>
 			<p class="mt-4 text-xs text-gray-500">Didn't receive a code? <a class="text-indigo-500" href="#">Resend code</a></p>
-		</form>
-		<form action="/auth/login?action=code" method="POST" autocomplete="off">
-			<button class="mt-6 block text-xs text-gray-500" type="submit" name="action" value="back">
-				<svg class="inline-block h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-					<path d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z" />
-				</svg>
-				Choose an other method
-			</button>
 		</form>`,
 	]);
 }

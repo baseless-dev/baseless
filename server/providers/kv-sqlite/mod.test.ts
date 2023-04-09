@@ -1,13 +1,13 @@
 import { assertEquals, assertExists } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { KVDenoDBProvider } from "./mod.ts";
+import { SqliteKVProvider } from "./mod.ts";
 
 Deno.test("open & close", async () => {
-	const kv = new KVDenoDBProvider(":memory:");
+	const kv = new SqliteKVProvider(":memory:");
 	await kv.open();
 	await kv.close();
 });
 Deno.test("put & get", async () => {
-	const kv = new KVDenoDBProvider(":memory:");
+	const kv = new SqliteKVProvider(":memory:");
 	await kv.open();
 	await kv.put("/posts/a", "Title A");
 	const key = await kv.get("/posts/a");
@@ -15,7 +15,7 @@ Deno.test("put & get", async () => {
 	await kv.close();
 });
 Deno.test("list", async () => {
-	const kv = new KVDenoDBProvider(":memory:");
+	const kv = new SqliteKVProvider(":memory:");
 	await kv.open();
 	await Promise.all([
 		kv.put("/posts/a", "Title A"),
@@ -57,7 +57,7 @@ Deno.test("list", async () => {
 	await kv.close();
 });
 Deno.test("delete", async () => {
-	const kv = new KVDenoDBProvider(":memory:");
+	const kv = new SqliteKVProvider(":memory:");
 	await kv.open();
 	await Promise.all([
 		kv.put("/posts/a", "Title A"),

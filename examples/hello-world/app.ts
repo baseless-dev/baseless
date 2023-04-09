@@ -53,6 +53,8 @@ config.auth()
 		google,
 		github,
 	))
+	.setRateLimitIdentification(10, 30)
+	.setRateLimitChallenge(5, 120)
 	.keys({ algo: "PS512", publicKey, privateKey })
 	.setViews(createAuthUI({
 		defaultLocale: "en",

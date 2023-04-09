@@ -1,11 +1,11 @@
 export interface LayoutProps {
-  title: string;
-  subTitle?: string;
-  isFirstStep?: boolean;
+	title: string;
+	subTitle?: string;
+	isFirstStep?: boolean;
 }
 
 export default function Layout({ title, subTitle, isFirstStep }: LayoutProps, children: string[]) {
-  return `<!DOCTYPE html>
+	return `<!DOCTYPE html>
 <html>
 <head>
 	<meta charset="utf-8">
@@ -29,12 +29,14 @@ export default function Layout({ title, subTitle, isFirstStep }: LayoutProps, ch
 
 				<div class="mt-6">
 					${children.join("")}
-          ${!isFirstStep && `<a href="/auth/login" class="mt-6 block text-xs text-gray-500">
+          ${
+		!isFirstStep && `<a href="/auth/login" class="mt-6 block text-xs text-gray-500">
             <svg class="inline-block h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z" />
             </svg>
             Choose an other method
-          </a>` || ""}
+          </a>` || ""
+	}
 				</div>
 			</div>
 			<div class="mt-10">

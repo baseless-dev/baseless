@@ -1,14 +1,13 @@
-import { AuthenticationViewLoginParams } from "../../../auth/config.ts";
-import { AuthStepEmailDefinition, authStepIdent, AuthStepNodeDefinition, AuthStepOAuthDefinition, AuthStepPasswordDefinition } from "../../../auth/flow.ts";
-import { Localization } from "../localization.ts";
+import { Locale, Localization } from "../localization.ts";
 import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
-export default function Logged({ step, isFirstStep, currentLocale, localization }: AuthUIContext & AuthenticationViewLoginParams) {
+export default function Logged({ currentLocale, localization }: AuthUIContext & { localization: Record<Locale, Localization> }) {
 	const l10n = localization[currentLocale];
 	return Layout({
 		title: "Signed In",
 		subTitle: "You are currently logged in with",
+		isFirstStep: true,
 	}, [
 		`<div class="text-center">
 			<div class="inline-block">

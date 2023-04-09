@@ -1,6 +1,6 @@
 import { Context } from "../context.ts";
 import { Identity } from "../providers/identity.ts";
-import { assertAuthenticationStep, AuthenticationStep, NextAuthenticationStepResult, flatten } from "./flow.ts";
+import { assertAuthenticationStep, AuthenticationStep, flatten, NextAuthenticationStepResult } from "./flow.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 
 export interface AuthenticationKeys {
@@ -17,14 +17,14 @@ export interface AuthenticationConfiguration {
 	readonly onUpdateIdentity?: AuthenticationHandler;
 	readonly onDeleteIdentity?: AuthenticationHandler;
 	readonly views?: AuthViews;
+	readonly rateLimitIdentificationCount: number;
+	readonly rateLimitIdentificationInterval: number;
+	readonly rateLimitChallengeCount: number;
+	readonly rateLimitChallengeInterval: number;
 }
 
 export type AuthenticationHandler = (context: Context, request: Request, identity: Identity) => void | Promise<void>;
-export interface AuthenticationViewLoggedParams {
-	request: Request;
-	context: Context;
-}
-export interface AuthenticationViewLoginParams {
+export interface AuthenticationViewPrompParams {
 	request: Request;
 	context: Context;
 	step: AuthenticationStep;
@@ -32,11 +32,12 @@ export interface AuthenticationViewLoginParams {
 	isLastStep: boolean;
 }
 export interface AuthViews {
-	index(options: AuthenticationViewLoggedParams): string;
-	promptChoice(options: AuthenticationViewLoginParams): string;
-	promptEmail(options: AuthenticationViewLoginParams): string;
-	promptPassword(options: AuthenticationViewLoginParams): string;
-	promptOTP(options: AuthenticationViewLoginParams): string;
+	index(request: Request, context: Context): string;
+	rateLimited(request: Request, context: Context): string;
+	promptChoice(options: AuthenticationViewPrompParams): string;
+	promptEmail(options: AuthenticationViewPrompParams): string;
+	promptPassword(options: AuthenticationViewPrompParams): string;
+	promptOTP(options: AuthenticationViewPrompParams): string;
 }
 export class AuthBuilder {
 	#authKeys?: AuthenticationKeys;
@@ -45,6 +46,10 @@ export class AuthBuilder {
 	#onUpdateIdentityHandler?: AuthenticationHandler;
 	#onDeleteIdentityHandler?: AuthenticationHandler;
 	#viewsHandler?: AuthViews;
+	#rateLimitIdentificationCount?: number;
+	#rateLimitIdentificationInterval?: number;
+	#rateLimitChallengeCount?: number;
+	#rateLimitChallengeInterval?: number;
 
 	/**
 	 * Defines the authentication keys and algorith
@@ -107,6 +112,18 @@ export class AuthBuilder {
 		return this;
 	}
 
+	public setRateLimitIdentification(count: number, interval: number) {
+		this.#rateLimitIdentificationCount = count;
+		this.#rateLimitIdentificationInterval = interval;
+		return this;
+	}
+
+	public setRateLimitChallenge(count: number, interval: number) {
+		this.#rateLimitChallengeCount = count;
+		this.#rateLimitChallengeInterval = interval;
+		return this;
+	}
+
 	/**
 	 * Finalize the {@see AuthConfiguration}
 	 * @returns The finalized {@see AuthConfiguration} object
@@ -126,6 +143,10 @@ export class AuthBuilder {
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,
 			views: this.#viewsHandler,
+			rateLimitIdentificationCount: this.#rateLimitIdentificationCount ?? 100,
+			rateLimitIdentificationInterval: this.#rateLimitIdentificationInterval ?? 60,
+			rateLimitChallengeCount: this.#rateLimitChallengeCount ?? 5,
+			rateLimitChallengeInterval: this.#rateLimitChallengeInterval ?? 60,
 		};
 	}
 }

@@ -1,10 +1,10 @@
-import { AuthenticationViewLoginParams } from "../../../auth/config.ts";
+import { AuthenticationViewPrompParams } from "../../../auth/config.ts";
 // import { authStepIdent, AuthStepNodeDefinition, AuthStepOAuthDefinition } from "../../../auth/flow.ts";
 // import { Localization } from "../localization.ts";
 import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
-export default function PromptPassword({ isFirstStep, isLastStep, currentLocale, localization }: AuthUIContext & AuthenticationViewLoginParams) {
+export default function PromptPassword({ isFirstStep, isLastStep, currentLocale, localization }: AuthUIContext & AuthenticationViewPrompParams) {
 	const l10n = localization[currentLocale];
 	return Layout({ title: "Enter your password", subTitle: "john.doe@baseless.local" }, [
 		`<form action="/auth/login/password" method="POST" autocomplete="off">

@@ -5,7 +5,15 @@ import { deleteCookie, getCookies, setCookie } from "https://deno.land/std@0.179
 import { RouterBuilder } from "../router.ts";
 import { Context } from "../context.ts";
 import { createLogger } from "../logger.ts";
-import { getNextAuthenticationStepAtPath, NextAuthenticationStepResult, getNextIdentificationOrChallenge, AuthenticationChoice, AuthenticationIdentification, AuthenticationChallenge, AuthenticationSequence } from "./flow.ts";
+import {
+	AuthenticationChallenge,
+	AuthenticationChoice,
+	AuthenticationIdentification,
+	AuthenticationSequence,
+	getNextAuthenticationStepAtPath,
+	getNextIdentificationOrChallenge,
+	NextAuthenticationStepResult,
+} from "./flow.ts";
 import { AuthenticationConfiguration } from "./config.ts";
 
 const authRouter = new RouterBuilder<[context: Context]>();
@@ -21,11 +29,10 @@ async function getViewStateAndNextStep(request: Request, auth: AuthenticationCon
 authRouter.get("/", (request, _params, context) => {
 	// TODO validate session
 	const headers = new Headers({ "Cache-Control": "no-cache", "Content-Type": "text/html; charset=utf-8" });
-	return new Response(context.config.auth.views?.index({ request, context }), { status: 200, headers });
+	return new Response(context.config.auth.views?.index(request, context), { status: 200, headers });
 });
 
 authRouter.add(["GET", "POST"], "/login/:action?", async (request, params, context) => {
-	// TODO rate limit
 	const headers = new Headers({ "Cache-Control": "no-cache" });
 	let viewstate: ViewState;
 	let nextResult: NextAuthenticationStepResult;
@@ -52,7 +59,7 @@ authRouter.add(["GET", "POST"], "/login/:action?", async (request, params, conte
 
 	// TODO back action?
 
-	const step = action ? possibleSteps.find(step => step.id === action) : nextResult.next;
+	const step = action ? possibleSteps.find((step) => step.id === action) : nextResult.next;
 	const isFirstStep = viewstate.flow.length === 0;
 
 	if (!step) {
@@ -69,7 +76,15 @@ authRouter.add(["GET", "POST"], "/login/:action?", async (request, params, conte
 		const isLastStep = getNextAuthenticationStepAtPath(context.config.auth.flattenedFlow, [...viewstate.flow, action]).done;
 		if (request.method === "GET") {
 			if (viewstate.id && step instanceof AuthenticationChallenge && step.send) {
-				// TODO rate limit
+				const counterInterval = step.sendInterval * 1000;
+				const slidingWindow = Math.round(Date.now() / counterInterval);
+				const counterKey = `/auth/challenge/${viewstate.id}/${step.id}/${slidingWindow}`;
+				if (await context.counter.increment(counterKey, 1, counterInterval) > step.sendLimit) {
+					logger.warn(`Authentication challenge ${step.id} for ${viewstate.id} rate limited.`);
+					headers.set("Retry-After", step.sendInterval.toString());
+					headers.set("Content-Type", "text/html; charset=utf-8");
+					return new Response(context.config.auth.views?.rateLimited(request, context), { status: 429, headers });
+				}
 				await step.send(request, context, viewstate.id);
 			}
 			if (step.prompt === "email") {
@@ -84,43 +99,61 @@ authRouter.add(["GET", "POST"], "/login/:action?", async (request, params, conte
 			} else if (step.prompt === "action") {
 				return new Response(null, { status: 501, headers });
 			}
-		} else if (step instanceof AuthenticationIdentification) {
-			// TODO rate limit
-
-			const result = await step.identify(request, context);
-			if (result instanceof Response) {
-				return result;
-			}
-			if (result && !viewstate.id || viewstate.id === result) {
-				logger.log(`Authentication identification ${step.id} success.`);
-				viewstate.id = result;
-				viewstate.flow.push(step.id);
-				headers.set("Location", "/auth/login");
-				await saveViewState(headers, viewstate, context.config.auth.keys.algo, context.config.auth.keys.privateKey);
-				return new Response(null, { status: 301, headers });
-			} else {
-				logger.info(`Authentication identification ${step.id} failed.`);
-				headers.set("Location", `/auth/login/${action}?code=failed`);
-				return new Response(null, { status: 301, headers });
-			}
-		} else if (step instanceof AuthenticationChallenge) {
-			// TODO rate limit
-
-			if (viewstate.id) {
-				const result = await step.challenge(request, context, viewstate.id);
+		} else {
+			const ip = request.headers.get("X-Real-Ip") ?? "";
+			if (step instanceof AuthenticationIdentification) {
+				const counterInterval = context.config.auth.rateLimitIdentificationInterval * 1000;
+				const slidingWindow = Math.round(Date.now() / counterInterval);
+				const counterKey = `/auth/ident/${ip}/${slidingWindow}`;
+				if (await context.counter.increment(counterKey, 1, counterInterval) > context.config.auth.rateLimitIdentificationCount) {
+					logger.warn(`Authentication challenge ${step.id} for ${ip} rate limited.`);
+					headers.set("Retry-After", context.config.auth.rateLimitIdentificationInterval.toString());
+					headers.set("Content-Type", "text/html; charset=utf-8");
+					return new Response(context.config.auth.views?.rateLimited(request, context), { status: 429, headers });
+				}
+				const result = await step.identify(request, context);
 				if (result instanceof Response) {
 					return result;
 				}
-				if (result) {
-					logger.log(`Authentication challenge ${step.id} success.`);
+				if (result && !viewstate.id || viewstate.id === result) {
+					logger.log(`Authentication identification ${step.id} success.`);
+					viewstate.id = result;
 					viewstate.flow.push(step.id);
 					headers.set("Location", "/auth/login");
 					await saveViewState(headers, viewstate, context.config.auth.keys.algo, context.config.auth.keys.privateKey);
 					return new Response(null, { status: 301, headers });
 				} else {
-					logger.info(`Authentication challenge ${step.id} failed.`);
+					logger.info(`Authentication identification ${step.id} failed.`);
 					headers.set("Location", `/auth/login/${action}?code=failed`);
 					return new Response(null, { status: 301, headers });
+				}
+			} else {
+				if (viewstate.id) {
+					const counterInterval = context.config.auth.rateLimitChallengeInterval * 1000;
+					const slidingWindow = Math.round(Date.now() / counterInterval);
+					const counterKey = `/auth/challenge/${viewstate.id}/${slidingWindow}`;
+					if (await context.counter.increment(counterKey, 1, counterInterval) > context.config.auth.rateLimitChallengeCount) {
+						logger.warn(`Authentication challenge ${step.id} for ${viewstate.id} rate limited.`);
+						headers.set("Retry-After", context.config.auth.rateLimitChallengeInterval.toString());
+						headers.set("Content-Type", "text/html; charset=utf-8");
+						return new Response(context.config.auth.views?.rateLimited(request, context), { status: 429, headers });
+					}
+
+					const result = await step.challenge(request, context, viewstate.id);
+					if (result instanceof Response) {
+						return result;
+					}
+					if (result) {
+						logger.log(`Authentication challenge ${step.id} success.`);
+						viewstate.flow.push(step.id);
+						headers.set("Location", "/auth/login");
+						await saveViewState(headers, viewstate, context.config.auth.keys.algo, context.config.auth.keys.privateKey);
+						return new Response(null, { status: 301, headers });
+					} else {
+						logger.info(`Authentication challenge ${step.id} failed.`);
+						headers.set("Location", `/auth/login/${action}?code=failed`);
+						return new Response(null, { status: 301, headers });
+					}
 				}
 			}
 		}
@@ -149,7 +182,7 @@ async function deserializeViewState(data: string, publicKey: KeyLike): Promise<V
 	return payload;
 }
 
-async function serializeViewState(viewstate: ViewState, alg: string, privateKey: KeyLike, expiration: string | number = "1m"): Promise<string> {
+async function serializeViewState(viewstate: ViewState, alg: string, privateKey: KeyLike, expiration: string | number = "10m"): Promise<string> {
 	assertsViewState(viewstate);
 	return await new SignJWT(viewstate as unknown as JWTPayload)
 		.setProtectedHeader({ alg })
@@ -169,7 +202,7 @@ async function initViewState(request: Request, auth: AuthenticationConfiguration
 	return viewstate;
 }
 
-async function saveViewState(headers: Headers, viewstate: ViewState, alg: string, privateKey: KeyLike, expiration: string | number = "1m") {
+async function saveViewState(headers: Headers, viewstate: ViewState, alg: string, privateKey: KeyLike, expiration: string | number = "10m") {
 	const serialized = await serializeViewState(viewstate, alg, privateKey, expiration);
 	setCookie(headers, { name: "viewstate", value: serialized });
 }

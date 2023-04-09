@@ -1,8 +1,9 @@
 import * as log from "../../server/logger.ts";
 import { config } from "../../server/config.ts";
 import { Server } from "../../server/server.ts";
-import { KVWebStorageProvider } from "../../server/providers/kv-webstorage/mod.ts";
-import { IdentityKVProvider } from "../../server/providers/identity-kv/mod.ts";
+import { MemoryCounterProvider } from "../../server/providers/counter-memory/mod.ts";
+import { WebStorageKVProvider } from "../../server/providers/kv-webstorage/mod.ts";
+import { KVIdentityProvider } from "../../server/providers/identity-kv/mod.ts";
 import "./app.ts";
 import { autoid } from "../../shared/autoid.ts";
 
@@ -11,8 +12,9 @@ Deno.permissions.request({ name: "env" });
 
 log.setGlobalLogHandler(log.createConsoleLogHandler(log.LogLevel.LOG));
 
-const identityKV = new KVWebStorageProvider(sessionStorage, "hello-world-idp/");
-const identityProvider = new IdentityKVProvider(identityKV);
+const counterProvider = new MemoryCounterProvider();
+const identityKV = new WebStorageKVProvider(sessionStorage, "hello-world-idp/");
+const identityProvider = new KVIdentityProvider(identityKV);
 
 // Create john's identity
 const johnId = autoid();
@@ -22,7 +24,7 @@ await identityProvider.assignIdentityIdentification(johnId, "email", "john@doe.l
 // Assign a password challenge to `123`
 await identityProvider.assignIdentityChallenge(johnId, "password", "123");
 
-const server = new Server({ configuration: config.build(), identityProvider });
+const server = new Server({ configuration: config.build(), counterProvider, identityProvider });
 
 const listener = Deno.listen({ hostname: "0.0.0.0", port: 8080 });
 
@@ -40,7 +42,7 @@ async function handle(conn: Deno.Conn) {
 	try {
 		for await (const event of httpConn) {
 			try {
-				const request = new Request(event.request, { headers: { "x-forwarded-for": conn.remoteAddr.hostname, ...Object.fromEntries(event.request.headers) } });
+				const request = new Request(event.request, { headers: { "x-real-ip": conn.remoteAddr.hostname, ...Object.fromEntries(event.request.headers) } });
 				const [response, waitUntil] = await server.handleRequest(request);
 				await event.respondWith(response);
 				await Promise.all(waitUntil);

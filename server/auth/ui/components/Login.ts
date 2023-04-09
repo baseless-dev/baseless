@@ -1,17 +1,17 @@
-import { AuthenticationViewLoginParams } from "../../../auth/config.ts";
-import { AuthenticationChoice, AuthenticationSequence, AuthenticationStep, AuthenticationIdentification, AuthenticationChallenge } from "../../../auth/flow.ts";
+import { AuthenticationViewPrompParams } from "../../../auth/config.ts";
+import { AuthenticationChallenge, AuthenticationChoice, AuthenticationIdentification, AuthenticationSequence, AuthenticationStep } from "../../../auth/flow.ts";
 import { Localization } from "../localization.ts";
 import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
 type AuthenticationStepProps = { step: AuthenticationStep; l10n: Localization; currentLocale: string };
 
-export default function Login({ step, isFirstStep, currentLocale, localization }: AuthUIContext & AuthenticationViewLoginParams) {
+export default function Login({ step, isFirstStep, currentLocale, localization }: AuthUIContext & AuthenticationViewPrompParams) {
 	const l10n = localization[currentLocale];
 	return Layout({
 		title: "Sign In",
 		subTitle: "How would you like to continue?",
-		isFirstStep
+		isFirstStep,
 	}, [
 		`<div class="space-y-6">
 			<nav class="space-y-1" aria-label="Sidebar">

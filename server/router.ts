@@ -8,8 +8,8 @@ export type ExtractNamedGroupsFromAbsolutePath<Path> = Path extends `/${infer A}
 export type ExtractOptionalNamedGroupsFromPath<Path> = Path extends `${infer A}/${infer B}` ? NamedGroups<A> | ExtractOptionalNamedGroupsFromPath<B> : OptionalNamedGroups<Path>;
 export type ExtractOptionalNamedGroupsFromAbsolutePath<Path> = Path extends `/${infer A}` ? ExtractOptionalNamedGroupsFromPath<A> : never;
 export type ExtractParams<Path> =
-	& { [Key in ExtractNamedGroupsFromAbsolutePath<Path>]: string; }
-	& { [Key in ExtractOptionalNamedGroupsFromAbsolutePath<Path>]?: string; };
+	& { [Key in ExtractNamedGroupsFromAbsolutePath<Path>]: string }
+	& { [Key in ExtractOptionalNamedGroupsFromAbsolutePath<Path>]?: string };
 
 export type RouteHandler<Params extends Record<string, string | undefined>, Args extends unknown[]> = (req: Request, params: Params, ...args: Args) => Promise<Response> | Response;
 

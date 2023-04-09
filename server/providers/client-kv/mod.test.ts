@@ -1,11 +1,11 @@
 import { assertEquals, assertExists, assertRejects } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { KVDenoDBProvider } from "../kv-sqlite/mod.ts";
-import { ClientKVProvider } from "./mod.ts";
+import { SqliteKVProvider } from "../kv-sqlite/mod.ts";
+import { KVClientProvider } from "./mod.ts";
 
 Deno.test("add & get", async () => {
-	const kv = new KVDenoDBProvider(":memory:");
+	const kv = new SqliteKVProvider(":memory:");
 	await kv.open();
-	const registry = new ClientKVProvider(kv);
+	const registry = new KVClientProvider(kv);
 	await registry.add({ client_id: "acme" });
 	await assertRejects(() => registry.add({ client_id: "acme" }));
 	const client = await registry.get("acme");
@@ -14,9 +14,9 @@ Deno.test("add & get", async () => {
 });
 
 Deno.test("remove", async () => {
-	const kv = new KVDenoDBProvider(":memory:");
+	const kv = new SqliteKVProvider(":memory:");
 	await kv.open();
-	const registry = new ClientKVProvider(kv);
+	const registry = new KVClientProvider(kv);
 	await registry.add({ client_id: "acme" });
 	assertExists(await registry.get("acme"));
 	await registry.remove("acme");

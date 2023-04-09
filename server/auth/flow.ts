@@ -5,7 +5,8 @@ import { createLogger } from "../logger.ts";
 export type AuthenticationStep = AuthenticationIdentification | AuthenticationChallenge | AuthenticationSequence | AuthenticationChoice;
 
 export function isAuthenticationStep(value?: unknown): value is AuthenticationStep {
-	return value instanceof AuthenticationIdentification || value instanceof AuthenticationChallenge || value instanceof AuthenticationSequence || value instanceof AuthenticationChoice;
+	return value instanceof AuthenticationIdentification || value instanceof AuthenticationChallenge || value instanceof AuthenticationSequence ||
+		value instanceof AuthenticationChoice;
 }
 
 export function assertAuthenticationStep(value?: unknown): asserts value is AuthenticationStep {
@@ -20,7 +21,7 @@ export abstract class AuthenticationIdentification {
 		public readonly icon: string,
 		public readonly label: Record<string, string>,
 		public readonly prompt: "email" | "action",
-	) { }
+	) {}
 
 	abstract identify(request: Request, context: Context): Promise<AutoId | Response>;
 }
@@ -31,15 +32,17 @@ export abstract class AuthenticationChallenge {
 		public readonly icon: string,
 		public readonly label: Record<string, string>,
 		public readonly prompt: "password" | "otp",
-	) { }
+	) {}
+	sendInterval = 60;
+	sendLimit = 1;
 	send?: (request: Request, context: Context, identity: AutoId) => Promise<void>;
 	abstract challenge(request: Request, context: Context, identity: AutoId): Promise<boolean | Response>;
 }
 
 export class AuthenticationSequence {
-	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) { }
+	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) {}
 	get id(): string {
-		return `sequence(${this.steps.map(s => s.id)})`;
+		return `sequence(${this.steps.map((s) => s.id)})`;
 	}
 }
 
@@ -48,9 +51,9 @@ export function sequence(...steps: AuthenticationStep[]) {
 }
 
 export class AuthenticationChoice {
-	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) { }
+	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) {}
 	get id(): string {
-		return `choice(${this.choices.map(s => s.id)})`;
+		return `choice(${this.choices.map((s) => s.id)})`;
 	}
 }
 
@@ -141,7 +144,7 @@ export class AuthenticationChallengeOTPLogger extends AuthenticationChallenge {
 		await context.identity.assignIdentityChallenge(identity, "otp:logger", code, 120);
 		this.#logger.warn(`The OTP code is ${code}.`);
 		return;
-	}
+	};
 	async challenge(request: Request, context: Context, identity: AutoId): Promise<boolean> {
 		const formData = await request.formData();
 		const code = formData.get("code");
@@ -168,8 +171,7 @@ export function simplify(step: AuthenticationStep): AuthenticationStep {
 			return steps;
 		}, [] as AuthenticationStep[]);
 		return sequence(...steps);
-	}
-	else if (step instanceof AuthenticationChoice) {
+	} else if (step instanceof AuthenticationChoice) {
 		const choices = step.choices.reduce((choices, step) => {
 			step = simplify(step);
 			if (step instanceof AuthenticationChoice) {
@@ -194,7 +196,7 @@ export function replace(step: AuthenticationStep, search: AuthenticationStep, re
 	if (step instanceof AuthenticationSequence || step instanceof AuthenticationChoice) {
 		let changed = false;
 		const stepsToReplace = step instanceof AuthenticationSequence ? step.steps : step.choices;
-		const steps = stepsToReplace.map(step => {
+		const steps = stepsToReplace.map((step) => {
 			const replaced = replace(step, search, replacement);
 			if (replaced !== step) {
 				changed = true;
@@ -212,10 +214,10 @@ function isLeafAuthenticationStep(step: AuthenticationStep): boolean {
 	if (!(step instanceof AuthenticationSequence || step instanceof AuthenticationChoice)) {
 		return true;
 	}
-	if (step instanceof AuthenticationSequence && step.steps.every(step => !(step instanceof AuthenticationSequence || step instanceof AuthenticationChoice))) {
+	if (step instanceof AuthenticationSequence && step.steps.every((step) => !(step instanceof AuthenticationSequence || step instanceof AuthenticationChoice))) {
 		return true;
 	}
-	if (step instanceof AuthenticationChoice && step.choices.every(step => !(step instanceof AuthenticationSequence || step instanceof AuthenticationChoice))) {
+	if (step instanceof AuthenticationChoice && step.choices.every((step) => !(step instanceof AuthenticationSequence || step instanceof AuthenticationChoice))) {
 		return true;
 	}
 	return false;
@@ -236,7 +238,7 @@ export function flatten(step: AuthenticationStep): AuthenticationStep {
 			while (walk.length) {
 				const node = walk.shift()!;
 				if (node instanceof AuthenticationChoice) {
-					trees.push(...node.choices.map(step => replace(root, node, step)));
+					trees.push(...node.choices.map((step) => replace(root, node, step)));
 					forked = true;
 				} else if (node instanceof AuthenticationSequence) {
 					walk.unshift(...node.steps);
@@ -272,7 +274,7 @@ export type NextAuthenticationStepResult =
 	| { done: false; next: AuthenticationStep }
 	| { done: true };
 
-export class NextAuthenticationStepError extends Error { }
+export class NextAuthenticationStepError extends Error {}
 
 export function getNextAuthenticationStepAtPath(step: AuthenticationStep, path: string[]): NextAuthenticationStepResult {
 	if (step instanceof AuthenticationSequence) {

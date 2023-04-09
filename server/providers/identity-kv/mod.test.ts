@@ -1,11 +1,11 @@
 import { assertEquals, assertExists, assertRejects } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { KVWebStorageProvider } from "../kv-webstorage/mod.ts";
-import { IdentityKVProvider } from "./mod.ts";
+import { WebStorageKVProvider } from "../kv-webstorage/mod.ts";
+import { KVIdentityProvider } from "./mod.ts";
 import { autoid } from "../../../shared/autoid.ts";
 
 Deno.test("createIdentity, getIdentityById", async () => {
-	const kv = new KVWebStorageProvider(sessionStorage, "identity-kv-test-createIdentity/");
-	const ip = new IdentityKVProvider(kv);
+	const kv = new WebStorageKVProvider(sessionStorage, "identity-kv-test-createIdentity/");
+	const ip = new KVIdentityProvider(kv);
 	const id1 = autoid();
 	const id2 = autoid();
 	await ip.createIdentity(id1, {});
@@ -20,8 +20,8 @@ Deno.test("createIdentity, getIdentityById", async () => {
 });
 
 Deno.test("updateIdentity", async () => {
-	const kv = new KVWebStorageProvider(sessionStorage, "identity-kv-test-updateIdentity/");
-	const ip = new IdentityKVProvider(kv);
+	const kv = new WebStorageKVProvider(sessionStorage, "identity-kv-test-updateIdentity/");
+	const ip = new KVIdentityProvider(kv);
 	const id1 = autoid();
 	await ip.createIdentity(id1, {});
 	const identity1 = await ip.getIdentityById(id1);
@@ -34,8 +34,8 @@ Deno.test("updateIdentity", async () => {
 });
 
 Deno.test("deleteIdentityById", async () => {
-	const kv = new KVWebStorageProvider(sessionStorage, "identity-kv-test-deleteIdentityById/");
-	const ip = new IdentityKVProvider(kv);
+	const kv = new WebStorageKVProvider(sessionStorage, "identity-kv-test-deleteIdentityById/");
+	const ip = new KVIdentityProvider(kv);
 	const id1 = autoid();
 	await ip.createIdentity(id1, {});
 	const step = { ident: "email", id: "john@doe.local", identity: id1, meta: {} };
@@ -45,8 +45,8 @@ Deno.test("deleteIdentityById", async () => {
 });
 
 Deno.test("assignIdentityIdentification, getIdentityByIdentification, listIdentityIdentification", async () => {
-	const kv = new KVWebStorageProvider(sessionStorage, "identity-kv-test-assignAuthenticationStep/");
-	const ip = new IdentityKVProvider(kv);
+	const kv = new WebStorageKVProvider(sessionStorage, "identity-kv-test-assignAuthenticationStep/");
+	const ip = new KVIdentityProvider(kv);
 	const id1 = autoid();
 	const id2 = autoid();
 	await ip.createIdentity(id1, {});
@@ -57,8 +57,8 @@ Deno.test("assignIdentityIdentification, getIdentityByIdentification, listIdenti
 });
 
 Deno.test("unassignStepIdentifier", async () => {
-	const kv = new KVWebStorageProvider(sessionStorage, "identity-kv-test-unassignStepIdentifier/");
-	const ip = new IdentityKVProvider(kv);
+	const kv = new WebStorageKVProvider(sessionStorage, "identity-kv-test-unassignStepIdentifier/");
+	const ip = new KVIdentityProvider(kv);
 	const id1 = autoid();
 	const id2 = autoid();
 	await ip.createIdentity(id1, {});
@@ -71,8 +71,8 @@ Deno.test("unassignStepIdentifier", async () => {
 });
 
 Deno.test("assignStepChallenge, listStepChallenge, testStepChallenge", async () => {
-	const kv = new KVWebStorageProvider(sessionStorage, "identity-kv-test-assignStepChallenge/");
-	const ip = new IdentityKVProvider(kv);
+	const kv = new WebStorageKVProvider(sessionStorage, "identity-kv-test-assignStepChallenge/");
+	const ip = new KVIdentityProvider(kv);
 	const id1 = autoid();
 	const id2 = autoid();
 	await ip.createIdentity(id1, {});
@@ -84,8 +84,8 @@ Deno.test("assignStepChallenge, listStepChallenge, testStepChallenge", async () 
 });
 
 Deno.test("unassignStepChallenge", async () => {
-	const kv = new KVWebStorageProvider(sessionStorage, "identity-kv-test-assignStepChallenge/");
-	const ip = new IdentityKVProvider(kv);
+	const kv = new WebStorageKVProvider(sessionStorage, "identity-kv-test-assignStepChallenge/");
+	const ip = new KVIdentityProvider(kv);
 	const id1 = autoid();
 	await ip.createIdentity(id1, {});
 	await ip.assignIdentityChallenge(id1, "password", "123");

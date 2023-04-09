@@ -1,4 +1,5 @@
 import { Configuration } from "./config.ts";
+import { CounterProvider } from "./providers/counter.ts";
 import { IdentityProvider } from "./providers/identity.ts";
 
 /**
@@ -6,6 +7,7 @@ import { IdentityProvider } from "./providers/identity.ts";
  */
 export interface Context {
 	readonly config: Configuration;
+	readonly counter: CounterProvider;
 	readonly identity: IdentityProvider;
 
 	/**

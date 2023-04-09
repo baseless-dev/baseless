@@ -1,6 +1,4 @@
 import { AutoId, isAutoId } from "../../shared/autoid.ts";
-// deno-lint-ignore no-unused-vars
-import type { authStepIdent } from "../../server/auth/flow.ts";
 
 export interface Identity<Meta = Record<never, never>> {
 	readonly id: AutoId;

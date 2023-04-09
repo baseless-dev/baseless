@@ -2,11 +2,13 @@
 import { assertEquals, assertThrows } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import * as f from "./flow.ts";
 
-const email = new f.AuthenticationIdentificationEmail({ icon: '', label: {} });
-const password = new f.AuthenticationChallengePassword({ icon: '', label: {} });
-const otp = new f.AuthenticationChallengeOTPLogger({ icon: '', label: {} });
+const email = new f.AuthenticationIdentificationEmail({ icon: "", label: {} });
+const password = new f.AuthenticationChallengePassword({ icon: "", label: {} });
+const otp = new f.AuthenticationChallengeOTPLogger({ icon: "", label: {} });
 const github = new f.AuthenticationIdentificationOAuth({
-	icon: '', label: {}, provider: "github",
+	icon: "",
+	label: {},
+	provider: "github",
 	clientId: "",
 	clientSecret: "",
 	scope: [],
@@ -15,7 +17,9 @@ const github = new f.AuthenticationIdentificationOAuth({
 	openIdEndpoint: "",
 });
 const google = new f.AuthenticationIdentificationOAuth({
-	icon: '', label: {}, provider: "google",
+	icon: "",
+	label: {},
+	provider: "google",
 	clientId: "",
 	clientSecret: "",
 	scope: [],
@@ -33,7 +37,7 @@ Deno.test("simplify flow", () => {
 	assertEquals(f.simplify(f.oneOf(email, f.oneOf(google, github))), f.oneOf(email, google, github));
 	assertEquals(
 		f.simplify(f.oneOf(f.sequence(email, password), f.sequence(email, otp), f.oneOf(google, github))),
-		f.oneOf(f.sequence(email, password), f.sequence(email, otp), google, github)
+		f.oneOf(f.sequence(email, password), f.sequence(email, otp), google, github),
 	);
 });
 
@@ -45,11 +49,11 @@ Deno.test("replace step", () => {
 Deno.test("flatten step", () => {
 	assertEquals(
 		f.flatten(f.oneOf(f.sequence(email, password), f.sequence(email, otp), f.oneOf(google, github))),
-		f.oneOf(f.sequence(email, password), f.sequence(email, otp), google, github)
+		f.oneOf(f.sequence(email, password), f.sequence(email, otp), google, github),
 	);
 	assertEquals(
 		f.flatten(f.sequence(f.oneOf(email, github, google), otp)),
-		f.oneOf(f.sequence(email, otp), f.sequence(github, otp), f.sequence(google, otp))
+		f.oneOf(f.sequence(email, otp), f.sequence(github, otp), f.sequence(google, otp)),
 	);
 });
 

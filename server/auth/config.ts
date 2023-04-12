@@ -11,6 +11,7 @@ export interface AuthenticationKeys {
 
 export interface AuthenticationConfiguration {
 	readonly keys: AuthenticationKeys;
+	readonly salt: string;
 	readonly flow: AuthenticationStep;
 	readonly flattenedFlow: AuthenticationStep;
 	readonly onCreateIdentity?: AuthenticationHandler;
@@ -41,6 +42,7 @@ export interface AuthViews {
 }
 export class AuthBuilder {
 	#authKeys?: AuthenticationKeys;
+	#salt?: string;
 	#authFlow?: AuthenticationStep;
 	#onCreateIdentityHandler?: AuthenticationHandler;
 	#onUpdateIdentityHandler?: AuthenticationHandler;
@@ -58,6 +60,16 @@ export class AuthBuilder {
 	 */
 	public keys(keys: AuthenticationKeys) {
 		this.#authKeys = keys;
+		return this;
+	}
+
+	/**
+	 * Defines the salt
+	 * @param keys The salt
+	 * @returns The builder
+	 */
+	public setSalt(salt: string) {
+		this.#salt = salt;
 		return this;
 	}
 
@@ -135,8 +147,12 @@ export class AuthBuilder {
 		if (!this.#authFlow) {
 			throw new Error(`Authentication flow is needed.`);
 		}
+		if (!this.#salt) {
+			throw new Error(`Authentication salt is needed.`);
+		}
 		return {
 			keys: this.#authKeys,
+			salt: this.#salt,
 			flow: this.#authFlow,
 			flattenedFlow: flatten(this.#authFlow),
 			onCreateIdentity: this.#onCreateIdentityHandler,

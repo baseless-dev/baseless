@@ -6,11 +6,14 @@ import { WebStorageKVProvider } from "../../server/providers/kv-webstorage/mod.t
 import { KVIdentityProvider } from "../../server/providers/identity-kv/mod.ts";
 import "./app.ts";
 import { autoid } from "../../shared/autoid.ts";
+import { hashPassword } from "../../server/auth/flow.ts";
 
 Deno.permissions.request({ name: "net" });
 Deno.permissions.request({ name: "env" });
 
 log.setGlobalLogHandler(log.createConsoleLogHandler(log.LogLevel.LOG));
+
+const configuration = config.build();
 
 const counterProvider = new MemoryCounterProvider();
 const identityKV = new WebStorageKVProvider(sessionStorage, "hello-world-idp/");
@@ -22,9 +25,9 @@ await identityProvider.createIdentity(johnId, {});
 // Assign two email to john's identity
 await identityProvider.assignIdentityIdentification(johnId, "email", "john@doe.local");
 // Assign a password challenge to `123`
-await identityProvider.assignIdentityChallenge(johnId, "password", "123");
+await identityProvider.assignIdentityChallenge(johnId, "password", await hashPassword(configuration.auth.salt, "123"));
 
-const server = new Server({ configuration: config.build(), counterProvider, identityProvider });
+const server = new Server({ configuration, counterProvider, identityProvider });
 
 const listener = Deno.listen({ hostname: "0.0.0.0", port: 8080 });
 

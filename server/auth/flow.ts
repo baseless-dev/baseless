@@ -79,6 +79,17 @@ export function email(options: ConstructorParameters<typeof AuthenticationIdenti
 	return new AuthenticationIdentificationEmail(options);
 }
 
+const textEncoder = new TextEncoder();
+
+export async function hashPassword(salt: string, password: string): Promise<string> {
+	const data = textEncoder.encode(salt + password + salt);
+	const bufferPass1 = await crypto.subtle.digest("SHA-512", data);
+	const bufferPass2 = await crypto.subtle.digest("SHA-512", bufferPass1);
+	const hashBuffer = Array.from(new Uint8Array(bufferPass2));
+	const hash = hashBuffer.map((b) => b.toString().padStart(2, "0"));
+	return hash.join("");
+}
+
 export class AuthenticationChallengePassword extends AuthenticationChallenge {
 	constructor({ icon, label }: { icon: string; label: Record<string, string> }) {
 		super("password", icon, label, "password");
@@ -89,7 +100,8 @@ export class AuthenticationChallengePassword extends AuthenticationChallenge {
 		if (!password) {
 			throw new Error();
 		}
-		return await context.identity.testIdentityChallenge(identity, "password", password.toString());
+		const hash = await hashPassword(context.config.auth.salt, password.toString());
+		return await context.identity.testIdentityChallenge(identity, "password", hash);
 	}
 }
 
@@ -124,7 +136,7 @@ export class AuthenticationIdentificationOAuth extends AuthenticationIdentificat
 		this.openIdEndpoint = options.openIdEndpoint;
 	}
 	async identify(request: Request, context: Context): Promise<AutoId> {
-		const formData = await request.formData();
+		// const formData = await request.formData();
 		throw new Error("Not implemented");
 	}
 }

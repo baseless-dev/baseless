@@ -47,7 +47,7 @@ authRouter.add(["GET", "POST"], "/login/:action?", async (request, params, conte
 	}
 
 	if (nextResult.done) {
-		// TODO redirect
+		// TODO redirect somewhere?
 		headers.set("Location", `/auth/`);
 		destroyViewState(headers);
 		// TODO create session
@@ -62,7 +62,6 @@ authRouter.add(["GET", "POST"], "/login/:action?", async (request, params, conte
 	const isFirstStep = viewstate.flow.length === 0;
 
 	if (url.searchParams.get("back") !== null) {
-		// if (action === "back") {
 		headers.set("Location", "/auth/login");
 		if ((step && step instanceof AuthenticationChoice) || possibleSteps.length === 1) {
 			viewstate.flow.pop();

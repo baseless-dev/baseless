@@ -56,6 +56,7 @@ config.auth()
 	.setRateLimitIdentification(10, 30)
 	.setRateLimitChallenge(5, 120)
 	.keys({ algo: "PS512", publicKey, privateKey })
+	.setSalt("foobar")
 	.setViews(createAuthUI({
 		defaultLocale: "en",
 		locales: ["en"],

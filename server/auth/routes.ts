@@ -33,6 +33,7 @@ authRouter.get("/", (request, _params, context) => {
 });
 
 authRouter.add(["GET", "POST"], "/login/:action?", async (request, params, context) => {
+	const url = new URL(request.url);
 	const headers = new Headers({ "Cache-Control": "no-cache" });
 	let viewstate: ViewState;
 	let nextResult: NextAuthenticationStepResult;
@@ -57,10 +58,18 @@ authRouter.add(["GET", "POST"], "/login/:action?", async (request, params, conte
 	const action = params.action?.toLowerCase();
 	const possibleSteps = Array.from(getNextIdentificationOrChallenge(nextResult.next));
 
-	// TODO back action?
-
 	const step = action ? possibleSteps.find((step) => step.id === action) : nextResult.next;
 	const isFirstStep = viewstate.flow.length === 0;
+
+	if (url.searchParams.get("back") !== null) {
+		// if (action === "back") {
+		headers.set("Location", "/auth/login");
+		if ((step && step instanceof AuthenticationChoice) || possibleSteps.length === 1) {
+			viewstate.flow.pop();
+			await saveViewState(headers, viewstate, context.config.auth.keys.algo, context.config.auth.keys.privateKey);
+		}
+		return new Response(null, { status: 301, headers });
+	}
 
 	if (!step) {
 		headers.set("Location", `/auth/login?code=invalid_action`);
@@ -204,11 +213,11 @@ async function initViewState(request: Request, auth: AuthenticationConfiguration
 
 async function saveViewState(headers: Headers, viewstate: ViewState, alg: string, privateKey: KeyLike, expiration: string | number = "10m") {
 	const serialized = await serializeViewState(viewstate, alg, privateKey, expiration);
-	setCookie(headers, { name: "viewstate", value: serialized });
+	setCookie(headers, { name: "viewstate", value: serialized, sameSite: "Strict", httpOnly: true, path: "/auth/login" });
 }
 
 function destroyViewState(headers: Headers) {
-	deleteCookie(headers, "viewstate");
+	deleteCookie(headers, "viewstate", { path: "/auth/login" });
 }
 
 export default authRouter;

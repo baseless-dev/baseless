@@ -13,5 +13,5 @@ Deno.test("send", async () => {
 	assertEquals(messages.length, 1);
 	assertEquals(messages[0].lvl, LogLevel.WARN);
 	assertEquals(messages[0].message.subject, "A subject");
-	setGlobalLogHandler(() => { });
+	setGlobalLogHandler(() => {});
 });

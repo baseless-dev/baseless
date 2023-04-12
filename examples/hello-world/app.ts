@@ -49,7 +49,7 @@ const otplogger = otpLogger({ icon: iconOTP, label: { en: "Sign in with Logger" 
 config.auth()
 	.flow(oneOf(
 		sequence(mail, pass),
-		// sequence(mail, otplogger),
+		sequence(mail, otplogger),
 		google,
 		github,
 	))

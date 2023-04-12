@@ -164,24 +164,24 @@ export interface IdentityProvider {
 /**
  * Invalid Identity Error
  */
-export class InvalidIdentityError extends Error { }
+export class InvalidIdentityError extends Error {}
 /**
  * Invalid Identity Authentication Step Error
  */
-export class InvalidIdentityAuthenticationStepError extends Error { }
+export class InvalidIdentityAuthenticationStepError extends Error {}
 /**
  * Identity Not Found Error
  */
-export class IdentityNotFoundError extends Error { }
+export class IdentityNotFoundError extends Error {}
 /**
  * Identity Exists Error
  */
-export class IdentityExistsError extends Error { }
+export class IdentityExistsError extends Error {}
 /**
  * Identity Authentication Step Not Found Error
  */
-export class IdentityAuthenticationStepNotFoundError extends Error { }
+export class IdentityAuthenticationStepNotFoundError extends Error {}
 /**
  * Identity Authentication Step Exists Error
  */
-export class IdentityAuthenticationStepExistsError extends Error { }
+export class IdentityAuthenticationStepExistsError extends Error {}

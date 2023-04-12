@@ -29,6 +29,7 @@ export class WebStorageKVProvider implements KVProvider {
 		const value = typeof obj.value === "string" ? obj.value.toString() : "";
 		const expiration: number | undefined = typeof obj.expiration === "number" ? obj.expiration : undefined;
 		if (expiration && Date.now() / 1000 > expiration) {
+			this.storage.removeItem(`/${this.prefix}${key}`);
 			this.logger.debug(`Key "${key}" does not exists.`);
 			throw new KeyNotFoundError(key);
 		}

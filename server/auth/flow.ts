@@ -1,6 +1,7 @@
 import { AutoId } from "../../shared/autoid.ts";
 import { Context } from "../context.ts";
 import { createLogger } from "../logger.ts";
+import { otp } from "./otp.ts";
 
 export type AuthenticationStep = AuthenticationIdentification | AuthenticationChallenge | AuthenticationSequence | AuthenticationChoice;
 
@@ -21,7 +22,7 @@ export abstract class AuthenticationIdentification {
 		public readonly icon: string,
 		public readonly label: Record<string, string>,
 		public readonly prompt: "email" | "action",
-	) { }
+	) {}
 
 	abstract identify(request: Request, context: Context): Promise<AutoId | Response>;
 }
@@ -32,7 +33,7 @@ export abstract class AuthenticationChallenge {
 		public readonly icon: string,
 		public readonly label: Record<string, string>,
 		public readonly prompt: "password" | "otp",
-	) { }
+	) {}
 	sendInterval = 60;
 	sendLimit = 1;
 	send?: (request: Request, context: Context, identity: AutoId) => Promise<void>;
@@ -40,7 +41,7 @@ export abstract class AuthenticationChallenge {
 }
 
 export class AuthenticationSequence {
-	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) { }
+	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) {}
 	get id(): string {
 		return `sequence(${this.steps.map((s) => s.id)})`;
 	}
@@ -51,7 +52,7 @@ export function sequence(...steps: AuthenticationStep[]) {
 }
 
 export class AuthenticationChoice {
-	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) { }
+	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) {}
 	get id(): string {
 		return `choice(${this.choices.map((s) => s.id)})`;
 	}
@@ -151,8 +152,7 @@ export class AuthenticationChallengeOTPLogger extends AuthenticationChallenge {
 		super("otp:logger", icon, label, "otp");
 	}
 	send = async (_request: Request, context: Context, identity: AutoId) => {
-		// TODO actually generate code
-		const code = "123456";
+		const code = otp({ digits: 6 });
 		await context.identity.assignIdentityChallenge(identity, "otp:logger", code, 120);
 		this.#logger.warn(`The OTP code is ${code}.`);
 		return;
@@ -191,8 +191,7 @@ export class AuthenticationChallengeOTPEmail extends AuthenticationChallenge {
 		this.#html = html;
 	}
 	send = async (_request: Request, context: Context, identity: AutoId) => {
-		// TODO actually generate code
-		const code = "123456";
+		const code = otp({ digits: 6 });
 		await Promise.all([
 			context.identity.assignIdentityChallenge(identity, "otp:email", code, 120),
 			// TODO get email from identity
@@ -330,7 +329,7 @@ export type NextAuthenticationStepResult =
 	| { done: false; next: AuthenticationStep }
 	| { done: true };
 
-export class NextAuthenticationStepError extends Error { }
+export class NextAuthenticationStepError extends Error {}
 
 export function getNextAuthenticationStepAtPath(step: AuthenticationStep, path: string[]): NextAuthenticationStepResult {
 	if (step instanceof AuthenticationSequence) {

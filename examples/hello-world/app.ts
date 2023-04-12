@@ -1,5 +1,5 @@
 import { config } from "../../server/config.ts";
-import { sequence, email, oauth, oneOf, password, otpLogger } from "../../server/auth/flow.ts";
+import { sequence, email, oauth, oneOf, password, otpEmail } from "../../server/auth/flow.ts";
 import createAuthUI from "../../server/auth/ui/mod.ts";
 import authUIEn from "../../server/auth/ui/locales/en.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
@@ -44,12 +44,12 @@ const mail = email({
 	label: { en: "Sign in with Email" },
 });
 const pass = password({ icon: iconPass, label: { en: "Sign in with Password" } });
-const otplogger = otpLogger({ icon: iconOTP, label: { en: "Sign in with Logger" } })
+const code = otpEmail({ icon: iconOTP, label: { en: "Sign in with Code" }, subject: { en: "Authentication code" }, text: { en: "" } })
 
 config.auth()
 	.flow(oneOf(
 		sequence(mail, pass),
-		sequence(mail, otplogger),
+		sequence(mail, code),
 		google,
 		github,
 	))

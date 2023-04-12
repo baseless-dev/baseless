@@ -4,6 +4,7 @@ import { Server } from "../../server/server.ts";
 import { MemoryCounterProvider } from "../../server/providers/counter-memory/mod.ts";
 import { WebStorageKVProvider } from "../../server/providers/kv-webstorage/mod.ts";
 import { KVIdentityProvider } from "../../server/providers/identity-kv/mod.ts";
+import { LoggerEmailProvider } from "../../server/providers/email-logger/mod.ts";
 import "./app.ts";
 import { autoid } from "../../shared/autoid.ts";
 import { hashPassword } from "../../server/auth/flow.ts";
@@ -18,16 +19,15 @@ const configuration = config.build();
 const counterProvider = new MemoryCounterProvider();
 const identityKV = new WebStorageKVProvider(sessionStorage, "hello-world-idp/");
 const identityProvider = new KVIdentityProvider(identityKV);
+const emailProvider = new LoggerEmailProvider();
 
 // Create john's identity
 const johnId = autoid();
 await identityProvider.createIdentity(johnId, {});
-// Assign two email to john's identity
 await identityProvider.assignIdentityIdentification(johnId, "email", "john@doe.local");
-// Assign a password challenge to `123`
 await identityProvider.assignIdentityChallenge(johnId, "password", await hashPassword(configuration.auth.salt, "123"));
 
-const server = new Server({ configuration, counterProvider, identityProvider });
+const server = new Server({ configuration, counterProvider, identityProvider, emailProvider });
 
 const listener = Deno.listen({ hostname: "0.0.0.0", port: 8080 });
 

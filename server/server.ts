@@ -5,6 +5,7 @@ import authRouter from "./auth/routes.ts";
 import { RouterBuilder } from "./router.ts";
 import { IdentityProvider } from "./providers/identity.ts";
 import { CounterProvider } from "./providers/counter.ts";
+import { EmailProvider } from "./providers/email.ts";
 
 const router = new RouterBuilder<[context: Context]>()
 	.route("/auth", authRouter)
@@ -15,11 +16,13 @@ export class Server {
 	#configuration: Configuration;
 	#counterProvider: CounterProvider;
 	#identityProvider: IdentityProvider;
+	#emailProvider: EmailProvider;
 
-	public constructor(options: { configuration: Configuration; counterProvider: CounterProvider; identityProvider: IdentityProvider }) {
+	public constructor(options: { configuration: Configuration; counterProvider: CounterProvider; identityProvider: IdentityProvider; emailProvider: EmailProvider }) {
 		this.#configuration = options.configuration;
 		this.#counterProvider = options.counterProvider;
 		this.#identityProvider = options.identityProvider;
+		this.#emailProvider = options.emailProvider;
 	}
 
 	/**
@@ -36,6 +39,7 @@ export class Server {
 			config: this.#configuration,
 			counter: this.#counterProvider,
 			identity: this.#identityProvider,
+			email: this.#emailProvider,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},

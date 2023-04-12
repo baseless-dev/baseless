@@ -1,7 +1,8 @@
 import { Configuration } from "./config.ts";
 import { CounterProvider } from "./providers/counter.ts";
 import { IdentityProvider } from "./providers/identity.ts";
-import { KVProvider } from "./providers/kv.ts";
+import { EmailProvider } from "./providers/email.ts";
+// import { KVProvider } from "./providers/kv.ts";
 
 /**
  * Baseless's context
@@ -10,6 +11,7 @@ export interface Context {
 	readonly config: Configuration;
 	readonly counter: CounterProvider;
 	readonly identity: IdentityProvider;
+	readonly email: EmailProvider;
 	// readonly kv: KVProvider;
 
 	/**

@@ -15,5 +15,7 @@
 	"explorer.fileNesting.patterns": {
 		"deno.json": "deno.lock, import-map.json, .gitignore, .prettierrc",
 		"*.ts": "${capture}.test.ts"
-	}
+	},
+	"editor.insertSpaces": false,
+	"editor.detectIndentation": false
 }

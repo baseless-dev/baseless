@@ -23,7 +23,6 @@ export default function Login({ step, isFirstStep, currentLocale, localization }
 }
 
 function AuthStep({ step, currentLocale }: AuthenticationStepProps) {
-	let input: string;
 	if (step instanceof AuthenticationIdentification || step instanceof AuthenticationChallenge) {
 		return `<a
 					href="/auth/login/${step.id}"

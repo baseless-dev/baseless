@@ -1,6 +1,6 @@
 import { Context } from "../context.ts";
 import { Identity } from "../providers/identity.ts";
-import { assertAuthenticationStep, AuthenticationStep, flatten, NextAuthenticationStepResult } from "./flow.ts";
+import { assertAuthenticationStep, AuthenticationStep, flatten } from "./flow.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 
 export interface AuthenticationKeys {

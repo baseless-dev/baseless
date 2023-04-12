@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { assertEquals, assertThrows } from "https://deno.land/std@0.179.0/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import * as f from "./flow.ts";
 
 const email = new f.AuthenticationIdentificationEmail({ icon: "", label: {} });

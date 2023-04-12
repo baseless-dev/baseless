@@ -4,8 +4,8 @@ import { AuthenticationViewPrompParams } from "../../../auth/config.ts";
 import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
-export default function PromptPassword({ isFirstStep, isLastStep, currentLocale, localization }: AuthUIContext & AuthenticationViewPrompParams) {
-	const l10n = localization[currentLocale];
+export default function PromptPassword({ isLastStep, currentLocale, localization }: AuthUIContext & AuthenticationViewPrompParams) {
+	const _l10n = localization[currentLocale];
 	return Layout({ title: "Enter your password", subTitle: "john.doe@baseless.local" }, [
 		`<form action="/auth/login/password" method="POST" autocomplete="off">
 			<div class="mt-2 flex rounded-md shadow-sm">

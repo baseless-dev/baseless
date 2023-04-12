@@ -3,7 +3,7 @@ import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
 export default function RateLimited({ currentLocale, localization }: AuthUIContext & { localization: Record<Locale, Localization> }) {
-	const l10n = localization[currentLocale];
+	const _l10n = localization[currentLocale];
 	return Layout({
 		title: "Too Many Attempt",
 		subTitle: "Please retry in a few moment",

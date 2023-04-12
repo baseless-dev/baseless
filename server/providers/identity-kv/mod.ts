@@ -1,15 +1,11 @@
 import {
 	assertIdentity,
-	assertIdentityAuthenticationStep,
 	Identity,
-	IdentityAuthenticationStep,
 	IdentityAuthenticationStepExistsError,
 	IdentityAuthenticationStepNotFoundError,
 	IdentityExistsError,
 	IdentityNotFoundError,
 	IdentityProvider,
-	isIdentity,
-	isIdentityAuthenticationStep,
 } from "../identity.ts";
 import { createLogger } from "../../logger.ts";
 import { KeyNotFoundError, KVProvider, KVPutOptions } from "../kv.ts";

@@ -136,7 +136,7 @@ export class AuthenticationIdentificationOAuth extends AuthenticationIdentificat
 		this.tokenEndpoint = options.tokenEndpoint;
 		this.openIdEndpoint = options.openIdEndpoint;
 	}
-	async identify(request: Request, context: Context): Promise<AutoId> {
+	identify(_request: Request, _context: Context): Promise<AutoId> {
 		// const formData = await request.formData();
 		throw new Error("Not implemented");
 	}

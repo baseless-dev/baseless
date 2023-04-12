@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertRejects } from "https://deno.land/std@0.179.0/testing/asserts.ts";
+import { assertEquals, assertRejects } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { WebStorageKVProvider } from "../kv-webstorage/mod.ts";
 import { KVIdentityProvider } from "./mod.ts";
 import { autoid } from "../../../shared/autoid.ts";
@@ -38,8 +38,6 @@ Deno.test("deleteIdentityById", async () => {
 	const ip = new KVIdentityProvider(kv);
 	const id1 = autoid();
 	await ip.createIdentity(id1, {});
-	const step = { ident: "email", id: "john@doe.local", identity: id1, meta: {} };
-	// await ip.assignAuthenticationStep(step);
 	await ip.deleteIdentityById(id1);
 	assertRejects(() => ip.getIdentityById(id1));
 });

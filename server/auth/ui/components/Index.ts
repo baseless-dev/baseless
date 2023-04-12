@@ -3,7 +3,7 @@ import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
 export default function Logged({ currentLocale, localization }: AuthUIContext & { localization: Record<Locale, Localization> }) {
-	const l10n = localization[currentLocale];
+	const _l10n = localization[currentLocale];
 	return Layout({
 		title: "Signed In",
 		subTitle: "You are currently logged in with",

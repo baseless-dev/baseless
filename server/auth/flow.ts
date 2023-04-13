@@ -22,7 +22,7 @@ export abstract class AuthenticationIdentification {
 		public readonly icon: string,
 		public readonly label: Record<string, string>,
 		public readonly prompt: "email" | "action",
-	) {}
+	) { }
 
 	abstract identify(request: Request, context: Context): Promise<AutoId | Response>;
 }
@@ -33,7 +33,7 @@ export abstract class AuthenticationChallenge {
 		public readonly icon: string,
 		public readonly label: Record<string, string>,
 		public readonly prompt: "password" | "otp",
-	) {}
+	) { }
 	sendInterval = 60;
 	sendLimit = 1;
 	send?: (request: Request, context: Context, identity: AutoId) => Promise<void>;
@@ -41,7 +41,7 @@ export abstract class AuthenticationChallenge {
 }
 
 export class AuthenticationSequence {
-	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) {}
+	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) { }
 	get id(): string {
 		return `sequence(${this.steps.map((s) => s.id)})`;
 	}
@@ -52,7 +52,7 @@ export function sequence(...steps: AuthenticationStep[]) {
 }
 
 export class AuthenticationChoice {
-	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) {}
+	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) { }
 	get id(): string {
 		return `choice(${this.choices.map((s) => s.id)})`;
 	}
@@ -192,12 +192,16 @@ export class AuthenticationChallengeOTPEmail extends AuthenticationChallenge {
 	}
 	send = async (_request: Request, context: Context, identity: AutoId) => {
 		const code = otp({ digits: 6 });
+		const identifications = await context.identity.listIdentityIdentification(identity);
+		const emails = identifications.filter(id => id.identifier === "email");
+		if (emails.length === 0) {
+			throw new Error(`Identity doesn't have an email configured.`);
+		}
 		await Promise.all([
 			context.identity.assignIdentityChallenge(identity, "otp:email", code, 120),
-			// TODO get email from identity
-			context.email.send({ to: "huuuuu", subject: this.#subject["en"], text: `You code is ${code}.` }),
+			// TODO get culture from request
+			...emails.map(id => context.email.send({ to: id.uniqueId, subject: this.#subject["en"], text: `You code is ${code}.` }))
 		]);
-		this.#logger.warn(`The OTP code is ${code}.`);
 		return;
 	};
 	async challenge(request: Request, context: Context, identity: AutoId): Promise<boolean> {
@@ -329,7 +333,7 @@ export type NextAuthenticationStepResult =
 	| { done: false; next: AuthenticationStep }
 	| { done: true };
 
-export class NextAuthenticationStepError extends Error {}
+export class NextAuthenticationStepError extends Error { }
 
 export function getNextAuthenticationStepAtPath(step: AuthenticationStep, path: string[]): NextAuthenticationStepResult {
 	if (step instanceof AuthenticationSequence) {

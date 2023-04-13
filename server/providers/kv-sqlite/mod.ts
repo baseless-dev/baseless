@@ -119,7 +119,7 @@ export class SqliteKVProvider implements KVProvider {
 		if (!this.db) {
 			throw new SqliteNotOpenedError();
 		}
-		const expireAt = options ? "expireAt" in options ? options.expireAt.getTime() / 1000 : options.expireIn + new Date().getTime() / 1000 : null;
+		const expireAt = options?.expiration ? options.expiration instanceof Date ? options.expiration.getTime() / 1000 : options.expiration + new Date().getTime() / 1000 : null;
 		try {
 			this.db.query(
 				`INSERT OR REPLACE INTO ${this.options.tableName} (key, expireAt, value) VALUES (?, ?, ?)`,

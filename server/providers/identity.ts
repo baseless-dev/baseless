@@ -5,51 +5,46 @@ export interface Identity<Meta = Record<never, never>> {
 	readonly meta: Meta;
 }
 
-export interface IdentityAuthenticationStep<Meta = Record<string, never>> {
-	/**
-	 * The {@link authStepIdent|authentication step identifier}
-	 */
-	ident: string;
-	/**
-	 * The ID of this authentication step (ex: john@doe.local)
-	 */
-	id: string;
-	/**
-	 * The {@see Identity.id} associated with this authentication step
-	 */
-	identity: AutoId;
-	/**
-	 * The meta data associated with the authentication step
-	 */
-	meta: Meta;
+export interface IdentityIdentification {
+	readonly identityId: AutoId;
+	readonly id: AutoId;
+	readonly type: string;
+	readonly identification: string
+}
+
+export interface IdentityChallenge {
+	readonly identityId: AutoId;
+	readonly id: AutoId;
+	readonly type: string;
+	readonly challenge: string
 }
 
 export function isIdentity(value?: unknown): value is Identity {
 	return !!value && typeof value === "object" && "id" in value && isAutoId(value.id);
 }
 
-/**
- * Test if value is an Identity
- * @param value The value to test
- * @returns If value is an Identity
- */
 export function assertIdentity(value?: unknown): asserts value is Identity {
 	if (!isIdentity(value)) {
 		throw new InvalidIdentityError();
 	}
 }
 
-export function isIdentityAuthenticationStep(value?: unknown): value is IdentityAuthenticationStep {
-	return !!value && typeof value === "object" && "ident" in value && "id" in value && "identity" in value && isAutoId(value.identity);
+export function isIdentityIdentification(value?: unknown): value is IdentityIdentification {
+	return !!value && typeof value === "object" && "identityId" in value && "id" in value && "type" in value && "identification" in value && isAutoId(value.identityId) && isAutoId(value.id);
 }
 
-/**
- * Test if value is an Identity
- * @param value The value to test
- * @returns If value is an Identity
- */
-export function assertIdentityAuthenticationStep(value?: unknown): asserts value is IdentityAuthenticationStep {
-	if (!isIdentityAuthenticationStep(value)) {
+export function assertIdentityIdentification(value?: unknown): asserts value is IdentityIdentification {
+	if (!isIdentityIdentification(value)) {
+		throw new InvalidIdentityError();
+	}
+}
+
+export function isIdentityChallenge(value?: unknown): value is IdentityChallenge {
+	return !!value && typeof value === "object" && "identityId" in value && "id" in value && "type" in value && "challenge" in value && isAutoId(value.identityId) && isAutoId(value.id);
+}
+
+export function assertIdentityChallenge(value?: unknown): asserts value is IdentityChallenge {
+	if (!isIdentityChallenge(value)) {
 		throw new InvalidIdentityError();
 	}
 }
@@ -64,6 +59,7 @@ export interface IdentityProvider {
 	 * @returns Wether the {@link Identity} exists or not
 	 */
 	identityExists(identityId: AutoId): Promise<boolean>;
+
 	/**
 	 * Get an Identity by Id
 	 * @param identityId The {@link Identity.id}
@@ -81,7 +77,7 @@ export interface IdentityProvider {
 	 * @param identityId The {@link Identity.id}
 	 * @param meta The {@link Identity.meta}
 	 */
-	createIdentity(identityId: AutoId, meta: Record<string, string>): Promise<void>;
+	createIdentity(meta: Record<string, string>): Promise<AutoId>;
 
 	/**
 	 * Update an Identity
@@ -91,97 +87,103 @@ export interface IdentityProvider {
 	updateIdentity(identityId: AutoId, meta: Record<string, string>): Promise<void>;
 
 	/**
-	 * Get the {@link Identity.id} by it's {@link authStepIdent} and an unique ID for this identifier
-	 * @param identifier The {@link authStepIdent} (ex. email, oauth:github)
-	 * @param uniqueId The unique Id (ex. john@doe.local, grenierdev)
-	 */
-	getIdentityByIdentification(identifier: string, uniqueId: string): Promise<AutoId>;
-
-	/**
 	 * Assign {@link authStepIdent} identifier to an {@link Identity}
 	 * @param identityId The {@link Identity.id}
-	 * @param identifier The {@link authStepIdent} (ex. email, oauth:github)
-	 * @param uniqueId The unique Id (ex. john@doe.local, grenierdev)
+	 * @param type The {@link authStepIdent} (ex. email, oauth:github)
+	 * @param identification The unique Id (ex. john@doe.local, grenierdev)
+	 * @param expiration The time to live in seconds or Date at wich the identification expire
 	 */
-	assignIdentityIdentification(identityId: AutoId, identifier: string, uniqueId: string): Promise<void>;
+	assignIdentityIdentification(identityId: AutoId, type: string, identification: string, expiration?: number | Date): Promise<IdentityIdentification>;
+
+	/**
+	 * Get {@link IdentityIdentification} by {@link IdentityIdentification.id}
+	 * @param identityId The {@link Identity.id}
+	 * @param identificationId The {@link IdentityIdentification.id}
+	 */
+	getIdentityIdentificationById(identityId: AutoId, identificationId: AutoId): Promise<IdentityIdentification>;
+
+	/**
+	 * Get the {@link Identity.id} by it's {@link authStepIdent} and an unique ID for this identifier
+	 * @param type The {@link authStepIdent} (ex. email, oauth:github)
+	 * @param identification The unique Id (ex. john@doe.local, grenierdev)
+	 */
+	getIdentityIdentificationByType(type: string, identification: string): Promise<IdentityIdentification>;
 
 	/**
 	 * List all {@link authStepIdent} identifier assigned to an {@link Identity}
 	 * @param identityId The {@link Identity.id}
+	 * @param type The type of identification to filter
 	 */
-	listIdentityIdentification(identityId: AutoId): Promise<{ identifier: string; uniqueId: string }[]>;
+	listIdentityIdentification(identityId: AutoId, type?: string): Promise<IdentityIdentification[]>;
 
 	/**
 	 * Unassign {@link IdentityAuthStep} identifier to an {@link Identity}
 	 * @param identityId The {@link Identity.id}
-	 * @param identifier The {@link authStepIdent} (ex. email, oauth:github)
-	 * @param uniqueId The unique Id (ex. john@doe.local, grenierdev)
+	 * @param identificationId The {@link IdentityIdentification.id}
 	 */
-	unassignIdentityIdentification(identityId: AutoId, identifier: string, uniqueId: string): Promise<void>;
+	unassignIdentityIdentification(identityId: AutoId, identificationId: AutoId): Promise<void>;
 
 	/**
 	 * Test {@link authStepIdent} challenge for an {@link Identity}
 	 * @param identityId The {@link Identity.id}
-	 * @param identifier The {@link authStepIdent} (ex. password, otp)
+	 * @param type The {@link authStepIdent} (ex. password, otp)
 	 * @param challenge The challenge (ex. encrypted password, 6 digits code)
 	 * @returns Wether the challenge failed or not
 	 */
-	testIdentityChallenge(identityId: AutoId, identifier: string, challenge: string): Promise<boolean>;
+	testIdentityChallenge(identityId: AutoId, type: string, challenge: string): Promise<boolean>;
 
 	/**
 	 * Assign {@link authStepIdent} challenge to an {@link Identity}
 	 * @param identityId The {@link Identity.id}
-	 * @param identifier The {@link authStepIdent} (ex. password, otp)
+	 * @param type The {@link authStepIdent} (ex. password, otp)
 	 * @param challenge The challenge (ex. encrypted password, 6 digits code)
-	 * @param expireIn The number of seconds at wich the challenge expires
+	 * @param expiration The time to live in seconds or Date at wich the challenge expire (ex. forgot password)
 	 */
-	assignIdentityChallenge(identityId: AutoId, identifier: string, challenge: string, expireIn?: number): Promise<void>;
+	assignIdentityChallenge(identityId: AutoId, type: string, challenge: string, expiration?: number | Date): Promise<IdentityChallenge>;
 
 	/**
-	 * Assign {@link authStepIdent} challenge to an {@link Identity}
+	 * Get {@link IdentityChallenge} by {@link IdentityChallenge.id}
 	 * @param identityId The {@link Identity.id}
-	 * @param identifier The {@link authStepIdent} (ex. password, otp)
-	 * @param challenge The challenge (ex. encrypted password, 6 digits code)
-	 * @param expireAt The Date at wich the challenge expires
+	 * @param challengeId The {@link IdentityChallenge.id}
 	 */
-	assignIdentityChallenge(identityId: AutoId, identifier: string, challenge: string, expireAt?: Date): Promise<void>;
+	getIdentityChallengeById(identityId: AutoId, challengeId: AutoId): Promise<IdentityChallenge>;
 
 	/**
 	 * List all {@link authStepIdent} challenge assigned to an {@link Identity}
 	 * @param identityId The {@link Identity.id}
+	 * @param type The type of challenge to filter
 	 */
-	listIdentityChallenge(identityId: AutoId): Promise<{ identifier: string; challenge: string }[]>;
+	listIdentityChallenge(identityId: AutoId, type?: string): Promise<IdentityChallenge[]>;
 
 	/**
 	 * Unassign {@link authStepIdent} challenge to an {@link Identity}
 	 * @param identityId The {@link Identity.id}
-	 * @param identifier The {@link authStepIdent} (ex. password, otp)
-	 * @param challenge The unique Id (ex. encrypted password, 6 digits code)
+	 * @param challengeId The {@link IdentityChallenge.id}
 	 */
-	unassignIdentityChallenge(identityId: AutoId, identifier: string, challenge: string): Promise<void>;
+	unassignIdentityChallenge(identityId: AutoId, challengeId: AutoId): Promise<void>;
 }
 
 /**
  * Invalid Identity Error
  */
-export class InvalidIdentityError extends Error {}
+export class InvalidIdentityError extends Error { }
 /**
  * Invalid Identity Authentication Step Error
  */
-export class InvalidIdentityAuthenticationStepError extends Error {}
+export class InvalidIdentityAuthenticationStepError extends Error { }
 /**
  * Identity Not Found Error
  */
-export class IdentityNotFoundError extends Error {}
+export class IdentityNotFoundError extends Error { }
 /**
  * Identity Exists Error
  */
-export class IdentityExistsError extends Error {}
+export class IdentityExistsError extends Error { }
 /**
  * Identity Authentication Step Not Found Error
  */
-export class IdentityAuthenticationStepNotFoundError extends Error {}
+export class IdentityAuthenticationStepNotFoundError extends Error { }
 /**
  * Identity Authentication Step Exists Error
  */
-export class IdentityAuthenticationStepExistsError extends Error {}
+export class IdentityAuthenticationStepExistsError extends Error { }

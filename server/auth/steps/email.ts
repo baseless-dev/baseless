@@ -12,7 +12,8 @@ export class AuthenticationIdentificationEmail extends AuthenticationIdentificat
 		if (!email) {
 			throw new Error();
 		}
-		return await context.identity.getIdentityByIdentification("email", email.toString());
+		const identification = await context.identity.getIdentityIdentificationByType("email", email.toString());
+		return identification.identityId;
 	}
 }
 

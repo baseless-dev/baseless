@@ -1,11 +1,15 @@
 // deno-lint-ignore-file no-explicit-any
 import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import * as f from "./flow.ts";
+import { email } from "./steps/email.ts";
+import { password } from "./steps/password.ts";
+import { oauth } from "./steps/oauth.ts";
+import { otpLogger } from "./steps/otp-logger.ts";
 
-const email = new f.AuthenticationIdentificationEmail({ icon: "", label: {} });
-const password = new f.AuthenticationChallengePassword({ icon: "", label: {} });
-const otp = new f.AuthenticationChallengeOTPLogger({ icon: "", label: {} });
-const github = new f.AuthenticationIdentificationOAuth({
+const stepEmail = email({ icon: "", label: {} });
+const stepPassword = password({ icon: "", label: {} });
+const stepOTP = otpLogger({ icon: "", label: {} });
+const stepGithub = oauth({
 	icon: "",
 	label: {},
 	provider: "github",
@@ -16,7 +20,7 @@ const github = new f.AuthenticationIdentificationOAuth({
 	tokenEndpoint: "",
 	openIdEndpoint: "",
 });
-const google = new f.AuthenticationIdentificationOAuth({
+const stepGoogle = oauth({
 	icon: "",
 	label: {},
 	provider: "google",
@@ -29,61 +33,61 @@ const google = new f.AuthenticationIdentificationOAuth({
 });
 
 Deno.test("simplify flow", () => {
-	assertEquals(f.simplify(email), email);
-	assertEquals(f.simplify(password), password);
-	assertEquals(f.simplify(f.sequence(email, password)), f.sequence(email, password));
-	assertEquals(f.simplify(f.sequence(email, f.sequence(password, otp))), f.sequence(email, password, otp));
-	assertEquals(f.simplify(f.oneOf(email, github)), f.oneOf(email, github));
-	assertEquals(f.simplify(f.oneOf(email, f.oneOf(google, github))), f.oneOf(email, google, github));
+	assertEquals(f.simplify(stepEmail), stepEmail);
+	assertEquals(f.simplify(stepPassword), stepPassword);
+	assertEquals(f.simplify(f.sequence(stepEmail, stepPassword)), f.sequence(stepEmail, stepPassword));
+	assertEquals(f.simplify(f.sequence(stepEmail, f.sequence(stepPassword, stepOTP))), f.sequence(stepEmail, stepPassword, stepOTP));
+	assertEquals(f.simplify(f.oneOf(stepEmail, stepGithub)), f.oneOf(stepEmail, stepGithub));
+	assertEquals(f.simplify(f.oneOf(stepEmail, f.oneOf(stepGoogle, stepGithub))), f.oneOf(stepEmail, stepGoogle, stepGithub));
 	assertEquals(
-		f.simplify(f.oneOf(f.sequence(email, password), f.sequence(email, otp), f.oneOf(google, github))),
-		f.oneOf(f.sequence(email, password), f.sequence(email, otp), google, github),
+		f.simplify(f.oneOf(f.sequence(stepEmail, stepPassword), f.sequence(stepEmail, stepOTP), f.oneOf(stepGoogle, stepGithub))),
+		f.oneOf(f.sequence(stepEmail, stepPassword), f.sequence(stepEmail, stepOTP), stepGoogle, stepGithub),
 	);
 });
 
 Deno.test("replace step", () => {
-	assertEquals(f.replace(f.sequence(email, password), email, password), f.sequence(password, password));
-	assertEquals(f.replace(f.oneOf(email, password), email, password), f.oneOf(password, password));
+	assertEquals(f.replace(f.sequence(stepEmail, stepPassword), stepEmail, stepPassword), f.sequence(stepPassword, stepPassword));
+	assertEquals(f.replace(f.oneOf(stepEmail, stepPassword), stepEmail, stepPassword), f.oneOf(stepPassword, stepPassword));
 });
 
 Deno.test("flatten step", () => {
 	assertEquals(
-		f.flatten(f.oneOf(f.sequence(email, password), f.sequence(email, otp), f.oneOf(google, github))),
-		f.oneOf(f.sequence(email, password), f.sequence(email, otp), google, github),
+		f.flatten(f.oneOf(f.sequence(stepEmail, stepPassword), f.sequence(stepEmail, stepOTP), f.oneOf(stepGoogle, stepGithub))),
+		f.oneOf(f.sequence(stepEmail, stepPassword), f.sequence(stepEmail, stepOTP), stepGoogle, stepGithub),
 	);
 	assertEquals(
-		f.flatten(f.sequence(f.oneOf(email, github, google), otp)),
-		f.oneOf(f.sequence(email, otp), f.sequence(github, otp), f.sequence(google, otp)),
+		f.flatten(f.sequence(f.oneOf(stepEmail, stepGithub, stepGoogle), stepOTP)),
+		f.oneOf(f.sequence(stepEmail, stepOTP), f.sequence(stepGithub, stepOTP), f.sequence(stepGoogle, stepOTP)),
 	);
 });
 
 Deno.test("getNextIdentificationOrChallenge", () => {
-	assertEquals(f.getNextIdentificationOrChallenge(email).next(), { done: false, value: email });
+	assertEquals(f.getNextIdentificationOrChallenge(stepEmail).next(), { done: false, value: stepEmail });
 	{
-		const iter = f.getNextIdentificationOrChallenge(email);
-		assertEquals(iter.next(), { done: false, value: email });
+		const iter = f.getNextIdentificationOrChallenge(stepEmail);
+		assertEquals(iter.next(), { done: false, value: stepEmail });
 		assertEquals(iter.next(), { done: true, value: undefined });
 	}
 	{
-		const iter = f.getNextIdentificationOrChallenge(f.sequence(email, password));
-		assertEquals(iter.next(), { done: false, value: email });
+		const iter = f.getNextIdentificationOrChallenge(f.sequence(stepEmail, stepPassword));
+		assertEquals(iter.next(), { done: false, value: stepEmail });
 		assertEquals(iter.next(), { done: true, value: undefined });
 	}
 	{
-		const iter = f.getNextIdentificationOrChallenge(f.oneOf(google, github));
-		assertEquals(iter.next(), { done: false, value: google });
-		assertEquals(iter.next(), { done: false, value: github });
+		const iter = f.getNextIdentificationOrChallenge(f.oneOf(stepGoogle, stepGithub));
+		assertEquals(iter.next(), { done: false, value: stepGoogle });
+		assertEquals(iter.next(), { done: false, value: stepGithub });
 		assertEquals(iter.next(), { done: true, value: undefined });
 	}
 });
 
 Deno.test("getNextAuthenticationStepAtPath", () => {
-	assertEquals(f.getNextAuthenticationStepAtPath(email, []), { done: false, next: email } as any);
-	assertEquals(f.getNextAuthenticationStepAtPath(password, []), { done: false, next: password } as any);
-	assertEquals(f.getNextAuthenticationStepAtPath(f.sequence(email, password), []), { done: false, next: email } as any);
-	assertEquals(f.getNextAuthenticationStepAtPath(f.sequence(email, password), ["email"]), { done: false, next: password } as any);
-	assertEquals(f.getNextAuthenticationStepAtPath(f.sequence(email, password), ["email", "password"]), { done: true } as any);
-	assertEquals(f.getNextAuthenticationStepAtPath(f.oneOf(github, google), []), { done: false, next: f.oneOf(github, google) } as any);
-	assertEquals(f.getNextAuthenticationStepAtPath(f.oneOf(github, google), ["oauth:google"]), { done: true });
-	assertEquals(f.getNextAuthenticationStepAtPath(f.oneOf(github, google), ["oauth:github"]), { done: true });
+	assertEquals(f.getNextAuthenticationStepAtPath(stepEmail, []), { done: false, next: stepEmail } as any);
+	assertEquals(f.getNextAuthenticationStepAtPath(stepPassword, []), { done: false, next: stepPassword } as any);
+	assertEquals(f.getNextAuthenticationStepAtPath(f.sequence(stepEmail, stepPassword), []), { done: false, next: stepEmail } as any);
+	assertEquals(f.getNextAuthenticationStepAtPath(f.sequence(stepEmail, stepPassword), ["email"]), { done: false, next: stepPassword } as any);
+	assertEquals(f.getNextAuthenticationStepAtPath(f.sequence(stepEmail, stepPassword), ["email", "password"]), { done: true } as any);
+	assertEquals(f.getNextAuthenticationStepAtPath(f.oneOf(stepGithub, stepGoogle), []), { done: false, next: f.oneOf(stepGithub, stepGoogle) } as any);
+	assertEquals(f.getNextAuthenticationStepAtPath(f.oneOf(stepGithub, stepGoogle), ["oauth:google"]), { done: true });
+	assertEquals(f.getNextAuthenticationStepAtPath(f.oneOf(stepGithub, stepGoogle), ["oauth:github"]), { done: true });
 });

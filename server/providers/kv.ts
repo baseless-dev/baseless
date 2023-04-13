@@ -17,19 +17,12 @@ export interface KVListOptions {
 /**
  * Options when setting a key in the kv
  */
-export type KVPutOptions =
-	| {
-		/**
-		 * Document will expire at specified date
-		 */
-		readonly expireAt: Date;
-	}
-	| {
-		/**
-		 * Document will expire in specified seconds
-		 */
-		readonly expireIn: number;
-	};
+export type KVPutOptions = {
+	/**
+	 * Document will expire at specified date
+	 */
+	readonly expiration?: number | Date;
+};
 
 /**
  * KV Key
@@ -86,4 +79,4 @@ export interface KVProvider {
 /**
  * Document not found error
  */
-export class KeyNotFoundError extends Error {}
+export class KeyNotFoundError extends Error { }

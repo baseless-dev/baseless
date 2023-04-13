@@ -46,7 +46,7 @@ export class WebStorageKVProvider implements KVProvider {
 		value: string,
 		options?: KVPutOptions,
 	): Promise<void> {
-		const expiration = options ? "expireAt" in options ? options.expireAt.getTime() / 1000 : options.expireIn + new Date().getTime() / 1000 : null;
+		const expiration = options?.expiration ? options.expiration instanceof Date ? options.expiration.getTime() / 1000 : options.expiration + new Date().getTime() / 1000 : null;
 		this.storage.setItem(`/${this.prefix}${key}`, JSON.stringify({ value, expiration }));
 		this.logger.debug(`Key "${key}" set.`);
 	}

@@ -12,7 +12,7 @@
 		"cache": "DENO_DIR=.deno deno cache",
 		"info": "DENO_DIR=.deno deno info",
 		"bench": "DENO_DIR=.deno deno bench -A --unstable",
-		"test": "DENO_DIR=.deno deno test -A --unstable --parallel"
+		"test": "DENO_DIR=.deno deno test -A --unstable --parallel --fail-fast"
 	},
 	"lint": {
 		"files": {

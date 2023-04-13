@@ -1,5 +1,9 @@
 import { config } from "../../server/config.ts";
-import { sequence, email, oauth, oneOf, password, otpEmail } from "../../server/auth/flow.ts";
+import { sequence, oneOf } from "../../server/auth/flow.ts";
+import { email } from "../../server/auth/steps/email.ts";
+import { password } from "../../server/auth/steps/password.ts";
+import { oauth } from "../../server/auth/steps/oauth.ts";
+import { otpEmail } from "../../server/auth/steps/otp-email.ts";
 import createAuthUI from "../../server/auth/ui/mod.ts";
 import authUIEn from "../../server/auth/ui/locales/en.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";

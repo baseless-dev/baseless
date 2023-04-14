@@ -4,7 +4,8 @@
 import { ClientProvider } from "../provider/client.ts";
 import { ClientInformationResponse as ClientInformationResponseBase } from "./dynamic-client-registration.ts";
 
-export interface ClientInformationResponse extends ClientInformationResponseBase {
+export interface ClientInformationResponse
+	extends ClientInformationResponseBase {
 	registration_client_uri: string;
 	registration_access_token: string;
 }

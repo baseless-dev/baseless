@@ -4,7 +4,11 @@ import { AuthenticationViewPrompParams } from "../../../auth/config.ts";
 import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
-export default function PromptEmail({ isLastStep, currentLocale, localization }: AuthUIContext & AuthenticationViewPrompParams) {
+export default function PromptEmail(
+	{ isLastStep, currentLocale, localization }:
+		& AuthUIContext
+		& AuthenticationViewPrompParams,
+) {
 	const _l10n = localization[currentLocale];
 	return Layout({ title: "Enter your email" }, [
 		`<form action="/auth/login/email" method="POST" autocomplete="off">

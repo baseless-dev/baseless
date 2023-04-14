@@ -1,5 +1,4 @@
 {
-	"importMap": "./import-map.json",
 	"compilerOptions": {
 		"jsxFactory": "h",
 		"jsxFragmentFactory": "Fragment"
@@ -25,7 +24,7 @@
 		},
 		"options": {
 			"useTabs": true,
-			"lineWidth": 180
+			"lineWidth": 80
 		}
 	},
 	"test": {

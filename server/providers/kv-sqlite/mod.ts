@@ -1,4 +1,12 @@
-import { KeyNotFoundError, KVGetOptions, KVKey, KVListOptions, KVListResult, KVProvider, KVPutOptions } from "../kv.ts";
+import {
+	KeyNotFoundError,
+	KVGetOptions,
+	KVKey,
+	KVListOptions,
+	KVListResult,
+	KVProvider,
+	KVPutOptions,
+} from "../kv.ts";
 import { createLogger } from "../../logger.ts";
 import { DB, SqliteOptions } from "https://deno.land/x/sqlite@v3.4.1/mod.ts";
 
@@ -38,7 +46,9 @@ export class SqliteKVProvider implements KVProvider {
 		if ("db" in this.options) {
 			return;
 		}
-		const db = this.options.path === ":memory:" ? new DB(undefined, { mode: this.options.mode, memory: true }) : new DB(this.options.path, { mode: this.options.mode });
+		const db = this.options.path === ":memory:"
+			? new DB(undefined, { mode: this.options.mode, memory: true })
+			: new DB(this.options.path, { mode: this.options.mode });
 		try {
 			db.query(
 				`CREATE TABLE IF NOT EXISTS ${this.options.tableName} (key TEXT NOT NULL PRIMARY KEY, expireAt INTEGER, value TEXT) WITHOUT ROWID`,
@@ -46,7 +56,9 @@ export class SqliteKVProvider implements KVProvider {
 			this.logger.debug(`Database initialized.`);
 			this.db = db;
 		} catch (inner) {
-			this.logger.error(`Could not create base table '${this.options.tableName}'.`);
+			this.logger.error(
+				`Could not create base table '${this.options.tableName}'.`,
+			);
 			const err = new SqliteNotOpenedError();
 			err.cause = inner;
 			throw err;
@@ -119,7 +131,11 @@ export class SqliteKVProvider implements KVProvider {
 		if (!this.db) {
 			throw new SqliteNotOpenedError();
 		}
-		const expireAt = options?.expiration ? options.expiration instanceof Date ? options.expiration.getTime() / 1000 : options.expiration + new Date().getTime() / 1000 : null;
+		const expireAt = options?.expiration
+			? options.expiration instanceof Date
+				? options.expiration.getTime() / 1000
+				: options.expiration + new Date().getTime() / 1000
+			: null;
 		try {
 			this.db.query(
 				`INSERT OR REPLACE INTO ${this.options.tableName} (key, expireAt, value) VALUES (?, ?, ?)`,
@@ -139,7 +155,9 @@ export class SqliteKVProvider implements KVProvider {
 	}
 
 	// deno-lint-ignore require-await
-	async list({ prefix, cursor = "", limit = 10 }: KVListOptions): Promise<KVListResult> {
+	async list(
+		{ prefix, cursor = "", limit = 10 }: KVListOptions,
+	): Promise<KVListResult> {
 		if (!this.db) {
 			throw new SqliteNotOpenedError();
 		}
@@ -183,7 +201,9 @@ export class SqliteKVProvider implements KVProvider {
 			throw new SqliteNotOpenedError();
 		}
 		try {
-			this.db.query(`DELETE FROM ${this.options.tableName} WHERE key = ?`, [key]);
+			this.db.query(`DELETE FROM ${this.options.tableName} WHERE key = ?`, [
+				key,
+			]);
 			this.logger.debug(`Key "${key}" deleted.`);
 		} catch (inner) {
 			this.logger.error(`Could not delete key "${key}", got error : ${inner}`);
@@ -203,7 +223,10 @@ export class SqliteKVProvider implements KVProvider {
 		}
 		const now = new Date().getTime() / 1000;
 		try {
-			this.db.query(`DELETE FROM ${this.options.tableName} WHERE (expireAt IS NOT NULL AND expireAt < ?)`, [now]);
+			this.db.query(
+				`DELETE FROM ${this.options.tableName} WHERE (expireAt IS NOT NULL AND expireAt < ?)`,
+				[now],
+			);
 			this.logger.debug(`Expired keys deleted.`);
 		} catch (inner) {
 			this.logger.error(`Could not delete expired keys, got error : ${inner}`);

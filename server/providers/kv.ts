@@ -79,4 +79,4 @@ export interface KVProvider {
 /**
  * Document not found error
  */
-export class KeyNotFoundError extends Error { }
+export class KeyNotFoundError extends Error {}

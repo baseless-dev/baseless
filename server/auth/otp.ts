@@ -18,7 +18,8 @@ function padCounter(counter: number) {
  */
 function truncate(hmac: Uint8Array) {
 	const offset = hmac[19] & 0b1111;
-	return ((hmac[offset] & 0x7f) << 24) | (hmac[offset + 1] << 16) | (hmac[offset + 2] << 8) | hmac[offset + 3];
+	return ((hmac[offset] & 0x7f) << 24) | (hmac[offset + 1] << 16) |
+		(hmac[offset + 2] << 8) | hmac[offset + 3];
 }
 
 /**
@@ -33,7 +34,12 @@ function truncate(hmac: Uint8Array) {
  * @throws {Error} - Throws an error if the provided key is not valid.
  */
 export async function hotp(
-	{ key, counter, algorithm = "SHA-1", digits = 6 }: { key: string | CryptoKey; counter: number; algorithm?: "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512"; digits?: number },
+	{ key, counter, algorithm = "SHA-1", digits = 6 }: {
+		key: string | CryptoKey;
+		counter: number;
+		algorithm?: "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
+		digits?: number;
+	},
 ) {
 	let cryptoKey: CryptoKey;
 	if (key instanceof CryptoKey) {
@@ -42,11 +48,21 @@ export async function hotp(
 		}
 		cryptoKey = key;
 	} else if (typeof key === "string") {
-		cryptoKey = await crypto.subtle.importKey("raw", Uint8Array.from(b32.decode(key)), { name: "HMAC", hash: algorithm }, false, ["sign"]);
+		cryptoKey = await crypto.subtle.importKey(
+			"raw",
+			Uint8Array.from(b32.decode(key)),
+			{ name: "HMAC", hash: algorithm },
+			false,
+			["sign"],
+		);
 	} else {
-		throw new Error(`Expected \`key\` to be either a string or a CryptoKey, got ${key}.`);
+		throw new Error(
+			`Expected \`key\` to be either a string or a CryptoKey, got ${key}.`,
+		);
 	}
-	const hmac = new Uint8Array(await crypto.subtle.sign("HMAC", cryptoKey, padCounter(counter)));
+	const hmac = new Uint8Array(
+		await crypto.subtle.sign("HMAC", cryptoKey, padCounter(counter)),
+	);
 	const num = truncate(hmac);
 	return num.toString().padStart(digits, "0").slice(-digits);
 }
@@ -98,8 +114,22 @@ export function generateKey(length = 16) {
 }
 
 export type OTPAuthURIOptions =
-	| { type: "hotp"; secret: string; label: string; algorithm?: "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512"; digits?: number; counter: number }
-	| { type: "totp"; secret: string; label: string; algorithm?: "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512"; digits?: number; period?: number };
+	| {
+		type: "hotp";
+		secret: string;
+		label: string;
+		algorithm?: "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
+		digits?: number;
+		counter: number;
+	}
+	| {
+		type: "totp";
+		secret: string;
+		label: string;
+		algorithm?: "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
+		digits?: number;
+		period?: number;
+	};
 
 /**
  * Generates an OTPAuth URI based on the provided options.
@@ -116,15 +146,26 @@ export function toURI(options: OTPAuthURIOptions) {
 		}
 	} else {
 		options.period ??= 30;
-		if ("period" in options && options.period && typeof options.period !== "number") {
+		if (
+			"period" in options && options.period &&
+			typeof options.period !== "number"
+		) {
 			throw new Error(`When provided, the "period" options must be a number.`);
 		}
 	}
-	if ("digits" in options && options.digits && typeof options.digits !== "number") {
+	if (
+		"digits" in options && options.digits && typeof options.digits !== "number"
+	) {
 		throw new Error(`When provided, the "digits" options must be a number.`);
 	}
-	if ("algorithm" in options && options.algorithm && (typeof options.algorithm !== "string" || !["SHA-1", "SHA-256", "SHA-384", "SHA-512"].includes(options.algorithm))) {
-		throw new Error(`When provided, the "algorithm" options must be either "SHA-1", "SHA-256", "SHA-384" or "SHA-512".`);
+	if (
+		"algorithm" in options && options.algorithm &&
+		(typeof options.algorithm !== "string" ||
+			!["SHA-1", "SHA-256", "SHA-384", "SHA-512"].includes(options.algorithm))
+	) {
+		throw new Error(
+			`When provided, the "algorithm" options must be either "SHA-1", "SHA-256", "SHA-384" or "SHA-512".`,
+		);
 	}
 	const { type, secret, label, ...rest } = options;
 	const uri = new URL(`otpauth://${type}/${encodeURIComponent(label)}`);

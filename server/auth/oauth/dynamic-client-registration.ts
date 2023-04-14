@@ -6,8 +6,14 @@ import { JWK } from "https://deno.land/x/jose@v4.9.2/types.d.ts";
 import { ClientProvider } from "../../providers/client.ts";
 
 export type LanguageSubtag = string;
-export type TranslatableMetadataKeys = "client_name" | "logo_uri" | "contacts" | "tos_uri" | "policy_uri";
-export type TranslatableMetadata = `${TranslatableMetadataKeys}#${LanguageSubtag}`;
+export type TranslatableMetadataKeys =
+	| "client_name"
+	| "logo_uri"
+	| "contacts"
+	| "tos_uri"
+	| "policy_uri";
+export type TranslatableMetadata =
+	`${TranslatableMetadataKeys}#${LanguageSubtag}`;
 
 /**
  * Client Metadata
@@ -15,7 +21,10 @@ export type TranslatableMetadata = `${TranslatableMetadataKeys}#${LanguageSubtag
  */
 export interface ClientMetadata {
 	redirect_uris?: string[];
-	token_endpoint_auth_method?: "none" | "client_secret_post" | "client_secret_basic";
+	token_endpoint_auth_method?:
+		| "none"
+		| "client_secret_post"
+		| "client_secret_basic";
 	grant_types?: string[];
 	response_types?: string[];
 	client_name?: string;

@@ -1,26 +1,28 @@
 import { AutoId, isAutoId } from "../../shared/autoid.ts";
 
-export interface Identity<Meta = Record<never, never>> {
+export interface Identity<Meta = Record<string, unknown>> {
 	readonly id: AutoId;
 	readonly meta: Meta;
 }
 
-export interface IdentityIdentification {
+export interface IdentityIdentification<Meta = Record<string, unknown>> {
 	readonly identityId: AutoId;
-	readonly id: AutoId;
 	readonly type: string;
-	readonly identification: string
+	readonly identification: string;
+	readonly verified: boolean;
+	readonly meta: Meta;
 }
 
-export interface IdentityChallenge {
+export interface IdentityChallenge<Meta = Record<string, unknown>> {
 	readonly identityId: AutoId;
-	readonly id: AutoId;
 	readonly type: string;
-	readonly challenge: string
+	readonly challenge: string;
+	readonly meta: Meta;
 }
 
 export function isIdentity(value?: unknown): value is Identity {
-	return !!value && typeof value === "object" && "id" in value && isAutoId(value.id);
+	return !!value && typeof value === "object" && "id" in value &&
+		"meta" in value && isAutoId(value.id) && typeof value.meta === "object";
 }
 
 export function assertIdentity(value?: unknown): asserts value is Identity {
@@ -29,21 +31,34 @@ export function assertIdentity(value?: unknown): asserts value is Identity {
 	}
 }
 
-export function isIdentityIdentification(value?: unknown): value is IdentityIdentification {
-	return !!value && typeof value === "object" && "identityId" in value && "id" in value && "type" in value && "identification" in value && isAutoId(value.identityId) && isAutoId(value.id);
+export function isIdentityIdentification(
+	value?: unknown,
+): value is IdentityIdentification {
+	return !!value && typeof value === "object" && "identityId" in value &&
+		"type" in value && "identification" in value && "verified" in value &&
+		"meta" in value && isAutoId(value.identityId) &&
+		typeof value.verified === "boolean" && typeof value.meta === "object";
 }
 
-export function assertIdentityIdentification(value?: unknown): asserts value is IdentityIdentification {
+export function assertIdentityIdentification(
+	value?: unknown,
+): asserts value is IdentityIdentification {
 	if (!isIdentityIdentification(value)) {
 		throw new InvalidIdentityError();
 	}
 }
 
-export function isIdentityChallenge(value?: unknown): value is IdentityChallenge {
-	return !!value && typeof value === "object" && "identityId" in value && "id" in value && "type" in value && "challenge" in value && isAutoId(value.identityId) && isAutoId(value.id);
+export function isIdentityChallenge(
+	value?: unknown,
+): value is IdentityChallenge {
+	return !!value && typeof value === "object" && "identityId" in value &&
+		"type" in value && "challenge" in value && "meta" in value &&
+		isAutoId(value.identityId) && typeof value.meta === "object";
 }
 
-export function assertIdentityChallenge(value?: unknown): asserts value is IdentityChallenge {
+export function assertIdentityChallenge(
+	value?: unknown,
+): asserts value is IdentityChallenge {
 	if (!isIdentityChallenge(value)) {
 		throw new InvalidIdentityError();
 	}
@@ -53,137 +68,58 @@ export function assertIdentityChallenge(value?: unknown): asserts value is Ident
  * Identity Provider
  */
 export interface IdentityProvider {
-	/**
-	 * Check if the {@link Identity} exists or not
-	 * @param identityId The {@link Identity.id}
-	 * @returns Wether the {@link Identity} exists or not
-	 */
-	identityExists(identityId: AutoId): Promise<boolean>;
-
-	/**
-	 * Get an Identity by Id
-	 * @param identityId The {@link Identity.id}
-	 */
-	getIdentityById<Meta>(identityId: AutoId): Promise<Identity<Partial<Meta>>>;
-
-	/**
-	 * Delete an Identity by it's Id
-	 * @param identityId The {@link Identity.id}
-	 */
-	deleteIdentityById(identityId: AutoId): Promise<void>;
-
-	/**
-	 * Create an Identity
-	 * @param identityId The {@link Identity.id}
-	 * @param meta The {@link Identity.meta}
-	 */
-	createIdentity(meta: Record<string, string>): Promise<AutoId>;
-
-	/**
-	 * Update an Identity
-	 * @param identityId The {@link Identity.id}
-	 * @param meta The {@link Identity.meta}
-	 */
-	updateIdentity(identityId: AutoId, meta: Record<string, string>): Promise<void>;
-
-	/**
-	 * Assign {@link authStepIdent} identifier to an {@link Identity}
-	 * @param identityId The {@link Identity.id}
-	 * @param type The {@link authStepIdent} (ex. email, oauth:github)
-	 * @param identification The unique Id (ex. john@doe.local, grenierdev)
-	 * @param expiration The time to live in seconds or Date at wich the identification expire
-	 */
-	assignIdentityIdentification(identityId: AutoId, type: string, identification: string, expiration?: number | Date): Promise<IdentityIdentification>;
-
-	/**
-	 * Get {@link IdentityIdentification} by {@link IdentityIdentification.id}
-	 * @param identityId The {@link Identity.id}
-	 * @param identificationId The {@link IdentityIdentification.id}
-	 */
-	getIdentityIdentificationById(identityId: AutoId, identificationId: AutoId): Promise<IdentityIdentification>;
-
-	/**
-	 * Get the {@link Identity.id} by it's {@link authStepIdent} and an unique ID for this identifier
-	 * @param type The {@link authStepIdent} (ex. email, oauth:github)
-	 * @param identification The unique Id (ex. john@doe.local, grenierdev)
-	 */
-	getIdentityIdentificationByType(type: string, identification: string): Promise<IdentityIdentification>;
-
-	/**
-	 * List all {@link authStepIdent} identifier assigned to an {@link Identity}
-	 * @param identityId The {@link Identity.id}
-	 * @param type The type of identification to filter
-	 */
-	listIdentityIdentification(identityId: AutoId, type?: string): Promise<IdentityIdentification[]>;
-
-	/**
-	 * Unassign {@link IdentityAuthStep} identifier to an {@link Identity}
-	 * @param identityId The {@link Identity.id}
-	 * @param identificationId The {@link IdentityIdentification.id}
-	 */
-	unassignIdentityIdentification(identityId: AutoId, identificationId: AutoId): Promise<void>;
-
-	/**
-	 * Test {@link authStepIdent} challenge for an {@link Identity}
-	 * @param identityId The {@link Identity.id}
-	 * @param type The {@link authStepIdent} (ex. password, otp)
-	 * @param challenge The challenge (ex. encrypted password, 6 digits code)
-	 * @returns Wether the challenge failed or not
-	 */
-	testIdentityChallenge(identityId: AutoId, type: string, challenge: string): Promise<boolean>;
-
-	/**
-	 * Assign {@link authStepIdent} challenge to an {@link Identity}
-	 * @param identityId The {@link Identity.id}
-	 * @param type The {@link authStepIdent} (ex. password, otp)
-	 * @param challenge The challenge (ex. encrypted password, 6 digits code)
-	 * @param expiration The time to live in seconds or Date at wich the challenge expire (ex. forgot password)
-	 */
-	assignIdentityChallenge(identityId: AutoId, type: string, challenge: string, expiration?: number | Date): Promise<IdentityChallenge>;
-
-	/**
-	 * Get {@link IdentityChallenge} by {@link IdentityChallenge.id}
-	 * @param identityId The {@link Identity.id}
-	 * @param challengeId The {@link IdentityChallenge.id}
-	 */
-	getIdentityChallengeById(identityId: AutoId, challengeId: AutoId): Promise<IdentityChallenge>;
-
-	/**
-	 * List all {@link authStepIdent} challenge assigned to an {@link Identity}
-	 * @param identityId The {@link Identity.id}
-	 * @param type The type of challenge to filter
-	 */
-	listIdentityChallenge(identityId: AutoId, type?: string): Promise<IdentityChallenge[]>;
-
-	/**
-	 * Unassign {@link authStepIdent} challenge to an {@link Identity}
-	 * @param identityId The {@link Identity.id}
-	 * @param challengeId The {@link IdentityChallenge.id}
-	 */
-	unassignIdentityChallenge(identityId: AutoId, challengeId: AutoId): Promise<void>;
+	get<Meta extends Record<string, unknown>>(
+		id: AutoId,
+	): Promise<Identity<Partial<Meta>>>;
+	create(
+		meta: Record<string, unknown>,
+		expiration?: number | Date,
+	): Promise<Identity>;
+	update(
+		identity: Identity<Record<string, unknown>>,
+		expiration?: number | Date,
+	): Promise<void>;
+	delete(id: AutoId): Promise<void>;
+	listIdentification(id: AutoId): Promise<IdentityIdentification[]>;
+	getIdentification<Meta extends Record<string, unknown>>(
+		identityId: AutoId,
+		type: string,
+		identification: string,
+	): Promise<IdentityIdentification<Meta>>;
+	createIdentification(
+		identityIdentification: IdentityIdentification,
+		expiration?: number | Date,
+	): Promise<void>;
+	updateIdentification(
+		identityIdentification: IdentityIdentification,
+		expiration?: number | Date,
+	): Promise<void>;
+	deleteIdentification(
+		id: AutoId,
+		type: string,
+		identification: string,
+	): Promise<void>;
+	listChallenge(id: AutoId): Promise<IdentityChallenge[]>;
+	getChallenge<Meta extends Record<string, unknown>>(
+		identityId: AutoId,
+		type: string,
+		challenge: string,
+	): Promise<IdentityChallenge<Meta>>;
+	createChallenge(
+		identityChallenge: IdentityChallenge,
+		expiration?: number | Date,
+	): Promise<void>;
+	updateChallenge(
+		identityChallenge: IdentityChallenge,
+		expiration?: number | Date,
+	): Promise<void>;
+	deleteChallenge(id: AutoId, type: string, challenge: string): Promise<void>;
 }
 
-/**
- * Invalid Identity Error
- */
-export class InvalidIdentityError extends Error { }
-/**
- * Invalid Identity Authentication Step Error
- */
-export class InvalidIdentityAuthenticationStepError extends Error { }
-/**
- * Identity Not Found Error
- */
-export class IdentityNotFoundError extends Error { }
-/**
- * Identity Exists Error
- */
-export class IdentityExistsError extends Error { }
-/**
- * Identity Authentication Step Not Found Error
- */
-export class IdentityAuthenticationStepNotFoundError extends Error { }
-/**
- * Identity Authentication Step Exists Error
- */
-export class IdentityAuthenticationStepExistsError extends Error { }
+export class InvalidIdentityError extends Error {}
+export class IdentityNotFoundError extends Error {}
+export class IdentityExistsError extends Error {}
+export class IdentityIdentificationNotFoundError extends Error {}
+export class IdentityIdentificationExistsError extends Error {}
+export class IdentityChallengeNotFoundError extends Error {}
+export class IdentityChallengeExistsError extends Error {}

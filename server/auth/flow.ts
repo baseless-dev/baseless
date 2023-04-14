@@ -1,49 +1,106 @@
 import { AutoId } from "../../shared/autoid.ts";
 import { Context } from "../context.ts";
-import { createLogger } from "../logger.ts";
-import { otp } from "./otp.ts";
 
-export type AuthenticationStep = AuthenticationIdentification | AuthenticationChallenge | AuthenticationSequence | AuthenticationChoice;
+export type AuthenticationStep =
+	| AuthenticationIdentification
+	| AuthenticationChallenge
+	| AuthenticationSequence
+	| AuthenticationChoice
+	| AuthenticationConditional;
 
-export function isAuthenticationStep(value?: unknown): value is AuthenticationStep {
-	return value instanceof AuthenticationIdentification || value instanceof AuthenticationChallenge || value instanceof AuthenticationSequence ||
-		value instanceof AuthenticationChoice;
+export type AuthenticationState = {
+	readonly identity: AutoId;
+	readonly choices: string[];
+};
+
+export function isAuthenticationStep(
+	value?: unknown,
+): value is AuthenticationStep {
+	return value instanceof AuthenticationIdentification ||
+		value instanceof AuthenticationChallenge ||
+		value instanceof AuthenticationSequence ||
+		value instanceof AuthenticationChoice ||
+		value instanceof AuthenticationConditional;
 }
 
-export function assertAuthenticationStep(value?: unknown): asserts value is AuthenticationStep {
+export function assertAuthenticationStep(
+	value?: unknown,
+): asserts value is AuthenticationStep {
 	if (!isAuthenticationStep(value)) {
 		throw new Error("Expected `value` to be an AuthenticationStep.");
 	}
 }
 
-export abstract class AuthenticationIdentification {
+export class AuthenticationIdentification {
 	constructor(
-		public readonly id: string,
+		public readonly type: string,
 		public readonly icon: string,
 		public readonly label: Record<string, string>,
 		public readonly prompt: "email" | "action",
-	) { }
-
-	abstract identify(request: Request, context: Context): Promise<AutoId | Response>;
+	) {}
 }
 
-export abstract class AuthenticationChallenge {
+export abstract class AuthenticationIdenticator {
+	/**
+	 * Perform request authentication
+	 * @param request The {@link Request}
+	 * @param context The {@link Context}
+	 * @param state The {@link AuthenticationState}
+	 * @returns The {@link Identity.id} or a {@link Response} object
+	 */
+	abstract identify(
+		request: Request,
+		context: Context,
+		state: AuthenticationState,
+	): Promise<AutoId | Response>;
+
+	/**
+	 * If this identicator allows it, send a verification code
+	 */
+	abstract sendVerificationCode?: (
+		request: Request,
+		context: Context,
+		identityId: AutoId,
+	) => Promise<void>;
+}
+
+export class AuthenticationChallenge {
 	constructor(
-		public readonly id: string,
+		public readonly type: string,
 		public readonly icon: string,
 		public readonly label: Record<string, string>,
 		public readonly prompt: "password" | "otp",
-	) { }
-	sendInterval = 60;
-	sendLimit = 1;
-	send?: (request: Request, context: Context, identity: AutoId) => Promise<void>;
-	abstract challenge(request: Request, context: Context, identity: AutoId): Promise<boolean | Response>;
+	) {}
+}
+
+export abstract class AuthenticationChallenger {
+	/**
+	 * If need be, transform the challenge
+	 */
+	abstract transform?: (
+		request: Request,
+		context: Context,
+		challenge: string,
+	) => Promise<string>;
+
+	/**
+	 * Perform request challenge
+	 * @param request The {@link Request}
+	 * @param context The {@link Context}
+	 * @param state The {@link AuthenticationState}
+	 * @returns If the challenge was successful or not
+	 */
+	abstract challenge(
+		request: Request,
+		context: Context,
+		state: AuthenticationState,
+	): Promise<boolean>;
 }
 
 export class AuthenticationSequence {
-	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) { }
-	get id(): string {
-		return `sequence(${this.steps.map((s) => s.id)})`;
+	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) {}
+	get type(): string {
+		return `sequence(${this.steps.map((s) => s.type)})`;
 	}
 }
 
@@ -52,9 +109,9 @@ export function sequence(...steps: AuthenticationStep[]) {
 }
 
 export class AuthenticationChoice {
-	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) { }
-	get id(): string {
-		return `choice(${this.choices.map((s) => s.id)})`;
+	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) {}
+	get type(): string {
+		return `choice(${this.choices.map((s) => s.type)})`;
 	}
 }
 
@@ -62,45 +119,88 @@ export function oneOf(...choices: AuthenticationStep[]) {
 	return new AuthenticationChoice(choices);
 }
 
+export class AuthenticationConditional {
+	constructor(
+		public readonly condition: (
+			request: Request,
+			context: Context,
+			state: AuthenticationState,
+		) => AuthenticationStep | Promise<AuthenticationStep>,
+	) {}
+	get type(): string {
+		return `condition()`;
+	}
+}
 
+export function iif(condition: AuthenticationConditional["condition"]) {
+	return new AuthenticationConditional(condition);
+}
 
-export function simplify(step: AuthenticationStep): AuthenticationStep {
+export async function simplify(
+	step: AuthenticationStep,
+): Promise<AuthenticationStep>;
+export async function simplify(
+	step: AuthenticationStep,
+	request: Request,
+	context: Context,
+	state: AuthenticationState,
+): Promise<AuthenticationStep>;
+export async function simplify(
+	step: AuthenticationStep,
+	request?: Request,
+	context?: Context,
+	state?: AuthenticationState,
+): Promise<AuthenticationStep> {
 	if (step instanceof AuthenticationSequence) {
-		const steps = step.steps.reduce((steps, step) => {
-			step = simplify(step);
-			if (step instanceof AuthenticationSequence) {
-				steps.push(...step.steps);
+		const steps: AuthenticationStep[] = [];
+		for (let inner of step.steps) {
+			inner = await simplify(inner, request!, context!, state!);
+			if (inner instanceof AuthenticationSequence) {
+				steps.push(...inner.steps);
 			} else {
-				steps.push(step);
+				steps.push(inner);
 			}
-			return steps;
-		}, [] as AuthenticationStep[]);
+		}
 		return sequence(...steps);
 	} else if (step instanceof AuthenticationChoice) {
-		const choices = step.choices.reduce((choices, step) => {
-			step = simplify(step);
-			if (step instanceof AuthenticationChoice) {
-				choices.push(...step.choices);
+		const choices: AuthenticationStep[] = [];
+		for (let inner of step.choices) {
+			inner = await simplify(inner, request!, context!, state!);
+			if (inner instanceof AuthenticationChoice) {
+				choices.push(...inner.choices);
 			} else {
-				choices.push(step);
+				choices.push(inner);
 			}
-			return choices;
-		}, [] as AuthenticationStep[]);
+		}
 		if (choices.length === 1) {
 			return choices.at(0)!;
 		}
 		return oneOf(...choices);
+	} else if (step instanceof AuthenticationConditional) {
+		if (request && context && state) {
+			const result = await step.condition(request, context, state);
+			return simplify(result, request!, context!, state!);
+		}
 	}
 	return step;
 }
 
-export function replace(step: AuthenticationStep, search: AuthenticationStep, replacement: AuthenticationStep): AuthenticationStep {
+export function replace(
+	step: AuthenticationStep,
+	search: AuthenticationStep,
+	replacement: AuthenticationStep,
+): AuthenticationStep {
 	if (step === search) {
 		return replacement;
 	}
-	if (step instanceof AuthenticationSequence || step instanceof AuthenticationChoice) {
+	if (
+		step instanceof AuthenticationSequence ||
+		step instanceof AuthenticationChoice
+	) {
 		let changed = false;
-		const stepsToReplace = step instanceof AuthenticationSequence ? step.steps : step.choices;
+		const stepsToReplace = step instanceof AuthenticationSequence
+			? step.steps
+			: step.choices;
 		const steps = stepsToReplace.map((step) => {
 			const replaced = replace(step, search, replacement);
 			if (replaced !== step) {
@@ -109,123 +209,60 @@ export function replace(step: AuthenticationStep, search: AuthenticationStep, re
 			return replaced;
 		});
 		if (changed) {
-			return step instanceof AuthenticationSequence ? sequence(...steps) : oneOf(...steps);
+			return step instanceof AuthenticationSequence
+				? sequence(...steps)
+				: oneOf(...steps);
 		}
 	}
 	return step;
 }
 
-function isLeafAuthenticationStep(step: AuthenticationStep): boolean {
-	if (!(step instanceof AuthenticationSequence || step instanceof AuthenticationChoice)) {
-		return true;
-	}
-	if (step instanceof AuthenticationSequence && step.steps.every((step) => !(step instanceof AuthenticationSequence || step instanceof AuthenticationChoice))) {
-		return true;
-	}
-	if (step instanceof AuthenticationChoice && step.choices.every((step) => !(step instanceof AuthenticationSequence || step instanceof AuthenticationChoice))) {
-		return true;
-	}
-	return false;
-}
+export function unique(step: AuthenticationStep): AuthenticationStep[] {
+	const steps = new Set<AuthenticationStep>();
+	const walk = [step];
 
-export function flatten(step: AuthenticationStep): AuthenticationStep {
-	const decomposed: AuthenticationStep[] = [];
-	const trees: AuthenticationStep[] = [simplify(step)];
-
-	while (trees.length) {
-		const root = trees.shift()!;
-		if (isLeafAuthenticationStep(root)) {
-			decomposed.push(root);
+	while (walk.length) {
+		const node = walk.shift()!;
+		if (node instanceof AuthenticationSequence) {
+			walk.unshift(...node.steps);
+		} else if (node instanceof AuthenticationChoice) {
+			walk.unshift(...node.choices);
 		} else {
-			let forked = false;
-			const steps: AuthenticationStep[] = [];
-			const walk: AuthenticationStep[] = [root];
-			while (walk.length) {
-				const node = walk.shift()!;
-				if (node instanceof AuthenticationChoice) {
-					trees.push(...node.choices.map((step) => replace(root, node, step)));
-					forked = true;
-				} else if (node instanceof AuthenticationSequence) {
-					walk.unshift(...node.steps);
-				} else {
-					steps.push(node);
-				}
-			}
-			if (!forked) {
-				trees.push(root instanceof AuthenticationSequence ? sequence(...steps) : oneOf(...steps));
-			}
+			steps.add(node);
 		}
 	}
 
-	if (decomposed.length > 1) {
-		return oneOf(...decomposed);
-	}
-	return decomposed.at(0)!;
+	return Array.from(steps);
 }
 
-export function* getNextIdentificationOrChallenge(step: AuthenticationStep): Generator<AuthenticationIdentification | AuthenticationChallenge> {
-	if (step instanceof AuthenticationSequence) {
-		yield* getNextIdentificationOrChallenge(step.steps.at(0)!);
-	} else if (step instanceof AuthenticationChoice) {
-		for (const inner of step.choices) {
-			yield* getNextIdentificationOrChallenge(inner);
-		}
-	} else if (step) {
-		yield step as AuthenticationIdentification | AuthenticationChallenge;
-	}
+export function email(
+	{ icon, label }: { icon: string; label: Record<string, string> },
+) {
+	return new AuthenticationIdentification("email", icon, label, "email");
 }
 
-export type NextAuthenticationStepResult =
-	| { done: false; next: AuthenticationStep }
-	| { done: true };
+export function password(
+	{ icon, label }: { icon: string; label: Record<string, string> },
+) {
+	return new AuthenticationChallenge("password", icon, label, "password");
+}
 
-export class NextAuthenticationStepError extends Error { }
+export function action(
+	{ type, icon, label }: {
+		type: string;
+		icon: string;
+		label: Record<string, string>;
+	},
+) {
+	return new AuthenticationIdentification(type, icon, label, "action");
+}
 
-export function getNextAuthenticationStepAtPath(step: AuthenticationStep, path: string[]): NextAuthenticationStepResult {
-	if (step instanceof AuthenticationSequence) {
-		let i = 0;
-		const stepLen = step.steps.length;
-		const pathLen = path.length;
-		for (; i < pathLen; ++i) {
-			if (step.steps[i].id !== path[i]) {
-				break;
-			}
-		}
-		if (i === stepLen) {
-			return { done: true };
-		}
-		if (i !== pathLen) {
-			throw new NextAuthenticationStepError();
-		}
-		return { done: false, next: step.steps.at(i)! };
-	} else if (step instanceof AuthenticationChoice) {
-		const nextSteps: NextAuthenticationStepResult[] = [];
-		for (const inner of step.choices) {
-			try {
-				nextSteps.push(getNextAuthenticationStepAtPath(inner, path));
-			} catch (_err) {
-				// skip
-			}
-		}
-		if (nextSteps.some((ns) => ns.done)) {
-			return { done: true };
-		}
-		if (nextSteps.length === 1) {
-			return nextSteps.at(0)!;
-		} else if (nextSteps.length) {
-			// const steps = nextSteps.filter((ns): ns is AuthStepNextValue => !ns.done).map((ns) => ns.next);
-			const steps = nextSteps.reduce((steps, step) => {
-				if (step.done === false) {
-					steps.push(step.next);
-				}
-				return steps;
-			}, [] as AuthenticationStep[]);
-			return { done: false, next: simplify(oneOf(...new Set(steps))) };
-		}
-	} else if (path.length === 0) {
-		return { done: false, next: step };
-	} else if (step.id === path.at(0)!) {
-		return { done: true };
-	}
-	throw new NextAuthenticationStepError();
+export function otp(
+	{ type, icon, label }: {
+		type: string;
+		icon: string;
+		label: Record<string, string>;
+	},
+) {
+	return new AuthenticationChallenge(type, icon, label, "otp");
 }

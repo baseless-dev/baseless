@@ -1,9 +1,5 @@
 import { config } from "../../server/config.ts";
-import { sequence, oneOf } from "../../server/auth/flow.ts";
-import { email } from "../../server/auth/steps/email.ts";
-import { password } from "../../server/auth/steps/password.ts";
-import { oauth } from "../../server/auth/steps/oauth.ts";
-import { otpEmail } from "../../server/auth/steps/otp-email.ts";
+import { sequence, oneOf, email, password, action, otp } from "../../server/auth/flow.ts";
 import createAuthUI from "../../server/auth/ui/mod.ts";
 import authUIEn from "../../server/auth/ui/locales/en.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
@@ -16,31 +12,19 @@ const iconMail = `<path d="M12,15C12.81,15 13.5,14.7 14.11,14.11C14.7,13.5 15,12
 const iconPass = `<path d="M17,7H22V17H17V19A1,1 0 0,0 18,20H20V22H17.5C16.95,22 16,21.55 16,21C16,21.55 15.05,22 14.5,22H12V20H14A1,1 0 0,0 15,19V5A1,1 0 0,0 14,4H12V2H14.5C15.05,2 16,2.45 16,3C16,2.45 16.95,2 17.5,2H20V4H18A1,1 0 0,0 17,5V7M2,7H13V9H4V15H13V17H2V7M20,15V9H17V15H20M8.5,12A1.5,1.5 0 0,0 7,10.5A1.5,1.5 0 0,0 5.5,12A1.5,1.5 0 0,0 7,13.5A1.5,1.5 0 0,0 8.5,12M13,10.89C12.39,10.33 11.44,10.38 10.88,11C10.32,11.6 10.37,12.55 11,13.11C11.55,13.63 12.43,13.63 13,13.11V10.89Z" />`;
 const iconOTP = `<path d="M4,17V9H2V7H6V17H4M22,15C22,16.11 21.1,17 20,17H16V15H20V13H18V11H20V9H16V7H20A2,2 0 0,1 22,9V10.5A1.5,1.5 0 0,1 20.5,12A1.5,1.5 0 0,1 22,13.5V15M14,15V17H8V13C8,11.89 8.9,11 10,11H12V9H8V7H12A2,2 0 0,1 14,9V11C14,12.11 13.1,13 12,13H10V15H14Z" />`;
 
-const google = oauth({
-	provider: "google",
+const google = action({
+	type: "google",
 	label: {
 		en: "Sign in with Google",
 	},
 	icon: iconGoogle,
-	clientId: "",
-	clientSecret: "",
-	authorizationEndpoint: "",
-	tokenEndpoint: "",
-	openIdEndpoint: "",
-	scope: [],
 });
-const github = oauth({
-	provider: "github",
+const github = action({
+	type: "github",
 	label: {
 		en: "Sign in with GitHub",
 	},
 	icon: iconGithub,
-	clientId: "",
-	clientSecret: "",
-	authorizationEndpoint: "",
-	tokenEndpoint: "",
-	openIdEndpoint: "",
-	scope: [],
 });
 
 const mail = email({
@@ -48,10 +32,10 @@ const mail = email({
 	label: { en: "Sign in with Email" },
 });
 const pass = password({ icon: iconPass, label: { en: "Sign in with Password" } });
-const code = otpEmail({ icon: iconOTP, label: { en: "Sign in with Code" }, subject: { en: "Authentication code" }, text: { en: "" } })
+const code = otp({ type: "otp", icon: iconOTP, label: { en: "Sign in with Code" } })
 
 config.auth()
-	.flow(oneOf(
+	.setFlowTree(oneOf(
 		sequence(mail, pass),
 		sequence(mail, code),
 		google,
@@ -59,9 +43,9 @@ config.auth()
 	))
 	.setRateLimitIdentification(10, 30)
 	.setRateLimitChallenge(5, 120)
-	.keys({ algo: "PS512", publicKey, privateKey })
-	.setSalt("foobar")
-	.setViews(createAuthUI({
+	.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
+	.setSecuritySalt("foobar")
+	.setRenderer(createAuthUI({
 		defaultLocale: "en",
 		locales: ["en"],
 		localization: {

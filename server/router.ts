@@ -1,22 +1,67 @@
-export type Method = "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "CONNECT" | "OPTIONS" | "TRACE" | "PATCH";
+export type Method =
+	| "GET"
+	| "HEAD"
+	| "POST"
+	| "PUT"
+	| "DELETE"
+	| "CONNECT"
+	| "OPTIONS"
+	| "TRACE"
+	| "PATCH";
 
 export type AbsolutePath<Path> = Path extends `/${infer A}` ? Path : never;
-export type OptionalNamedGroups<Segment> = Segment extends `:${infer Name}?` ? Name : never;
-export type NamedGroups<Segment> = Segment extends `:${infer Name}?` ? never : Segment extends `:${infer Name}` ? Name : never;
-export type ExtractNamedGroupsFromPath<Path> = Path extends `${infer A}/${infer B}` ? NamedGroups<A> | ExtractNamedGroupsFromPath<B> : NamedGroups<Path>;
-export type ExtractNamedGroupsFromAbsolutePath<Path> = Path extends `/${infer A}` ? ExtractNamedGroupsFromPath<A> : never;
-export type ExtractOptionalNamedGroupsFromPath<Path> = Path extends `${infer A}/${infer B}` ? NamedGroups<A> | ExtractOptionalNamedGroupsFromPath<B> : OptionalNamedGroups<Path>;
-export type ExtractOptionalNamedGroupsFromAbsolutePath<Path> = Path extends `/${infer A}` ? ExtractOptionalNamedGroupsFromPath<A> : never;
+export type OptionalNamedGroups<Segment> = Segment extends `:${infer Name}?`
+	? Name
+	: never;
+export type NamedGroups<Segment> = Segment extends `:${infer Name}?` ? never
+	: Segment extends `:${infer Name}` ? Name
+	: never;
+export type ExtractNamedGroupsFromPath<Path> = Path extends
+	`${infer A}/${infer B}` ? NamedGroups<A> | ExtractNamedGroupsFromPath<B>
+	: NamedGroups<Path>;
+export type ExtractNamedGroupsFromAbsolutePath<Path> = Path extends
+	`/${infer A}` ? ExtractNamedGroupsFromPath<A> : never;
+export type ExtractOptionalNamedGroupsFromPath<Path> = Path extends
+	`${infer A}/${infer B}`
+	? NamedGroups<A> | ExtractOptionalNamedGroupsFromPath<B>
+	: OptionalNamedGroups<Path>;
+export type ExtractOptionalNamedGroupsFromAbsolutePath<Path> = Path extends
+	`/${infer A}` ? ExtractOptionalNamedGroupsFromPath<A> : never;
 export type ExtractParams<Path> =
 	& { [Key in ExtractNamedGroupsFromAbsolutePath<Path>]: string }
 	& { [Key in ExtractOptionalNamedGroupsFromAbsolutePath<Path>]?: string };
 
-export type RouteHandler<Params extends Record<string, string | undefined>, Args extends unknown[]> = (req: Request, params: Params, ...args: Args) => Promise<Response> | Response;
+export type RouteHandler<
+	Params extends Record<string, string | undefined>,
+	Args extends unknown[],
+> = (
+	req: Request,
+	params: Params,
+	...args: Args
+) => Promise<Response> | Response;
 
 export class RouterBuilder<Args extends unknown[]> {
-	#routes = new Map<string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string | undefined>, Args>]>>();
+	#routes = new Map<
+		string,
+		| RouterBuilder<Args>
+		| Set<
+			[
+				method: Method,
+				handler: RouteHandler<Record<string, string | undefined>, Args>,
+			]
+		>
+	>();
 
-	get routes(): ReadonlyMap<string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string | undefined>, Args>]>> {
+	get routes(): ReadonlyMap<
+		string,
+		| RouterBuilder<Args>
+		| Set<
+			[
+				method: Method,
+				handler: RouteHandler<Record<string, string | undefined>, Args>,
+			]
+		>
+	> {
 		return this.#routes;
 	}
 
@@ -34,7 +79,11 @@ export class RouterBuilder<Args extends unknown[]> {
 	 * @param pathname Pathname of the {@see URLPattern.pathname}
 	 * @param handler Route handler
 	 */
-	add<Path extends string>(methods: Method | Method[], pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+	add<Path extends string>(
+		methods: Method | Method[],
+		pathname: Path,
+		handler: RouteHandler<ExtractParams<Path>, Args>,
+	) {
 		let endpoint = this.#routes.get(pathname);
 		if (!(endpoint instanceof Set)) {
 			endpoint = new Set();
@@ -56,7 +105,10 @@ export class RouterBuilder<Args extends unknown[]> {
 	 * @param router The child router
 	 * @returns The router
 	 */
-	route<Path extends string>(pathname: AbsolutePath<Path>, router: RouterBuilder<Args>) {
+	route<Path extends string>(
+		pathname: AbsolutePath<Path>,
+		router: RouterBuilder<Args>,
+	) {
 		this.#routes.set(pathname, router);
 		return this;
 	}
@@ -67,8 +119,23 @@ export class RouterBuilder<Args extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	any<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
-		for (const method of ["GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"] as Method[]) {
+	any<Path extends string>(
+		pathname: Path,
+		handler: RouteHandler<ExtractParams<Path>, Args>,
+	) {
+		for (
+			const method of [
+				"GET",
+				"HEAD",
+				"POST",
+				"PUT",
+				"DELETE",
+				"CONNECT",
+				"OPTIONS",
+				"TRACE",
+				"PATCH",
+			] as Method[]
+		) {
 			this.add(method, pathname, handler);
 		}
 		return this;
@@ -80,7 +147,10 @@ export class RouterBuilder<Args extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	get<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+	get<Path extends string>(
+		pathname: Path,
+		handler: RouteHandler<ExtractParams<Path>, Args>,
+	) {
 		return this.add("GET", pathname, handler);
 	}
 
@@ -90,7 +160,10 @@ export class RouterBuilder<Args extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	head<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+	head<Path extends string>(
+		pathname: Path,
+		handler: RouteHandler<ExtractParams<Path>, Args>,
+	) {
 		return this.add("HEAD", pathname, handler);
 	}
 
@@ -100,7 +173,10 @@ export class RouterBuilder<Args extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	post<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+	post<Path extends string>(
+		pathname: Path,
+		handler: RouteHandler<ExtractParams<Path>, Args>,
+	) {
 		return this.add("POST", pathname, handler);
 	}
 
@@ -110,7 +186,10 @@ export class RouterBuilder<Args extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	put<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+	put<Path extends string>(
+		pathname: Path,
+		handler: RouteHandler<ExtractParams<Path>, Args>,
+	) {
 		return this.add("PUT", pathname, handler);
 	}
 
@@ -120,7 +199,10 @@ export class RouterBuilder<Args extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	delete<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+	delete<Path extends string>(
+		pathname: Path,
+		handler: RouteHandler<ExtractParams<Path>, Args>,
+	) {
 		return this.add("DELETE", pathname, handler);
 	}
 
@@ -130,7 +212,10 @@ export class RouterBuilder<Args extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	connect<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+	connect<Path extends string>(
+		pathname: Path,
+		handler: RouteHandler<ExtractParams<Path>, Args>,
+	) {
 		return this.add("CONNECT", pathname, handler);
 	}
 
@@ -140,7 +225,10 @@ export class RouterBuilder<Args extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	options<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+	options<Path extends string>(
+		pathname: Path,
+		handler: RouteHandler<ExtractParams<Path>, Args>,
+	) {
 		return this.add("OPTIONS", pathname, handler);
 	}
 
@@ -150,7 +238,10 @@ export class RouterBuilder<Args extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	trace<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+	trace<Path extends string>(
+		pathname: Path,
+		handler: RouteHandler<ExtractParams<Path>, Args>,
+	) {
 		return this.add("TRACE", pathname, handler);
 	}
 
@@ -160,24 +251,51 @@ export class RouterBuilder<Args extends unknown[]> {
 	 * @param handler Route handler
 	 * @returns The router
 	 */
-	patch<Path extends string>(pathname: Path, handler: RouteHandler<ExtractParams<Path>, Args>) {
+	patch<Path extends string>(
+		pathname: Path,
+		handler: RouteHandler<ExtractParams<Path>, Args>,
+	) {
 		return this.add("PATCH", pathname, handler);
 	}
 }
 
-type RouterEndpoint<Args extends unknown[]> = Map<Method, RouteHandler<Record<string, string>, Args>>;
+type RouterEndpoint<Args extends unknown[]> = Map<
+	Method,
+	RouteHandler<Record<string, string>, Args>
+>;
 
 export class Router<Args extends unknown[]> {
 	#routes = new Map<URLPattern, RouterEndpoint<Args>>();
 
-	constructor(routeDefinitions?: Iterable<[string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>]>) {
+	constructor(
+		routeDefinitions?: Iterable<
+			[
+				string,
+				| RouterBuilder<Args>
+				| Set<
+					[method: Method, handler: RouteHandler<Record<string, string>, Args>]
+				>,
+			]
+		>,
+	) {
 		if (routeDefinitions) {
 			walkRoutes("", this.#routes, routeDefinitions);
 		}
 		function walkRoutes(
 			prefix: string,
 			target: Map<URLPattern, RouterEndpoint<Args>>,
-			routeDefinitions: Iterable<[string, RouterBuilder<Args> | Set<[method: Method, handler: RouteHandler<Record<string, string>, Args>]>]>,
+			routeDefinitions: Iterable<
+				[
+					string,
+					| RouterBuilder<Args>
+					| Set<
+						[
+							method: Method,
+							handler: RouteHandler<Record<string, string>, Args>,
+						]
+					>,
+				]
+			>,
 		) {
 			for (const [pathname, router_or_endpoints] of routeDefinitions) {
 				if (router_or_endpoints instanceof RouterBuilder) {
@@ -212,9 +330,16 @@ export class Router<Args extends unknown[]> {
 			if (result) {
 				const handler = endpoints.get(method as Method);
 				if (handler) {
-					return Promise.resolve(handler(request, result.pathname.groups, ...args));
+					return Promise.resolve(
+						handler(request, result.pathname.groups, ...args),
+					);
 				}
-				return Promise.resolve(new Response(null, { status: 405, headers: { Allow: Array.from(endpoints.keys()).join(", ") } }));
+				return Promise.resolve(
+					new Response(null, {
+						status: 405,
+						headers: { Allow: Array.from(endpoints.keys()).join(", ") },
+					}),
+				);
 			}
 		}
 		return Promise.resolve(new Response(null, { status: 404 }));

@@ -1,5 +1,10 @@
 import { EmailProvider, Message } from "../../providers/email.ts";
-import { createLogger, Logger, LogLevel, LogLevelMethod } from "../../logger.ts";
+import {
+	createLogger,
+	Logger,
+	LogLevel,
+	LogLevelMethod,
+} from "../../logger.ts";
 
 /**
  * A mail provider that log every message

@@ -1,7 +1,8 @@
 export type AutoId = string;
 
 const AutoIdSize = 40;
-const AutoIdChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const AutoIdChars =
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const AutoIdCharsLength = AutoIdChars.length;
 const AutoIdRegExp = new RegExp(`^[${AutoIdChars}]{${AutoIdSize}}$`);
 
@@ -21,7 +22,12 @@ export function autoid(): AutoId {
 }
 
 export class AutoIdGenerator {
-	#hash: [number, number, number, number] = [1779033703, 3144134277, 1013904242, 2773480762];
+	#hash: [number, number, number, number] = [
+		1779033703,
+		3144134277,
+		1013904242,
+		2773480762,
+	];
 
 	write(chunk: ArrayLike<number>) {
 		this.#hash = cyrb128(chunk, ...this.#hash);
@@ -30,7 +36,12 @@ export class AutoIdGenerator {
 	read(): AutoId {
 		let autoid = "";
 		const buffer = new Uint8Array(AutoIdSize);
-		const rand = sfc32(this.#hash[0], this.#hash[1], this.#hash[2], this.#hash[3]);
+		const rand = sfc32(
+			this.#hash[0],
+			this.#hash[1],
+			this.#hash[2],
+			this.#hash[3],
+		);
 		for (let i = 0; i < AutoIdSize; ++i) {
 			buffer[i] = rand();
 		}
@@ -66,7 +77,13 @@ export class AutoIdStream extends WritableStream<ArrayLike<number>> {
  * @param h4
  * @returns An array of 4 32bit integer
  */
-function cyrb128(buffer: ArrayLike<number>, h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762): [number, number, number, number] {
+function cyrb128(
+	buffer: ArrayLike<number>,
+	h1 = 1779033703,
+	h2 = 3144134277,
+	h3 = 1013904242,
+	h4 = 2773480762,
+): [number, number, number, number] {
 	for (let i = 0, j = buffer.length, k; i < j; i++) {
 		k = buffer[i];
 		h1 = h2 ^ Math.imul(h1 ^ k, 597399067);

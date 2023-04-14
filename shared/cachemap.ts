@@ -16,7 +16,11 @@ export class CacheMap<K, V> {
 	}
 
 	set(key: K, value: V, expireInAt?: number | Date): void {
-		const expiration = typeof expireInAt === "undefined" ? undefined : expireInAt instanceof Date ? expireInAt.getTime() * 1000 : Date.now() + expireInAt;
+		const expiration = typeof expireInAt === "undefined"
+			? undefined
+			: expireInAt instanceof Date
+			? expireInAt.getTime() * 1000
+			: Date.now() + expireInAt;
 		this.#map.set(key, { value, expiration });
 	}
 

@@ -9,7 +9,11 @@ Deno.test("send", async () => {
 		messages.push({ ns, lvl, message: JSON.parse(msg)! });
 	});
 	const mailer = new LoggerEmailProvider(LogLevel.WARN);
-	await mailer.send({ to: "to@acme.local", subject: "A subject", text: "A message" });
+	await mailer.send({
+		to: "to@acme.local",
+		subject: "A subject",
+		text: "A message",
+	});
 	assertEquals(messages.length, 1);
 	assertEquals(messages[0].lvl, LogLevel.WARN);
 	assertEquals(messages[0].message.subject, "A subject");

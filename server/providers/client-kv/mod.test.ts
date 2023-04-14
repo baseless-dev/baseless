@@ -1,4 +1,8 @@
-import { assertEquals, assertExists, assertRejects } from "https://deno.land/std@0.179.0/testing/asserts.ts";
+import {
+	assertEquals,
+	assertExists,
+	assertRejects,
+} from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { SqliteKVProvider } from "../kv-sqlite/mod.ts";
 import { KVClientProvider } from "./mod.ts";
 

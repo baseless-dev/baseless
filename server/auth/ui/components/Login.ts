@@ -1,12 +1,26 @@
 import { AuthenticationViewPrompParams } from "../../../auth/config.ts";
-import { AuthenticationChallenge, AuthenticationChoice, AuthenticationIdentification, AuthenticationSequence, AuthenticationStep } from "../../../auth/flow.ts";
+import {
+	AuthenticationChallenge,
+	AuthenticationChoice,
+	AuthenticationIdentification,
+	AuthenticationSequence,
+	AuthenticationStep,
+} from "../../../auth/flow.ts";
 import { Localization } from "../localization.ts";
 import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
-type AuthenticationStepProps = { step: AuthenticationStep; l10n: Localization; currentLocale: string };
+type AuthenticationStepProps = {
+	step: AuthenticationStep;
+	l10n: Localization;
+	currentLocale: string;
+};
 
-export default function Login({ step, isFirstStep, currentLocale, localization }: AuthUIContext & AuthenticationViewPrompParams) {
+export default function Login(
+	{ step, isFirstStep, currentLocale, localization }:
+		& AuthUIContext
+		& AuthenticationViewPrompParams,
+) {
 	const l10n = localization[currentLocale];
 	return Layout({
 		title: "Sign In",
@@ -15,17 +29,27 @@ export default function Login({ step, isFirstStep, currentLocale, localization }
 	}, [
 		`<div class="space-y-6">
 			<nav class="space-y-1" aria-label="Sidebar">
-				${step instanceof AuthenticationChoice && step.choices.map((step) => AuthStep({ step, l10n, currentLocale })).join("") || ""}
-				${step instanceof AuthenticationSequence && AuthStep({ step: step, l10n, currentLocale }) || ""}
+				${
+			step instanceof AuthenticationChoice && step.choices.map((step) =>
+					AuthStep({ step, l10n, currentLocale })
+				).join("") || ""
+		}
+				${
+			step instanceof AuthenticationSequence &&
+				AuthStep({ step: step, l10n, currentLocale }) || ""
+		}
 			</nav>
 		</div>`,
 	]);
 }
 
 function AuthStep({ step, currentLocale }: AuthenticationStepProps) {
-	if (step instanceof AuthenticationIdentification || step instanceof AuthenticationChallenge) {
+	if (
+		step instanceof AuthenticationIdentification ||
+		step instanceof AuthenticationChallenge
+	) {
 		return `<a
-					href="/auth/login/${step.id}"
+					href="/auth/login/${step.type}"
 					title="${step.label[currentLocale]}"
 					class="group min-w-full flex items-center rounded-md bg-gray-50 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
 				>

@@ -7,7 +7,6 @@ import { KVIdentityProvider } from "../../server/providers/identity-kv/mod.ts";
 import { LoggerEmailProvider } from "../../server/providers/email-logger/mod.ts";
 import "./app.ts";
 import { autoid } from "../../shared/autoid.ts";
-import { hashPassword } from "../../server/auth/flow.ts";
 
 Deno.permissions.request({ name: "net" });
 Deno.permissions.request({ name: "env" });
@@ -22,10 +21,9 @@ const identityProvider = new KVIdentityProvider(identityKV);
 const emailProvider = new LoggerEmailProvider();
 
 // Create john's identity
-const johnId = autoid();
-await identityProvider.createIdentity(johnId, {});
+const johnId = await identityProvider.createIdentity({});
 await identityProvider.assignIdentityIdentification(johnId, "email", "john@doe.local");
-await identityProvider.assignIdentityChallenge(johnId, "password", await hashPassword(configuration.auth.salt, "123"));
+await identityProvider.assignIdentityChallenge(johnId, "password", "123");
 
 const server = new Server({ configuration, counterProvider, identityProvider, emailProvider });
 

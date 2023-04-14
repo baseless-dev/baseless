@@ -4,10 +4,17 @@ import { AuthenticationViewPrompParams } from "../../../auth/config.ts";
 import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
-export default function PromptOTP({ step, isLastStep, currentLocale, localization }: AuthUIContext & AuthenticationViewPrompParams) {
+export default function PromptOTP(
+	{ step, isLastStep, currentLocale, localization }:
+		& AuthUIContext
+		& AuthenticationViewPrompParams,
+) {
 	const _l10n = localization[currentLocale];
-	return Layout({ title: "Enter code", subTitle: "Enter the code that you received by email" }, [
-		`<form action="/auth/login/${step.id}" method="POST" autocomplete="off">
+	return Layout({
+		title: "Enter code",
+		subTitle: "Enter the code that you received by email",
+	}, [
+		`<form action="/auth/login/${step.type}" method="POST" autocomplete="off">
 			<div class="mt-2 flex rounded-md shadow-sm">
 				<div class="relative flex flex-grow items-stretch focus-within:z-10">
 					<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">

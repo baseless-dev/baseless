@@ -1,6 +1,11 @@
 import { Context } from "../context.ts";
 import { Identity } from "../providers/identity.ts";
-import { assertAuthenticationStep, AuthenticationStep, flatten } from "./flow.ts";
+import {
+	assertAuthenticationStep,
+	AuthenticationChallenger,
+	AuthenticationIdenticator,
+	AuthenticationStep,
+} from "./flow.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 
 export interface AuthenticationKeys {
@@ -10,21 +15,32 @@ export interface AuthenticationKeys {
 }
 
 export interface AuthenticationConfiguration {
-	readonly keys: AuthenticationKeys;
-	readonly salt: string;
-	readonly flow: AuthenticationStep;
-	readonly flattenedFlow: AuthenticationStep;
+	readonly security: {
+		readonly keys: AuthenticationKeys;
+		readonly salt: string;
+	};
+	readonly flow: {
+		readonly tree: AuthenticationStep;
+		readonly identificators: Map<string, AuthenticationIdenticator>;
+		readonly chalengers: Map<string, AuthenticationChallenger>;
+	};
 	readonly onCreateIdentity?: AuthenticationHandler;
 	readonly onUpdateIdentity?: AuthenticationHandler;
 	readonly onDeleteIdentity?: AuthenticationHandler;
-	readonly views?: AuthViews;
-	readonly rateLimitIdentificationCount: number;
-	readonly rateLimitIdentificationInterval: number;
-	readonly rateLimitChallengeCount: number;
-	readonly rateLimitChallengeInterval: number;
+	readonly renderer?: AuthenticationRenderer;
+	readonly rateLimit: {
+		readonly identificationCount: number;
+		readonly identificationInterval: number;
+		readonly challengeCount: number;
+		readonly challengeInterval: number;
+	};
 }
 
-export type AuthenticationHandler = (context: Context, request: Request, identity: Identity) => void | Promise<void>;
+export type AuthenticationHandler = (
+	context: Context,
+	request: Request,
+	identity: Identity,
+) => void | Promise<void>;
 export interface AuthenticationViewPrompParams {
 	request: Request;
 	context: Context;
@@ -32,7 +48,7 @@ export interface AuthenticationViewPrompParams {
 	isFirstStep: boolean;
 	isLastStep: boolean;
 }
-export interface AuthViews {
+export interface AuthenticationRenderer {
 	index(request: Request, context: Context): string;
 	rateLimited(request: Request, context: Context): string;
 	promptChoice(options: AuthenticationViewPrompParams): string;
@@ -41,13 +57,15 @@ export interface AuthViews {
 	promptOTP(options: AuthenticationViewPrompParams): string;
 }
 export class AuthBuilder {
-	#authKeys?: AuthenticationKeys;
-	#salt?: string;
-	#authFlow?: AuthenticationStep;
+	#securityKeys?: AuthenticationKeys;
+	#securitySalt?: string;
+	#flowTree?: AuthenticationStep;
+	#flowIdentificators = new Map<string, AuthenticationIdenticator>();
+	#flowChalengers = new Map<string, AuthenticationChallenger>();
 	#onCreateIdentityHandler?: AuthenticationHandler;
 	#onUpdateIdentityHandler?: AuthenticationHandler;
 	#onDeleteIdentityHandler?: AuthenticationHandler;
-	#viewsHandler?: AuthViews;
+	#renderer?: AuthenticationRenderer;
 	#rateLimitIdentificationCount?: number;
 	#rateLimitIdentificationInterval?: number;
 	#rateLimitChallengeCount?: number;
@@ -58,8 +76,8 @@ export class AuthBuilder {
 	 * @param keys The keys
 	 * @returns The builder
 	 */
-	public keys(keys: AuthenticationKeys) {
-		this.#authKeys = keys;
+	public setSecurityKeys(keys: AuthenticationKeys) {
+		this.#securityKeys = keys;
 		return this;
 	}
 
@@ -68,19 +86,44 @@ export class AuthBuilder {
 	 * @param keys The salt
 	 * @returns The builder
 	 */
-	public setSalt(salt: string) {
-		this.#salt = salt;
+	public setSecuritySalt(salt: string) {
+		this.#securitySalt = salt;
 		return this;
 	}
 
 	/**
 	 * Defines the authentication methods and their login methods
-	 * @param flow The allowed authentication methods
+	 * @param tree The allowed authentication methods
 	 * @returns The builder
 	 */
-	public flow(flow: AuthenticationStep) {
-		assertAuthenticationStep(flow);
-		this.#authFlow = flow;
+	public setFlowTree(tree: AuthenticationStep) {
+		assertAuthenticationStep(tree);
+		this.#flowTree = tree;
+		return this;
+	}
+
+	/**
+	 * Defines a flow identificator
+	 * @param type The identification type
+	 * @param identicator The {@link AuthenticationIdenticator}
+	 * @returns The builder
+	 */
+	public addFlowIdentificator(
+		type: string,
+		identicator: AuthenticationIdenticator,
+	) {
+		this.#flowIdentificators.set(type, identicator);
+		return this;
+	}
+
+	/**
+	 * Defines a flow challenger
+	 * @param type The challenger type
+	 * @param challenger The {@link AuthenticationChallenger}
+	 * @returns The builder
+	 */
+	public addFlowChallenger(type: string, challenger: AuthenticationChallenger) {
+		this.#flowChalengers.set(type, challenger);
 		return this;
 	}
 
@@ -119,8 +162,8 @@ export class AuthBuilder {
 	 * @param handler The callback
 	 * @returns The builder
 	 */
-	public setViews(handler: AuthViews) {
-		this.#viewsHandler = handler;
+	public setRenderer(handler: AuthenticationRenderer) {
+		this.#renderer = handler;
 		return this;
 	}
 
@@ -141,28 +184,35 @@ export class AuthBuilder {
 	 * @returns The finalized {@see AuthConfiguration} object
 	 */
 	public build(): AuthenticationConfiguration {
-		if (!this.#authKeys) {
+		if (!this.#securityKeys) {
 			throw new Error(`Authentication keys are needed.`);
 		}
-		if (!this.#authFlow) {
+		if (!this.#flowTree) {
 			throw new Error(`Authentication flow is needed.`);
 		}
-		if (!this.#salt) {
+		if (!this.#securitySalt) {
 			throw new Error(`Authentication salt is needed.`);
 		}
 		return {
-			keys: this.#authKeys,
-			salt: this.#salt,
-			flow: this.#authFlow,
-			flattenedFlow: flatten(this.#authFlow),
+			security: {
+				keys: this.#securityKeys,
+				salt: this.#securitySalt,
+			},
+			flow: {
+				tree: this.#flowTree,
+				identificators: new Map(this.#flowIdentificators),
+				chalengers: new Map(this.#flowChalengers),
+			},
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,
-			views: this.#viewsHandler,
-			rateLimitIdentificationCount: this.#rateLimitIdentificationCount ?? 100,
-			rateLimitIdentificationInterval: this.#rateLimitIdentificationInterval ?? 60,
-			rateLimitChallengeCount: this.#rateLimitChallengeCount ?? 5,
-			rateLimitChallengeInterval: this.#rateLimitChallengeInterval ?? 60,
+			renderer: this.#renderer,
+			rateLimit: {
+				identificationCount: this.#rateLimitIdentificationCount ?? 100,
+				identificationInterval: this.#rateLimitIdentificationInterval ?? 60,
+				challengeCount: this.#rateLimitChallengeCount ?? 5,
+				challengeInterval: this.#rateLimitChallengeInterval ?? 60,
+			},
 		};
 	}
 }

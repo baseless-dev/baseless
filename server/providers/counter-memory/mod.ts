@@ -7,10 +7,14 @@ export class MemoryCounterProvider implements CounterProvider {
 		this.#keys = new CacheMap();
 	}
 
-	increment(key: string, amount: number, expireInAt?: number | Date): Promise<number> {
+	increment(
+		key: string,
+		amount: number,
+		expiration?: number | Date,
+	): Promise<number> {
 		amount += this.#keys.get(key) ?? 0;
 		if (amount > 0) {
-			this.#keys.set(key, amount, expireInAt);
+			this.#keys.set(key, amount, expiration);
 		}
 		return Promise.resolve(amount);
 	}

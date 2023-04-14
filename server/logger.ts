@@ -129,7 +129,12 @@ export interface Logger {
  */
 export function createLogger(namespace: string): Logger {
 	return Object.fromEntries(
-		Object.keys(LogLevel).map((lvl) => [lvl.toLowerCase(), (msg: string) => globalLogHandler(namespace, lvl as LogLevel, msg)]),
+		Object.keys(LogLevel).map((
+			lvl,
+		) => [
+			lvl.toLowerCase(),
+			(msg: string) => globalLogHandler(namespace, lvl as LogLevel, msg),
+		]),
 	) as unknown as Logger;
 }
 

@@ -1,11 +1,19 @@
-import { ClientExistsError, ClientInformationResponse, ClientNotFoundError, ClientProvider } from "../client.ts";
+import {
+	ClientExistsError,
+	ClientInformationResponse,
+	ClientNotFoundError,
+	ClientProvider,
+} from "../client.ts";
 import { KeyNotFoundError, KVProvider } from "../kv.ts";
 import { createLogger } from "../../logger.ts";
 
 export class KVClientProvider implements ClientProvider {
 	protected readonly logger = createLogger("baseless-client-kv");
 
-	public constructor(protected readonly kv: KVProvider, protected readonly prefix = "clients") {
+	public constructor(
+		protected readonly kv: KVProvider,
+		protected readonly prefix = "clients",
+	) {
 	}
 
 	async get(id: string): Promise<ClientInformationResponse> {
@@ -26,7 +34,10 @@ export class KVClientProvider implements ClientProvider {
 		if (await this.get(client.client_id).then(() => true).catch(() => false)) {
 			throw new ClientExistsError();
 		}
-		await this.kv.put(`/${this.prefix}/${client.client_id}`, JSON.stringify(client));
+		await this.kv.put(
+			`/${this.prefix}/${client.client_id}`,
+			JSON.stringify(client),
+		);
 		this.logger.debug(`Added client '${client.client_id}'.`);
 	}
 

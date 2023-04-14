@@ -5,7 +5,11 @@ export interface CounterProvider {
 	/**
 	 * Increment counter for key by some amount
 	 */
-	increment(key: string, amount: number, expireIn: number | Date): Promise<number>;
+	increment(
+		key: string,
+		amount: number,
+		expiration?: number | Date,
+	): Promise<number>;
 
 	/**
 	 * Reset counter for key

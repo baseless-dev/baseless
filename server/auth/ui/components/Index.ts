@@ -2,7 +2,11 @@ import { Locale, Localization } from "../localization.ts";
 import { AuthUIContext } from "../mod.ts";
 import Layout from "./Layout.ts";
 
-export default function Logged({ currentLocale, localization }: AuthUIContext & { localization: Record<Locale, Localization> }) {
+export default function Logged(
+	{ currentLocale, localization }: AuthUIContext & {
+		localization: Record<Locale, Localization>;
+	},
+) {
 	const _l10n = localization[currentLocale];
 	return Layout({
 		title: "Signed In",

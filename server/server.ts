@@ -18,7 +18,14 @@ export class Server {
 	#identityProvider: IdentityProvider;
 	#emailProvider: EmailProvider;
 
-	public constructor(options: { configuration: Configuration; counterProvider: CounterProvider; identityProvider: IdentityProvider; emailProvider: EmailProvider }) {
+	public constructor(
+		options: {
+			configuration: Configuration;
+			counterProvider: CounterProvider;
+			identityProvider: IdentityProvider;
+			emailProvider: EmailProvider;
+		},
+	) {
 		this.#configuration = options.configuration;
 		this.#counterProvider = options.counterProvider;
 		this.#identityProvider = options.identityProvider;
@@ -30,7 +37,9 @@ export class Server {
 	 * @param request The HTTP request
 	 * @returns The response and promise to wait in the background
 	 */
-	public async handleRequest(request: Request): Promise<[Response, PromiseLike<unknown>[]]> {
+	public async handleRequest(
+		request: Request,
+	): Promise<[Response, PromiseLike<unknown>[]]> {
 		const ip = request.headers.get("X-Real-Ip") ?? "";
 		this.#logger.log(`${request.method} ${ip} ${request.url}`);
 
@@ -52,7 +61,9 @@ export class Server {
 				waitUntilCollection,
 			];
 		} catch (err) {
-			this.#logger.warn(`Could not handle request ${request.url}, got error : ${err}`);
+			this.#logger.warn(
+				`Could not handle request ${request.url}, got error : ${err}`,
+			);
 			return [
 				new Response(null, {
 					status: 500,

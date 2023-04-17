@@ -34,8 +34,10 @@ const mail = email({
 const pass = password({ icon: iconPass, label: { en: "Sign in with Password" } });
 const code = otp({ type: "otp", icon: iconOTP, label: { en: "Sign in with Code" } })
 
+config.asset().setEnabled(true);
+
 config.auth()
-	.setFlowTree(oneOf(
+	.setFlowStep(oneOf(
 		sequence(mail, pass),
 		sequence(mail, code),
 		google,

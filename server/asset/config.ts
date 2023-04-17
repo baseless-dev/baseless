@@ -1,6 +1,6 @@
 export type AssetConfiguration = {
 	readonly enabled: boolean;
-}
+};
 
 export class AssetConfigurationBuilder {
 	#enabled = false;
@@ -15,7 +15,7 @@ export class AssetConfigurationBuilder {
 	 */
 	public build(): AssetConfiguration {
 		return {
-			enabled: this.#enabled
-		}
+			enabled: this.#enabled,
+		};
 	}
 }

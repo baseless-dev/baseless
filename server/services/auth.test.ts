@@ -11,112 +11,99 @@ import { AuthenticationService } from "./auth.ts";
 import { assertAutoId } from "../../shared/autoid.ts";
 import { ConfigurationBuilder } from "../config.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
-import { email, password, sequence } from "../auth/flow.ts";
+import * as f from "../auth/flow.ts";
+import { IdentityService } from "./identity.ts";
+import { CounterService } from "./counter.ts";
+import { AssetService } from "./asset.ts";
+import { LocalAssetProvider } from "../providers/asset-local/mod.ts";
+import { NonExtendableContext } from "../context.ts";
 
 Deno.test("AuthenticationService", async (t) => {
-	// const config = new ConfigurationBuilder();
-	// const { publicKey, privateKey } = await generateKeyPair("PS512");
-	// config.auth()
-	// 	.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
-	// 	.setSecuritySalt("foobar")
-	// 	.setFlowTree(
-	// 		sequence(
-	// 			email({ icon: "", label: {} }),
-	// 			password({ icon: "", label: {} }),
-	// 		),
-	// 	);
-	// const authService = new AuthenticationService(
-	// 	config.build(),
-	// 	new KVIdentityProvider(
-	// 		new WebStorageKVProvider(
-	// 			sessionStorage,
-	// 			import.meta.url + "createIdentity",
-	// 		),
-	// 	),
-	// 	new MemoryCounterProvider(),
-	// 	new LoggerEmailProvider(),
-	// );
+	const email = f.email({ icon: "", label: {} });
+	const password = f.password({ icon: "", label: {} });
+	const github = f.action({ type: "github", icon: "", label: {} });
+	const otp = f.otp({ type: "otp", icon: "", label: {} });
 
-	// let identityId: string;
-	// await t.step("createIdentity", async () => {
-	// 	identityId = await authService.createIdentity({ foo: "bar" });
-	// 	assertAutoId(identityId);
-	// });
+	const config = new ConfigurationBuilder();
+	const { publicKey, privateKey } = await generateKeyPair("PS512");
+	config.auth()
+		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
+		.setSecuritySalt("foobar")
+		.setFlowStep(
+			f.oneOf(
+				f.sequence(email, password, otp),
+				github,
+			),
+		);
 
-	// await t.step("getIdentityById", async () => {
-	// 	const identity = await authService.getIdentityById(identityId);
-	// 	assertEquals(identity.id, identityId);
-	// 	assertEquals(identity.meta, { foo: "bar" });
-	// });
+	const configuration = config.build();
+	const identityService = new IdentityService(
+		configuration,
+		new KVIdentityProvider(
+			new WebStorageKVProvider(
+				sessionStorage,
+				import.meta.url + "createIdentity",
+			),
+		),
+	);
+	const counterService = new CounterService(new MemoryCounterProvider());
+	const authService = new AuthenticationService(
+		configuration,
+		identityService,
+		counterService,
+	);
+	const assetService = new AssetService(
+		new LocalAssetProvider(import.meta.resolve("./")),
+	);
 
-	// await t.step("updateIdentity", async () => {
-	// 	await authService.updateIdentity(identityId, { foo: "foo" });
-	// 	const identity = await authService.getIdentityById(identityId);
-	// 	assertEquals(identity.meta, { foo: "foo" });
-	// });
+	const request = new Request("http://test.local/");
+	const context: NonExtendableContext = {
+		config: configuration,
+		asset: assetService,
+	};
 
-	// await t.step("deleteIdentity", async () => {
-	// 	const identityId = await authService.createIdentity({});
-	// 	await authService.deleteIdentity(identityId);
-	// 	await assertRejects(() => authService.getIdentityById(identityId));
-	// });
+	await t.step("getStep", async () => {
+		assertEquals(
+			await authService.getStep(request, context),
+			{
+				done: false,
+				value: f.oneOf(email, github),
+			},
+		);
+		assertEquals(
+			await authService.getStep(request, context, { choices: ["email"] }),
+			{
+				done: false,
+				value: password,
+			},
+		);
+		assertEquals(
+			await authService.getStep(request, context, { choices: ["github"] }),
+			{
+				done: true,
+				value: undefined,
+			},
+		);
+		assertEquals(
+			await authService.getStep(request, context, {
+				choices: ["email", "password"],
+			}),
+			{
+				done: false,
+				value: otp,
+			},
+		);
+		assertEquals(
+			await authService.getStep(request, context, {
+				choices: ["email", "password", "otp"],
+			}),
+			{
+				done: true,
+				value: undefined,
+			},
+		);
+	});
 
-	// let identificationId: string;
-	// await t.step("assignIdentification", async () => {
-	// 	const identification = await authService.assignIdentification(identityId, "email", "john@doe.local");
-	// 	assertAutoId(identification.id);
-	// 	identificationId = identification.id;
-	// });
-
-	// await t.step("listIdentification", async () => {
-	// 	const identifications = await authService.listIdentification(identityId);
-	// 	assertEquals(identifications, [{ identityId, id: identificationId, type: "email", identification: "john@doe.local" }]);
-	// });
-
-	// await t.step("unassignIdentification", async () => {
-	// 	const identification = await authService.assignIdentification(identityId, "email", "jannet@doe.local");
-	// 	assertAutoId(identification.id);
-	// 	await authService.unassignIdentification(identityId, identification.id);
-	// 	const identifications = await authService.listIdentification(identityId);
-	// 	assertEquals(identifications, [{ identityId, id: identificationId, type: "email", identification: "john@doe.local" }]);
-	// });
-
-	// await t.step("getIdentityIdentificationById", async () => {
-	// 	const identification = await authService.getIdentityIdentificationById(identityId, identificationId);
-	// 	assertEquals(identification.identityId, identityId);
-	// 	assertEquals(identification.id, identificationId);
-	// });
-
-	// await t.step("getIdentityIdentificationByType", async () => {
-	// 	const identification = await authService.getIdentityIdentificationByType("email", "john@doe.local");
-	// 	assertEquals(identification.identityId, identityId);
-	// });
-
-	// let challengeId: string;
-	// await t.step("assignChallenge", async () => {
-	// 	const challenge = await authService.assignChallenge(identityId, "password", "123");
-	// 	assertAutoId(challenge.id);
-	// 	challengeId = challenge.id;
-	// });
-
-	// await t.step("listChallenge", async () => {
-	// 	const challenges = await authService.listChallenge(identityId);
-	// 	assertEquals(challenges, [{ identityId, id: challengeId, type: "password", challenge: "123" }]);
-	// });
-
-	// await t.step("unassignChallenge", async () => {
-	// 	const challenge = await authService.assignChallenge(identityId, "password", "456");
-	// 	assertAutoId(challenge.id);
-	// 	await authService.unassignChallenge(identityId, challenge.id);
-	// 	const challenges = await authService.listChallenge(identityId);
-	// 	assertEquals(challenges, [{ identityId, id: challengeId, type: "password", challenge: "123" }]);
-	// });
-
-	// await t.step("forgotChallenge", async () => {
-	// 	// TODO
-	// });
-
-	// await t.step("resetChallenge", async () => {
-	// 	// TODO
-	// });
+	await t.step("submitIdentification", async () => {
+	});
 });

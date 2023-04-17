@@ -15,8 +15,6 @@ Deno.permissions.request({ name: "env" });
 
 log.setGlobalLogHandler(log.createConsoleLogHandler(log.LogLevel.LOG));
 
-config.asset().setEnabled(true);
-
 const configuration = config.build();
 
 const assetProvider = new CacheAssetProvider("baseless-hello-world-public", new LocalAssetProvider(import.meta.resolve("./public")));

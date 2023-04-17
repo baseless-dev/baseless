@@ -4,7 +4,7 @@ import { AssetService } from "./services/asset.ts";
 /**
  * Baseless's context
  */
-export interface Context {
+export type Context = {
 	readonly config: Configuration;
 	readonly asset: AssetService;
 
@@ -13,4 +13,6 @@ export interface Context {
 	 * @param promise The promise
 	 */
 	waitUntil(promise: PromiseLike<unknown>): void;
-}
+};
+
+export type NonExtendableContext = Omit<Context, "waitUntil">;

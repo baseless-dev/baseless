@@ -1,5 +1,11 @@
-import { AssetConfiguration, AssetConfigurationBuilder } from "./asset/config.ts";
-import { AuthenticationConfigurationBuilder, AuthenticationConfiguration } from "./auth/config.ts";
+import {
+	AssetConfiguration,
+	AssetConfigurationBuilder,
+} from "./asset/config.ts";
+import {
+	AuthenticationConfiguration,
+	AuthenticationConfigurationBuilder,
+} from "./auth/config.ts";
 
 export interface Configuration {
 	readonly asset: AssetConfiguration;

@@ -1,5 +1,11 @@
 import { AssetProvider } from "../asset.ts";
-import { resolve, join, normalize, extname, fromFileUrl } from "https://deno.land/std@0.179.0/path/mod.ts";
+import {
+	extname,
+	fromFileUrl,
+	join,
+	normalize,
+	resolve,
+} from "https://deno.land/std@0.179.0/path/mod.ts";
 import { contentType } from "https://deno.land/std@0.179.0/media_types/mod.ts";
 import { createLogger } from "../../logger.ts";
 
@@ -18,7 +24,12 @@ export class LocalAssetProvider implements AssetProvider {
 			const stat = await Deno.stat(filePath);
 			if (stat.isFile) {
 				const file = await Deno.open(filePath, { read: true });
-				return new Response(file.readable, { headers: { "Content-Type": contentType(extname(filePath)) ?? "application/octet" } });
+				return new Response(file.readable, {
+					headers: {
+						"Content-Type": contentType(extname(filePath)) ??
+							"application/octet",
+					},
+				});
 			} else {
 				return new Response(null, { status: 404 });
 			}

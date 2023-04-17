@@ -24,7 +24,10 @@ export class Server {
 		const routerBuilder = new RouterBuilder<[context: Context]>();
 
 		if (this.#configuration.asset.enabled) {
-			routerBuilder.get("/*", (request, _params, context) => context.asset.fetch(request));
+			routerBuilder.get(
+				"/*",
+				(request, _params, context) => context.asset.fetch(request),
+			);
 		}
 
 		this.#router = routerBuilder.build();

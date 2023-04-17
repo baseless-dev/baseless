@@ -12,7 +12,7 @@ export type AuthenticationKeys = {
 	readonly algo: string;
 	readonly privateKey: KeyLike;
 	readonly publicKey: KeyLike;
-}
+};
 
 export type AuthenticationConfiguration = {
 	readonly security: {
@@ -20,7 +20,7 @@ export type AuthenticationConfiguration = {
 		readonly salt: string;
 	};
 	readonly flow: {
-		readonly tree: AuthenticationStep;
+		readonly step: AuthenticationStep;
 		readonly identificators: Map<string, AuthenticationIdenticator>;
 		readonly chalengers: Map<string, AuthenticationChallenger>;
 	};
@@ -34,7 +34,7 @@ export type AuthenticationConfiguration = {
 		readonly challengeCount: number;
 		readonly challengeInterval: number;
 	};
-}
+};
 
 export type AuthenticationHandler = (
 	context: Context,
@@ -47,7 +47,7 @@ export type AuthenticationViewPrompParams = {
 	step: AuthenticationStep;
 	isFirstStep: boolean;
 	isLastStep: boolean;
-}
+};
 export interface AuthenticationRenderer {
 	index(request: Request, context: Context): string;
 	rateLimited(request: Request, context: Context): string;
@@ -59,7 +59,7 @@ export interface AuthenticationRenderer {
 export class AuthenticationConfigurationBuilder {
 	#securityKeys?: AuthenticationKeys;
 	#securitySalt?: string;
-	#flowTree?: AuthenticationStep;
+	#flowStep?: AuthenticationStep;
 	#flowIdentificators = new Map<string, AuthenticationIdenticator>();
 	#flowChalengers = new Map<string, AuthenticationChallenger>();
 	#onCreateIdentityHandler?: AuthenticationHandler;
@@ -93,12 +93,12 @@ export class AuthenticationConfigurationBuilder {
 
 	/**
 	 * Defines the authentication methods and their login methods
-	 * @param tree The allowed authentication methods
+	 * @param step The allowed authentication methods
 	 * @returns The builder
 	 */
-	public setFlowTree(tree: AuthenticationStep) {
-		assertAuthenticationStep(tree);
-		this.#flowTree = tree;
+	public setFlowStep(step: AuthenticationStep) {
+		assertAuthenticationStep(step);
+		this.#flowStep = step;
 		return this;
 	}
 
@@ -187,7 +187,7 @@ export class AuthenticationConfigurationBuilder {
 		if (!this.#securityKeys) {
 			throw new Error(`Authentication keys are needed.`);
 		}
-		if (!this.#flowTree) {
+		if (!this.#flowStep) {
 			throw new Error(`Authentication flow is needed.`);
 		}
 		if (!this.#securitySalt) {
@@ -199,7 +199,7 @@ export class AuthenticationConfigurationBuilder {
 				salt: this.#securitySalt,
 			},
 			flow: {
-				tree: this.#flowTree,
+				step: this.#flowStep,
 				identificators: new Map(this.#flowIdentificators),
 				chalengers: new Map(this.#flowChalengers),
 			},

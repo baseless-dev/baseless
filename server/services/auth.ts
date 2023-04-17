@@ -1,14 +1,14 @@
-import { AuthenticationState, AuthenticationStep } from "../auth/flow.ts";
+import {
+	AuthenticationState,
+	AuthenticationStep,
+	flatten,
+	getAuthenticationStepAtPath,
+	simplifyWithContext,
+} from "../auth/flow.ts";
 import { Configuration } from "../config.ts";
+import { NonExtendableContext } from "../context.ts";
 import { CounterService } from "./counter.ts";
 import { IdentityService } from "./identity.ts";
-
-export type AuthenticationPrompt = {
-	step: AuthenticationStep;
-	lastStep: boolean;
-	firstStep: boolean;
-	state: AuthenticationState;
-};
 
 export class AuthenticationService {
 	#configuration: Configuration;
@@ -25,16 +25,38 @@ export class AuthenticationService {
 		this.#counterService = counterService;
 	}
 
-	// getAuthenticationPrompt(
-	// 	state: AuthenticationState,
-	// ): Promise<AuthenticationPrompt> {
-	// 	throw new Error(`Unimplemented.`);
-	// }
+	async getStep(
+		request: Request,
+		context: NonExtendableContext,
+		state?: AuthenticationState,
+	): Promise<IteratorResult<AuthenticationStep, undefined>> {
+		state ??= { choices: [] };
+		const step = flatten(
+			await simplifyWithContext(
+				this.#configuration.auth.flow.step,
+				request,
+				context,
+				state,
+			),
+		);
+		return getAuthenticationStepAtPath(step, state.choices);
+	}
 
-	// startAuthentification(): Promise<AuthentificationSession>
-	// getNextAuthentificationStep(authenticationSession): Promise<PossibleSteps>
-	// performAuthentificationIdentificationStep(authenticationSession, identification): Promise<IdentificationResult>
-	// performAuthentificationChallengeStep(authenticationSession, challenge): Promise<ChallengeResult>
+	async submitIdentification(
+		request: Request,
+		context: NonExtendableContext,
+		state: AuthenticationState,
+		identification: string,
+	) {
+	}
+
+	async submitChallenge(
+		request: Request,
+		context: NonExtendableContext,
+		state: AuthenticationState,
+		challenge: string,
+	) {
+	}
 
 	// signOut(): Promise<void>
 }

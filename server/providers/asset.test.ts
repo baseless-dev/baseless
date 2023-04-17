@@ -13,7 +13,10 @@ export default async function testAssetProvider(
 		assertEquals(resp2.status, 404);
 		const resp3 = await ap.fetch(new Request("http://test.local/text.txt"));
 		assertEquals(resp3.status, 200);
-		assertEquals(resp3.headers.get("Content-Type"), "text/plain; charset=UTF-8");
+		assertEquals(
+			resp3.headers.get("Content-Type"),
+			"text/plain; charset=UTF-8",
+		);
 		assertEquals(await resp3.text(), "This is a test");
 	});
 }

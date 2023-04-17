@@ -7,25 +7,31 @@ import { KVIdentityProvider } from "../../server/providers/identity-kv/mod.ts";
 import { LoggerEmailProvider } from "../../server/providers/email-logger/mod.ts";
 import "./app.ts";
 import { autoid } from "../../shared/autoid.ts";
+import { LocalAssetProvider } from "../../server/providers/asset-local/mod.ts";
+import { CacheAssetProvider } from "../../server/providers/asset-cache/mod.ts";
 
 Deno.permissions.request({ name: "net" });
 Deno.permissions.request({ name: "env" });
 
 log.setGlobalLogHandler(log.createConsoleLogHandler(log.LogLevel.LOG));
 
+config.asset().setEnabled(true);
+
 const configuration = config.build();
 
-const counterProvider = new MemoryCounterProvider();
-const identityKV = new WebStorageKVProvider(sessionStorage, "hello-world-idp/");
-const identityProvider = new KVIdentityProvider(identityKV);
-const emailProvider = new LoggerEmailProvider();
+const assetProvider = new CacheAssetProvider("baseless-hello-world-public", new LocalAssetProvider(import.meta.resolve("./public")));
 
-// Create john's identity
-const johnId = await identityProvider.createIdentity({});
-await identityProvider.assignIdentityIdentification(johnId, "email", "john@doe.local");
-await identityProvider.assignIdentityChallenge(johnId, "password", "123");
+// const counterProvider = new MemoryCounterProvider();
+// const identityKV = new WebStorageKVProvider(sessionStorage, "hello-world-idp/");
+// const identityProvider = new KVIdentityProvider(identityKV);
+// const emailProvider = new LoggerEmailProvider();
 
-const server = new Server({ configuration, counterProvider, identityProvider, emailProvider });
+// // Create john's identity
+// const johnId = await identityProvider.createIdentity({});
+// await identityProvider.assignIdentityIdentification(johnId, "email", "john@doe.local");
+// await identityProvider.assignIdentityChallenge(johnId, "password", "123");
+
+const server = new Server({ configuration, assetProvider });
 
 const listener = Deno.listen({ hostname: "0.0.0.0", port: 8080 });
 

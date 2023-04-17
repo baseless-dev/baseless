@@ -8,13 +8,13 @@ import {
 } from "./flow.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 
-export interface AuthenticationKeys {
+export type AuthenticationKeys = {
 	readonly algo: string;
 	readonly privateKey: KeyLike;
 	readonly publicKey: KeyLike;
 }
 
-export interface AuthenticationConfiguration {
+export type AuthenticationConfiguration = {
 	readonly security: {
 		readonly keys: AuthenticationKeys;
 		readonly salt: string;
@@ -41,7 +41,7 @@ export type AuthenticationHandler = (
 	request: Request,
 	identity: Identity,
 ) => void | Promise<void>;
-export interface AuthenticationViewPrompParams {
+export type AuthenticationViewPrompParams = {
 	request: Request;
 	context: Context;
 	step: AuthenticationStep;
@@ -56,7 +56,7 @@ export interface AuthenticationRenderer {
 	promptPassword(options: AuthenticationViewPrompParams): string;
 	promptOTP(options: AuthenticationViewPrompParams): string;
 }
-export class AuthBuilder {
+export class AuthenticationConfigurationBuilder {
 	#securityKeys?: AuthenticationKeys;
 	#securitySalt?: string;
 	#flowTree?: AuthenticationStep;

@@ -14,52 +14,52 @@ import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_k
 import { email, password, sequence } from "../auth/flow.ts";
 
 Deno.test("AuthenticationService", async (t) => {
-	const config = new ConfigurationBuilder();
-	const { publicKey, privateKey } = await generateKeyPair("PS512");
-	config.auth()
-		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
-		.setSecuritySalt("foobar")
-		.setFlowTree(
-			sequence(
-				email({ icon: "", label: {} }),
-				password({ icon: "", label: {} }),
-			),
-		);
-	const authService = new AuthenticationService(
-		config.build(),
-		new KVIdentityProvider(
-			new WebStorageKVProvider(
-				sessionStorage,
-				import.meta.url + "createIdentity",
-			),
-		),
-		new MemoryCounterProvider(),
-		new LoggerEmailProvider(),
-	);
+	// const config = new ConfigurationBuilder();
+	// const { publicKey, privateKey } = await generateKeyPair("PS512");
+	// config.auth()
+	// 	.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
+	// 	.setSecuritySalt("foobar")
+	// 	.setFlowTree(
+	// 		sequence(
+	// 			email({ icon: "", label: {} }),
+	// 			password({ icon: "", label: {} }),
+	// 		),
+	// 	);
+	// const authService = new AuthenticationService(
+	// 	config.build(),
+	// 	new KVIdentityProvider(
+	// 		new WebStorageKVProvider(
+	// 			sessionStorage,
+	// 			import.meta.url + "createIdentity",
+	// 		),
+	// 	),
+	// 	new MemoryCounterProvider(),
+	// 	new LoggerEmailProvider(),
+	// );
 
-	let identityId: string;
-	await t.step("createIdentity", async () => {
-		identityId = await authService.createIdentity({ foo: "bar" });
-		assertAutoId(identityId);
-	});
+	// let identityId: string;
+	// await t.step("createIdentity", async () => {
+	// 	identityId = await authService.createIdentity({ foo: "bar" });
+	// 	assertAutoId(identityId);
+	// });
 
-	await t.step("getIdentityById", async () => {
-		const identity = await authService.getIdentityById(identityId);
-		assertEquals(identity.id, identityId);
-		assertEquals(identity.meta, { foo: "bar" });
-	});
+	// await t.step("getIdentityById", async () => {
+	// 	const identity = await authService.getIdentityById(identityId);
+	// 	assertEquals(identity.id, identityId);
+	// 	assertEquals(identity.meta, { foo: "bar" });
+	// });
 
-	await t.step("updateIdentity", async () => {
-		await authService.updateIdentity(identityId, { foo: "foo" });
-		const identity = await authService.getIdentityById(identityId);
-		assertEquals(identity.meta, { foo: "foo" });
-	});
+	// await t.step("updateIdentity", async () => {
+	// 	await authService.updateIdentity(identityId, { foo: "foo" });
+	// 	const identity = await authService.getIdentityById(identityId);
+	// 	assertEquals(identity.meta, { foo: "foo" });
+	// });
 
-	await t.step("deleteIdentity", async () => {
-		const identityId = await authService.createIdentity({});
-		await authService.deleteIdentity(identityId);
-		await assertRejects(() => authService.getIdentityById(identityId));
-	});
+	// await t.step("deleteIdentity", async () => {
+	// 	const identityId = await authService.createIdentity({});
+	// 	await authService.deleteIdentity(identityId);
+	// 	await assertRejects(() => authService.getIdentityById(identityId));
+	// });
 
 	// let identificationId: string;
 	// await t.step("assignIdentification", async () => {

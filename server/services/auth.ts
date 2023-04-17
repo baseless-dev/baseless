@@ -25,11 +25,11 @@ export class AuthenticationService {
 		this.#counterService = counterService;
 	}
 
-	getAuthenticationPrompt(
-		state: AuthenticationState,
-	): Promise<AuthenticationPrompt> {
-		throw new Error(`Unimplemented.`);
-	}
+	// getAuthenticationPrompt(
+	// 	state: AuthenticationState,
+	// ): Promise<AuthenticationPrompt> {
+	// 	throw new Error(`Unimplemented.`);
+	// }
 
 	// startAuthentification(): Promise<AuthentificationSession>
 	// getNextAuthentificationStep(authenticationSession): Promise<PossibleSteps>
@@ -39,5 +39,5 @@ export class AuthenticationService {
 	// signOut(): Promise<void>
 }
 
-export class UnknownIdenticatorError extends Error {}
-export class UnknownChallengerError extends Error {}
+export class UnknownIdenticatorError extends Error { }
+export class UnknownChallengerError extends Error { }

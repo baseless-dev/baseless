@@ -1,18 +1,12 @@
 import { Configuration } from "./config.ts";
-import { CounterProvider } from "./providers/counter.ts";
-import { IdentityProvider } from "./providers/identity.ts";
-import { EmailProvider } from "./providers/email.ts";
-// import { KVProvider } from "./providers/kv.ts";
+import { AssetService } from "./services/asset.ts";
 
 /**
  * Baseless's context
  */
 export interface Context {
 	readonly config: Configuration;
-	readonly counter: CounterProvider;
-	readonly identity: IdentityProvider;
-	readonly email: EmailProvider;
-	// readonly kv: KVProvider;
+	readonly asset: AssetService;
 
 	/**
 	 * Extend the lifetime of the request until the promise is done without blocking the response

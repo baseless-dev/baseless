@@ -1,35 +1,33 @@
 import { Configuration } from "./config.ts";
 import { Context } from "./context.ts";
 import { createLogger } from "./logger.ts";
-import authRouter from "./auth/routes.ts";
-import { RouterBuilder } from "./router.ts";
-import { IdentityProvider } from "./providers/identity.ts";
-import { CounterProvider } from "./providers/counter.ts";
-import { EmailProvider } from "./providers/email.ts";
-
-const router = new RouterBuilder<[context: Context]>()
-	.route("/auth", authRouter)
-	.build();
+import { AssetProvider } from "./providers/asset.ts";
+import { Router, RouterBuilder } from "./router.ts";
+import { AssetService } from "./services/asset.ts";
 
 export class Server {
 	#logger = createLogger("server");
 	#configuration: Configuration;
-	#counterProvider: CounterProvider;
-	#identityProvider: IdentityProvider;
-	#emailProvider: EmailProvider;
+	#assetProvider: AssetProvider;
+
+	#router: Router<[context: Context]>;
 
 	public constructor(
 		options: {
 			configuration: Configuration;
-			counterProvider: CounterProvider;
-			identityProvider: IdentityProvider;
-			emailProvider: EmailProvider;
+			assetProvider: AssetProvider;
 		},
 	) {
 		this.#configuration = options.configuration;
-		this.#counterProvider = options.counterProvider;
-		this.#identityProvider = options.identityProvider;
-		this.#emailProvider = options.emailProvider;
+		this.#assetProvider = options.assetProvider;
+
+		const routerBuilder = new RouterBuilder<[context: Context]>();
+
+		if (this.#configuration.asset.enabled) {
+			routerBuilder.get("/*", (request, _params, context) => context.asset.fetch(request));
+		}
+
+		this.#router = routerBuilder.build();
 	}
 
 	/**
@@ -43,19 +41,19 @@ export class Server {
 		const ip = request.headers.get("X-Real-Ip") ?? "";
 		this.#logger.log(`${request.method} ${ip} ${request.url}`);
 
+		const assetService = new AssetService(this.#assetProvider);
+
 		const waitUntilCollection: PromiseLike<unknown>[] = [];
 		const context: Context = {
 			config: this.#configuration,
-			counter: this.#counterProvider,
-			identity: this.#identityProvider,
-			email: this.#emailProvider,
+			asset: assetService,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},
 		};
 
 		try {
-			const processRequest = router.process(request, context);
+			const processRequest = this.#router.process(request, context);
 			return [
 				await processRequest,
 				waitUntilCollection,

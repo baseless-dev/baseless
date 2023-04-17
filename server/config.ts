@@ -1,15 +1,26 @@
-import { AuthBuilder, AuthenticationConfiguration } from "./auth/config.ts";
+import { AssetConfiguration, AssetConfigurationBuilder } from "./asset/config.ts";
+import { AuthenticationConfigurationBuilder, AuthenticationConfiguration } from "./auth/config.ts";
 
 export interface Configuration {
+	readonly asset: AssetConfiguration;
 	readonly auth: AuthenticationConfiguration;
 }
 
 export class ConfigurationBuilder {
-	#auth = new AuthBuilder();
+	#asset = new AssetConfigurationBuilder();
+	#auth = new AuthenticationConfigurationBuilder();
 
 	/**
-	 * Access the underlying {@see AuthBuilder}
-	 * @returns The {@see AuthBuilder}
+	 * Access the underlying {@see AssetConfigurationBuilder}
+	 * @returns The {@see AssetConfigurationBuilder}
+	 */
+	public asset() {
+		return this.#asset;
+	}
+
+	/**
+	 * Access the underlying {@see AuthenticationConfigurationBuilder}
+	 * @returns The {@see AuthenticationConfigurationBuilder}
 	 */
 	public auth() {
 		return this.#auth;
@@ -21,6 +32,7 @@ export class ConfigurationBuilder {
 	 */
 	public build(): Configuration {
 		return {
+			asset: this.#asset.build(),
 			auth: this.#auth.build(),
 		};
 	}

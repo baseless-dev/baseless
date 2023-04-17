@@ -8,7 +8,12 @@ export default async function testAssetProvider(
 ) {
 	await t.step("fetch", async () => {
 		const resp1 = await ap.fetch(new Request("http://test.local/"));
-		assertEquals(resp1.status, 404);
+		assertEquals(resp1.status, 200);
+		assertEquals(
+			resp1.headers.get("Content-Type"),
+			"text/html; charset=UTF-8",
+		);
+		assertEquals(await resp1.text(), "<html><body>This is HTML</body></html>");
 		const resp2 = await ap.fetch(new Request("http://test.local/404"));
 		assertEquals(resp2.status, 404);
 		const resp3 = await ap.fetch(new Request("http://test.local/text.txt"));

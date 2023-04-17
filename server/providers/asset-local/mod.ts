@@ -19,9 +19,13 @@ export class LocalAssetProvider implements AssetProvider {
 
 	async fetch(request: Request): Promise<Response> {
 		const url = new URL(request.url);
-		const filePath = join(this.#rootDir, normalize(url.pathname));
+		let filePath = join(this.#rootDir, normalize(url.pathname));
 		try {
-			const stat = await Deno.stat(filePath);
+			let stat = await Deno.stat(filePath);
+			if (stat.isDirectory) {
+				filePath = join(filePath, '/index.html');
+				stat = await Deno.stat(filePath);
+			}
 			if (stat.isFile) {
 				const file = await Deno.open(filePath, { read: true });
 				return new Response(file.readable, {

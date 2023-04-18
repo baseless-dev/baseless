@@ -23,7 +23,7 @@ export class WebStorageKVProvider implements KVProvider {
 		key: string,
 		_options?: KVGetOptions,
 	): Promise<KVKey> {
-		const json = this.storage.getItem(`/${this.prefix}${key}`);
+		const json = this.storage.getItem(`${this.prefix}${key}`);
 		if (json === null) {
 			this.logger.debug(`Key "${key}" does not exists.`);
 			throw new KeyNotFoundError(key);
@@ -67,7 +67,7 @@ export class WebStorageKVProvider implements KVProvider {
 				: options.expiration + new Date().getTime() / 1000
 			: null;
 		this.storage.setItem(
-			`/${this.prefix}${key}`,
+			`${this.prefix}${key}`,
 			JSON.stringify({ value, expiration }),
 		);
 		this.logger.debug(`Key "${key}" set.`);
@@ -76,32 +76,35 @@ export class WebStorageKVProvider implements KVProvider {
 	async list(
 		{ prefix, cursor = "", limit = 10 }: KVListOptions,
 	): Promise<KVListResult> {
-		const prefixStart = this.prefix.length + 1;
-		const prefixEnd = this.prefix.length + 1 + prefix.length;
+		const prefixStart = this.prefix.length;
+		const prefixEnd = this.prefix.length + prefix.length;
 		const keys: KVKey[] = [];
 		let count = 0;
 		for (let i = 0, l = this.storage.length; i < l && count < limit; ++i) {
 			const key = this.storage.key(i);
 			if (
-				key?.substring(0, prefixStart) === `/${this.prefix}` &&
+				key?.substring(0, prefixStart) === this.prefix &&
 				key?.substring(prefixStart, prefixEnd) === prefix &&
 				key.substring(prefixStart) > cursor
 			) {
 				count++;
 				keys.push(await this.get(key.substring(prefixStart)));
+				if (count >= limit) {
+					break;
+				}
 			}
 		}
 		const done = count !== limit;
 		return {
 			keys: keys as unknown as ReadonlyArray<KVKey>,
 			done,
-			next: done ? undefined : keys[keys.length - 1]?.key,
+			next: done ? undefined : keys.at(-1)?.key,
 		};
 	}
 
 	// deno-lint-ignore require-await
 	async delete(key: string): Promise<void> {
-		this.storage.removeItem(`/${this.prefix}${key}`);
+		this.storage.removeItem(`${this.prefix}${key}`);
 		this.logger.debug(`Key "${key}" deleted.`);
 	}
 }

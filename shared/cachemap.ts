@@ -19,13 +19,29 @@ export class CacheMap<K, V> {
 		const expiration = typeof expireInAt === "undefined"
 			? undefined
 			: expireInAt instanceof Date
-			? expireInAt.getTime() * 1000
-			: Date.now() + expireInAt;
+				? expireInAt.getTime() * 1000
+				: Date.now() + expireInAt;
 		this.#map.set(key, { value, expiration });
 	}
 
 	delete(key: K) {
 		this.#map.delete(key);
+	}
+
+	entries() {
+		return this.#map.entries();
+	}
+
+	keys() {
+		return this.#map.keys();
+	}
+
+	values() {
+		return this.#map.values();
+	}
+
+	[Symbol.iterator]() {
+		return this.entries();
 	}
 
 	clearAll() {

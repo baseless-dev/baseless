@@ -9,7 +9,7 @@ import {
 import { contentType } from "https://deno.land/std@0.179.0/media_types/mod.ts";
 import { createLogger } from "../../logger.ts";
 
-export class CacheAssetProvider implements AssetProvider {
+export class WebCacheAssetProvider implements AssetProvider {
 	#logger = createLogger("asset-local");
 	#cacheName: string;
 	#cache?: Cache;

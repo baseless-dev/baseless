@@ -8,7 +8,7 @@ import { LoggerEmailProvider } from "../../server/providers/email-logger/mod.ts"
 import "./app.ts";
 import { autoid } from "../../shared/autoid.ts";
 import { LocalAssetProvider } from "../../server/providers/asset-local/mod.ts";
-import { CacheAssetProvider } from "../../server/providers/asset-cache/mod.ts";
+import { WebCacheAssetProvider } from "../../server/providers/asset-webcache/mod.ts";
 
 Deno.permissions.request({ name: "net" });
 Deno.permissions.request({ name: "env" });
@@ -17,7 +17,7 @@ log.setGlobalLogHandler(log.createConsoleLogHandler(log.LogLevel.LOG));
 
 const configuration = config.build();
 
-const assetProvider = new CacheAssetProvider("baseless-hello-world-public", new LocalAssetProvider(import.meta.resolve("./public")));
+const assetProvider = new WebCacheAssetProvider("baseless-hello-world-public", new LocalAssetProvider(import.meta.resolve("./public")));
 
 // const counterProvider = new MemoryCounterProvider();
 // const identityKV = new WebStorageKVProvider(sessionStorage, "hello-world-idp/");

@@ -69,6 +69,13 @@ export class AuthenticationService {
 		state: AuthenticationState,
 		type: string,
 	) {
+		const ip = request.headers.get("X-Real-Ip") ?? "";
+		const counterInterval = context.config.auth.rateLimit.identificationInterval * 1000;
+		const slidingWindow = Math.round(Date.now() / counterInterval);
+		const counterKey = `/auth/identification/${state.identity ?? ip}/${slidingWindow}`;
+		if (await context.counter.increment(counterKey, 1, counterInterval) > context.config.auth.rateLimit.identificationCount) {
+			throw new AuthenticationRateLimitedError();
+		}
 		const result = await this.getStep(request, context, state);
 		if (result.done) {
 			throw new AuthenticationFlowDoneError();
@@ -77,14 +84,6 @@ export class AuthenticationService {
 		if (!step) {
 			throw new AuthenticationInvalidStepError();
 		}
-		const ip = request.headers.get("X-Real-Ip") ?? "";
-		const counterInterval = context.config.auth.rateLimit.identificationInterval * 1000;
-		const slidingWindow = Math.round(Date.now() / counterInterval);
-		const counterKey = `/auth/identification/${state.identity ?? ip}/${slidingWindow}`;
-		if (await context.counter.increment(counterKey, 1, counterInterval) > context.config.auth.rateLimit.identificationCount) {
-			throw new AuthenticationRateLimitedError();
-		}
-		debugger;
 		// get AuthenticationIdentificator by step.type
 		// identificator.identify
 		// if last then emit session
@@ -101,8 +100,8 @@ export class AuthenticationService {
 	// 		throw new AuthenticationFlowDoneError();
 	// 	}
 	// 	const { step, first, last } = result;
-	// 	// if step instanceof AuthenticationChoice then find step.type === type else throw
 	// 	// rate limit state.identity or X-Real-Ip
+	// 	// if step instanceof AuthenticationChoice then find step.type === type else throw
 	// 	// get AuthenticationChallenger by step.type
 	// 	// challenger.validate
 	//	// if last then emit session

@@ -1,4 +1,4 @@
-import { AutoId } from "../../shared/autoid.ts";
+import { autoid, AutoId } from "../../shared/autoid.ts";
 import {
 	AuthenticationChoice,
 	AuthenticationState,
@@ -11,6 +11,7 @@ import { Configuration } from "../config.ts";
 import { NonExtendableContext } from "../context.ts";
 import { CounterService } from "./counter.ts";
 import { IdentityService } from "./identity.ts";
+import { KVService } from "./kv.ts";
 
 export type GetStepYieldResult = {
 	done: false;
@@ -25,15 +26,18 @@ export class AuthenticationService {
 	#configuration: Configuration;
 	#identityService: IdentityService;
 	#counterService: CounterService;
+	#kvService: KVService;
 
 	constructor(
 		configuration: Configuration,
 		identityService: IdentityService,
 		counterService: CounterService,
+		kvService: KVService
 	) {
 		this.#configuration = configuration;
 		this.#identityService = identityService;
 		this.#counterService = counterService;
+		this.#kvService = kvService;
 	}
 
 	async getStep(
@@ -68,13 +72,16 @@ export class AuthenticationService {
 		context: NonExtendableContext,
 		state: AuthenticationState,
 		type: string,
-	) {
-		const ip = request.headers.get("X-Real-Ip") ?? "";
-		const counterInterval = context.config.auth.rateLimit.identificationInterval * 1000;
-		const slidingWindow = Math.round(Date.now() / counterInterval);
-		const counterKey = `/auth/identification/${state.identity ?? ip}/${slidingWindow}`;
-		if (await context.counter.increment(counterKey, 1, counterInterval) > context.config.auth.rateLimit.identificationCount) {
-			throw new AuthenticationRateLimitedError();
+	): Promise<Response | AuthenticationState | AutoId> {
+		// Rate limit request
+		{
+			const ip = request.headers.get("X-Real-Ip") ?? "";
+			const counterInterval = this.#configuration.auth.rateLimit.identificationInterval * 1000;
+			const slidingWindow = Math.round(Date.now() / counterInterval);
+			const counterKey = `/auth/identification/${state.identity ?? ip}/${slidingWindow}`;
+			if (await this.#counterService.increment(counterKey, 1, counterInterval) > this.#configuration.auth.rateLimit.identificationCount) {
+				throw new AuthenticationRateLimitedError();
+			}
 		}
 		const result = await this.getStep(request, context, state);
 		if (result.done) {
@@ -84,28 +91,36 @@ export class AuthenticationService {
 		if (!step) {
 			throw new AuthenticationInvalidStepError();
 		}
-		// get AuthenticationIdentificator by step.type
-		// identificator.identify
-		// if last then emit session
+		const identificator = this.#configuration.auth.flow.identificators.get(step.type);
+		if (!identificator) {
+			throw new AuthenticationMissingIdentificatorError();
+		}
+		const identifyResult = await identificator.identify(request, context, state);
+		if (identifyResult instanceof Response) {
+			return identifyResult;
+		}
+		state = { ...state, identity: identifyResult };
+		if (result.last) {
+			const sessionId = autoid();
+			// TODO save sessionId
+			return sessionId;
+		} else {
+			return state;
+		}
 	}
 
-	// async submitChallenge(
-	// 	request: Request,
-	// 	context: NonExtendableContext,
-	// 	state: AuthenticationState,
-	// 	type: string,
-	// ) {
-	// 	const result = await this.getStep(request, context, state);
-	// 	if (result.done) {
-	// 		throw new AuthenticationFlowDoneError();
-	// 	}
-	// 	const { step, first, last } = result;
-	// 	// rate limit state.identity or X-Real-Ip
-	// 	// if step instanceof AuthenticationChoice then find step.type === type else throw
-	// 	// get AuthenticationChallenger by step.type
-	// 	// challenger.validate
-	//	// if last then emit session
-	// }
+	async submitChallenge(
+		request: Request,
+		context: NonExtendableContext,
+		state: AuthenticationState,
+		type: string,
+	) {
+		// rate limit state.identity or X-Real-Ip
+		// if step instanceof AuthenticationChoice then find step.type === type else throw
+		// get AuthenticationChallenger by step.type
+		// challenger.validate
+		// if last then emit session
+	}
 
 	async sendIdentificationValidationCode(
 		request: Request,
@@ -142,3 +157,4 @@ export class AuthenticationService {
 export class AuthenticationFlowDoneError extends Error { }
 export class AuthenticationInvalidStepError extends Error { }
 export class AuthenticationRateLimitedError extends Error { }
+export class AuthenticationMissingIdentificatorError extends Error { }

@@ -37,22 +37,15 @@ export class AuthenticationIdentification {
 		public readonly icon: string,
 		public readonly label: Record<string, string>,
 		public readonly prompt: "email" | "action",
-	) {}
+	) { }
 }
 
 export abstract class AuthenticationIdenticator {
-	// /**
-	//  * Perform request authentication
-	//  * @param request The {@link Request}
-	//  * @param context The {@link Context}
-	//  * @param state The {@link AuthenticationState}
-	//  * @returns The {@link Identity.id} or a {@link Response} object
-	//  */
-	// abstract identify(
-	// 	request: Request,
-	// 	context: Context,
-	// 	state: AuthenticationState,
-	// ): Promise<AutoId | Response>;
+	abstract identify(
+		request: Request,
+		context: NonExtendableContext,
+		state: AuthenticationState,
+	): Promise<AutoId | Response>;
 
 	// /**
 	//  * If this identicator allows it, send a verification code
@@ -70,7 +63,7 @@ export class AuthenticationChallenge {
 		public readonly icon: string,
 		public readonly label: Record<string, string>,
 		public readonly prompt: "password" | "otp",
-	) {}
+	) { }
 }
 
 export abstract class AuthenticationChallenger {
@@ -98,7 +91,7 @@ export abstract class AuthenticationChallenger {
 }
 
 export class AuthenticationSequence {
-	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) {}
+	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) { }
 	get type(): string {
 		return `sequence(${this.steps.map((s) => s.type)})`;
 	}
@@ -109,7 +102,7 @@ export function sequence(...steps: AuthenticationStep[]) {
 }
 
 export class AuthenticationChoice {
-	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) {}
+	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) { }
 	get type(): string {
 		return `choice(${this.choices.map((s) => s.type)})`;
 	}
@@ -126,7 +119,7 @@ export class AuthenticationConditional {
 			context: NonExtendableContext,
 			state: AuthenticationState,
 		) => AuthenticationStep | Promise<AuthenticationStep>,
-	) {}
+	) { }
 	get type(): string {
 		return `condition()`;
 	}
@@ -330,7 +323,7 @@ export function flatten(step: AuthenticationStep): AuthenticationStep {
 	return decomposed.at(0)!;
 }
 
-export class AuthenticationStepAtPathError extends Error {}
+export class AuthenticationStepAtPathError extends Error { }
 
 export type GetAuthenticationStepAtPathYieldResult = {
 	done: false;

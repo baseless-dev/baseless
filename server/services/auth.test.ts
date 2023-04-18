@@ -17,6 +17,8 @@ import { CounterService } from "./counter.ts";
 import { AssetService } from "./asset.ts";
 import { LocalAssetProvider } from "../providers/asset-local/mod.ts";
 import { NonExtendableContext } from "../context.ts";
+import { KVService } from "./kv.ts";
+import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
 
 Deno.test("AuthenticationService", async (t) => {
 	const email = f.email({ icon: "", label: {} });
@@ -47,10 +49,12 @@ Deno.test("AuthenticationService", async (t) => {
 		),
 	);
 	const counterService = new CounterService(new MemoryCounterProvider());
+	const kvService = new KVService(new MemoryKVProvider());
 	const authService = new AuthenticationService(
 		configuration,
 		identityService,
 		counterService,
+		kvService
 	);
 	const assetService = new AssetService(
 		new LocalAssetProvider(import.meta.resolve("./")),
@@ -60,7 +64,8 @@ Deno.test("AuthenticationService", async (t) => {
 	const context: NonExtendableContext = {
 		config: configuration,
 		asset: assetService,
-		counter: counterService
+		counter: counterService,
+		kv: kvService
 	};
 
 	await t.step("getStep", async () => {

@@ -3,15 +3,18 @@ import { Context } from "./context.ts";
 import { createLogger } from "./logger.ts";
 import { AssetProvider } from "./providers/asset.ts";
 import { CounterProvider } from "./providers/counter.ts";
+import { KVProvider } from "./providers/kv.ts";
 import { Router, RouterBuilder } from "./router.ts";
 import { AssetService } from "./services/asset.ts";
 import { CounterService } from "./services/counter.ts";
+import { KVService } from "./services/kv.ts";
 
 export class Server {
 	#logger = createLogger("server");
 	#configuration: Configuration;
 	#assetProvider: AssetProvider;
 	#counterProvider: CounterProvider;
+	#kvProvider: KVProvider;
 
 	#router: Router<[context: Context]>;
 
@@ -20,11 +23,13 @@ export class Server {
 			configuration: Configuration;
 			assetProvider: AssetProvider;
 			counterProvider: CounterProvider;
+			kvProvider: KVProvider;
 		},
 	) {
 		this.#configuration = options.configuration;
 		this.#assetProvider = options.assetProvider;
 		this.#counterProvider = options.counterProvider;
+		this.#kvProvider = options.kvProvider;
 
 		const routerBuilder = new RouterBuilder<[context: Context]>();
 
@@ -51,12 +56,14 @@ export class Server {
 
 		const assetService = new AssetService(this.#assetProvider);
 		const counterService = new CounterService(this.#counterProvider);
+		const kvService = new KVService(this.#kvProvider);
 
 		const waitUntilCollection: PromiseLike<unknown>[] = [];
 		const context: Context = {
 			config: this.#configuration,
 			asset: assetService,
 			counter: counterService,
+			kv: kvService,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},

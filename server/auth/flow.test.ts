@@ -87,69 +87,69 @@ Deno.test("flow", async (t) => {
 	await t.step("getAuthenticationStepAtPath", () => {
 		assertEquals(
 			f.getAuthenticationStepAtPath(f.flatten(f.sequence(email, password)), []),
-			{ done: false, value: email },
+			{ done: false, step: email },
 		);
 		assertEquals(
 			f.getAuthenticationStepAtPath(f.flatten(f.sequence(email, password)), [
 				"email",
 			]),
-			{ done: false, value: password },
+			{ done: false, step: password },
 		);
 		assertEquals(
 			f.getAuthenticationStepAtPath(f.flatten(f.sequence(email, password)), [
 				"email",
 				"password",
 			]),
-			{ done: true, value: undefined },
+			{ done: true },
 		);
 		assertEquals(
 			f.getAuthenticationStepAtPath(
 				f.flatten(f.sequence(email, password, f.oneOf(github, google), otp)),
 				[],
 			),
-			{ done: false, value: email },
+			{ done: false, step: email },
 		);
 		assertEquals(
 			f.getAuthenticationStepAtPath(
 				f.flatten(f.sequence(email, password, f.oneOf(github, google), otp)),
 				["email"],
 			),
-			{ done: false, value: password },
+			{ done: false, step: password },
 		);
 		assertEquals(
 			f.getAuthenticationStepAtPath(
 				f.flatten(f.sequence(email, password, f.oneOf(github, google), otp)),
 				["email", "password"],
 			),
-			{ done: false, value: f.oneOf(github, google) },
+			{ done: false, step: f.oneOf(github, google) },
 		);
 		assertEquals(
 			f.getAuthenticationStepAtPath(
 				f.flatten(f.sequence(email, password, f.oneOf(github, google), otp)),
 				["email", "password", "github"],
 			),
-			{ done: false, value: otp },
+			{ done: false, step: otp },
 		);
 		assertEquals(
 			f.getAuthenticationStepAtPath(
 				f.flatten(f.sequence(email, password, f.oneOf(github, google), otp)),
 				["email", "password", "google"],
 			),
-			{ done: false, value: otp },
+			{ done: false, step: otp },
 		);
 		assertEquals(
 			f.getAuthenticationStepAtPath(
 				f.flatten(f.sequence(email, password, f.oneOf(github, google), otp)),
 				["email", "password", "github", "otp"],
 			),
-			{ done: true, value: undefined },
+			{ done: true },
 		);
 		assertEquals(
 			f.getAuthenticationStepAtPath(
 				f.flatten(f.sequence(email, password, f.oneOf(github, google), otp)),
 				["email", "password", "google", "otp"],
 			),
-			{ done: true, value: undefined },
+			{ done: true },
 		);
 	});
 });

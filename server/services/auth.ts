@@ -1,4 +1,6 @@
+import { AutoId } from "../../shared/autoid.ts";
 import {
+	AuthenticationChoice,
 	AuthenticationState,
 	AuthenticationStep,
 	flatten,
@@ -9,6 +11,15 @@ import { Configuration } from "../config.ts";
 import { NonExtendableContext } from "../context.ts";
 import { CounterService } from "./counter.ts";
 import { IdentityService } from "./identity.ts";
+
+export type GetStepYieldResult = {
+	done: false;
+	step: AuthenticationStep;
+	first: boolean;
+	last: boolean;
+};
+export type GetStepReturnResult = { done: true };
+export type GetStepResult = GetStepYieldResult | GetStepReturnResult;
 
 export class AuthenticationService {
 	#configuration: Configuration;
@@ -29,7 +40,7 @@ export class AuthenticationService {
 		request: Request,
 		context: NonExtendableContext,
 		state?: AuthenticationState,
-	): Promise<IteratorResult<AuthenticationStep, undefined>> {
+	): Promise<GetStepResult> {
 		state ??= { choices: [] };
 		const step = flatten(
 			await simplifyWithContext(
@@ -39,27 +50,96 @@ export class AuthenticationService {
 				state,
 			),
 		);
-		return getAuthenticationStepAtPath(step, state.choices);
+		const result = getAuthenticationStepAtPath(step, state.choices);
+		if (result.done) {
+			return { done: true };
+		}
+		const last = result.step instanceof AuthenticationChoice
+			? false
+			: getAuthenticationStepAtPath(step, [...state.choices, result.step.type])
+				.done;
+		const first = state.choices.length === 0 &&
+			result.step instanceof AuthenticationChoice;
+		return { done: false, step: result.step, first, last };
 	}
 
 	async submitIdentification(
 		request: Request,
 		context: NonExtendableContext,
 		state: AuthenticationState,
-		identification: string,
+		type: string,
 	) {
+		const result = await this.getStep(request, context, state);
+		if (result.done) {
+			throw new AuthenticationFlowDoneError();
+		}
+		const step = result.step instanceof AuthenticationChoice ? result.step.choices.find(s => s.type === type) : result.step;
+		if (!step) {
+			throw new AuthenticationInvalidStepError();
+		}
+		const ip = request.headers.get("X-Real-Ip") ?? "";
+		const counterInterval = context.config.auth.rateLimit.identificationInterval * 1000;
+		const slidingWindow = Math.round(Date.now() / counterInterval);
+		const counterKey = `/auth/identification/${state.identity ?? ip}/${slidingWindow}`;
+		if (await context.counter.increment(counterKey, 1, counterInterval) > context.config.auth.rateLimit.identificationCount) {
+			throw new AuthenticationRateLimitedError();
+		}
+		debugger;
+		// get AuthenticationIdentificator by step.type
+		// identificator.identify
+		// if last then emit session
 	}
 
-	async submitChallenge(
+	// async submitChallenge(
+	// 	request: Request,
+	// 	context: NonExtendableContext,
+	// 	state: AuthenticationState,
+	// 	type: string,
+	// ) {
+	// 	const result = await this.getStep(request, context, state);
+	// 	if (result.done) {
+	// 		throw new AuthenticationFlowDoneError();
+	// 	}
+	// 	const { step, first, last } = result;
+	// 	// if step instanceof AuthenticationChoice then find step.type === type else throw
+	// 	// rate limit state.identity or X-Real-Ip
+	// 	// get AuthenticationChallenger by step.type
+	// 	// challenger.validate
+	//	// if last then emit session
+	// }
+
+	async sendIdentificationValidationCode(
 		request: Request,
 		context: NonExtendableContext,
-		state: AuthenticationState,
-		challenge: string,
+		identityId: AutoId,
+		type: string,
 	) {
+		// rate limit identity or X-Real-Ip
+		// get AuthenticationIdentificator by type
+		// generate code and saves it to KV
+		// identificator.sendVerificationCode
 	}
 
-	// signOut(): Promise<void>
+	async confirmIdentificationValidationCode(
+		request: Request,
+		context: NonExtendableContext,
+		identityId: AutoId,
+		type: string,
+		code: string,
+	) {
+		// rate limit identity or X-Real-Ip
+		// get AuthenticationIdentificator by type
+		// validate code with KV
+	}
+
+	async signOut(
+		request: Request,
+		context: NonExtendableContext,
+	): Promise<void> {
+		// destroy session from request
+	}
 }
 
-export class UnknownIdenticatorError extends Error { }
-export class UnknownChallengerError extends Error { }
+export class AuthenticationFlowDoneError extends Error { }
+export class AuthenticationInvalidStepError extends Error { }
+export class AuthenticationRateLimitedError extends Error { }

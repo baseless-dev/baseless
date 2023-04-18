@@ -332,10 +332,19 @@ export function flatten(step: AuthenticationStep): AuthenticationStep {
 
 export class AuthenticationStepAtPathError extends Error {}
 
+export type GetAuthenticationStepAtPathYieldResult = {
+	done: false;
+	step: AuthenticationStep;
+};
+export type GetAuthenticationStepAtPathReturnResult = { done: true };
+export type GetStepResult =
+	| GetAuthenticationStepAtPathYieldResult
+	| GetAuthenticationStepAtPathReturnResult;
+
 export function getAuthenticationStepAtPath(
 	step: AuthenticationStep,
 	path: string[],
-): IteratorResult<AuthenticationStep, undefined> {
+): GetStepResult {
 	if (step instanceof AuthenticationSequence) {
 		let i = 0;
 		const stepLen = step.steps.length;
@@ -346,14 +355,14 @@ export function getAuthenticationStepAtPath(
 			}
 		}
 		if (i === stepLen) {
-			return { done: true, value: undefined };
+			return { done: true };
 		}
 		if (i !== pathLen) {
 			throw new AuthenticationStepAtPathError();
 		}
-		return { done: false, value: step.steps.at(i)! };
+		return { done: false, step: step.steps.at(i)! };
 	} else if (step instanceof AuthenticationChoice) {
-		const nextSteps: IteratorResult<AuthenticationStep, undefined>[] = [];
+		const nextSteps: GetStepResult[] = [];
 		for (const inner of step.choices) {
 			try {
 				nextSteps.push(getAuthenticationStepAtPath(inner, path));
@@ -362,7 +371,7 @@ export function getAuthenticationStepAtPath(
 			}
 		}
 		if (nextSteps.some((ns) => ns.done)) {
-			return { done: true, value: undefined };
+			return { done: true };
 		}
 		if (nextSteps.length === 1) {
 			return nextSteps.at(0)!;
@@ -370,16 +379,16 @@ export function getAuthenticationStepAtPath(
 			// const steps = nextSteps.filter((ns): ns is AuthStepNextValue => !ns.done).map((ns) => ns.next);
 			const steps = nextSteps.reduce((steps, step) => {
 				if (step.done === false) {
-					steps.push(step.value);
+					steps.push(step.step);
 				}
 				return steps;
 			}, [] as AuthenticationStep[]);
-			return { done: false, value: simplify(oneOf(...new Set(steps))) };
+			return { done: false, step: simplify(oneOf(...new Set(steps))) };
 		}
 	} else if (path.length === 0) {
-		return { done: false, value: step };
+		return { done: false, step };
 	} else if (step.type === path.at(0)!) {
-		return { done: true, value: undefined };
+		return { done: true };
 	}
 	throw new AuthenticationStepAtPathError();
 }

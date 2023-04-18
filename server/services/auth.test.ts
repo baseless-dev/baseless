@@ -60,6 +60,7 @@ Deno.test("AuthenticationService", async (t) => {
 	const context: NonExtendableContext = {
 		config: configuration,
 		asset: assetService,
+		counter: counterService
 	};
 
 	await t.step("getStep", async () => {
@@ -67,21 +68,24 @@ Deno.test("AuthenticationService", async (t) => {
 			await authService.getStep(request, context),
 			{
 				done: false,
-				value: f.oneOf(email, github),
+				step: f.oneOf(email, github),
+				first: true,
+				last: false,
 			},
 		);
 		assertEquals(
 			await authService.getStep(request, context, { choices: ["email"] }),
 			{
 				done: false,
-				value: password,
+				step: password,
+				first: false,
+				last: false,
 			},
 		);
 		assertEquals(
 			await authService.getStep(request, context, { choices: ["github"] }),
 			{
 				done: true,
-				value: undefined,
 			},
 		);
 		assertEquals(
@@ -90,7 +94,9 @@ Deno.test("AuthenticationService", async (t) => {
 			}),
 			{
 				done: false,
-				value: otp,
+				step: otp,
+				first: false,
+				last: true,
 			},
 		);
 		assertEquals(
@@ -99,11 +105,14 @@ Deno.test("AuthenticationService", async (t) => {
 			}),
 			{
 				done: true,
-				value: undefined,
 			},
 		);
 	});
 
 	await t.step("submitIdentification", async () => {
+		assertEquals(
+			await authService.submitIdentification(request, context, { choices: [] }, "email"),
+			undefined,
+		);
 	});
 });

@@ -2,13 +2,16 @@ import { Configuration } from "./config.ts";
 import { Context } from "./context.ts";
 import { createLogger } from "./logger.ts";
 import { AssetProvider } from "./providers/asset.ts";
+import { CounterProvider } from "./providers/counter.ts";
 import { Router, RouterBuilder } from "./router.ts";
 import { AssetService } from "./services/asset.ts";
+import { CounterService } from "./services/counter.ts";
 
 export class Server {
 	#logger = createLogger("server");
 	#configuration: Configuration;
 	#assetProvider: AssetProvider;
+	#counterProvider: CounterProvider;
 
 	#router: Router<[context: Context]>;
 
@@ -16,10 +19,12 @@ export class Server {
 		options: {
 			configuration: Configuration;
 			assetProvider: AssetProvider;
+			counterProvider: CounterProvider;
 		},
 	) {
 		this.#configuration = options.configuration;
 		this.#assetProvider = options.assetProvider;
+		this.#counterProvider = options.counterProvider;
 
 		const routerBuilder = new RouterBuilder<[context: Context]>();
 
@@ -45,11 +50,13 @@ export class Server {
 		this.#logger.log(`${request.method} ${ip} ${request.url}`);
 
 		const assetService = new AssetService(this.#assetProvider);
+		const counterService = new CounterService(this.#counterProvider);
 
 		const waitUntilCollection: PromiseLike<unknown>[] = [];
 		const context: Context = {
 			config: this.#configuration,
 			asset: assetService,
+			counter: counterService,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},

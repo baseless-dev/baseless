@@ -1,9 +1,9 @@
-import { Context } from "../context.ts";
+import { AutoId } from "../../shared/autoid.ts";
+import { Context, NonExtendableContext } from "../context.ts";
 import { Identity } from "../providers/identity.ts";
 import {
 	assertAuthenticationStep,
-	AuthenticationChallenger,
-	AuthenticationIdenticator,
+	AuthenticationState,
 	AuthenticationStep,
 } from "./flow.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
@@ -13,6 +13,47 @@ export type AuthenticationKeys = {
 	readonly privateKey: KeyLike;
 	readonly publicKey: KeyLike;
 };
+
+export abstract class AuthenticationIdenticator {
+	abstract identify(
+		context: NonExtendableContext,
+		state: AuthenticationState,
+		request: Request,
+	): Promise<AutoId | Response>;
+
+	// /**
+	//  * If this identicator allows it, send a verification code
+	//  */
+	// abstract sendVerificationCode?: (
+	// 	request: Request,
+	// 	context: Context,
+	// 	identityId: AutoId,
+	// ) => Promise<void>;
+}
+
+export abstract class AuthenticationChallenger {
+	// /**
+	//  * If need be, transform the challenge
+	//  */
+	// abstract transform?: (
+	// 	request: Request,
+	// 	context: Context,
+	// 	challenge: string,
+	// ) => Promise<string>;
+
+	// /**
+	//  * Perform request challenge
+	//  * @param request The {@link Request}
+	//  * @param context The {@link Context}
+	//  * @param state The {@link AuthenticationState}
+	//  * @returns If the challenge was successful or not
+	//  */
+	// abstract challenge(
+	// 	request: Request,
+	// 	context: Context,
+	// 	state: AuthenticationState,
+	// ): Promise<boolean>;
+}
 
 export type AuthenticationConfiguration = {
 	readonly security: {

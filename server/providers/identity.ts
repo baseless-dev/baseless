@@ -82,7 +82,6 @@ export interface IdentityProvider {
 	delete(id: AutoId): Promise<void>;
 	listIdentification(id: AutoId): Promise<IdentityIdentification[]>;
 	getIdentification<Meta extends Record<string, unknown>>(
-		identityId: AutoId,
 		type: string,
 		identification: string,
 	): Promise<IdentityIdentification<Meta>>;

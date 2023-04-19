@@ -119,13 +119,11 @@ export class KVIdentityProvider implements IdentityProvider {
 	async getIdentification<
 		Meta extends Record<string, unknown> = Record<string, unknown>,
 	>(
-		id: AutoId,
 		type: string,
 		identification: string,
 	): Promise<IdentityIdentification<Meta>> {
-		assertAutoId(id);
 		const result = await this.kv.get(
-			`${this.prefix}/identities/${id}/identifications/${type}:${identification}`,
+			`${this.prefix}/identifications/${type}:${identification}`,
 		);
 		const data = JSON.parse(result.value);
 		assertIdentityIdentification(data);
@@ -136,30 +134,48 @@ export class KVIdentityProvider implements IdentityProvider {
 		identityIdentification: IdentityIdentification,
 		expiration?: number | Date,
 	): Promise<void> {
-		const key =
+		const keyIdentity =
 			`${this.prefix}/identities/${identityIdentification.identityId}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
-		const exists = await this.kv.get(key).then((_) => true).catch((_) => false);
+		const keyIdentification =
+			`${this.prefix}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
+		const exists = await this.kv.get(keyIdentification).then((_) => true).catch(
+			(_) => false,
+		);
 		if (exists) {
 			throw new IdentityIdentificationExistsError();
 		}
-		await this.kv.put(key, JSON.stringify(identityIdentification), {
-			expiration,
-		});
+		await Promise.all([
+			this.kv.put(keyIdentity, JSON.stringify(identityIdentification), {
+				expiration,
+			}),
+			this.kv.put(keyIdentification, JSON.stringify(identityIdentification), {
+				expiration,
+			}),
+		]);
 	}
 
 	async updateIdentification(
 		identityIdentification: IdentityIdentification,
 		expiration?: number | Date,
 	): Promise<void> {
-		const key =
+		const keyIdentity =
 			`${this.prefix}/identities/${identityIdentification.identityId}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
-		const exists = await this.kv.get(key).then((_) => true).catch((_) => false);
+		const keyIdentification =
+			`${this.prefix}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
+		const exists = await this.kv.get(keyIdentification).then((_) => true).catch(
+			(_) => false,
+		);
 		if (!exists) {
 			throw new IdentityIdentificationNotFoundError();
 		}
-		await this.kv.put(key, JSON.stringify(identityIdentification), {
-			expiration,
-		});
+		await Promise.all([
+			this.kv.put(keyIdentity, JSON.stringify(identityIdentification), {
+				expiration,
+			}),
+			this.kv.put(keyIdentification, JSON.stringify(identityIdentification), {
+				expiration,
+			}),
+		]);
 	}
 
 	async deleteIdentification(
@@ -168,16 +184,21 @@ export class KVIdentityProvider implements IdentityProvider {
 		identification: string,
 	): Promise<void> {
 		assertAutoId(id);
-		const key =
+		const keyIdentity =
 			`${this.prefix}/identities/${id}/identifications/${type}:${identification}`;
-		const exists = await this.kv.get(key).then((_) => true).catch((_) => false);
+		const keyIdentification =
+			`${this.prefix}/identifications/${type}:${identification}`;
+		const exists = await this.kv.get(keyIdentification).then((_) => true).catch(
+			(_) => false,
+		);
 		if (!exists) {
 			throw new IdentityIdentificationNotFoundError();
 		}
 		try {
-			await this.kv.delete(
-				`${this.prefix}/identities/${id}/identifications/${type}:${identification}`,
-			);
+			await Promise.all([
+				this.kv.delete(keyIdentity),
+				this.kv.delete(keyIdentification),
+			]);
 		} catch (inner) {
 			if (!(inner instanceof IdentityNotFoundError)) {
 				this.#logger.error(inner);

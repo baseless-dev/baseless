@@ -1,4 +1,11 @@
-import { KVGetOptions, KVKey, KVListOptions, KVListResult, KVProvider, KVPutOptions } from "../providers/kv.ts";
+import {
+	KVGetOptions,
+	KVKey,
+	KVListOptions,
+	KVListResult,
+	KVProvider,
+	KVPutOptions,
+} from "../providers/kv.ts";
 
 export class KVService {
 	#kvProvider: KVProvider;

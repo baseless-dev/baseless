@@ -1,4 +1,4 @@
-import { autoid, AutoId } from "../../shared/autoid.ts";
+import { AutoId, autoid } from "../../shared/autoid.ts";
 import {
 	AuthenticationChoice,
 	AuthenticationState,
@@ -32,7 +32,7 @@ export class AuthenticationService {
 		configuration: Configuration,
 		identityService: IdentityService,
 		counterService: CounterService,
-		kvService: KVService
+		kvService: KVService,
 	) {
 		this.#configuration = configuration;
 		this.#identityService = identityService;
@@ -41,7 +41,6 @@ export class AuthenticationService {
 	}
 
 	async getStep(
-		request: Request,
 		context: NonExtendableContext,
 		state?: AuthenticationState,
 	): Promise<GetStepResult> {
@@ -49,7 +48,6 @@ export class AuthenticationService {
 		const step = flatten(
 			await simplifyWithContext(
 				this.#configuration.auth.flow.step,
-				request,
 				context,
 				state,
 			),
@@ -68,58 +66,91 @@ export class AuthenticationService {
 	}
 
 	async submitIdentification(
-		request: Request,
 		context: NonExtendableContext,
 		state: AuthenticationState,
 		type: string,
+		request: Request,
 	): Promise<Response | AuthenticationState | AutoId> {
-		// Rate limit request
-		{
-			const ip = request.headers.get("X-Real-Ip") ?? "";
-			const counterInterval = this.#configuration.auth.rateLimit.identificationInterval * 1000;
-			const slidingWindow = Math.round(Date.now() / counterInterval);
-			const counterKey = `/auth/identification/${state.identity ?? ip}/${slidingWindow}`;
-			if (await this.#counterService.increment(counterKey, 1, counterInterval) > this.#configuration.auth.rateLimit.identificationCount) {
-				throw new AuthenticationRateLimitedError();
-			}
+		const counterInterval =
+			this.#configuration.auth.rateLimit.identificationInterval * 1000;
+		const slidingWindow = Math.round(Date.now() / counterInterval);
+		const counterKey = `/auth/identification/${
+			state.identity ?? request.headers.get("X-Real-Ip")
+		}/${slidingWindow}`;
+		if (
+			await this.#counterService.increment(counterKey, 1, counterInterval) >
+				this.#configuration.auth.rateLimit.identificationCount
+		) {
+			throw new AuthenticationRateLimitedError();
 		}
-		const result = await this.getStep(request, context, state);
+		const result = await this.getStep(context, state);
 		if (result.done) {
 			throw new AuthenticationFlowDoneError();
 		}
-		const step = result.step instanceof AuthenticationChoice ? result.step.choices.find(s => s.type === type) : result.step;
+		const step = result.step instanceof AuthenticationChoice
+			? result.step.choices.find((s) => s.type === type)
+			: result.step;
 		if (!step) {
 			throw new AuthenticationInvalidStepError();
 		}
-		const identificator = this.#configuration.auth.flow.identificators.get(step.type);
+		const identificator = this.#configuration.auth.flow.identificators.get(
+			step.type,
+		);
 		if (!identificator) {
 			throw new AuthenticationMissingIdentificatorError();
 		}
-		const identifyResult = await identificator.identify(request, context, state);
+		const identifyResult = await identificator.identify(
+			context,
+			state,
+			request,
+		);
 		if (identifyResult instanceof Response) {
 			return identifyResult;
 		}
-		state = { ...state, identity: identifyResult };
 		if (result.last) {
 			const sessionId = autoid();
-			// TODO save sessionId
+			// TODO session expiration
+			await this.#kvService.put(`/sessions/${sessionId}`, identifyResult, {
+				expiration: 3600,
+			});
 			return sessionId;
 		} else {
-			return state;
+			return { choices: [...state.choices, type], identity: identifyResult };
 		}
 	}
 
 	async submitChallenge(
-		request: Request,
 		context: NonExtendableContext,
 		state: AuthenticationState,
 		type: string,
+		request: Request,
 	) {
-		// rate limit state.identity or X-Real-Ip
-		// if step instanceof AuthenticationChoice then find step.type === type else throw
-		// get AuthenticationChallenger by step.type
-		// challenger.validate
-		// if last then emit session
+		const counterInterval =
+			this.#configuration.auth.rateLimit.identificationInterval * 1000;
+		const slidingWindow = Math.round(Date.now() / counterInterval);
+		const counterKey = `/auth/identification/${
+			state.identity ?? request.headers.get("X-Real-Ip")
+		}/${slidingWindow}`;
+		if (
+			await this.#counterService.increment(counterKey, 1, counterInterval) >
+				this.#configuration.auth.rateLimit.identificationCount
+		) {
+			throw new AuthenticationRateLimitedError();
+		}
+		const result = await this.getStep(context, state);
+		if (result.done) {
+			throw new AuthenticationFlowDoneError();
+		}
+		const step = result.step instanceof AuthenticationChoice
+			? result.step.choices.find((s) => s.type === type)
+			: result.step;
+		if (!step) {
+			throw new AuthenticationInvalidStepError();
+		}
+		const challenger = this.#configuration.auth.flow.chalengers.get(step.type);
+		if (!challenger) {
+			throw new AuthenticationMissingChallengerError();
+		}
 	}
 
 	async sendIdentificationValidationCode(
@@ -154,7 +185,8 @@ export class AuthenticationService {
 	}
 }
 
-export class AuthenticationFlowDoneError extends Error { }
-export class AuthenticationInvalidStepError extends Error { }
-export class AuthenticationRateLimitedError extends Error { }
-export class AuthenticationMissingIdentificatorError extends Error { }
+export class AuthenticationFlowDoneError extends Error {}
+export class AuthenticationInvalidStepError extends Error {}
+export class AuthenticationRateLimitedError extends Error {}
+export class AuthenticationMissingIdentificatorError extends Error {}
+export class AuthenticationMissingChallengerError extends Error {}

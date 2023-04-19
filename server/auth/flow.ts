@@ -37,24 +37,7 @@ export class AuthenticationIdentification {
 		public readonly icon: string,
 		public readonly label: Record<string, string>,
 		public readonly prompt: "email" | "action",
-	) { }
-}
-
-export abstract class AuthenticationIdenticator {
-	abstract identify(
-		request: Request,
-		context: NonExtendableContext,
-		state: AuthenticationState,
-	): Promise<AutoId | Response>;
-
-	// /**
-	//  * If this identicator allows it, send a verification code
-	//  */
-	// abstract sendVerificationCode?: (
-	// 	request: Request,
-	// 	context: Context,
-	// 	identityId: AutoId,
-	// ) => Promise<void>;
+	) {}
 }
 
 export class AuthenticationChallenge {
@@ -63,35 +46,11 @@ export class AuthenticationChallenge {
 		public readonly icon: string,
 		public readonly label: Record<string, string>,
 		public readonly prompt: "password" | "otp",
-	) { }
-}
-
-export abstract class AuthenticationChallenger {
-	// /**
-	//  * If need be, transform the challenge
-	//  */
-	// abstract transform?: (
-	// 	request: Request,
-	// 	context: Context,
-	// 	challenge: string,
-	// ) => Promise<string>;
-
-	// /**
-	//  * Perform request challenge
-	//  * @param request The {@link Request}
-	//  * @param context The {@link Context}
-	//  * @param state The {@link AuthenticationState}
-	//  * @returns If the challenge was successful or not
-	//  */
-	// abstract challenge(
-	// 	request: Request,
-	// 	context: Context,
-	// 	state: AuthenticationState,
-	// ): Promise<boolean>;
+	) {}
 }
 
 export class AuthenticationSequence {
-	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) { }
+	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) {}
 	get type(): string {
 		return `sequence(${this.steps.map((s) => s.type)})`;
 	}
@@ -102,7 +61,7 @@ export function sequence(...steps: AuthenticationStep[]) {
 }
 
 export class AuthenticationChoice {
-	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) { }
+	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) {}
 	get type(): string {
 		return `choice(${this.choices.map((s) => s.type)})`;
 	}
@@ -115,11 +74,10 @@ export function oneOf(...choices: AuthenticationStep[]) {
 export class AuthenticationConditional {
 	constructor(
 		public readonly condition: (
-			request: Request,
 			context: NonExtendableContext,
 			state: AuthenticationState,
 		) => AuthenticationStep | Promise<AuthenticationStep>,
-	) { }
+	) {}
 	get type(): string {
 		return `condition()`;
 	}
@@ -163,14 +121,13 @@ export function simplify(
 
 export async function simplifyWithContext(
 	step: AuthenticationStep,
-	request: Request,
 	context: NonExtendableContext,
 	state: AuthenticationState,
 ): Promise<AuthenticationStep> {
 	if (step instanceof AuthenticationSequence) {
 		const steps: AuthenticationStep[] = [];
 		for (let inner of step.steps) {
-			inner = await simplifyWithContext(inner, request, context, state);
+			inner = await simplifyWithContext(inner, context, state);
 			if (inner instanceof AuthenticationSequence) {
 				steps.push(...inner.steps);
 			} else {
@@ -181,7 +138,7 @@ export async function simplifyWithContext(
 	} else if (step instanceof AuthenticationChoice) {
 		const choices: AuthenticationStep[] = [];
 		for (let inner of step.choices) {
-			inner = await simplifyWithContext(inner, request, context, state);
+			inner = await simplifyWithContext(inner, context, state);
 			if (inner instanceof AuthenticationChoice) {
 				choices.push(...inner.choices);
 			} else {
@@ -193,9 +150,9 @@ export async function simplifyWithContext(
 		}
 		return oneOf(...choices);
 	} else if (step instanceof AuthenticationConditional) {
-		if (request && context && state) {
-			const result = await step.condition(request, context, state);
-			return simplifyWithContext(result, request, context, state);
+		if (context && state) {
+			const result = await step.condition(context, state);
+			return simplifyWithContext(result, context, state);
 		}
 	}
 	return step;
@@ -323,7 +280,7 @@ export function flatten(step: AuthenticationStep): AuthenticationStep {
 	return decomposed.at(0)!;
 }
 
-export class AuthenticationStepAtPathError extends Error { }
+export class AuthenticationStepAtPathError extends Error {}
 
 export type GetAuthenticationStepAtPathYieldResult = {
 	done: false;

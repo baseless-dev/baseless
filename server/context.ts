@@ -1,6 +1,7 @@
 import { Configuration } from "./config.ts";
 import { AssetService } from "./services/asset.ts";
 import { CounterService } from "./services/counter.ts";
+import { IdentityService } from "./services/identity.ts";
 import { KVService } from "./services/kv.ts";
 
 /**
@@ -11,6 +12,7 @@ export type Context = {
 	readonly asset: AssetService;
 	readonly counter: CounterService;
 	readonly kv: KVService;
+	readonly identity: IdentityService;
 
 	/**
 	 * Extend the lifetime of the request until the promise is done without blocking the response

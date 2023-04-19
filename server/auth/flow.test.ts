@@ -8,7 +8,7 @@ Deno.test("flow", async (t) => {
 	const otp = f.otp({ type: "otp", icon: "", label: {} });
 	const github = f.action({ type: "github", icon: "", label: {} });
 	const google = f.action({ type: "google", icon: "", label: {} });
-	const conditional = f.iif((_req, _ctx, _state) => {
+	const conditional = f.iif((_ctx, _state) => {
 		return f.sequence(email, password);
 	});
 
@@ -49,11 +49,10 @@ Deno.test("flow", async (t) => {
 	});
 
 	await t.step("simplifyWithContext", async () => {
-		const req = new Request(new URL("http://test.local/"));
 		const ctx = {} as Context;
 		const state = {} as f.AuthenticationState;
 		assertEquals(
-			await f.simplifyWithContext(conditional, req, ctx, state),
+			await f.simplifyWithContext(conditional, ctx, state),
 			f.sequence(email, password),
 		);
 	});

@@ -51,11 +51,10 @@ export class IdentityService {
 	}
 
 	getIdentification<Meta extends Record<string, unknown>>(
-		id: AutoId,
 		type: string,
 		identification: string,
 	): Promise<IdentityIdentification<Meta>> {
-		return this.#identityProvider.getIdentification(id, type, identification);
+		return this.#identityProvider.getIdentification(type, identification);
 	}
 
 	createIdentification(

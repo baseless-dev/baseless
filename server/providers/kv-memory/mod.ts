@@ -1,11 +1,22 @@
 import { CacheMap } from "../../../shared/cachemap.ts";
 import { createLogger } from "../../logger.ts";
-import { KeyNotFoundError, KVGetOptions, KVKey, KVListOptions, KVListResult, KVProvider, KVPutOptions } from "../kv.ts";
+import {
+	KeyNotFoundError,
+	KVGetOptions,
+	KVKey,
+	KVListOptions,
+	KVListResult,
+	KVProvider,
+	KVPutOptions,
+} from "../kv.ts";
 
 type Item = { value: string; expiration?: number };
 
 function isItem(value?: unknown): value is Item {
-	return !!value && typeof value === "object" && "value" in value && typeof value.value === "string" && ((!("expiration" in value) || value.expiration === undefined || ("expiration" in value && typeof value.expiration === "number")));
+	return !!value && typeof value === "object" && "value" in value &&
+		typeof value.value === "string" &&
+		(!("expiration" in value) || value.expiration === undefined ||
+			("expiration" in value && typeof value.expiration === "number"));
 }
 
 function assertItem(value?: unknown): asserts value is Item {
@@ -30,7 +41,7 @@ export class MemoryKVProvider implements KVProvider {
 		assertItem(item);
 		return {
 			key,
-			...item
+			...item,
 		};
 	}
 

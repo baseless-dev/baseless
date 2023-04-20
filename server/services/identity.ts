@@ -99,9 +99,8 @@ export class IdentityService {
 	getChallenge<Meta extends Record<string, unknown>>(
 		id: AutoId,
 		type: string,
-		challenge: string,
 	): Promise<IdentityChallenge<Meta>> {
-		return this.#identityProvider.getChallenge(id, type, challenge);
+		return this.#identityProvider.getChallenge(id, type);
 	}
 
 	createChallenge(
@@ -126,8 +125,8 @@ export class IdentityService {
 		);
 	}
 
-	deleteChallenge(id: AutoId, type: string, challenge: string): Promise<void> {
+	deleteChallenge(id: AutoId, type: string): Promise<void> {
 		// TODO life cycle hooks
-		return this.#identityProvider.deleteChallenge(id, type, challenge);
+		return this.#identityProvider.deleteChallenge(id, type);
 	}
 }

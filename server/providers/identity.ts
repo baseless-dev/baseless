@@ -16,7 +16,6 @@ export interface IdentityIdentification<Meta = Record<string, unknown>> {
 export interface IdentityChallenge<Meta = Record<string, unknown>> {
 	readonly identityId: AutoId;
 	readonly type: string;
-	readonly challenge: string;
 	readonly meta: Meta;
 }
 
@@ -52,8 +51,8 @@ export function isIdentityChallenge(
 	value?: unknown,
 ): value is IdentityChallenge {
 	return !!value && typeof value === "object" && "identityId" in value &&
-		"type" in value && "challenge" in value && "meta" in value &&
-		isAutoId(value.identityId) && typeof value.meta === "object";
+		"type" in value && "meta" in value && isAutoId(value.identityId) &&
+		typeof value.meta === "object";
 }
 
 export function assertIdentityChallenge(
@@ -102,7 +101,6 @@ export interface IdentityProvider {
 	getChallenge<Meta extends Record<string, unknown>>(
 		identityId: AutoId,
 		type: string,
-		challenge: string,
 	): Promise<IdentityChallenge<Meta>>;
 	createChallenge(
 		identityChallenge: IdentityChallenge,
@@ -112,7 +110,7 @@ export interface IdentityProvider {
 		identityChallenge: IdentityChallenge,
 		expiration?: number | Date,
 	): Promise<void>;
-	deleteChallenge(id: AutoId, type: string, challenge: string): Promise<void>;
+	deleteChallenge(id: AutoId, type: string): Promise<void>;
 }
 
 export class InvalidIdentityError extends Error {}

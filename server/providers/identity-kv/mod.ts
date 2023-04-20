@@ -94,8 +94,8 @@ export class KVIdentityProvider implements IdentityProvider {
 			) {
 				ops.push(this.deleteIdentification(id, type, identification));
 			}
-			for (const { type, challenge } of await this.listChallenge(id)) {
-				ops.push(this.deleteChallenge(id, type, challenge));
+			for (const { type } of await this.listChallenge(id)) {
+				ops.push(this.deleteChallenge(id, type));
 			}
 			await Promise.all(ops);
 		} catch (inner) {
@@ -222,11 +222,10 @@ export class KVIdentityProvider implements IdentityProvider {
 	async getChallenge<Meta extends Record<string, unknown>>(
 		id: AutoId,
 		type: string,
-		challenge: string,
 	): Promise<IdentityChallenge<Meta>> {
 		assertAutoId(id);
 		const result = await this.kv.get(
-			`${this.prefix}/identities/${id}/challenges/${type}:${challenge}`,
+			`${this.prefix}/identities/${id}/challenges/${type}`,
 		);
 		const data = JSON.parse(result.value);
 		assertIdentityChallenge(data);
@@ -238,7 +237,7 @@ export class KVIdentityProvider implements IdentityProvider {
 		expiration?: number | Date,
 	): Promise<void> {
 		const key =
-			`${this.prefix}/identities/${identityChallenge.identityId}/challenges/${identityChallenge.type}:${identityChallenge.challenge}`;
+			`${this.prefix}/identities/${identityChallenge.identityId}/challenges/${identityChallenge.type}`;
 		const exists = await this.kv.get(key).then((_) => true).catch((_) => false);
 		if (exists) {
 			throw new IdentityChallengeExistsError();
@@ -251,7 +250,7 @@ export class KVIdentityProvider implements IdentityProvider {
 		expiration?: number | Date,
 	): Promise<void> {
 		const key =
-			`${this.prefix}/identities/${identityChallenge.identityId}/challenges/${identityChallenge.type}:${identityChallenge.challenge}`;
+			`${this.prefix}/identities/${identityChallenge.identityId}/challenges/${identityChallenge.type}`;
 		const exists = await this.kv.get(key).then((_) => true).catch((_) => false);
 		if (!exists) {
 			throw new IdentityChallengeNotFoundError();
@@ -262,11 +261,9 @@ export class KVIdentityProvider implements IdentityProvider {
 	async deleteChallenge(
 		id: AutoId,
 		type: string,
-		challenge: string,
 	): Promise<void> {
 		assertAutoId(id);
-		const key =
-			`${this.prefix}/identities/${id}/challenges/${type}:${challenge}`;
+		const key = `${this.prefix}/identities/${id}/challenges/${type}`;
 		const exists = await this.kv.get(key).then((_) => true).catch((_) => false);
 		if (!exists) {
 			throw new IdentityChallengeNotFoundError();

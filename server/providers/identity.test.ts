@@ -128,7 +128,7 @@ export default async function testIdentityProvider(
 	await t.step("deleteIdentification", async () => {
 		const challeng2: IdentityChallenge = {
 			...challeng1,
-			type: "password2"
+			type: "password2",
 		};
 		await ip.createChallenge(challeng2);
 		await ip.deleteChallenge(identityId, challeng2.type);

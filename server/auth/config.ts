@@ -32,27 +32,17 @@ export abstract class AuthenticationIdenticator {
 }
 
 export abstract class AuthenticationChallenger {
-	// /**
-	//  * If need be, transform the challenge
-	//  */
-	// abstract transform?: (
-	// 	request: Request,
-	// 	context: Context,
-	// 	challenge: string,
-	// ) => Promise<string>;
+	prepareMetaForRequest(
+		_request: Request,
+	): Record<string, string> | Promise<Record<string, string>> {
+		return {};
+	}
 
-	// /**
-	//  * Perform request challenge
-	//  * @param request The {@link Request}
-	//  * @param context The {@link Context}
-	//  * @param state The {@link AuthenticationState}
-	//  * @returns If the challenge was successful or not
-	//  */
-	// abstract challenge(
-	// 	request: Request,
-	// 	context: Context,
-	// 	state: AuthenticationState,
-	// ): Promise<boolean>;
+	abstract challenge(
+		context: NonExtendableContext,
+		state: AuthenticationState,
+		request: Request,
+	): Promise<boolean>;
 }
 
 export type AuthenticationConfiguration = {
@@ -257,3 +247,6 @@ export class AuthenticationConfigurationBuilder {
 		};
 	}
 }
+
+export class AuthenticationMissingIdentificatorError extends Error { }
+export class AuthenticationMissingChallengerError extends Error { }

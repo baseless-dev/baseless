@@ -1,5 +1,9 @@
 import { AutoId, autoid } from "../../shared/autoid.ts";
 import {
+	AuthenticationMissingChallengerError,
+	AuthenticationMissingIdentificatorError,
+} from "../auth/config.ts";
+import {
 	AuthenticationChoice,
 	AuthenticationState,
 	AuthenticationStep,
@@ -151,6 +155,20 @@ export class AuthenticationService {
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
 		}
+
+		if (!await challenger.challenge(context, state, request)) {
+			throw new AuthenticationChallengeFailedError();
+		}
+
+		if (result.last) {
+			const sessionId = autoid();
+			// TODO session expiration
+			await this.#kvService.put(`/sessions/${sessionId}`, state.identity!, {
+				expiration: 3600,
+			});
+			return sessionId;
+		}
+		return { ...state, choices: [...state.choices, type] };
 	}
 
 	async sendIdentificationValidationCode(
@@ -188,5 +206,4 @@ export class AuthenticationService {
 export class AuthenticationFlowDoneError extends Error {}
 export class AuthenticationInvalidStepError extends Error {}
 export class AuthenticationRateLimitedError extends Error {}
-export class AuthenticationMissingIdentificatorError extends Error {}
-export class AuthenticationMissingChallengerError extends Error {}
+export class AuthenticationChallengeFailedError extends Error {}

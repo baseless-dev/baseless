@@ -21,12 +21,12 @@ import { KVService } from "./kv.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
 import { AuthenticationIdenticator } from "../auth/config.ts";
 import { EmailAuthentificationIdenticator } from "../auth/identicators/email.ts";
+import { PasswordAuthentificationChallenger } from "../auth/identicators/password.ts";
 
 Deno.test("AuthenticationService", async (t) => {
 	const email = f.email({ icon: "", label: {} });
 	const password = f.password({ icon: "", label: {} });
 	const github = f.action({ type: "github", icon: "", label: {} });
-	const otp = f.otp({ type: "otp", icon: "", label: {} });
 
 	const config = new ConfigurationBuilder();
 	const { publicKey, privateKey } = await generateKeyPair("PS512");
@@ -35,11 +35,12 @@ Deno.test("AuthenticationService", async (t) => {
 		.setSecuritySalt("foobar")
 		.setFlowStep(
 			f.oneOf(
-				f.sequence(email, password, otp),
+				f.sequence(email, password),
 				github,
 			),
 		)
-		.addFlowIdentificator("email", new EmailAuthentificationIdenticator());
+		.addFlowIdentificator("email", new EmailAuthentificationIdenticator())
+		.addFlowChallenger("password", new PasswordAuthentificationChallenger());
 
 	const configuration = config.build();
 	const identityService = new IdentityService(
@@ -71,6 +72,14 @@ Deno.test("AuthenticationService", async (t) => {
 		identity: identityService,
 	};
 
+	function makePostRequest(form: Record<string, string>) {
+		const body = new FormData();
+		for (const [key, value] of Object.entries(form)) {
+			body.set(key, value);
+		}
+		return new Request("http://test.local", { method: "POST", body });
+	}
+
 	const ident1 = await identityService.create({});
 	await identityService.createIdentification({
 		identityId: ident1.id,
@@ -79,6 +88,11 @@ Deno.test("AuthenticationService", async (t) => {
 		verified: false,
 		meta: {},
 	});
+	await identityService.createChallengeWithRequest(
+		ident1.id,
+		"password",
+		makePostRequest({ password: "123" }),
+	);
 
 	await t.step("getStep", async () => {
 		assertEquals(
@@ -96,7 +110,7 @@ Deno.test("AuthenticationService", async (t) => {
 				done: false,
 				step: password,
 				first: false,
-				last: false,
+				last: true,
 			},
 		);
 		assertEquals(
@@ -110,44 +124,55 @@ Deno.test("AuthenticationService", async (t) => {
 				choices: ["email", "password"],
 			}),
 			{
-				done: false,
-				step: otp,
-				first: false,
-				last: true,
-			},
-		);
-		assertEquals(
-			await authService.getStep(context, {
-				choices: ["email", "password", "otp"],
-			}),
-			{
 				done: true,
 			},
 		);
 	});
 
 	await t.step("submitIdentification", async () => {
-		{
-			const body = new FormData();
-			body.set("email", "john@test.local");
-			const req = new Request("http://test.local", { method: "POST", body });
-			assertEquals(
-				await authService.submitIdentification(
-					context,
-					{ choices: [] },
-					"email",
-					req,
-				),
+		assertEquals(
+			await authService.submitIdentification(
+				context,
+				{ choices: [] },
+				"email",
+				makePostRequest({ email: "john@test.local" }),
+			),
+			{ choices: ["email"], identity: ident1.id },
+		);
+		await assertRejects(() =>
+			authService.submitIdentification(
+				context,
+				{ choices: [] },
+				"email",
+				makePostRequest({ email: "unknown@test.local" }),
+			)
+		);
+	});
+
+	await t.step("submitChallenge", async () => {
+		assertAutoId(
+			await authService.submitChallenge(
+				context,
 				{ choices: ["email"], identity: ident1.id },
-			);
-		}
-		{
-			const body = new FormData();
-			body.set("email", "nobody@test.local");
-			const req = new Request("http://test.local", { method: "POST", body });
-			await assertRejects(() =>
-				authService.submitIdentification(context, { choices: [] }, "email", req)
-			);
-		}
+				"password",
+				makePostRequest({ password: "123" }),
+			),
+		);
+		await assertRejects(() =>
+			authService.submitChallenge(
+				context,
+				{ choices: [], identity: ident1.id },
+				"password",
+				makePostRequest({ password: "123" }),
+			)
+		);
+		await assertRejects(() =>
+			authService.submitChallenge(
+				context,
+				{ choices: ["email"], identity: ident1.id },
+				"password",
+				makePostRequest({ password: "abc" }),
+			)
+		);
 	});
 });

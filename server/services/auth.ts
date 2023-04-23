@@ -1,21 +1,25 @@
-import { AutoId, autoid } from "../../shared/autoid.ts";
+import { assertAutoId, AutoId, autoid, isAutoId } from "../../shared/autoid.ts";
 import {
 	AuthenticationMissingChallengerError,
 	AuthenticationMissingIdentificatorError,
 } from "../auth/config.ts";
 import {
+	assertAuthenticationStateIdentified,
 	AuthenticationChoice,
 	AuthenticationState,
 	AuthenticationStep,
 	flatten,
 	getAuthenticationStepAtPath,
+	isAuthenticationStateIdentified,
 	simplifyWithContext,
 } from "../auth/flow.ts";
 import { Configuration } from "../config.ts";
 import { NonExtendableContext } from "../context.ts";
+import { SessionData } from "../providers/session.ts";
 import { CounterService } from "./counter.ts";
 import { IdentityService } from "./identity.ts";
 import { KVService } from "./kv.ts";
+import { SessionService } from "./session.ts";
 
 export type GetStepYieldResult = {
 	done: false;
@@ -29,17 +33,20 @@ export type GetStepResult = GetStepYieldResult | GetStepReturnResult;
 export class AuthenticationService {
 	#configuration: Configuration;
 	#identityService: IdentityService;
+	#sessionService: SessionService;
 	#counterService: CounterService;
 	#kvService: KVService;
 
 	constructor(
 		configuration: Configuration,
 		identityService: IdentityService,
+		sessionService: SessionService,
 		counterService: CounterService,
 		kvService: KVService,
 	) {
 		this.#configuration = configuration;
 		this.#identityService = identityService;
+		this.#sessionService = sessionService;
 		this.#counterService = counterService;
 		this.#kvService = kvService;
 	}
@@ -74,16 +81,17 @@ export class AuthenticationService {
 		state: AuthenticationState,
 		type: string,
 		request: Request,
-	): Promise<Response | AuthenticationState | AutoId> {
+	): Promise<Response | AuthenticationState | SessionData> {
 		const counterInterval =
-			this.#configuration.auth.rateLimit.identificationInterval * 1000;
+			this.#configuration.auth.security.rateLimit.identificationInterval * 1000;
 		const slidingWindow = Math.round(Date.now() / counterInterval);
-		const counterKey = `/auth/identification/${
-			state.identity ?? request.headers.get("X-Real-Ip")
-		}/${slidingWindow}`;
+		const identifier = isAuthenticationStateIdentified(state)
+			? state.identity
+			: request.headers.get("X-Real-Ip");
+		const counterKey = `/auth/identification/${identifier}/${slidingWindow}`;
 		if (
 			await this.#counterService.increment(counterKey, 1, counterInterval) >
-				this.#configuration.auth.rateLimit.identificationCount
+			this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -112,12 +120,7 @@ export class AuthenticationService {
 			return identifyResult;
 		}
 		if (result.last) {
-			const sessionId = autoid();
-			// TODO session expiration
-			await this.#kvService.put(`/sessions/${sessionId}`, identifyResult, {
-				expiration: 3600,
-			});
-			return sessionId;
+			return this.#sessionService.create(identifyResult, {});
 		} else {
 			return { choices: [...state.choices, type], identity: identifyResult };
 		}
@@ -128,16 +131,18 @@ export class AuthenticationService {
 		state: AuthenticationState,
 		type: string,
 		request: Request,
-	) {
+	): Promise<SessionData | AuthenticationState> {
+		assertAuthenticationStateIdentified(state);
 		const counterInterval =
-			this.#configuration.auth.rateLimit.identificationInterval * 1000;
+			this.#configuration.auth.security.rateLimit.identificationInterval * 1000;
 		const slidingWindow = Math.round(Date.now() / counterInterval);
-		const counterKey = `/auth/identification/${
-			state.identity ?? request.headers.get("X-Real-Ip")
-		}/${slidingWindow}`;
+		const identifier = isAuthenticationStateIdentified(state)
+			? state.identity
+			: request.headers.get("X-Real-Ip");
+		const counterKey = `/auth/identification/${identifier}/${slidingWindow}`;
 		if (
 			await this.#counterService.increment(counterKey, 1, counterInterval) >
-				this.#configuration.auth.rateLimit.identificationCount
+			this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -161,12 +166,7 @@ export class AuthenticationService {
 		}
 
 		if (result.last) {
-			const sessionId = autoid();
-			// TODO session expiration
-			await this.#kvService.put(`/sessions/${sessionId}`, state.identity!, {
-				expiration: 3600,
-			});
-			return sessionId;
+			return this.#sessionService.create(state.identity, {});
 		}
 		return { ...state, choices: [...state.choices, type] };
 	}
@@ -194,16 +194,9 @@ export class AuthenticationService {
 		// get AuthenticationIdentificator by type
 		// validate code with KV
 	}
-
-	async signOut(
-		request: Request,
-		context: NonExtendableContext,
-	): Promise<void> {
-		// destroy session from request
-	}
 }
 
-export class AuthenticationFlowDoneError extends Error {}
-export class AuthenticationInvalidStepError extends Error {}
-export class AuthenticationRateLimitedError extends Error {}
-export class AuthenticationChallengeFailedError extends Error {}
+export class AuthenticationFlowDoneError extends Error { }
+export class AuthenticationInvalidStepError extends Error { }
+export class AuthenticationRateLimitedError extends Error { }
+export class AuthenticationChallengeFailedError extends Error { }

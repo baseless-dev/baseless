@@ -1,4 +1,4 @@
-import { IdentityProvider } from "./identity.ts";
+import { assertIdentity, IdentityProvider } from "./identity.ts";
 import {
 	assertEquals,
 	assertRejects,
@@ -13,18 +13,21 @@ export default async function testIdentityProvider(
 	let identityId = "";
 	await t.step("create", async () => {
 		const id1 = await ip.create({ foo: "bar" });
+		assertIdentity(id1);
 		assertEquals(id1.meta, { foo: "bar" });
 		identityId = id1.id;
 	});
 
 	await t.step("get", async () => {
 		const id1 = await ip.get(identityId);
+		assertIdentity(id1);
 		assertEquals(id1.meta, { foo: "bar" });
 	});
 
 	await t.step("update", async () => {
 		await ip.update({ id: identityId, meta: { foo: "foo" } });
 		const ident1 = await ip.get(identityId);
+		assertIdentity(ident1);
 		assertEquals(ident1.meta, { foo: "foo" });
 		await assertRejects(() => ip.update({ id: autoid(), meta: {} }));
 	});

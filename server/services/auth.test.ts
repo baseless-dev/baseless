@@ -8,7 +8,7 @@ import { KVIdentityProvider } from "../providers/identity-kv/mod.ts";
 import { MemoryCounterProvider } from "../providers/counter-memory/mod.ts";
 import { LoggerEmailProvider } from "../providers/email-logger/mod.ts";
 import { AuthenticationService } from "./auth.ts";
-import { assertAutoId } from "../../shared/autoid.ts";
+import { assertAutoId, AutoId } from "../../shared/autoid.ts";
 import { ConfigurationBuilder } from "../config.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
 import * as f from "../auth/flow.ts";
@@ -22,6 +22,9 @@ import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
 import { AuthenticationIdenticator } from "../auth/config.ts";
 import { EmailAuthentificationIdenticator } from "../auth/identicators/email.ts";
 import { PasswordAuthentificationChallenger } from "../auth/identicators/password.ts";
+import { assertSessionData } from "../providers/session.ts";
+import { SessionService } from "./session.ts";
+import { KVSessionProvider } from "../providers/session-kv/mod.ts";
 
 Deno.test("AuthenticationService", async (t) => {
 	const email = f.email({ icon: "", label: {} });
@@ -45,18 +48,18 @@ Deno.test("AuthenticationService", async (t) => {
 	const configuration = config.build();
 	const identityService = new IdentityService(
 		configuration,
-		new KVIdentityProvider(
-			new WebStorageKVProvider(
-				sessionStorage,
-				import.meta.url + "createIdentity",
-			),
-		),
+		new KVIdentityProvider(new MemoryKVProvider()),
+	);
+	const sessionService = new SessionService(
+		configuration,
+		new KVSessionProvider(new MemoryKVProvider()),
 	);
 	const counterService = new CounterService(new MemoryCounterProvider());
 	const kvService = new KVService(new MemoryKVProvider());
 	const authService = new AuthenticationService(
 		configuration,
 		identityService,
+		sessionService,
 		counterService,
 		kvService,
 	);
@@ -70,6 +73,7 @@ Deno.test("AuthenticationService", async (t) => {
 		counter: counterService,
 		kv: kvService,
 		identity: identityService,
+		session: sessionService,
 	};
 
 	function makePostRequest(form: Record<string, string>) {
@@ -150,7 +154,7 @@ Deno.test("AuthenticationService", async (t) => {
 	});
 
 	await t.step("submitChallenge", async () => {
-		assertAutoId(
+		assertSessionData(
 			await authService.submitChallenge(
 				context,
 				{ choices: ["email"], identity: ident1.id },

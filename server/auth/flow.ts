@@ -1,4 +1,4 @@
-import { AutoId } from "../../shared/autoid.ts";
+import { AutoId, isAutoId } from "../../shared/autoid.ts";
 import { NonExtendableContext } from "../context.ts";
 
 export type AuthenticationStep =
@@ -8,10 +8,18 @@ export type AuthenticationStep =
 	| AuthenticationChoice
 	| AuthenticationConditional;
 
-export type AuthenticationState = {
-	readonly identity?: AutoId;
+export type AuthenticationStateAnonymous = {
 	readonly choices: string[];
 };
+
+export type AuthenticationStateIdentified = {
+	readonly identity: AutoId;
+	readonly choices: string[];
+};
+
+export type AuthenticationState =
+	| AuthenticationStateAnonymous
+	| AuthenticationStateIdentified;
 
 export function isAuthenticationStep(
 	value?: unknown,
@@ -28,6 +36,37 @@ export function assertAuthenticationStep(
 ): asserts value is AuthenticationStep {
 	if (!isAuthenticationStep(value)) {
 		throw new Error("Expected `value` to be an AuthenticationStep.");
+	}
+}
+
+export function isAuthenticationStateAnonymous(
+	value?: unknown,
+): value is AuthenticationStateAnonymous {
+	return typeof value === "object" && value !== null && "choices" in value &&
+		Array.isArray(value.choices) &&
+		value.choices.every((c) => typeof c === "string");
+}
+
+export function assertAuthenticationStateAnonymous(
+	value?: unknown,
+): asserts value is AuthenticationStateAnonymous {
+	if (!isAuthenticationStateAnonymous(value)) {
+		throw new Error("Expected `value` to be an AuthenticationStateAnonymous.");
+	}
+}
+
+export function isAuthenticationStateIdentified(
+	value?: unknown,
+): value is AuthenticationStateIdentified {
+	return isAuthenticationStateAnonymous(value) && "identity" in value &&
+		isAutoId(value.identity);
+}
+
+export function assertAuthenticationStateIdentified(
+	value?: unknown,
+): asserts value is AuthenticationStateIdentified {
+	if (!isAuthenticationStateIdentified(value)) {
+		throw new Error("Expected `value` to be an AuthenticationStateIdentified.");
 	}
 }
 

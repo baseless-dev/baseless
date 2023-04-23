@@ -43,8 +43,8 @@ config.auth()
 		google,
 		github,
 	))
-	.setRateLimitIdentification(10, 30)
-	.setRateLimitChallenge(5, 120)
+	.setSecurityRateLimitIdentification(10, 30)
+	.setSecurityRateLimitChallenge(5, 120)
 	.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
 	.setSecuritySalt("foobar")
 	.setRenderer(createAuthUI({

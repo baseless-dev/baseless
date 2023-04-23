@@ -1,6 +1,6 @@
 import { Context, NonExtendableContext } from "../../context.ts";
 import { AuthenticationChallenger } from "../config.ts";
-import { AuthenticationState } from "../flow.ts";
+import { AuthenticationStateIdentified } from "../flow.ts";
 import { encode } from "https://deno.land/std@0.179.0/encoding/base64.ts";
 
 export class PasswordAuthentificationChallenger
@@ -22,7 +22,7 @@ export class PasswordAuthentificationChallenger
 
 	async challenge(
 		context: NonExtendableContext,
-		state: AuthenticationState,
+		state: AuthenticationStateIdentified,
 		request: Request,
 	): Promise<boolean> {
 		const formData = await request.formData();

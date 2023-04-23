@@ -4,6 +4,7 @@ import { Identity } from "../providers/identity.ts";
 import {
 	assertAuthenticationStep,
 	AuthenticationState,
+	AuthenticationStateIdentified,
 	AuthenticationStep,
 } from "./flow.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
@@ -40,7 +41,7 @@ export abstract class AuthenticationChallenger {
 
 	abstract challenge(
 		context: NonExtendableContext,
-		state: AuthenticationState,
+		state: AuthenticationStateIdentified,
 		request: Request,
 	): Promise<boolean>;
 }
@@ -49,6 +50,12 @@ export type AuthenticationConfiguration = {
 	readonly security: {
 		readonly keys: AuthenticationKeys;
 		readonly salt: string;
+		readonly rateLimit: {
+			readonly identificationCount: number;
+			readonly identificationInterval: number;
+			readonly challengeCount: number;
+			readonly challengeInterval: number;
+		};
 	};
 	readonly flow: {
 		readonly step: AuthenticationStep;
@@ -59,12 +66,6 @@ export type AuthenticationConfiguration = {
 	readonly onUpdateIdentity?: AuthenticationHandler;
 	readonly onDeleteIdentity?: AuthenticationHandler;
 	readonly renderer?: AuthenticationRenderer;
-	readonly rateLimit: {
-		readonly identificationCount: number;
-		readonly identificationInterval: number;
-		readonly challengeCount: number;
-		readonly challengeInterval: number;
-	};
 };
 
 export type AuthenticationHandler = (
@@ -119,6 +120,18 @@ export class AuthenticationConfigurationBuilder {
 	 */
 	public setSecuritySalt(salt: string) {
 		this.#securitySalt = salt;
+		return this;
+	}
+
+	public setSecurityRateLimitIdentification(count: number, interval: number) {
+		this.#rateLimitIdentificationCount = count;
+		this.#rateLimitIdentificationInterval = interval;
+		return this;
+	}
+
+	public setSecurityRateLimitChallenge(count: number, interval: number) {
+		this.#rateLimitChallengeCount = count;
+		this.#rateLimitChallengeInterval = interval;
 		return this;
 	}
 
@@ -198,18 +211,6 @@ export class AuthenticationConfigurationBuilder {
 		return this;
 	}
 
-	public setRateLimitIdentification(count: number, interval: number) {
-		this.#rateLimitIdentificationCount = count;
-		this.#rateLimitIdentificationInterval = interval;
-		return this;
-	}
-
-	public setRateLimitChallenge(count: number, interval: number) {
-		this.#rateLimitChallengeCount = count;
-		this.#rateLimitChallengeInterval = interval;
-		return this;
-	}
-
 	/**
 	 * Finalize the {@see AuthConfiguration}
 	 * @returns The finalized {@see AuthConfiguration} object
@@ -228,6 +229,12 @@ export class AuthenticationConfigurationBuilder {
 			security: {
 				keys: this.#securityKeys,
 				salt: this.#securitySalt,
+				rateLimit: {
+					identificationCount: this.#rateLimitIdentificationCount ?? 100,
+					identificationInterval: this.#rateLimitIdentificationInterval ?? 60,
+					challengeCount: this.#rateLimitChallengeCount ?? 5,
+					challengeInterval: this.#rateLimitChallengeInterval ?? 60,
+				},
 			},
 			flow: {
 				step: this.#flowStep,
@@ -238,15 +245,9 @@ export class AuthenticationConfigurationBuilder {
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,
 			renderer: this.#renderer,
-			rateLimit: {
-				identificationCount: this.#rateLimitIdentificationCount ?? 100,
-				identificationInterval: this.#rateLimitIdentificationInterval ?? 60,
-				challengeCount: this.#rateLimitChallengeCount ?? 5,
-				challengeInterval: this.#rateLimitChallengeInterval ?? 60,
-			},
 		};
 	}
 }
 
-export class AuthenticationMissingIdentificatorError extends Error { }
-export class AuthenticationMissingChallengerError extends Error { }
+export class AuthenticationMissingIdentificatorError extends Error {}
+export class AuthenticationMissingChallengerError extends Error {}

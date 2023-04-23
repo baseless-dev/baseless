@@ -1,4 +1,4 @@
-import { EmailProvider, Message } from "../../providers/email.ts";
+import { MessageProvider, Message } from "../message.ts";
 import { createLogger } from "../../logger.ts";
 
 export type IAddress = {
@@ -9,11 +9,16 @@ export type IAddress = {
 /**
  * A mail provider that log every message
  */
-export class SendgridEmailProvider implements EmailProvider {
-	protected readonly logger = createLogger("sendgrid-email-provider");
+export class SendgridMessageProvider implements MessageProvider {
+	#logger = createLogger("sendgrid-message-provider");
+	#from: IAddress;
+	#apiKey: string;
+	#replyTo?: IAddress;
+	#templateId?: string;
+	#dynamicTemplateData?: Record<string, unknown>;
 
 	public constructor(
-		private readonly options: {
+		options: {
 			from: IAddress;
 			apiKey: string;
 			replyTo?: IAddress;
@@ -21,7 +26,13 @@ export class SendgridEmailProvider implements EmailProvider {
 			// deno-lint-ignore no-explicit-any
 			dynamicTemplateData?: any;
 		},
-	) {}
+	) {
+		this.#from = options.from;
+		this.#apiKey = options.apiKey;
+		this.#replyTo = options.replyTo;
+		this.#templateId = options.templateId;
+		this.#dynamicTemplateData = options.dynamicTemplateData;
+	}
 
 	public async send(message: Message): Promise<void> {
 		const content = [
@@ -36,18 +47,18 @@ export class SendgridEmailProvider implements EmailProvider {
 		const body = {
 			personalizations: [{
 				to: [{ email: message.to }],
-				dynamicTemplateData: this.options.dynamicTemplateData,
+				dynamicTemplateData: this.#dynamicTemplateData,
 			}],
 			subject: message.subject,
-			from: this.options.from,
-			replyTo: this.options.replyTo,
+			from: this.#from,
+			replyTo: this.#replyTo,
 			content,
-			templateId: this.options.templateId,
+			templateId: this.#templateId,
 		};
 		await fetch("https://api.sendgrid.com/v3/mail/send", {
 			method: "POST",
 			headers: {
-				"Authorization": `Bearer ${this.options.apiKey}`,
+				"Authorization": `Bearer ${this.#apiKey}`,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify(body),

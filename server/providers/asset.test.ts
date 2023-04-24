@@ -1,4 +1,3 @@
-import { KVProvider } from "./kv.ts";
 import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { AssetProvider } from "./asset.ts";
 

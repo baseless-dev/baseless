@@ -2,10 +2,7 @@ import { KVProvider } from "./kv.ts";
 import {
 	assertEquals,
 	assertExists,
-	assertRejects,
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { autoid } from "../../shared/autoid.ts";
-import { IdentityChallenge, IdentityIdentification } from "./identity.ts";
 
 export default async function testKVProvider(
 	kv: KVProvider,

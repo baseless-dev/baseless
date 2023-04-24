@@ -1,4 +1,4 @@
-import { assertAutoId, AutoId, autoid, isAutoId } from "../../shared/autoid.ts";
+import { AutoId } from "../../shared/autoid.ts";
 import {
 	AuthenticationMissingChallengerError,
 	AuthenticationMissingIdentificatorError,
@@ -10,16 +10,11 @@ import {
 	AuthenticationStep,
 	flatten,
 	getAuthenticationStepAtPath,
-	isAuthenticationStateIdentified,
 	simplifyWithContext,
 } from "../auth/flow.ts";
 import { Configuration } from "../config.ts";
 import { Context } from "../context.ts";
 import { SessionData } from "../providers/session.ts";
-import { CounterService } from "./counter.ts";
-import { IdentityService } from "./identity.ts";
-import { KVService } from "./kv.ts";
-import { SessionService } from "./session.ts";
 
 export type GetStepYieldResult = {
 	done: false;
@@ -68,7 +63,7 @@ export class AuthenticationService {
 		state: AuthenticationState,
 		type: string,
 		identification: string,
-		subject: string
+		subject: string,
 	): Promise<Response | AuthenticationState | SessionData> {
 		const counterInterval =
 			this.#configuration.auth.security.rateLimit.identificationInterval * 1000;
@@ -76,7 +71,7 @@ export class AuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#context.counter.increment(counterKey, 1, counterInterval) >
-			this.#configuration.auth.security.rateLimit.identificationCount
+				this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -90,21 +85,33 @@ export class AuthenticationService {
 		if (!step) {
 			throw new AuthenticationInvalidStepError();
 		}
-		const identificator = this.#configuration.auth.flow.identificators.get(step.type);
+		const identificator = this.#configuration.auth.flow.identificators.get(
+			step.type,
+		);
 		if (!identificator) {
 			throw new AuthenticationMissingIdentificatorError();
 		}
 
-		const identityIdentification = await this.#context.identity.getIdentification(step.type, identification);
+		const identityIdentification = await this.#context.identity
+			.getIdentification(step.type, identification);
 
-		const identifyResult = await identificator.identify(identityIdentification, identification);
+		const identifyResult = await identificator.identify(
+			identityIdentification,
+			identification,
+		);
 		if (identifyResult instanceof Response) {
 			return identifyResult;
 		}
 		if (result.last) {
-			return this.#context.session.create(identityIdentification.identityId, {});
+			return this.#context.session.create(
+				identityIdentification.identityId,
+				{},
+			);
 		} else {
-			return { choices: [...state.choices, type], identity: identityIdentification.identityId };
+			return {
+				choices: [...state.choices, type],
+				identity: identityIdentification.identityId,
+			};
 		}
 	}
 
@@ -112,7 +119,7 @@ export class AuthenticationService {
 		state: AuthenticationState,
 		type: string,
 		challenge: string,
-		subject: string
+		subject: string,
 	): Promise<SessionData | AuthenticationState> {
 		assertAuthenticationStateIdentified(state);
 		const counterInterval =
@@ -121,7 +128,7 @@ export class AuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#context.counter.increment(counterKey, 1, counterInterval) >
-			this.#configuration.auth.security.rateLimit.identificationCount
+				this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -141,7 +148,10 @@ export class AuthenticationService {
 			throw new AuthenticationMissingChallengerError();
 		}
 
-		const identityChallenge = await this.#context.identity.getChallenge(state.identity, step.type);
+		const identityChallenge = await this.#context.identity.getChallenge(
+			state.identity,
+			step.type,
+		);
 		if (!identityChallenge) {
 			throw new AuthenticationMissingChallengeError();
 		}
@@ -177,8 +187,8 @@ export class AuthenticationService {
 	}
 }
 
-export class AuthenticationFlowDoneError extends Error { }
-export class AuthenticationInvalidStepError extends Error { }
-export class AuthenticationRateLimitedError extends Error { }
-export class AuthenticationMissingChallengeError extends Error { }
-export class AuthenticationChallengeFailedError extends Error { }
+export class AuthenticationFlowDoneError extends Error {}
+export class AuthenticationInvalidStepError extends Error {}
+export class AuthenticationRateLimitedError extends Error {}
+export class AuthenticationMissingChallengeError extends Error {}
+export class AuthenticationChallengeFailedError extends Error {}

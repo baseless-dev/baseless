@@ -2,12 +2,12 @@ import { AutoId } from "../../shared/autoid.ts";
 import { AuthenticationMissingChallengerError } from "../auth/config.ts";
 import { Configuration } from "../config.ts";
 import {
+	assertIdentityChallenge,
+	assertIdentityIdentification,
 	Identity,
 	IdentityChallenge,
 	IdentityIdentification,
 	IdentityProvider,
-	assertIdentityChallenge,
-	assertIdentityIdentification,
 } from "../providers/identity.ts";
 
 export class IdentityService {
@@ -122,8 +122,8 @@ export class IdentityService {
 		return this.createChallengeWithMeta({
 			identityId,
 			type,
-			meta
-		}, expiration)
+			meta,
+		}, expiration);
 	}
 
 	createChallengeWithMeta(

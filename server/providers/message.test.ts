@@ -1,6 +1,4 @@
-import {
-	assertEquals,
-} from "https://deno.land/std@0.179.0/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { Message, MessageProvider } from "./message.ts";
 
 export default async function testSessionProvider(

@@ -1,14 +1,11 @@
 import {
-	assert,
 	assertEquals,
 	assertRejects,
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { WebStorageKVProvider } from "../providers/kv-webstorage/mod.ts";
 import { KVIdentityProvider } from "../providers/identity-kv/mod.ts";
 import { MemoryCounterProvider } from "../providers/counter-memory/mod.ts";
 import { LoggerMessageProvider } from "../providers/message-logger/mod.ts";
 import { AuthenticationService } from "./auth.ts";
-import { assertAutoId, AutoId } from "../../shared/autoid.ts";
 import { ConfigurationBuilder } from "../config.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
 import * as f from "../auth/flow.ts";
@@ -41,13 +38,16 @@ Deno.test("AuthenticationService", async (t) => {
 				github,
 			),
 		)
-		.addFlowIdentificator("email", new EmailAuthentificationIdenticator(new LoggerMessageProvider()))
+		.addFlowIdentificator(
+			"email",
+			new EmailAuthentificationIdenticator(new LoggerMessageProvider()),
+		)
 		.addFlowChallenger("password", new PasswordAuthentificationChallenger());
 
 	const configuration = config.build();
 
 	const assetProvider = new LocalAssetProvider(import.meta.resolve("./"));
-	const assetService = new AssetService(assetProvider)
+	const assetService = new AssetService(assetProvider);
 	const counterProvider = new MemoryCounterProvider();
 	const counterService = new CounterService(counterProvider);
 	const kvProvider = new MemoryKVProvider();
@@ -64,7 +64,7 @@ Deno.test("AuthenticationService", async (t) => {
 		kv: kvService,
 		identity: identityService,
 		session: sessionService,
-		waitUntil() { }
+		waitUntil() {},
 	};
 	const authService = new AuthenticationService(configuration, context);
 
@@ -123,7 +123,7 @@ Deno.test("AuthenticationService", async (t) => {
 				{ choices: [] },
 				"email",
 				"john@test.local",
-				"localhost"
+				"localhost",
 			),
 			{ choices: ["email"], identity: ident1.id },
 		);
@@ -132,7 +132,7 @@ Deno.test("AuthenticationService", async (t) => {
 				{ choices: [] },
 				"email",
 				"unknown@test.local",
-				"localhost"
+				"localhost",
 			)
 		);
 	});
@@ -143,7 +143,7 @@ Deno.test("AuthenticationService", async (t) => {
 				{ choices: ["email"], identity: ident1.id },
 				"password",
 				"123",
-				"localhost"
+				"localhost",
 			),
 		);
 		await assertRejects(() =>
@@ -151,7 +151,7 @@ Deno.test("AuthenticationService", async (t) => {
 				{ choices: [], identity: ident1.id },
 				"password",
 				"123",
-				"localhost"
+				"localhost",
 			)
 		);
 		await assertRejects(() =>
@@ -159,7 +159,7 @@ Deno.test("AuthenticationService", async (t) => {
 				{ choices: ["email"], identity: ident1.id },
 				"password",
 				"abc",
-				"localhost"
+				"localhost",
 			)
 		);
 	});

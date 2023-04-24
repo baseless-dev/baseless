@@ -67,7 +67,7 @@ export class MemoryKVProvider implements KVProvider {
 		const prefixEnd = prefix.length;
 		const keys: KVKey[] = [];
 		let count = 0;
-		for (const [key, value] of this.#cache.entries()) {
+		for (const [key] of this.#cache.entries()) {
 			if (
 				key?.substring(0, prefixEnd) === prefix &&
 				key.substring(0) > cursor

@@ -26,10 +26,15 @@ export interface Message<To = string> extends MessageData {
 }
 
 export function isMessageData(value?: unknown): value is MessageData {
-	return !!value && typeof value === "object" && "text" in value && typeof value.text === "string" && (!("subject" in value) || typeof value.subject === "string") && (!("html" in value) || typeof value.html === "string");
+	return !!value && typeof value === "object" && "text" in value &&
+		typeof value.text === "string" &&
+		(!("subject" in value) || typeof value.subject === "string") &&
+		(!("html" in value) || typeof value.html === "string");
 }
 
-export function assertMessageData(value: unknown): asserts value is MessageData {
+export function assertMessageData(
+	value: unknown,
+): asserts value is MessageData {
 	if (!isMessageData(value)) {
 		throw new InvalidMessageDataError();
 	}
@@ -53,5 +58,5 @@ export interface MessageProvider {
 	send(message: Message): Promise<void>;
 }
 
-export class InvalidMessageDataError extends Error { }
-export class InvalidMessageError extends Error { }
+export class InvalidMessageDataError extends Error {}
+export class InvalidMessageError extends Error {}

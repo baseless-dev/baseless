@@ -20,6 +20,7 @@ export class PasswordAuthentificationChallenger
 		challenge: string,
 	): Promise<boolean> {
 		const hash = await this.#hash(challenge);
-		return "hash" in identityChallenge.meta && identityChallenge.meta.hash === hash;
+		return "hash" in identityChallenge.meta &&
+			identityChallenge.meta.hash === hash;
 	}
 }

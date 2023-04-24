@@ -12,11 +12,9 @@ import {
 	IdentityIdentificationNotFoundError,
 	IdentityNotFoundError,
 	IdentityProvider,
-	isIdentityChallenge,
-	isIdentityIdentification,
 } from "../identity.ts";
 import { createLogger } from "../../logger.ts";
-import { KeyNotFoundError, KVProvider, KVPutOptions } from "../kv.ts";
+import { KeyNotFoundError, KVProvider } from "../kv.ts";
 import { assertAutoId, AutoId, autoid } from "../../../shared/autoid.ts";
 
 export class KVIdentityProvider implements IdentityProvider {

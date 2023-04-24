@@ -1,4 +1,4 @@
-import { MessageProvider, Message } from "../message.ts";
+import { Message, MessageProvider } from "../message.ts";
 import {
 	createLogger,
 	Logger,

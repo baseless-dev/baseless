@@ -19,7 +19,6 @@ import { LocalAssetProvider } from "../providers/asset-local/mod.ts";
 import { Context } from "../context.ts";
 import { KVService } from "./kv.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
-import { AuthenticationIdenticator } from "../auth/config.ts";
 import { EmailAuthentificationIdenticator } from "../auth/identicators/email.ts";
 import { PasswordAuthentificationChallenger } from "../auth/identicators/password.ts";
 import { assertSessionData } from "../providers/session.ts";

@@ -6,6 +6,8 @@ import {
 	IdentityChallenge,
 	IdentityIdentification,
 	IdentityProvider,
+	assertIdentityChallenge,
+	assertIdentityIdentification,
 } from "../providers/identity.ts";
 
 export class IdentityService {
@@ -73,6 +75,7 @@ export class IdentityService {
 		identityIdentification: IdentityIdentification,
 		expiration?: number | Date,
 	): Promise<void> {
+		assertIdentityIdentification(identityIdentification);
 		// TODO life cycle hooks
 		return this.#identityProvider.updateIdentification(
 			identityIdentification,
@@ -116,8 +119,21 @@ export class IdentityService {
 		}
 		const meta = await challenger.configureMeta(challenge);
 		// TODO life cycle hooks
+		return this.createChallengeWithMeta({
+			identityId,
+			type,
+			meta
+		}, expiration)
+	}
+
+	createChallengeWithMeta(
+		identityChallenge: IdentityChallenge,
+		expiration?: number | Date,
+	): Promise<void> {
+		assertIdentityChallenge(identityChallenge);
+		// TODO life cycle hooks
 		return this.#identityProvider.createChallenge(
-			{ identityId, type, meta },
+			identityChallenge,
 			expiration,
 		);
 	}

@@ -6,7 +6,7 @@ import {
 import { WebStorageKVProvider } from "../providers/kv-webstorage/mod.ts";
 import { KVIdentityProvider } from "../providers/identity-kv/mod.ts";
 import { MemoryCounterProvider } from "../providers/counter-memory/mod.ts";
-import { LoggerEmailProvider } from "../providers/email-logger/mod.ts";
+import { LoggerMessageProvider } from "../providers/message-logger/mod.ts";
 import { AuthenticationService } from "./auth.ts";
 import { assertAutoId, AutoId } from "../../shared/autoid.ts";
 import { ConfigurationBuilder } from "../config.ts";
@@ -16,7 +16,7 @@ import { IdentityService } from "./identity.ts";
 import { CounterService } from "./counter.ts";
 import { AssetService } from "./asset.ts";
 import { LocalAssetProvider } from "../providers/asset-local/mod.ts";
-import { NonExtendableContext } from "../context.ts";
+import { Context } from "../context.ts";
 import { KVService } from "./kv.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
 import { AuthenticationIdenticator } from "../auth/config.ts";
@@ -42,47 +42,32 @@ Deno.test("AuthenticationService", async (t) => {
 				github,
 			),
 		)
-		.addFlowIdentificator("email", new EmailAuthentificationIdenticator())
+		.addFlowIdentificator("email", new EmailAuthentificationIdenticator(new LoggerMessageProvider()))
 		.addFlowChallenger("password", new PasswordAuthentificationChallenger());
 
 	const configuration = config.build();
-	const identityService = new IdentityService(
-		configuration,
-		new KVIdentityProvider(new MemoryKVProvider()),
-	);
-	const sessionService = new SessionService(
-		configuration,
-		new KVSessionProvider(new MemoryKVProvider()),
-	);
-	const counterService = new CounterService(new MemoryCounterProvider());
-	const kvService = new KVService(new MemoryKVProvider());
-	const authService = new AuthenticationService(
-		configuration,
-		identityService,
-		sessionService,
-		counterService,
-		kvService,
-	);
-	const assetService = new AssetService(
-		new LocalAssetProvider(import.meta.resolve("./")),
-	);
 
-	const context: NonExtendableContext = {
+	const assetProvider = new LocalAssetProvider(import.meta.resolve("./"));
+	const assetService = new AssetService(assetProvider)
+	const counterProvider = new MemoryCounterProvider();
+	const counterService = new CounterService(counterProvider);
+	const kvProvider = new MemoryKVProvider();
+	const kvService = new KVService(kvProvider);
+	const identityProvider = new KVIdentityProvider(new MemoryKVProvider());
+	const identityService = new IdentityService(configuration, identityProvider);
+	const sessionProvider = new KVSessionProvider(new MemoryKVProvider());
+	const sessionService = new SessionService(configuration, sessionProvider);
+
+	const context: Context = {
 		config: configuration,
 		asset: assetService,
 		counter: counterService,
 		kv: kvService,
 		identity: identityService,
 		session: sessionService,
+		waitUntil() { }
 	};
-
-	function makePostRequest(form: Record<string, string>) {
-		const body = new FormData();
-		for (const [key, value] of Object.entries(form)) {
-			body.set(key, value);
-		}
-		return new Request("http://test.local", { method: "POST", body });
-	}
+	const authService = new AuthenticationService(configuration, context);
 
 	const ident1 = await identityService.create({});
 	await identityService.createIdentification({
@@ -92,15 +77,15 @@ Deno.test("AuthenticationService", async (t) => {
 		verified: false,
 		meta: {},
 	});
-	await identityService.createChallengeWithRequest(
+	await identityService.createChallenge(
 		ident1.id,
 		"password",
-		makePostRequest({ password: "123" }),
+		"123",
 	);
 
 	await t.step("getStep", async () => {
 		assertEquals(
-			await authService.getStep(context),
+			await authService.getStep(),
 			{
 				done: false,
 				step: f.oneOf(email, github),
@@ -109,7 +94,7 @@ Deno.test("AuthenticationService", async (t) => {
 			},
 		);
 		assertEquals(
-			await authService.getStep(context, { choices: ["email"] }),
+			await authService.getStep({ choices: ["email"] }),
 			{
 				done: false,
 				step: password,
@@ -118,13 +103,13 @@ Deno.test("AuthenticationService", async (t) => {
 			},
 		);
 		assertEquals(
-			await authService.getStep(context, { choices: ["github"] }),
+			await authService.getStep({ choices: ["github"] }),
 			{
 				done: true,
 			},
 		);
 		assertEquals(
-			await authService.getStep(context, {
+			await authService.getStep({
 				choices: ["email", "password"],
 			}),
 			{
@@ -136,19 +121,19 @@ Deno.test("AuthenticationService", async (t) => {
 	await t.step("submitIdentification", async () => {
 		assertEquals(
 			await authService.submitIdentification(
-				context,
 				{ choices: [] },
 				"email",
-				makePostRequest({ email: "john@test.local" }),
+				"john@test.local",
+				"localhost"
 			),
 			{ choices: ["email"], identity: ident1.id },
 		);
 		await assertRejects(() =>
 			authService.submitIdentification(
-				context,
 				{ choices: [] },
 				"email",
-				makePostRequest({ email: "unknown@test.local" }),
+				"unknown@test.local",
+				"localhost"
 			)
 		);
 	});
@@ -156,26 +141,26 @@ Deno.test("AuthenticationService", async (t) => {
 	await t.step("submitChallenge", async () => {
 		assertSessionData(
 			await authService.submitChallenge(
-				context,
 				{ choices: ["email"], identity: ident1.id },
 				"password",
-				makePostRequest({ password: "123" }),
+				"123",
+				"localhost"
 			),
 		);
 		await assertRejects(() =>
 			authService.submitChallenge(
-				context,
 				{ choices: [], identity: ident1.id },
 				"password",
-				makePostRequest({ password: "123" }),
+				"123",
+				"localhost"
 			)
 		);
 		await assertRejects(() =>
 			authService.submitChallenge(
-				context,
 				{ choices: ["email"], identity: ident1.id },
 				"password",
-				makePostRequest({ password: "abc" }),
+				"abc",
+				"localhost"
 			)
 		);
 	});

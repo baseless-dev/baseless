@@ -1,20 +1,26 @@
-import { NonExtendableContext } from "../../context.ts";
+import { IdentityIdentification } from "../../providers/identity.ts";
+import { MessageData, MessageProvider } from "../../providers/message.ts";
 import { AuthenticationIdenticator } from "../config.ts";
-import { AuthenticationState } from "../flow.ts";
 
-export class EmailAuthentificationIdenticator
-	extends AuthenticationIdenticator {
+export class EmailAuthentificationIdenticator extends AuthenticationIdenticator {
+	#messageProvider: MessageProvider;
+	constructor(messageProvider: MessageProvider) {
+		super();
+		this.#messageProvider = messageProvider;
+	}
+
+	async sendMessage(identification: IdentityIdentification, message: MessageData): Promise<void> {
+		await this.#messageProvider.send({
+			to: identification.identification,
+			...message
+		});
+	}
+
+	// deno-lint-ignore require-await
 	async identify(
-		context: NonExtendableContext,
-		_state: AuthenticationState,
-		request: Request,
-	): Promise<string | Response> {
-		const formData = await request.formData();
-		const email = formData.get("email")?.toString() ?? "";
-		const identityIdentification = await context.identity.getIdentification(
-			"email",
-			email,
-		);
-		return identityIdentification.identityId;
+		identityIdentification: IdentityIdentification,
+		identification: string,
+	): Promise<boolean> {
+		return identityIdentification.identification === identification;
 	}
 }

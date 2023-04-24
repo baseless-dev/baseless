@@ -1,6 +1,5 @@
-import { Context, NonExtendableContext } from "../../context.ts";
+import { IdentityChallenge } from "../../providers/identity.ts";
 import { AuthenticationChallenger } from "../config.ts";
-import { AuthenticationStateIdentified } from "../flow.ts";
 import { encode } from "https://deno.land/std@0.179.0/encoding/base64.ts";
 
 export class PasswordAuthentificationChallenger
@@ -11,27 +10,16 @@ export class PasswordAuthentificationChallenger
 		);
 	}
 
-	async prepareMetaForRequest(
-		request: Request,
-	): Promise<Record<string, string>> {
-		const formData = await request.formData();
-		const password = formData.get("password")?.toString() ?? "";
-		const hash = await this.#hash(password);
+	async configureMeta(challenge: string): Promise<Record<string, string>> {
+		const hash = await this.#hash(challenge);
 		return { hash };
 	}
 
-	async challenge(
-		context: NonExtendableContext,
-		state: AuthenticationStateIdentified,
-		request: Request,
+	async verify(
+		identityChallenge: IdentityChallenge,
+		challenge: string,
 	): Promise<boolean> {
-		const formData = await request.formData();
-		const password = formData.get("password")?.toString() ?? "";
-		const challenge = await context.identity.getChallenge(
-			state.identity ?? "",
-			"password",
-		);
-		const hash = await this.#hash(password);
-		return "hash" in challenge.meta && challenge.meta.hash === hash;
+		const hash = await this.#hash(challenge);
+		return "hash" in identityChallenge.meta && identityChallenge.meta.hash === hash;
 	}
 }

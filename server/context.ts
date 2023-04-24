@@ -22,5 +22,3 @@ export type Context = {
 	 */
 	waitUntil(promise: PromiseLike<unknown>): void;
 };
-
-export type NonExtendableContext = Omit<Context, "waitUntil">;

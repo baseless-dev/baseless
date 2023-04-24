@@ -1,7 +1,6 @@
 import { AutoId } from "../../shared/autoid.ts";
 import { AuthenticationMissingChallengerError } from "../auth/config.ts";
 import { Configuration } from "../config.ts";
-import { NonExtendableContext } from "../context.ts";
 import {
 	Identity,
 	IdentityChallenge,
@@ -105,28 +104,17 @@ export class IdentityService {
 		return this.#identityProvider.getChallenge(id, type);
 	}
 
-	createChallenge(
-		identityChallenge: IdentityChallenge,
-		expiration?: number | Date,
-	): Promise<void> {
-		// TODO life cycle hooks
-		return this.#identityProvider.createChallenge(
-			identityChallenge,
-			expiration,
-		);
-	}
-
-	async createChallengeWithRequest(
+	async createChallenge(
 		identityId: AutoId,
 		type: string,
-		request: Request,
+		challenge: string,
 		expiration?: number | Date,
 	): Promise<void> {
 		const challenger = this.#configuration.auth.flow.chalengers.get(type);
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
 		}
-		const meta = await challenger.prepareMetaForRequest(request);
+		const meta = await challenger.configureMeta(challenge);
 		// TODO life cycle hooks
 		return this.#identityProvider.createChallenge(
 			{ identityId, type, meta },

@@ -1,6 +1,7 @@
 import { AutoId } from "../../shared/autoid.ts";
-import { Context, NonExtendableContext } from "../context.ts";
-import { Identity } from "../providers/identity.ts";
+import { Context } from "../context.ts";
+import { Identity, IdentityChallenge, IdentityIdentification } from "../providers/identity.ts";
+import { MessageData } from "../providers/message.ts";
 import {
 	assertAuthenticationStep,
 	AuthenticationState,
@@ -16,34 +17,22 @@ export type AuthenticationKeys = {
 };
 
 export abstract class AuthenticationIdenticator {
-	abstract identify(
-		context: NonExtendableContext,
-		state: AuthenticationState,
-		request: Request,
-	): Promise<AutoId | Response>;
+	abstract identify(identityIdentification: IdentityIdentification, identification: string): Promise<boolean | Response>;
 
-	// /**
-	//  * If this identicator allows it, send a verification code
-	//  */
-	// abstract sendVerificationCode?: (
-	// 	request: Request,
-	// 	context: Context,
-	// 	identityId: AutoId,
-	// ) => Promise<void>;
+	// deno-lint-ignore no-unused-vars
+	async sendMessage(identityIdentification: IdentityIdentification, message: MessageData): Promise<void> { }
 }
 
 export abstract class AuthenticationChallenger {
-	prepareMetaForRequest(
-		_request: Request,
-	): Record<string, string> | Promise<Record<string, string>> {
+	// deno-lint-ignore require-await
+	async configureMeta(_challenge: string): Promise<Record<string, string>> {
 		return {};
 	}
 
-	abstract challenge(
-		context: NonExtendableContext,
-		state: AuthenticationStateIdentified,
-		request: Request,
-	): Promise<boolean>;
+	// deno-lint-ignore no-unused-vars
+	async sendChallenge(identityChallenge: IdentityChallenge): Promise<void> { }
+
+	abstract verify(identityChallenge: IdentityChallenge, challenge: string): Promise<boolean>;
 }
 
 export type AuthenticationConfiguration = {
@@ -249,5 +238,5 @@ export class AuthenticationConfigurationBuilder {
 	}
 }
 
-export class AuthenticationMissingIdentificatorError extends Error {}
-export class AuthenticationMissingChallengerError extends Error {}
+export class AuthenticationMissingIdentificatorError extends Error { }
+export class AuthenticationMissingChallengerError extends Error { }

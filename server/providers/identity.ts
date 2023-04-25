@@ -80,7 +80,7 @@ export interface IdentityProvider {
 	): Promise<void>;
 	delete(id: AutoId): Promise<void>;
 	listIdentification(id: AutoId): Promise<IdentityIdentification[]>;
-	getIdentification<Meta extends Record<string, unknown>>(
+	matchIdentification<Meta extends Record<string, unknown>>(
 		type: string,
 		identification: string,
 	): Promise<IdentityIdentification<Meta>>;

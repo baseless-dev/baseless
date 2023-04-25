@@ -53,11 +53,11 @@ export class IdentityService {
 		return this.#identityProvider.listIdentification(id);
 	}
 
-	getIdentification<Meta extends Record<string, unknown>>(
+	matchIdentification<Meta extends Record<string, unknown>>(
 		type: string,
 		identification: string,
 	): Promise<IdentityIdentification<Meta>> {
-		return this.#identityProvider.getIdentification(type, identification);
+		return this.#identityProvider.matchIdentification(type, identification);
 	}
 
 	createIdentification(

@@ -18,9 +18,10 @@ import { KVService } from "./kv.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
 import { EmailAuthentificationIdenticator } from "../auth/identicators/email.ts";
 import { PasswordAuthentificationChallenger } from "../auth/identicators/password.ts";
-import { assertSessionData } from "../providers/session.ts";
 import { SessionService } from "./session.ts";
 import { KVSessionProvider } from "../providers/session-kv/mod.ts";
+import { Message } from "../providers/message.ts";
+import { setGlobalLogHandler } from "../logger.ts";
 
 Deno.test("AuthenticationService", async (t) => {
 	const email = f.email({ icon: "", label: {} });
@@ -64,7 +65,7 @@ Deno.test("AuthenticationService", async (t) => {
 		kv: kvService,
 		identity: identityService,
 		session: sessionService,
-		waitUntil() { },
+		waitUntil() {},
 	};
 	const authService = new AuthenticationService(configuration, context);
 
@@ -125,7 +126,13 @@ Deno.test("AuthenticationService", async (t) => {
 				"john@test.local",
 				"localhost",
 			),
-			{ done: false, state: { choices: ["email"], identity: ident1.id } },
+			{
+				done: false,
+				step: password,
+				first: false,
+				last: true,
+				state: { choices: ["email"], identity: ident1.id },
+			},
 		);
 		await assertRejects(() =>
 			authService.submitIdentification(
@@ -162,6 +169,33 @@ Deno.test("AuthenticationService", async (t) => {
 				"abc",
 				"localhost",
 			)
+		);
+	});
+
+	let verificationCode = "";
+	await t.step("sendIdentificationValidationCode", async () => {
+		const messages: { ns: string; lvl: string; message: Message }[] = [];
+		setGlobalLogHandler((ns, lvl, msg) => {
+			messages.push({ ns, lvl, message: JSON.parse(msg)! });
+		});
+		await authService.sendIdentificationValidationCode(ident1.id, "email");
+		verificationCode = messages.pop()?.message.text ?? "";
+		assertEquals(verificationCode.length, 6);
+		setGlobalLogHandler(() => {});
+	});
+
+	await t.step("confirmIdentificationValidationCode", async () => {
+		await assertRejects(() =>
+			authService.confirmIdentificationValidationCode(
+				ident1.id,
+				"email",
+				"000000",
+			)
+		);
+		await authService.confirmIdentificationValidationCode(
+			ident1.id,
+			"email",
+			verificationCode,
 		);
 	});
 });

@@ -74,7 +74,7 @@ export default async function testKVProvider(
 
 	await t.step("put with expiration", async () => {
 		await kv.put("/expire/a", "Title A", { expiration: 100 });
-		await new Promise(r => setTimeout(r, 1000));
+		await new Promise((r) => setTimeout(r, 1000));
 		await assertRejects(() => kv.get("/expire/a"));
 	});
 }

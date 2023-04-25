@@ -114,7 +114,7 @@ export class KVIdentityProvider implements IdentityProvider {
 		});
 	}
 
-	async getIdentification<
+	async matchIdentification<
 		Meta extends Record<string, unknown> = Record<string, unknown>,
 	>(
 		type: string,

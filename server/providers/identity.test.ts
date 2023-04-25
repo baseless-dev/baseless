@@ -52,8 +52,8 @@ export default async function testIdentityProvider(
 		await assertRejects(() => ip.createIdentification(ident1));
 	});
 
-	await t.step("getIdentification", async () => {
-		const ident2 = await ip.getIdentification("username", "test");
+	await t.step("matchIdentification", async () => {
+		const ident2 = await ip.matchIdentification("username", "test");
 		assertEquals(ident2, ident1);
 	});
 
@@ -68,7 +68,7 @@ export default async function testIdentityProvider(
 			verified: true,
 		};
 		await ip.updateIdentification(ident2);
-		const ident3 = await ip.getIdentification("username", "test");
+		const ident3 = await ip.matchIdentification("username", "test");
 		assertEquals(ident2, ident3);
 		const ident4: IdentityIdentification = {
 			...ident1,

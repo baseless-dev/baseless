@@ -1,4 +1,5 @@
 import { AutoId } from "../../shared/autoid.ts";
+import { otp } from "../../shared/otp.ts";
 import {
 	AuthenticationMissingChallengerError,
 	AuthenticationMissingIdentificatorError,
@@ -25,10 +26,10 @@ export type GetStepReturnResult = { done: true };
 export type GetStepResult = GetStepYieldResult | GetStepReturnResult;
 
 export type AuthenticationResult =
-	| { done: true; identityId: AutoId; }
-	| { done: true; error: true; }
-	| { done: false; response: Response; }
-	| { done: false; state: AuthenticationState; }
+	| { done: true; identityId: AutoId }
+	| { done: true; error: true }
+	| { done: false; response: Response }
+	| GetStepResult & { state: AuthenticationState };
 
 export class AuthenticationService {
 	#configuration: Configuration;
@@ -76,7 +77,7 @@ export class AuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#context.counter.increment(counterKey, 1, counterInterval) >
-			this.#configuration.auth.security.rateLimit.identificationCount
+				this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -90,6 +91,7 @@ export class AuthenticationService {
 		if (!step) {
 			throw new AuthenticationInvalidStepError();
 		}
+
 		const identificator = this.#configuration.auth.flow.identificators.get(
 			step.type,
 		);
@@ -98,7 +100,7 @@ export class AuthenticationService {
 		}
 
 		const identityIdentification = await this.#context.identity
-			.getIdentification(step.type, identification);
+			.matchIdentification(step.type, identification);
 
 		const identifyResult = await identificator.identify(
 			identityIdentification,
@@ -110,12 +112,13 @@ export class AuthenticationService {
 		if (result.last) {
 			return { done: true, identityId: identityIdentification.identityId };
 		} else {
+			const newState = {
+				choices: [...state.choices, type],
+				identity: identityIdentification.identityId,
+			};
 			return {
-				done: false,
-				state: {
-					choices: [...state.choices, type],
-					identity: identityIdentification.identityId,
-				}
+				...await this.getStep(newState),
+				state: newState,
 			};
 		}
 	}
@@ -127,16 +130,18 @@ export class AuthenticationService {
 		subject: string,
 	): Promise<AuthenticationResult> {
 		assertAuthenticationStateIdentified(state);
+
 		const counterInterval =
 			this.#configuration.auth.security.rateLimit.identificationInterval * 1000;
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#context.counter.increment(counterKey, 1, counterInterval) >
-			this.#configuration.auth.security.rateLimit.identificationCount
+				this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
+
 		const result = await this.getStep(state);
 		if (result.done) {
 			throw new AuthenticationFlowDoneError();
@@ -168,17 +173,62 @@ export class AuthenticationService {
 		if (result.last) {
 			return { done: true, identityId: state.identity };
 		}
-		return { done: false, state: { choices: [...state.choices, type], identity: state.identity } };
+		const newState = {
+			choices: [...state.choices, type],
+			identity: state.identity,
+		};
+		return {
+			...await this.getStep(newState),
+			state: newState,
+		};
+		// return { done: false, state: { choices: [...state.choices, type], identity: state.identity } };
 	}
 
 	async sendIdentificationValidationCode(
 		identityId: AutoId,
 		type: string,
 	) {
-		// rate limit identity or X-Real-Ip
-		// get AuthenticationIdentificator by type
-		// generate code and saves it to KV
-		// identificator.sendVerificationCode
+		const identificator = this.#configuration.auth.flow.identificators.get(
+			type,
+		);
+		if (!identificator) {
+			throw new AuthenticationMissingIdentificatorError();
+		}
+
+		if (identificator.sendMessage) {
+			if (identificator.sendInterval && identificator.sendCount) {
+				const counterInterval = identificator.sendInterval * 1000;
+				const slidingWindow = Math.round(Date.now() / counterInterval);
+				const counterKey =
+					`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
+				if (
+					await this.#context.counter.increment(
+						counterKey,
+						1,
+						identificator.sendInterval,
+					) >
+						identificator.sendCount
+				) {
+					throw new AuthenticationRateLimitedError();
+				}
+			}
+			const code = otp({ digits: 6 });
+			await this.#context.kv.put(
+				`/auth/validationcode/${identityId}/${type}`,
+				code,
+				{ expiration: 1000 * 60 * 5 },
+			);
+
+			const identityIdentifications = await this.#context.identity
+				.listIdentification(identityId);
+			const identityIdentification = identityIdentifications.find((ii) =>
+				ii.type === type
+			);
+			if (!identityIdentification) {
+				throw new AuthenticationMissingIdentificationError();
+			}
+			await identificator.sendMessage(identityIdentification, { text: code });
+		}
 	}
 
 	async confirmIdentificationValidationCode(
@@ -186,14 +236,50 @@ export class AuthenticationService {
 		type: string,
 		code: string,
 	) {
-		// rate limit identity or X-Real-Ip
-		// get AuthenticationIdentificator by type
-		// validate code with KV
+		const counterInterval = this.#configuration.auth.security.rateLimit
+			.confirmVerificationCodeInterval * 1000;
+		const slidingWindow = Math.round(Date.now() / counterInterval);
+		const counterKey =
+			`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
+		if (
+			await this.#context.counter.increment(
+				counterKey,
+				1,
+				this.#configuration.auth.security.rateLimit
+					.confirmVerificationCodeInterval,
+			) >
+				this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount
+		) {
+			throw new AuthenticationRateLimitedError();
+		}
+
+		const identityIdentifications = await this.#context.identity
+			.listIdentification(identityId);
+		const identityIdentification = identityIdentifications.find((ii) =>
+			ii.type === type
+		);
+		if (!identityIdentification) {
+			throw new AuthenticationMissingIdentificationError();
+		}
+
+		const savedCode = await this.#context.kv.get(
+			`/auth/validationcode/${identityId}/${type}`,
+		).catch((_) => undefined);
+		if (!savedCode || savedCode.value !== code) {
+			throw new AuthenticationConfirmFailedError();
+		}
+
+		await this.#context.identity.updateIdentification({
+			...identityIdentification,
+			verified: true,
+		});
 	}
 }
 
-export class AuthenticationFlowDoneError extends Error { }
-export class AuthenticationInvalidStepError extends Error { }
-export class AuthenticationRateLimitedError extends Error { }
-export class AuthenticationMissingChallengeError extends Error { }
-export class AuthenticationChallengeFailedError extends Error { }
+export class AuthenticationFlowDoneError extends Error {}
+export class AuthenticationInvalidStepError extends Error {}
+export class AuthenticationRateLimitedError extends Error {}
+export class AuthenticationMissingChallengeError extends Error {}
+export class AuthenticationChallengeFailedError extends Error {}
+export class AuthenticationMissingIdentificationError extends Error {}
+export class AuthenticationConfirmFailedError extends Error {}

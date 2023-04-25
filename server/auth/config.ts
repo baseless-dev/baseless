@@ -24,6 +24,10 @@ export abstract class AuthenticationIdenticator {
 		identityIdentification: IdentityIdentification,
 		message: MessageData,
 	) => Promise<void> = undefined;
+
+	sendInterval?: number = undefined;
+
+	sendCount?: number = undefined;
 }
 
 export abstract class AuthenticationChallenger {
@@ -50,6 +54,8 @@ export type AuthenticationConfiguration = {
 			readonly identificationInterval: number;
 			readonly challengeCount: number;
 			readonly challengeInterval: number;
+			readonly confirmVerificationCodeCount: number;
+			readonly confirmVerificationCodeInterval: number;
 		};
 	};
 	readonly flow: {
@@ -93,10 +99,14 @@ export class AuthenticationConfigurationBuilder {
 	#onUpdateIdentityHandler?: AuthenticationHandler;
 	#onDeleteIdentityHandler?: AuthenticationHandler;
 	#renderer?: AuthenticationRenderer;
-	#rateLimitIdentificationCount?: number;
-	#rateLimitIdentificationInterval?: number;
-	#rateLimitChallengeCount?: number;
-	#rateLimitChallengeInterval?: number;
+	#rateLimit?: {
+		identificationCount: number;
+		identificationInterval: number;
+		challengeCount: number;
+		challengeInterval: number;
+		confirmVerificationCodeCount: number;
+		confirmVerificationCodeInterval: number;
+	};
 
 	/**
 	 * Defines the authentication keys and algorith
@@ -118,15 +128,22 @@ export class AuthenticationConfigurationBuilder {
 		return this;
 	}
 
-	public setSecurityRateLimitIdentification(count: number, interval: number) {
-		this.#rateLimitIdentificationCount = count;
-		this.#rateLimitIdentificationInterval = interval;
-		return this;
-	}
-
-	public setSecurityRateLimitChallenge(count: number, interval: number) {
-		this.#rateLimitChallengeCount = count;
-		this.#rateLimitChallengeInterval = interval;
+	public setRateLimit(limits: {
+		identificationCount: number;
+		identificationInterval: number;
+		challengeCount: number;
+		challengeInterval: number;
+		confirmVerificationCodeCount: number;
+		confirmVerificationCodeInterval: number;
+	}) {
+		this.#rateLimit = {
+			identificationCount: limits.identificationCount,
+			identificationInterval: limits.identificationInterval,
+			challengeCount: limits.challengeCount,
+			challengeInterval: limits.challengeInterval,
+			confirmVerificationCodeCount: limits.confirmVerificationCodeCount,
+			confirmVerificationCodeInterval: limits.confirmVerificationCodeInterval,
+		};
 		return this;
 	}
 
@@ -225,10 +242,13 @@ export class AuthenticationConfigurationBuilder {
 				keys: this.#securityKeys,
 				salt: this.#securitySalt,
 				rateLimit: {
-					identificationCount: this.#rateLimitIdentificationCount ?? 100,
-					identificationInterval: this.#rateLimitIdentificationInterval ?? 60,
-					challengeCount: this.#rateLimitChallengeCount ?? 5,
-					challengeInterval: this.#rateLimitChallengeInterval ?? 60,
+					identificationCount: 100,
+					identificationInterval: 60,
+					challengeCount: 5,
+					challengeInterval: 60,
+					confirmVerificationCodeCount: 5,
+					confirmVerificationCodeInterval: 60,
+					...this.#rateLimit,
 				},
 			},
 			flow: {

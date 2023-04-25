@@ -54,8 +54,8 @@ export class MemoryKVProvider implements KVProvider {
 		const now = new Date().getTime();
 		const expiration = options?.expiration
 			? options.expiration instanceof Date
-				? options.expiration.getTime() / 1000
-				: options.expiration + now / 1000
+				? options.expiration.getTime()
+				: options.expiration + now
 			: undefined;
 		const item: Item = { value, expiration };
 		this.#cache.set(key, item, expiration ? expiration - now : undefined);

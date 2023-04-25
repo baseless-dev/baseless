@@ -64,7 +64,7 @@ Deno.test("AuthenticationService", async (t) => {
 		kv: kvService,
 		identity: identityService,
 		session: sessionService,
-		waitUntil() {},
+		waitUntil() { },
 	};
 	const authService = new AuthenticationService(configuration, context);
 
@@ -125,7 +125,7 @@ Deno.test("AuthenticationService", async (t) => {
 				"john@test.local",
 				"localhost",
 			),
-			{ choices: ["email"], identity: ident1.id },
+			{ done: false, state: { choices: ["email"], identity: ident1.id } },
 		);
 		await assertRejects(() =>
 			authService.submitIdentification(
@@ -138,13 +138,14 @@ Deno.test("AuthenticationService", async (t) => {
 	});
 
 	await t.step("submitChallenge", async () => {
-		assertSessionData(
+		assertEquals(
 			await authService.submitChallenge(
 				{ choices: ["email"], identity: ident1.id },
 				"password",
 				"123",
 				"localhost",
 			),
+			{ done: true, identityId: ident1.id },
 		);
 		await assertRejects(() =>
 			authService.submitChallenge(

@@ -14,7 +14,6 @@ import {
 } from "../auth/flow.ts";
 import { Configuration } from "../config.ts";
 import { Context } from "../context.ts";
-import { SessionData } from "../providers/session.ts";
 
 export type GetStepYieldResult = {
 	done: false;
@@ -24,6 +23,12 @@ export type GetStepYieldResult = {
 };
 export type GetStepReturnResult = { done: true };
 export type GetStepResult = GetStepYieldResult | GetStepReturnResult;
+
+export type AuthenticationResult =
+	| { done: true; identityId: AutoId; }
+	| { done: true; error: true; }
+	| { done: false; response: Response; }
+	| { done: false; state: AuthenticationState; }
 
 export class AuthenticationService {
 	#configuration: Configuration;
@@ -64,14 +69,14 @@ export class AuthenticationService {
 		type: string,
 		identification: string,
 		subject: string,
-	): Promise<Response | AuthenticationState | SessionData> {
+	): Promise<AuthenticationResult> {
 		const counterInterval =
 			this.#configuration.auth.security.rateLimit.identificationInterval * 1000;
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#context.counter.increment(counterKey, 1, counterInterval) >
-				this.#configuration.auth.security.rateLimit.identificationCount
+			this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -100,17 +105,17 @@ export class AuthenticationService {
 			identification,
 		);
 		if (identifyResult instanceof Response) {
-			return identifyResult;
+			return { done: false, response: identifyResult };
 		}
 		if (result.last) {
-			return this.#context.session.create(
-				identityIdentification.identityId,
-				{},
-			);
+			return { done: true, identityId: identityIdentification.identityId };
 		} else {
 			return {
-				choices: [...state.choices, type],
-				identity: identityIdentification.identityId,
+				done: false,
+				state: {
+					choices: [...state.choices, type],
+					identity: identityIdentification.identityId,
+				}
 			};
 		}
 	}
@@ -120,7 +125,7 @@ export class AuthenticationService {
 		type: string,
 		challenge: string,
 		subject: string,
-	): Promise<SessionData | AuthenticationState> {
+	): Promise<AuthenticationResult> {
 		assertAuthenticationStateIdentified(state);
 		const counterInterval =
 			this.#configuration.auth.security.rateLimit.identificationInterval * 1000;
@@ -128,7 +133,7 @@ export class AuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#context.counter.increment(counterKey, 1, counterInterval) >
-				this.#configuration.auth.security.rateLimit.identificationCount
+			this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -161,9 +166,9 @@ export class AuthenticationService {
 		}
 
 		if (result.last) {
-			return this.#context.session.create(state.identity, {});
+			return { done: true, identityId: state.identity };
 		}
-		return { ...state, choices: [...state.choices, type] };
+		return { done: false, state: { choices: [...state.choices, type], identity: state.identity } };
 	}
 
 	async sendIdentificationValidationCode(
@@ -187,8 +192,8 @@ export class AuthenticationService {
 	}
 }
 
-export class AuthenticationFlowDoneError extends Error {}
-export class AuthenticationInvalidStepError extends Error {}
-export class AuthenticationRateLimitedError extends Error {}
-export class AuthenticationMissingChallengeError extends Error {}
-export class AuthenticationChallengeFailedError extends Error {}
+export class AuthenticationFlowDoneError extends Error { }
+export class AuthenticationInvalidStepError extends Error { }
+export class AuthenticationRateLimitedError extends Error { }
+export class AuthenticationMissingChallengeError extends Error { }
+export class AuthenticationChallengeFailedError extends Error { }

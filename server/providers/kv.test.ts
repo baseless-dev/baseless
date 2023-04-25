@@ -2,6 +2,7 @@ import { KVProvider } from "./kv.ts";
 import {
 	assertEquals,
 	assertExists,
+	assertRejects,
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 
 export default async function testKVProvider(
@@ -69,5 +70,11 @@ export default async function testKVProvider(
 		assertEquals(result1.keys[3].value, "Title D");
 
 		await kv.delete("/posts/z");
+	});
+
+	await t.step("put with expiration", async () => {
+		await kv.put("/expire/a", "Title A", { expiration: 100 });
+		await new Promise(r => setTimeout(r, 1000));
+		await assertRejects(() => kv.get("/expire/a"));
 	});
 }

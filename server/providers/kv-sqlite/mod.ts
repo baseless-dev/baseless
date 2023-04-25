@@ -94,7 +94,7 @@ export class SqliteKVProvider implements KVProvider {
 		if (!this.db) {
 			throw new SqliteNotOpenedError();
 		}
-		const now = new Date().getTime() / 1000;
+		const now = new Date().getTime();
 		try {
 			const rows = this.db.query<[string, number]>(
 				`SELECT value, expireAt FROM ${this.options.tableName} WHERE key = ? AND (expireAt IS NULL OR expireAt >= ?) LIMIT 1`,
@@ -133,8 +133,8 @@ export class SqliteKVProvider implements KVProvider {
 		}
 		const expireAt = options?.expiration
 			? options.expiration instanceof Date
-				? options.expiration.getTime() / 1000
-				: options.expiration + new Date().getTime() / 1000
+				? options.expiration.getTime()
+				: options.expiration + new Date().getTime()
 			: null;
 		try {
 			this.db.query(
@@ -163,7 +163,7 @@ export class SqliteKVProvider implements KVProvider {
 		}
 
 		const prefixMatch = `${prefix}%`;
-		const now = new Date().getTime() / 1000;
+		const now = new Date().getTime();
 		try {
 			const rows = this.db.query<[string, string, number]>(
 				`SELECT key, value, expireAt FROM ${this.options.tableName} WHERE key LIKE ? AND (expireAt IS NULL OR expireAt >= ?) AND key > ? ORDER BY key ASC LIMIT ?`,
@@ -221,7 +221,7 @@ export class SqliteKVProvider implements KVProvider {
 		if (!this.db) {
 			throw new SqliteNotOpenedError();
 		}
-		const now = new Date().getTime() / 1000;
+		const now = new Date().getTime();
 		try {
 			this.db.query(
 				`DELETE FROM ${this.options.tableName} WHERE (expireAt IS NOT NULL AND expireAt < ?)`,

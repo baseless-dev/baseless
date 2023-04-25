@@ -43,7 +43,7 @@ export class WebStorageKVProvider implements KVProvider {
 		const expiration: number | undefined = typeof obj.expiration === "number"
 			? obj.expiration
 			: undefined;
-		if (expiration && Date.now() / 1000 > expiration) {
+		if (expiration && Date.now() > expiration) {
 			this.storage.removeItem(`/${this.prefix}${key}`);
 			this.logger.debug(`Key "${key}" does not exists.`);
 			throw new KeyNotFoundError(key);
@@ -63,8 +63,8 @@ export class WebStorageKVProvider implements KVProvider {
 	): Promise<void> {
 		const expiration = options?.expiration
 			? options.expiration instanceof Date
-				? options.expiration.getTime() / 1000
-				: options.expiration + new Date().getTime() / 1000
+				? options.expiration.getTime()
+				: options.expiration + new Date().getTime()
 			: null;
 		this.storage.setItem(
 			`${this.prefix}${key}`,

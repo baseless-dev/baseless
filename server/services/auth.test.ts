@@ -54,7 +54,7 @@ Deno.test("AuthenticationService", async (t) => {
 	const kvProvider = new MemoryKVProvider();
 	const kvService = new KVService(kvProvider);
 	const identityProvider = new KVIdentityProvider(new MemoryKVProvider());
-	const identityService = new IdentityService(configuration, identityProvider);
+	const identityService = new IdentityService(configuration, identityProvider, counterProvider);
 	const sessionProvider = new KVSessionProvider(new MemoryKVProvider());
 	const sessionService = new SessionService(configuration, sessionProvider);
 
@@ -65,7 +65,7 @@ Deno.test("AuthenticationService", async (t) => {
 		kv: kvService,
 		identity: identityService,
 		session: sessionService,
-		waitUntil() {},
+		waitUntil() { },
 	};
 	const authService = new AuthenticationService(configuration, context);
 
@@ -181,7 +181,7 @@ Deno.test("AuthenticationService", async (t) => {
 		await authService.sendIdentificationValidationCode(ident1.id, "email");
 		verificationCode = messages.pop()?.message.text ?? "";
 		assertEquals(verificationCode.length, 6);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 	});
 
 	await t.step("confirmIdentificationValidationCode", async () => {

@@ -1,25 +1,30 @@
 import { AutoId } from "../../shared/autoid.ts";
 import { AuthenticationMissingChallengerError } from "../auth/config.ts";
 import { Configuration } from "../config.ts";
+import { CounterProvider } from "../providers/counter.ts";
 import {
 	assertIdentityChallenge,
 	assertIdentityIdentification,
 	Identity,
 	IdentityChallenge,
 	IdentityIdentification,
+	IdentityIdentificationExistsError,
 	IdentityProvider,
 } from "../providers/identity.ts";
 
 export class IdentityService {
 	#configuration: Configuration;
 	#identityProvider: IdentityProvider;
+	#counterProvider: CounterProvider;
 
 	constructor(
 		configuration: Configuration,
 		identityProvider: IdentityProvider,
+		counterProvider: CounterProvider,
 	) {
 		this.#configuration = configuration;
 		this.#identityProvider = identityProvider;
+		this.#counterProvider = counterProvider;
 	}
 
 	get<Meta extends Record<string, unknown>>(
@@ -60,10 +65,14 @@ export class IdentityService {
 		return this.#identityProvider.matchIdentification(type, identification);
 	}
 
-	createIdentification(
+	async createIdentification(
 		identityIdentification: IdentityIdentification,
 		expiration?: number | Date,
 	): Promise<void> {
+		const key = `/auth/identification/${identityIdentification.type}:${identityIdentification.identification}`;
+		if (await this.#counterProvider.increment(key, 1, 5 * 60 * 1000) > 1) {
+			throw new IdentityIdentificationExistsError();
+		}
 		// TODO life cycle hooks
 		return this.#identityProvider.createIdentification(
 			identityIdentification,

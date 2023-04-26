@@ -69,7 +69,8 @@ export class IdentityService {
 		identityIdentification: IdentityIdentification,
 		expiration?: number | Date,
 	): Promise<void> {
-		const key = `/auth/identification/${identityIdentification.type}:${identityIdentification.identification}`;
+		const key =
+			`/auth/identification/${identityIdentification.type}:${identityIdentification.identification}`;
 		if (await this.#counterProvider.increment(key, 1, 5 * 60 * 1000) > 1) {
 			throw new IdentityIdentificationExistsError();
 		}

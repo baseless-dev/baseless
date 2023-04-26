@@ -47,27 +47,20 @@ Deno.test("AuthenticationService", async (t) => {
 
 	const configuration = config.build();
 
-	const assetProvider = new LocalAssetProvider(import.meta.resolve("./"));
-	const assetService = new AssetService(assetProvider);
 	const counterProvider = new MemoryCounterProvider();
-	const counterService = new CounterService(counterProvider);
 	const kvProvider = new MemoryKVProvider();
-	const kvService = new KVService(kvProvider);
 	const identityProvider = new KVIdentityProvider(new MemoryKVProvider());
-	const identityService = new IdentityService(configuration, identityProvider, counterProvider);
-	const sessionProvider = new KVSessionProvider(new MemoryKVProvider());
-	const sessionService = new SessionService(configuration, sessionProvider);
-
-	const context: Context = {
-		config: configuration,
-		asset: assetService,
-		counter: counterService,
-		kv: kvService,
-		identity: identityService,
-		session: sessionService,
-		waitUntil() { },
-	};
-	const authService = new AuthenticationService(configuration, context);
+	const identityService = new IdentityService(
+		configuration,
+		identityProvider,
+		counterProvider,
+	);
+	const authService = new AuthenticationService(
+		configuration,
+		identityProvider,
+		counterProvider,
+		kvProvider,
+	);
 
 	const ident1 = await identityService.create({});
 	await identityService.createIdentification({
@@ -181,7 +174,7 @@ Deno.test("AuthenticationService", async (t) => {
 		await authService.sendIdentificationValidationCode(ident1.id, "email");
 		verificationCode = messages.pop()?.message.text ?? "";
 		assertEquals(verificationCode.length, 6);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 	});
 
 	await t.step("confirmIdentificationValidationCode", async () => {

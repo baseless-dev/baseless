@@ -11,10 +11,14 @@ import {
 	AuthenticationStep,
 	flatten,
 	getAuthenticationStepAtPath,
+	simplify,
 	simplifyWithContext,
 } from "../auth/flow.ts";
 import { Configuration } from "../config.ts";
 import { Context } from "../context.ts";
+import { CounterProvider } from "../providers/counter.ts";
+import { IdentityProvider } from "../providers/identity.ts";
+import { KVProvider } from "../providers/kv.ts";
 
 export type GetStepYieldResult = {
 	done: false;
@@ -33,24 +37,35 @@ export type AuthenticationResult =
 
 export class AuthenticationService {
 	#configuration: Configuration;
-	#context: Context;
+	#identityProvider: IdentityProvider;
+	#counterProvider: CounterProvider;
+	#kvProvider: KVProvider;
 
 	constructor(
 		configuration: Configuration,
-		context: Context,
+		identityProvider: IdentityProvider,
+		counterProvider: CounterProvider,
+		kvProvider: KVProvider,
 	) {
 		this.#configuration = configuration;
-		this.#context = context;
+		this.#identityProvider = identityProvider;
+		this.#counterProvider = counterProvider;
+		this.#kvProvider = kvProvider;
 	}
 
-	async getStep(state?: AuthenticationState): Promise<GetStepResult> {
+	async getStep(
+		state?: AuthenticationState,
+		context?: Context,
+	): Promise<GetStepResult> {
 		state ??= { choices: [] };
 		const step = flatten(
-			await simplifyWithContext(
-				this.#configuration.auth.flow.step,
-				this.#context,
-				state,
-			),
+			context
+				? await simplifyWithContext(
+					this.#configuration.auth.flow.step,
+					context,
+					state,
+				)
+				: simplify(this.#configuration.auth.flow.step),
 		);
 		const result = getAuthenticationStepAtPath(step, state.choices);
 		if (result.done) {
@@ -76,8 +91,8 @@ export class AuthenticationService {
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
-			await this.#context.counter.increment(counterKey, 1, counterInterval) >
-			this.#configuration.auth.security.rateLimit.identificationCount
+			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
+				this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -99,7 +114,7 @@ export class AuthenticationService {
 			throw new AuthenticationMissingIdentificatorError();
 		}
 
-		const identityIdentification = await this.#context.identity
+		const identityIdentification = await this.#identityProvider
 			.matchIdentification(step.type, identification);
 
 		const identifyResult = await identificator.identify(
@@ -136,8 +151,8 @@ export class AuthenticationService {
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
-			await this.#context.counter.increment(counterKey, 1, counterInterval) >
-			this.#configuration.auth.security.rateLimit.identificationCount
+			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
+				this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -158,7 +173,7 @@ export class AuthenticationService {
 			throw new AuthenticationMissingChallengerError();
 		}
 
-		const identityChallenge = await this.#context.identity.getChallenge(
+		const identityChallenge = await this.#identityProvider.getChallenge(
 			state.identity,
 			step.type,
 		);
@@ -201,24 +216,24 @@ export class AuthenticationService {
 				const counterKey =
 					`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
 				if (
-					await this.#context.counter.increment(
+					await this.#counterProvider.increment(
 						counterKey,
 						1,
 						identificator.sendInterval,
 					) >
-					identificator.sendCount
+						identificator.sendCount
 				) {
 					throw new AuthenticationRateLimitedError();
 				}
 			}
 			const code = otp({ digits: 6 });
-			await this.#context.kv.put(
+			await this.#kvProvider.put(
 				`/auth/validationcode/${identityId}/${type}`,
 				code,
 				{ expiration: 1000 * 60 * 5 },
 			);
 
-			const identityIdentifications = await this.#context.identity
+			const identityIdentifications = await this.#identityProvider
 				.listIdentification(identityId);
 			const identityIdentification = identityIdentifications.find((ii) =>
 				ii.type === type
@@ -241,18 +256,18 @@ export class AuthenticationService {
 		const counterKey =
 			`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
 		if (
-			await this.#context.counter.increment(
+			await this.#counterProvider.increment(
 				counterKey,
 				1,
 				this.#configuration.auth.security.rateLimit
 					.confirmVerificationCodeInterval,
 			) >
-			this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount
+				this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
 
-		const identityIdentifications = await this.#context.identity
+		const identityIdentifications = await this.#identityProvider
 			.listIdentification(identityId);
 		const identityIdentification = identityIdentifications.find((ii) =>
 			ii.type === type
@@ -261,24 +276,24 @@ export class AuthenticationService {
 			throw new AuthenticationMissingIdentificationError();
 		}
 
-		const savedCode = await this.#context.kv.get(
+		const savedCode = await this.#kvProvider.get(
 			`/auth/validationcode/${identityId}/${type}`,
 		).catch((_) => undefined);
 		if (!savedCode || savedCode.value !== code) {
 			throw new AuthenticationConfirmFailedError();
 		}
 
-		await this.#context.identity.updateIdentification({
+		await this.#identityProvider.updateIdentification({
 			...identityIdentification,
 			verified: true,
 		});
 	}
 }
 
-export class AuthenticationFlowDoneError extends Error { }
-export class AuthenticationInvalidStepError extends Error { }
-export class AuthenticationRateLimitedError extends Error { }
-export class AuthenticationMissingChallengeError extends Error { }
-export class AuthenticationChallengeFailedError extends Error { }
-export class AuthenticationMissingIdentificationError extends Error { }
-export class AuthenticationConfirmFailedError extends Error { }
+export class AuthenticationFlowDoneError extends Error {}
+export class AuthenticationInvalidStepError extends Error {}
+export class AuthenticationRateLimitedError extends Error {}
+export class AuthenticationMissingChallengeError extends Error {}
+export class AuthenticationChallengeFailedError extends Error {}
+export class AuthenticationMissingIdentificationError extends Error {}
+export class AuthenticationConfirmFailedError extends Error {}

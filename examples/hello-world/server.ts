@@ -1,15 +1,17 @@
 import * as log from "../../server/logger.ts";
 import { config } from "../../server/config.ts";
 import { Server } from "../../server/server.ts";
-import { MemoryCounterProvider } from "../../server/providers/counter-memory/mod.ts";
-import { WebStorageKVProvider } from "../../server/providers/kv-webstorage/mod.ts";
-import { KVIdentityProvider } from "../../server/providers/identity-kv/mod.ts";
-import { LoggerEmailProvider } from "../../server/providers/email-logger/mod.ts";
+import { MemoryCounterProvider } from "../../providers/counter-memory/mod.ts";
+import { WebStorageKVProvider } from "../../providers/kv-webstorage/mod.ts";
+import { KVIdentityProvider } from "../../providers/identity-kv/mod.ts";
+import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";
 import "./app.ts";
-import { autoid } from "../../shared/autoid.ts";
-import { LocalAssetProvider } from "../../server/providers/asset-local/mod.ts";
-import { WebCacheAssetProvider } from "../../server/providers/asset-webcache/mod.ts";
+import { LocalAssetProvider } from "../../providers/asset-local/mod.ts";
+import { WebCacheAssetProvider } from "../../providers/asset-webcache/mod.ts";
+import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
+import { IdentityService } from "../../server/services/identity.ts";
 
+Deno.permissions.request({ name: "read", path: import.meta.url });
 Deno.permissions.request({ name: "net" });
 Deno.permissions.request({ name: "env" });
 
@@ -17,19 +19,32 @@ log.setGlobalLogHandler(log.createConsoleLogHandler(log.LogLevel.LOG));
 
 const configuration = config.build();
 
-const assetProvider = new WebCacheAssetProvider("baseless-hello-world-public", new LocalAssetProvider(import.meta.resolve("./public")));
+await caches.delete("baseless-hello-world-public");
+const assetProvider = new WebCacheAssetProvider(await caches.open("baseless-hello-world-public"), new LocalAssetProvider(import.meta.resolve("./public")));
+const counterProvider = new MemoryCounterProvider();
+const kvProvider = new WebStorageKVProvider(sessionStorage, "hello-world-kv/");
+const identityKV = new WebStorageKVProvider(sessionStorage, "hello-world-idp/");
+const identityProvider = new KVIdentityProvider(identityKV);
+const sessionKV = new WebStorageKVProvider(sessionStorage, "hello-world-session/");
+const sessionProvider = new KVSessionProvider(sessionKV);
+const messageProvider = new LoggerMessageProvider();
 
-// const counterProvider = new MemoryCounterProvider();
-// const identityKV = new WebStorageKVProvider(sessionStorage, "hello-world-idp/");
-// const identityProvider = new KVIdentityProvider(identityKV);
-// const emailProvider = new LoggerEmailProvider();
+const identityService = new IdentityService(configuration, identityProvider, counterProvider);
+const john = await identityService.create({});
+await identityService.createIdentification({
+	identityId: john.id,
+	type: "email",
+	identification: "john@test.local",
+	verified: true,
+	meta: {},
+});
+await identityService.createChallenge(
+	john.id,
+	"password",
+	"123",
+);
 
-// // Create john's identity
-// const johnId = await identityProvider.createIdentity({});
-// await identityProvider.assignIdentityIdentification(johnId, "email", "john@doe.local");
-// await identityProvider.assignIdentityChallenge(johnId, "password", "123");
-
-const server = new Server({ configuration, assetProvider });
+const server = new Server({ configuration, assetProvider, counterProvider, identityProvider, sessionProvider, kvProvider });
 
 const listener = Deno.listen({ hostname: "0.0.0.0", port: 8080 });
 

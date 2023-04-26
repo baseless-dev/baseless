@@ -18,6 +18,7 @@
 				"run",
 				"--unstable",
 				"--allow-env",
+				"--allow-read",
 				"--allow-net",
 				"--allow-sys",
 				"--inspect"

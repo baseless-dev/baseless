@@ -3,6 +3,9 @@ import { sequence, oneOf, email, password, action, otp } from "../../server/auth
 import createAuthUI from "../../server/auth/ui/mod.ts";
 import authUIEn from "../../server/auth/ui/locales/en.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
+import { EmailAuthentificationIdenticator } from "../../server/auth/identicators/email.ts";
+import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";
+import { PasswordAuthentificationChallenger } from "../../server/auth/identicators/password.ts";
 
 const { publicKey, privateKey } = await generateKeyPair("PS512");
 
@@ -45,19 +48,8 @@ config.auth()
 	))
 	.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
 	.setSecuritySalt("foobar")
-	.setRenderer(createAuthUI({
-		defaultLocale: "en",
-		locales: ["en"],
-		localization: {
-			en: authUIEn,
-		},
-	}));
-// .onCreateIdentity((_ctx, _req, identity) => {
-// 	console.log(`Identity created ${identity.id}`);
-// })
-// .onUpdateIdentity((_ctx, _req, identity) => {
-// 	console.log(`Identity updated ${identity.id}`);
-// })
-// .onDeleteIdentity((_ctx, _req, identity) => {
-// 	console.log(`Identity deleted ${identity.id}`);
-// });
+	.addFlowIdentificator(
+		"email",
+		new EmailAuthentificationIdenticator(new LoggerMessageProvider()),
+	)
+	.addFlowChallenger("password", new PasswordAuthentificationChallenger());

@@ -66,7 +66,6 @@ export type AuthenticationConfiguration = {
 	readonly onCreateIdentity?: AuthenticationHandler;
 	readonly onUpdateIdentity?: AuthenticationHandler;
 	readonly onDeleteIdentity?: AuthenticationHandler;
-	readonly renderer?: AuthenticationRenderer;
 };
 
 export type AuthenticationHandler = (
@@ -98,7 +97,6 @@ export class AuthenticationConfigurationBuilder {
 	#onCreateIdentityHandler?: AuthenticationHandler;
 	#onUpdateIdentityHandler?: AuthenticationHandler;
 	#onDeleteIdentityHandler?: AuthenticationHandler;
-	#renderer?: AuthenticationRenderer;
 	#rateLimit?: {
 		identificationCount: number;
 		identificationInterval: number;
@@ -214,16 +212,6 @@ export class AuthenticationConfigurationBuilder {
 	}
 
 	/**
-	 * Defines the renderer function that's responsible to build the HTML response the auth endpoint
-	 * @param handler The callback
-	 * @returns The builder
-	 */
-	public setRenderer(handler: AuthenticationRenderer) {
-		this.#renderer = handler;
-		return this;
-	}
-
-	/**
 	 * Finalize the {@see AuthConfiguration}
 	 * @returns The finalized {@see AuthConfiguration} object
 	 */
@@ -259,7 +247,6 @@ export class AuthenticationConfigurationBuilder {
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,
-			renderer: this.#renderer,
 		};
 	}
 }

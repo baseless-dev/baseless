@@ -1,13 +1,18 @@
+import authRouter from "./auth/routes.ts";
 import { Configuration } from "./config.ts";
 import { Context } from "./context.ts";
 import { createLogger } from "./logger.ts";
 import { AssetProvider } from "./providers/asset.ts";
 import { CounterProvider } from "./providers/counter.ts";
+import { IdentityProvider } from "./providers/identity.ts";
 import { KVProvider } from "./providers/kv.ts";
+import { SessionProvider } from "./providers/session.ts";
 import { Router, RouterBuilder } from "./router.ts";
 import { AssetService } from "./services/asset.ts";
 import { CounterService } from "./services/counter.ts";
+import { IdentityService } from "./services/identity.ts";
 import { KVService } from "./services/kv.ts";
+import { SessionService } from "./services/session.ts";
 
 export class Server {
 	#logger = createLogger("server");
@@ -15,6 +20,8 @@ export class Server {
 	#assetProvider: AssetProvider;
 	#counterProvider: CounterProvider;
 	#kvProvider: KVProvider;
+	#identityProvider: IdentityProvider;
+	#sessionProvider: SessionProvider;
 
 	#router: Router<[context: Context]>;
 
@@ -24,14 +31,20 @@ export class Server {
 			assetProvider: AssetProvider;
 			counterProvider: CounterProvider;
 			kvProvider: KVProvider;
+			identityProvider: IdentityProvider;
+			sessionProvider: SessionProvider;
 		},
 	) {
 		this.#configuration = options.configuration;
 		this.#assetProvider = options.assetProvider;
 		this.#counterProvider = options.counterProvider;
 		this.#kvProvider = options.kvProvider;
+		this.#identityProvider = options.identityProvider;
+		this.#sessionProvider = options.sessionProvider;
 
 		const routerBuilder = new RouterBuilder<[context: Context]>();
+
+		routerBuilder.route("/auth", authRouter);
 
 		if (this.#configuration.asset.enabled) {
 			routerBuilder.get(
@@ -57,6 +70,15 @@ export class Server {
 		const assetService = new AssetService(this.#assetProvider);
 		const counterService = new CounterService(this.#counterProvider);
 		const kvService = new KVService(this.#kvProvider);
+		const identityService = new IdentityService(
+			this.#configuration,
+			this.#identityProvider,
+			this.#counterProvider,
+		);
+		const sessionService = new SessionService(
+			this.#configuration,
+			this.#sessionProvider,
+		);
 
 		const waitUntilCollection: PromiseLike<unknown>[] = [];
 		const context: Context = {
@@ -64,6 +86,8 @@ export class Server {
 			asset: assetService,
 			counter: counterService,
 			kv: kvService,
+			identity: identityService,
+			session: sessionService,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},

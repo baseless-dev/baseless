@@ -2,24 +2,17 @@ import {
 	assertEquals,
 	assertRejects,
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { KVIdentityProvider } from "../providers/identity-kv/mod.ts";
-import { MemoryCounterProvider } from "../providers/counter-memory/mod.ts";
-import { LoggerMessageProvider } from "../providers/message-logger/mod.ts";
+import { KVIdentityProvider } from "../../providers/identity-kv/mod.ts";
+import { MemoryCounterProvider } from "../../providers/counter-memory/mod.ts";
+import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";
 import { AuthenticationService } from "./auth.ts";
 import { ConfigurationBuilder } from "../config.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
 import * as f from "../auth/flow.ts";
 import { IdentityService } from "./identity.ts";
-import { CounterService } from "./counter.ts";
-import { AssetService } from "./asset.ts";
-import { LocalAssetProvider } from "../providers/asset-local/mod.ts";
-import { Context } from "../context.ts";
-import { KVService } from "./kv.ts";
-import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
+import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
 import { EmailAuthentificationIdenticator } from "../auth/identicators/email.ts";
 import { PasswordAuthentificationChallenger } from "../auth/identicators/password.ts";
-import { SessionService } from "./session.ts";
-import { KVSessionProvider } from "../providers/session-kv/mod.ts";
 import { Message } from "../providers/message.ts";
 import { setGlobalLogHandler } from "../logger.ts";
 

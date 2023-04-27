@@ -40,6 +40,7 @@ const code = otp({ type: "otp", icon: iconOTP, label: { en: "Sign in with Code" 
 config.asset().setEnabled(true);
 
 config.auth()
+	.setEnabled(true)
 	.setFlowStep(oneOf(
 		sequence(mail, pass),
 		sequence(mail, code),

@@ -1,3 +1,4 @@
+import apiAuthRouter from "./api/auth.ts";
 import authRouter from "./auth/routes.ts";
 import { Configuration } from "./config.ts";
 import { Context } from "./context.ts";
@@ -9,6 +10,7 @@ import { KVProvider } from "./providers/kv.ts";
 import { SessionProvider } from "./providers/session.ts";
 import { Router, RouterBuilder } from "./router.ts";
 import { AssetService } from "./services/asset.ts";
+import { AuthenticationService } from "./services/auth.ts";
 import { CounterService } from "./services/counter.ts";
 import { IdentityService } from "./services/identity.ts";
 import { KVService } from "./services/kv.ts";
@@ -44,7 +46,11 @@ export class Server {
 
 		const routerBuilder = new RouterBuilder<[context: Context]>();
 
-		routerBuilder.route("/auth", authRouter);
+
+		if (this.#configuration.auth.enabled) {
+			routerBuilder.route("/auth", authRouter);
+			routerBuilder.route("/api/auth", apiAuthRouter);
+		}
 
 		if (this.#configuration.asset.enabled) {
 			routerBuilder.get(
@@ -79,6 +85,12 @@ export class Server {
 			this.#configuration,
 			this.#sessionProvider,
 		);
+		const authenticationService = new AuthenticationService(
+			this.#configuration,
+			this.#identityProvider,
+			this.#counterProvider,
+			this.#kvProvider,
+		);
 
 		const waitUntilCollection: PromiseLike<unknown>[] = [];
 		const context: Context = {
@@ -88,6 +100,7 @@ export class Server {
 			kv: kvService,
 			identity: identityService,
 			session: sessionService,
+			auth: authenticationService,
 			waitUntil(promise) {
 				waitUntilCollection.push(promise);
 			},

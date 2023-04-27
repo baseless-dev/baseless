@@ -37,7 +37,7 @@ export abstract class AuthenticationChallenger {
 	}
 
 	// deno-lint-ignore no-unused-vars
-	async sendChallenge(identityChallenge: IdentityChallenge): Promise<void> {}
+	async sendChallenge(identityChallenge: IdentityChallenge): Promise<void> { }
 
 	abstract verify(
 		identityChallenge: IdentityChallenge,
@@ -46,6 +46,7 @@ export abstract class AuthenticationChallenger {
 }
 
 export type AuthenticationConfiguration = {
+	readonly enabled: boolean;
 	readonly security: {
 		readonly keys: AuthenticationKeys;
 		readonly salt: string;
@@ -89,6 +90,7 @@ export interface AuthenticationRenderer {
 	promptOTP(options: AuthenticationViewPrompParams): string;
 }
 export class AuthenticationConfigurationBuilder {
+	#enabled = false;
 	#securityKeys?: AuthenticationKeys;
 	#securitySalt?: string;
 	#flowStep?: AuthenticationStep;
@@ -105,6 +107,11 @@ export class AuthenticationConfigurationBuilder {
 		confirmVerificationCodeCount: number;
 		confirmVerificationCodeInterval: number;
 	};
+
+	public setEnabled(enabled: boolean) {
+		this.#enabled = enabled;
+		return this;
+	}
 
 	/**
 	 * Defines the authentication keys and algorith
@@ -226,6 +233,7 @@ export class AuthenticationConfigurationBuilder {
 			throw new Error(`Authentication salt is needed.`);
 		}
 		return {
+			enabled: this.#enabled,
 			security: {
 				keys: this.#securityKeys,
 				salt: this.#securitySalt,
@@ -251,5 +259,5 @@ export class AuthenticationConfigurationBuilder {
 	}
 }
 
-export class AuthenticationMissingIdentificatorError extends Error {}
-export class AuthenticationMissingChallengerError extends Error {}
+export class AuthenticationMissingIdentificatorError extends Error { }
+export class AuthenticationMissingChallengerError extends Error { }

@@ -31,9 +31,9 @@ export type GetStepResult = GetStepYieldResult | GetStepReturnResult;
 
 export type AuthenticationResult =
 	| { done: true; identityId: AutoId }
-	| { done: true; error: true }
+	| { done: false; error: true }
 	| { done: false; response: Response }
-	| GetStepResult & { state: AuthenticationState };
+	| GetStepYieldResult & { state: AuthenticationState };
 
 export class AuthenticationService {
 	#configuration: Configuration;
@@ -92,7 +92,7 @@ export class AuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-				this.#configuration.auth.security.rateLimit.identificationCount
+			this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -124,15 +124,16 @@ export class AuthenticationService {
 		if (identifyResult instanceof Response) {
 			return { done: false, response: identifyResult };
 		}
-		if (result.last) {
+		const newState = {
+			choices: [...state.choices, type],
+			identity: identityIdentification.identityId,
+		};
+		const newResult = await this.getStep(newState);
+		if (newResult.done) {
 			return { done: true, identityId: identityIdentification.identityId };
 		} else {
-			const newState = {
-				choices: [...state.choices, type],
-				identity: identityIdentification.identityId,
-			};
 			return {
-				...await this.getStep(newState),
+				...await this.getStep(newState) as GetStepYieldResult,
 				state: newState,
 			};
 		}
@@ -152,7 +153,7 @@ export class AuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-				this.#configuration.auth.security.rateLimit.identificationCount
+			this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -185,15 +186,16 @@ export class AuthenticationService {
 			throw new AuthenticationChallengeFailedError();
 		}
 
-		if (result.last) {
-			return { done: true, identityId: state.identity };
-		}
 		const newState = {
 			choices: [...state.choices, type],
 			identity: state.identity,
 		};
+		const newResult = await this.getStep(newState);
+		if (newResult.done) {
+			return { done: true, identityId: state.identity };
+		}
 		return {
-			...await this.getStep(newState),
+			...await this.getStep(newState) as GetStepYieldResult,
 			state: newState,
 		};
 	}
@@ -221,7 +223,7 @@ export class AuthenticationService {
 						1,
 						identificator.sendInterval,
 					) >
-						identificator.sendCount
+					identificator.sendCount
 				) {
 					throw new AuthenticationRateLimitedError();
 				}
@@ -262,7 +264,7 @@ export class AuthenticationService {
 				this.#configuration.auth.security.rateLimit
 					.confirmVerificationCodeInterval,
 			) >
-				this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount
+			this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -290,10 +292,10 @@ export class AuthenticationService {
 	}
 }
 
-export class AuthenticationFlowDoneError extends Error {}
-export class AuthenticationInvalidStepError extends Error {}
-export class AuthenticationRateLimitedError extends Error {}
-export class AuthenticationMissingChallengeError extends Error {}
-export class AuthenticationChallengeFailedError extends Error {}
-export class AuthenticationMissingIdentificationError extends Error {}
-export class AuthenticationConfirmFailedError extends Error {}
+export class AuthenticationFlowDoneError extends Error { }
+export class AuthenticationInvalidStepError extends Error { }
+export class AuthenticationRateLimitedError extends Error { }
+export class AuthenticationMissingChallengeError extends Error { }
+export class AuthenticationChallengeFailedError extends Error { }
+export class AuthenticationMissingIdentificationError extends Error { }
+export class AuthenticationConfirmFailedError extends Error { }

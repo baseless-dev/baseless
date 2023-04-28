@@ -92,7 +92,7 @@ export class AuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-			this.#configuration.auth.security.rateLimit.identificationCount
+				this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -153,7 +153,7 @@ export class AuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-			this.#configuration.auth.security.rateLimit.identificationCount
+				this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -223,7 +223,7 @@ export class AuthenticationService {
 						1,
 						identificator.sendInterval,
 					) >
-					identificator.sendCount
+						identificator.sendCount
 				) {
 					throw new AuthenticationRateLimitedError();
 				}
@@ -264,7 +264,7 @@ export class AuthenticationService {
 				this.#configuration.auth.security.rateLimit
 					.confirmVerificationCodeInterval,
 			) >
-			this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount
+				this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -282,7 +282,7 @@ export class AuthenticationService {
 			`/auth/validationcode/${identityId}/${type}`,
 		).catch((_) => undefined);
 		if (!savedCode || savedCode.value !== code) {
-			throw new AuthenticationConfirmFailedError();
+			throw new AuthenticationConfirmValidationCodeError();
 		}
 
 		await this.#identityProvider.updateIdentification({
@@ -292,10 +292,11 @@ export class AuthenticationService {
 	}
 }
 
-export class AuthenticationFlowDoneError extends Error { }
-export class AuthenticationInvalidStepError extends Error { }
-export class AuthenticationRateLimitedError extends Error { }
-export class AuthenticationMissingChallengeError extends Error { }
-export class AuthenticationChallengeFailedError extends Error { }
-export class AuthenticationMissingIdentificationError extends Error { }
-export class AuthenticationConfirmFailedError extends Error { }
+export class AuthenticationFlowDoneError extends Error {}
+export class AuthenticationInvalidStepError extends Error {}
+export class AuthenticationRateLimitedError extends Error {}
+export class AuthenticationMissingChallengeError extends Error {}
+export class AuthenticationChallengeFailedError extends Error {}
+export class AuthenticationMissingIdentificationError extends Error {}
+export class AuthenticationSendValidationCodeError extends Error {}
+export class AuthenticationConfirmValidationCodeError extends Error {}

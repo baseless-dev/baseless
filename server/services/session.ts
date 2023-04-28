@@ -25,11 +25,13 @@ export class SessionService {
 		meta: Record<string, unknown>,
 		expiration?: number | Date,
 	): Promise<SessionData> {
+		// TODO rate limit
 		// TODO expiration ??= this.#configuration.auth.session.expiration;
 		return this.#sessionProvider.create(identityId, meta, expiration);
 	}
 
 	destroy(sessionId: AutoId): Promise<void> {
+		// TODO rate limit
 		return this.#sessionProvider.destroy(sessionId);
 	}
 

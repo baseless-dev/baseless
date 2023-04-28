@@ -37,7 +37,7 @@ export abstract class AuthenticationChallenger {
 	}
 
 	// deno-lint-ignore no-unused-vars
-	async sendChallenge(identityChallenge: IdentityChallenge): Promise<void> { }
+	async sendChallenge(identityChallenge: IdentityChallenge): Promise<void> {}
 
 	abstract verify(
 		identityChallenge: IdentityChallenge,
@@ -259,5 +259,5 @@ export class AuthenticationConfigurationBuilder {
 	}
 }
 
-export class AuthenticationMissingIdentificatorError extends Error { }
-export class AuthenticationMissingChallengerError extends Error { }
+export class AuthenticationMissingIdentificatorError extends Error {}
+export class AuthenticationMissingChallengerError extends Error {}

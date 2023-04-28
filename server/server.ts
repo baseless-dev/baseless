@@ -46,7 +46,6 @@ export class Server {
 
 		const routerBuilder = new RouterBuilder<[context: Context]>();
 
-
 		if (this.#configuration.auth.enabled) {
 			routerBuilder.route("/auth", authRouter);
 			routerBuilder.route("/api/auth", apiAuthRouter);

@@ -1,5 +1,5 @@
-import { IdentityChallenge } from "../../providers/identity.ts";
-import { AuthenticationChallenger } from "../config.ts";
+import { IdentityChallenge } from "../../server/providers/identity.ts";
+import { AuthenticationChallenger } from "../../server/auth/config.ts";
 import { encode } from "https://deno.land/std@0.179.0/encoding/base64.ts";
 
 export class PasswordAuthentificationChallenger

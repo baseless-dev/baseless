@@ -88,7 +88,7 @@ authRouter.post("/submitIdentification", async (request, _params, context) => {
 		);
 		const subject = isAuthenticationStateIdentified(state)
 			? state.identity
-			: request.headers.get("X-Real-Ip") ?? "";
+			: context.remoteAddress;
 		const result = await context.auth.submitIdentification(
 			state,
 			type,

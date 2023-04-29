@@ -46,37 +46,22 @@ await identityService.createChallenge(
 
 const server = new Server({ configuration, assetProvider, counterProvider, identityProvider, sessionProvider, kvProvider });
 
-const listener = Deno.listen({ hostname: "0.0.0.0", port: 8080 });
-
-console.log(``);
-console.log(`  %c START %c       Baseless server started and listening`, "background-color: cyan; font-weight: bold", "");
-for (const netint of Deno.networkInterfaces()) {
-	if (netint.family === "IPv4") {
-		console.log(`                http://${netint.address}:8080/`);
+Deno.serve({
+	hostname: "127.0.0.1",
+	port: 8080,
+	onListen({ hostname, port }) {
+		console.log(``);
+		console.log(`  %c START %c       Baseless server started and listening`, "background-color: cyan; font-weight: bold", "");
+		console.log(`                http://${hostname ?? "127.0.0.1"}:${port}/`);
+		console.log(``);
+	},
+	onError(error) {
+		console.error(error);
+		return new Response(null, { status: 500 });
+	},
+	async handler(request, info) {
+		const [response, waitUntil] = await server.handleRequest(request, info.remoteAddr.hostname);
+		await Promise.all(waitUntil);
+		return response;
 	}
-}
-console.log(``);
-
-async function handle(conn: Deno.Conn) {
-	const httpConn = Deno.serveHttp(conn);
-	try {
-		for await (const event of httpConn) {
-			try {
-				const request = new Request(event.request, { headers: { "x-real-ip": conn.remoteAddr.hostname, ...Object.fromEntries(event.request.headers) } });
-				const [response, waitUntil] = await server.handleRequest(request);
-				await event.respondWith(response);
-				await Promise.all(waitUntil);
-			} catch (err) {
-				await event.respondWith(
-					new Response(JSON.stringify(err), { status: 500 }),
-				);
-			}
-		}
-	} catch (err) {
-		log.error(err);
-	}
-}
-
-for await (const conn of listener) {
-	handle(conn);
-}
+});

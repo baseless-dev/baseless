@@ -64,13 +64,14 @@ export class Server {
 	/**
 	 * Handle a HTTP request
 	 * @param request The HTTP request
+	 * @param remoteAddress The remote address of the connection
 	 * @returns The response and promise to wait in the background
 	 */
 	public async handleRequest(
 		request: Request,
+		remoteAddress: string,
 	): Promise<[Response, PromiseLike<unknown>[]]> {
-		const ip = request.headers.get("X-Real-Ip") ?? "";
-		this.#logger.log(`${request.method} ${ip} ${request.url}`);
+		this.#logger.log(`${request.method} ${remoteAddress} ${request.url}`);
 
 		const assetService = new AssetService(this.#assetProvider);
 		const counterService = new CounterService(this.#counterProvider);
@@ -93,6 +94,7 @@ export class Server {
 
 		const waitUntilCollection: PromiseLike<unknown>[] = [];
 		const context: Context = {
+			remoteAddress,
 			config: this.#configuration,
 			asset: assetService,
 			counter: counterService,

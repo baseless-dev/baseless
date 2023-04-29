@@ -1,6 +1,6 @@
-import { IdentityIdentification } from "../../providers/identity.ts";
-import { MessageData, MessageProvider } from "../../providers/message.ts";
-import { AuthenticationIdenticator } from "../config.ts";
+import { IdentityIdentification } from "../../server/providers/identity.ts";
+import { MessageData, MessageProvider } from "../../server/providers/message.ts";
+import { AuthenticationIdenticator } from "../../server/auth/config.ts";
 
 export class EmailAuthentificationIdenticator
 	extends AuthenticationIdenticator {

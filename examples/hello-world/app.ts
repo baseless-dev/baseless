@@ -1,11 +1,9 @@
 import { config } from "../../server/config.ts";
 import { sequence, oneOf, email, password, action, otp } from "../../server/auth/flow.ts";
-import createAuthUI from "../../server/auth/ui/mod.ts";
-import authUIEn from "../../server/auth/ui/locales/en.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
-import { EmailAuthentificationIdenticator } from "../../server/auth/identicators/email.ts";
+import { EmailAuthentificationIdenticator } from "../../providers/auth-email/mod.ts";
 import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";
-import { PasswordAuthentificationChallenger } from "../../server/auth/identicators/password.ts";
+import { PasswordAuthentificationChallenger } from "../../providers/auth-password/mod.ts";
 
 const { publicKey, privateKey } = await generateKeyPair("PS512");
 

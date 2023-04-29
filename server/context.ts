@@ -10,6 +10,7 @@ import { SessionService } from "./services/session.ts";
  * Baseless's context
  */
 export type Context = {
+	readonly remoteAddress: string;
 	readonly config: Configuration;
 	readonly asset: AssetService;
 	readonly counter: CounterService;

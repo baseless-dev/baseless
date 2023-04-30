@@ -3,12 +3,8 @@ import { Context } from "../context.ts";
 
 const authRouter = new RouterBuilder<[context: Context]>();
 
-// Redirect all requests to SPA
-authRouter.get("/*", (request, _params, context) => {
-	const url = new URL(request.url);
-	url.pathname = "/auth/index.html";
-	const redirected = new Request(url, request);
-	return context.asset.fetch(redirected);
-});
+// authRouter.get("/*", async (request, _params, context) => {
+// 	return await context.asset.fetch(request);
+// });
 
 export default authRouter;

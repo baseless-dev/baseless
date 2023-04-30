@@ -19,6 +19,7 @@
 				"--unstable",
 				"--allow-env",
 				"--allow-read",
+				"--allow-write",
 				"--allow-net",
 				"--allow-sys",
 				"--inspect"

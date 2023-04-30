@@ -1,11 +1,25 @@
 {
 	"compilerOptions": {
-		"jsxFactory": "h",
-		"jsxFragmentFactory": "Fragment"
+		"jsx": "react-jsx",
+		"jsxImportSource": "https://esm.sh/preact@10.13.2",
+		"lib": [
+			"esnext",
+			"dom",
+			"dom.iterable",
+			"deno.ns",
+			"deno.unstable",
+			"deno.window",
+			"deno.url",
+			"deno.web"
+		],
+		"types": [
+			"npm:@types/react"
+		]
 	},
 	"tasks": {
-		"start:hello-world": "DENO_DIR=.deno deno run --watch --unstable --allow-read --allow-env --allow-net --allow-sys ./examples/hello-world/server.ts",
+		"start:hello-world": "DENO_DIR=.deno deno run --watch --unstable --allow-read --allow-write --allow-env --allow-net --allow-sys ./examples/hello-world/server.ts",
 		"bundle:hello-world": "DENO_DIR=.deno deno run -A ./cli/bundle.ts --entry ./examples/hello-world/server.ts --dist ./examples/hello-world/dist --show-deps 4",
+		"build:auth": "DENO_DIR=.deno deno run -A ./auth/build.ts build",
 		"fmt": "DENO_DIR=.deno deno fmt",
 		"lint": "DENO_DIR=.deno deno lint",
 		"cache": "DENO_DIR=.deno deno cache",

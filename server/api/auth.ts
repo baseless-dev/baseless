@@ -45,12 +45,16 @@ async function encryptAuthenticationState(
 		.sign(privateKey);
 }
 
-function json(value: Record<string, unknown>, status = 200, headers = new Headers()): Response {
-	headers.set("Cache-Control", "no-cache, no-store, must-revalidate",);
+function json(
+	value: Record<string, unknown>,
+	status = 200,
+	headers = new Headers(),
+): Response {
+	headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
 	headers.set("Content-Type", "application/json");
 	return new Response(JSON.stringify(value), {
 		status,
-		headers
+		headers,
 	});
 }
 
@@ -197,7 +201,10 @@ authRouter.post(
 			);
 			return json({ confirmed: true }, 200);
 		} catch (_error) {
-			return json({ error: AuthenticationConfirmValidationCodeError.name }, 400);
+			return json(
+				{ error: AuthenticationConfirmValidationCodeError.name },
+				400,
+			);
 		}
 	},
 );

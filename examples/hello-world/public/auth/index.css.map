@@ -1,7 +1,7 @@
 {
   "version": 3,
-  "sources": [],
-  "sourcesContent": [],
-  "mappings": "",
+  "sources": ["../../../../auth/index.css"],
+  "sourcesContent": ["@tailwind base;\n@tailwind components;\n@tailwind utilities;"],
+  "mappings": ";AAAA;AACA;AACA;",
   "names": []
 }

@@ -22,7 +22,7 @@ export class LocalAssetProvider implements AssetProvider {
 		let filePath = join(this.#rootDir, normalize(url.pathname));
 		try {
 			let stat = await Deno.stat(filePath);
-			if (stat.isDirectory) {
+			if (stat.isDirectory && url.pathname.at(-1) === "/") {
 				filePath = join(filePath, "/index.html");
 				stat = await Deno.stat(filePath);
 			}

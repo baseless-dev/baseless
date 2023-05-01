@@ -6,15 +6,19 @@ import {
 	AuthenticationConfiguration,
 	AuthenticationConfigurationBuilder,
 } from "./auth/config.ts";
+import type { Context } from "./context.ts";
+import { Router, RouterBuilder } from "./router.ts";
 
 export interface Configuration {
 	readonly asset: AssetConfiguration;
 	readonly auth: AuthenticationConfiguration;
+	readonly functions: Router<[context: Context]>;
 }
 
 export class ConfigurationBuilder {
 	#asset = new AssetConfigurationBuilder();
 	#auth = new AuthenticationConfigurationBuilder();
+	#functions = new RouterBuilder<[context: Context]>();
 
 	/**
 	 * Access the underlying {@see AssetConfigurationBuilder}
@@ -33,6 +37,14 @@ export class ConfigurationBuilder {
 	}
 
 	/**
+	 * Access the underlying {@see RouterBuilder}
+	 * @returns The {@see RouterBuilder}
+	 */
+	public functions() {
+		return this.#functions;
+	}
+
+	/**
 	 * Finalize the {@see Configuration}
 	 * @returns The finalized {@see Configuration} object
 	 */
@@ -40,6 +52,7 @@ export class ConfigurationBuilder {
 		return {
 			asset: this.#asset.build(),
 			auth: this.#auth.build(),
+			functions: this.#functions.build(),
 		};
 	}
 }

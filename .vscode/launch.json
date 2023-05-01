@@ -22,7 +22,7 @@
 				"--allow-write",
 				"--allow-net",
 				"--allow-sys",
-				"--inspect"
+				"--inspect-wait"
 			],
 			"attachSimplePort": 9229,
 			"restart": true

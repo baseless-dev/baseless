@@ -1,55 +1,67 @@
 import { Command } from "https://deno.land/x/cliffy@v0.25.1/mod.ts";
 import * as esbuild from "https://deno.land/x/esbuild@v0.15.8/mod.js";
-import Processor from "https://esm.sh/v115/windicss@3.5.6";
-import { CSSParser } from "https://esm.sh/v115/windicss@3.5.6/utils/parser";
-import { dirname, extname, isAbsolute, join, relative, fromFileUrl } from "https://deno.land/std@0.179.0/path/mod.ts";
-import { contentType } from "https://deno.land/std@0.157.0/media_types/mod.ts";
+import {
+	extname,
+	fromFileUrl,
+	isAbsolute,
+	join,
+	relative,
+} from "https://deno.land/std@0.179.0/path/mod.ts";
 import * as ansi from "https://deno.land/x/ansi@1.0.1/mod.ts";
 import * as colors from "https://deno.land/std@0.165.0/fmt/colors.ts";
 import { prettyBytes } from "https://deno.land/x/pretty_bytes@v2.0.0/mod.ts";
 
-const cwd = fromFileUrl(import.meta.resolve("./"));
+const __DIR__ = fromFileUrl(import.meta.resolve("./"));
 
-async function build(onRebuild?: () => void) {
+async function build(
+	out: string,
+	onRebuild?: (result: esbuild.BuildResult) => void,
+) {
 	const isDev = !!onRebuild;
 
-	const processor = new Processor({
-		darkMode: "class",
-	});
-	const preflight = processor.preflight();
-
-	async function processCSS(metafile?: esbuild.Metafile) {
-		if (metafile) {
-			for await (const path of Object.keys(metafile.outputs)) {
-				if (path.match(/\.css$/i)) {
-					const input = await Deno.readTextFile(path);
-					const parser = new CSSParser(input, processor);
-					const sheet = parser.parse();
-					const output = sheet.extend(preflight).build(!isDev);
-					await Deno.writeTextFile(path, output);
-				}
-			}
-		}
+	async function runTailwind() {
+		const command = new Deno.Command(Deno.execPath(), {
+			args: [
+				"run",
+				"-A",
+				"npm:tailwindcss",
+				"-c",
+				join(__DIR__, "tailwind.config.js"),
+				"-i",
+				join(__DIR__, "index.css"),
+				"-o",
+				join(Deno.cwd(), out, "index.css"),
+			],
+			stdin: "null",
+			stdout: "null",
+			stderr: "null",
+		});
+		await command.output();
 	}
 
 	const result = await esbuild.build({
 		entryPoints: [
-			join(cwd, "src/index.html"),
-			join(cwd, "src/index.tsx"),
+			join(__DIR__, "index.html"),
+			join(__DIR__, "index.tsx"),
 		],
-		outdir: join(cwd, "dist"),
+		outdir: join(Deno.cwd(), out),
 		bundle: true,
 		minify: !isDev,
 		metafile: true,
 		incremental: isDev,
 		treeShaking: !isDev,
-		// sourcemap: isDev ? "linked" : "external",
-		sourcemap: "linked",
+		sourcemap: isDev ? "linked" : "external",
 		watch: isDev
 			? {
 				async onRebuild(_error, result) {
-					await processCSS(result?.metafile);
-					onRebuild?.();
+					await runTailwind();
+					result!.metafile!.outputs[join(out, "index.css")] = {
+						bytes: 0,
+						exports: [],
+						inputs: {},
+						imports: [],
+					};
+					onRebuild?.(result!);
 				},
 			}
 			: false,
@@ -58,7 +70,7 @@ async function build(onRebuild?: () => void) {
 		platform: "browser",
 		plugins: [BundleWebPlugin],
 		jsx: "automatic",
-		jsxImportSource: "https://esm.sh/preact@10.13.2",
+		jsxImportSource: "https://esm.sh/react@18.2.0",
 		logLevel: "error",
 		loader: {
 			".js": "js",
@@ -70,123 +82,43 @@ async function build(onRebuild?: () => void) {
 		},
 	});
 
-	await processCSS(result.metafile);
-
+	await runTailwind();
+	result!.metafile!.outputs[join(out, "index.css")] = {
+		bytes: 0,
+		exports: [],
+		inputs: {},
+		imports: [],
+	};
 	return result;
 }
 
-async function dev(port: number) {
+async function dev(out: string) {
 	const startTime = performance.now();
 
-	const _builder = await build(() => {
-		for (const socket of subscribers) {
-			socket.send("refresh");
-		}
+	const _builder = await build(out, (result) => {
+		const outputLen = Object.keys(result.metafile!.outputs).length;
+		console.log(
+			`  ${colors.green("➜")}  ${
+				colors.bold(`${outputLen} file${outputLen > 1 ? "s" : ""} refreshed`)
+			}`,
+		);
+		console.log(``);
 	});
 
-	const listener = Deno.listen({ port });
-	const subscribers = new Set<WebSocket>();
-
 	console.log(ansi.clearScreen());
-	console.log(`  ${colors.green(colors.bold(`PetiteVITE`) + ` v0.0.0`)}  ${colors.dim("ready in")} ${(performance.now() - startTime).toFixed(0)}ms`);
+	console.log(
+		`  ${colors.green(colors.bold(`PetiteVITE`) + ` v0.0.0`)}  ${
+			colors.dim("ready in")
+		} ${(performance.now() - startTime).toFixed(0)}ms`,
+	);
 	console.log(``);
-	console.log(`  ${colors.green("➜")}  ${colors.bold("Local")}: ${colors.blue(`http://localhost:${port}/`)}`);
+	console.log(`  ${colors.green("➜")}  ${colors.bold("Waiting for changes")}`);
 	console.log(``);
-
-	async function handleRequest(conn: Deno.Conn) {
-		const http = Deno.serveHttp(conn);
-		for await (const event of http) {
-			const url = new URL(event.request.url);
-			const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
-			let response = new Response(null, { status: 404 });
-			try {
-				if (pathname === "/refresh") {
-					const result = Deno.upgradeWebSocket(event.request);
-					response = result.response;
-					subscribers.add(result.socket);
-					result.socket.onclose = () => {
-						subscribers.delete(result.socket);
-					};
-				} else if (pathname === "/hmr.js") {
-					let content = function () {
-						const requestUrl = `${window.location.origin.replace("http", "ws")}/refresh`;
-						function connect() {
-							const socket = new WebSocket(requestUrl);
-							socket.addEventListener("message", (e) => {
-								if (e.data === "refresh") {
-									console.log(`HMR RELOAD`);
-									window.location.reload();
-								}
-							});
-							socket.addEventListener("close", () => {
-								setTimeout(connect, 2000);
-							});
-						}
-						connect();
-					}.toString();
-					content = content.substring(13, content.length - 1);
-					response = new Response(content, {
-						headers: {
-							"Content-Type": contentType(".js")!,
-						},
-					});
-				} else if (pathname === "/index.html") {
-					let content = await Deno.readTextFile(join(cwd, "dist/index.html"));
-					content = content.replace("</body>", '<script src="/hmr.js"></script></body>');
-					response = new Response(content, {
-						headers: {
-							"Content-Type": contentType(".html")!,
-						},
-					});
-				} else {
-					try {
-						const path = join(cwd, "dist", pathname);
-						const file = await Deno.open(path, { read: true, create: false });
-						response = new Response(file.readable, {
-							headers: {
-								"Content-Type": contentType(extname(path)) ?? "application/octet",
-							},
-						});
-					} catch {
-						response = new Response(null, { status: 404 });
-					}
-				}
-			} catch (error) {
-				console.error(error);
-				response = new Response(null, { status: 500 });
-			}
-			try {
-				await event.respondWith(response);
-			} catch (err) {
-				console.error(`${new Date().toISOString()} ${event.request.method} ${pathname} - ${999} ${err}`);
-			}
-		}
-	}
-
-	for await (const conn of listener) {
-		handleRequest(conn).catch(console.error);
-	}
 }
 
 const httpCache = await caches.open(import.meta.url);
 const importMapBase = "";
 const importMap: { imports: Record<string, string> } = { imports: {} };
-// try {
-// 	const denoJson = await Deno.readTextFile(join(cwd, "deno.json"));
-// 	const denoConfig = JSON.parse(denoJson) ?? {};
-// 	if ("importMap" in denoConfig && typeof denoConfig.importMap === "string") {
-// 		try {
-// 			const importMapPath = join(dirname(join(cwd, "deno.json")), denoConfig.importMap);
-// 			importMapBase = dirname(importMapPath);
-// 			const importMapJson = await Deno.readTextFile(importMapPath);
-// 			importMap = JSON.parse(importMapJson) ?? undefined;
-// 		} catch {
-// 			// Ignored
-// 		}
-// 	}
-// } catch {
-// 	// Ignored
-// }
 const BundleWebPlugin: esbuild.Plugin = {
 	name: "BundleWebPlugin",
 	setup(build) {
@@ -231,8 +163,14 @@ const BundleWebPlugin: esbuild.Plugin = {
 				httpCache.put(args.path, response.clone());
 			}
 			const contents = await response.text();
-			const ct = response.headers.get("Content-Type") ?? "text/javascript; charset=utf-8";
-			return { contents, loader: ct.includes("text/javascript") ? "jsx" : (ct.includes("text/css") ? "css" : "tsx") };
+			const ct = response.headers.get("Content-Type") ??
+				"text/javascript; charset=utf-8";
+			return {
+				contents,
+				loader: ct.includes("text/javascript")
+					? "jsx"
+					: (ct.includes("text/css") ? "css" : "tsx"),
+			};
 		});
 	},
 };
@@ -240,13 +178,27 @@ const BundleWebPlugin: esbuild.Plugin = {
 await new Command()
 	.name("pxlr")
 	.command("build", "Build project")
-	.action(async () => {
+	.option("-o, --out <out:string>", "Output directory", { default: "./dist" })
+	.action(async ({ out }) => {
 		const timeStart = performance.now();
-		console.log(`${colors.green(colors.bold(`PetiteVITE`) + ` v0.0.0`)} ${colors.blue("building for production...")}`);
-		const result = await build();
-		console.log(colors.green("✓") + colors.dim(` ${Object.keys(result.metafile!.inputs).length} modules transformed in ${(performance.now() - timeStart).toFixed(0)}ms.`));
-		const outouts = result.metafile!.outputs;
-		const sortedOutput = Object.entries(outouts);
+		console.log(
+			`${colors.green(colors.bold(`PetiteVITE`) + ` v0.0.0`)} ${
+				colors.blue("building for production...")
+			}`,
+		);
+		const result = await build(out);
+		console.log(
+			colors.green("✓") +
+				colors.dim(
+					` ${
+						Object.keys(result.metafile!.inputs).length
+					} modules transformed in ${
+						(performance.now() - timeStart).toFixed(0)
+					}ms.`,
+				),
+		);
+		const outputs = result.metafile!.outputs;
+		const sortedOutput = Object.entries(outputs);
 		sortedOutput.sort((a, b) => a[0].localeCompare(b[0]));
 		for await (const [path, meta] of sortedOutput) {
 			let color = colors.yellow;
@@ -260,12 +212,19 @@ await new Command()
 			}
 			const file = await Deno.open(path);
 			const stat = await file.stat();
-			const compressed = await new Response(file.readable.pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
+			const compressed = await new Response(
+				file.readable.pipeThrough(new CompressionStream("gzip")),
+			).arrayBuffer();
 
-			const dist = join(cwd, "dist");
+			const dist = join(Deno.cwd(), out);
 			console.log(
-				colors.dim(relative(Deno.cwd(), dist) + "/") + color(relative(dist, path)) +
-				colors.dim(` (${prettyBytes(stat.size)} ⇒ ${prettyBytes(compressed.byteLength)})`),
+				colors.dim(relative(Deno.cwd(), dist) + "/") +
+					color(relative(dist, path)) +
+					colors.dim(
+						` (${prettyBytes(stat.size)} ⇒ ${
+							prettyBytes(compressed.byteLength)
+						})`,
+					),
 			);
 
 			const sortedDeps = Object.entries(meta.inputs);
@@ -276,17 +235,31 @@ await new Command()
 				let i = 0;
 				const biggestOffenders = sortedDeps.splice(0, 4);
 				for (const [dep, { bytesInOutput }] of biggestOffenders) {
-					console.log(colors.dim(`  ${++i >= moduleCount ? "└" : "├"} ${dep.replace("bundle-http:", "")} (${prettyBytes(bytesInOutput)})`));
+					console.log(
+						colors.dim(
+							`  ${++i >= moduleCount ? "└" : "├"} ${
+								dep.replace("bundle-http:", "")
+							} (${prettyBytes(bytesInOutput)})`,
+						),
+					);
 				}
 				if (sortedDeps.length) {
-					const depSize = prettyBytes(sortedDeps.reduce((size, dep) => size + dep[1].bytesInOutput, 0));
-					console.log(colors.dim(`  └ and ${colors.underline(`${sortedDeps.length} others modules`)} (${depSize})`));
+					const depSize = prettyBytes(
+						sortedDeps.reduce((size, dep) => size + dep[1].bytesInOutput, 0),
+					);
+					console.log(
+						colors.dim(
+							`  └ and ${
+								colors.underline(`${sortedDeps.length} others modules`)
+							} (${depSize})`,
+						),
+					);
 				}
 			}
 		}
 		Deno.exit(0);
 	})
-	.command("dev", "Launch dev server")
-	.option("-p, --port <port:number>", "The port number", { default: 8000 })
-	.action(({ port }) => dev(port))
+	.command("watch", "Watch project")
+	.option("-o, --out <out:string>", "Output directory", { default: "./dist" })
+	.action(({ out }) => dev(out))
 	.parse(Deno.args);

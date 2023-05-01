@@ -43,6 +43,7 @@ export type RouteHandler<
 export class RouterBuilder<Args extends unknown[]> {
 	#routes = new Map<
 		string,
+		| Router<Args>
 		| RouterBuilder<Args>
 		| Set<
 			[
@@ -54,6 +55,7 @@ export class RouterBuilder<Args extends unknown[]> {
 
 	get routes(): ReadonlyMap<
 		string,
+		| Router<Args>
 		| RouterBuilder<Args>
 		| Set<
 			[
@@ -107,7 +109,7 @@ export class RouterBuilder<Args extends unknown[]> {
 	 */
 	route<Path extends string>(
 		pathname: AbsolutePath<Path>,
-		router: RouterBuilder<Args>,
+		router: Router<Args> | RouterBuilder<Args>,
 	) {
 		this.#routes.set(pathname, router);
 		return this;
@@ -261,7 +263,7 @@ export class RouterBuilder<Args extends unknown[]> {
 
 type RouterEndpoint<Args extends unknown[]> = Map<
 	Method,
-	RouteHandler<Record<string, string>, Args>
+	RouteHandler<Record<string, string | undefined>, Args>
 >;
 
 export class Router<Args extends unknown[]> {
@@ -271,9 +273,13 @@ export class Router<Args extends unknown[]> {
 		routeDefinitions?: Iterable<
 			[
 				string,
+				| Router<Args>
 				| RouterBuilder<Args>
 				| Set<
-					[method: Method, handler: RouteHandler<Record<string, string>, Args>]
+					[
+						method: Method,
+						handler: RouteHandler<Record<string, string | undefined>, Args>,
+					]
 				>,
 			]
 		>,
@@ -287,11 +293,12 @@ export class Router<Args extends unknown[]> {
 			routeDefinitions: Iterable<
 				[
 					string,
+					| Router<Args>
 					| RouterBuilder<Args>
 					| Set<
 						[
 							method: Method,
-							handler: RouteHandler<Record<string, string>, Args>,
+							handler: RouteHandler<Record<string, string | undefined>, Args>,
 						]
 					>,
 				]
@@ -300,6 +307,23 @@ export class Router<Args extends unknown[]> {
 			for (const [pathname, router_or_endpoints] of routeDefinitions) {
 				if (router_or_endpoints instanceof RouterBuilder) {
 					walkRoutes(prefix + pathname, target, router_or_endpoints.routes);
+				} else if (router_or_endpoints instanceof Router) {
+					for (const [oldPattern, oldEndpoint] of router_or_endpoints.#routes) {
+						const pattern = new URLPattern({
+							...oldPattern,
+							pathname: prefix + oldPattern.pathname,
+						});
+						let endpoint: RouterEndpoint<Args>;
+						if (!target.has(pattern)) {
+							endpoint = new Map();
+							target.set(pattern, endpoint);
+						} else {
+							endpoint = target.get(pattern)!;
+						}
+						for (const [method, handler] of oldEndpoint) {
+							endpoint.set(method, handler);
+						}
+					}
 				} else {
 					const pattern = new URLPattern({ pathname: prefix + pathname });
 					for (const route_or_handler of router_or_endpoints) {

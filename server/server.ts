@@ -1,5 +1,4 @@
 import apiAuthRouter from "./api/auth.ts";
-import authRouter from "./auth/routes.ts";
 import { Configuration } from "./config.ts";
 import { Context } from "./context.ts";
 import { createLogger } from "./logger.ts";
@@ -47,9 +46,10 @@ export class Server {
 		const routerBuilder = new RouterBuilder<[context: Context]>();
 
 		if (this.#configuration.auth.enabled) {
-			routerBuilder.route("/auth", authRouter);
 			routerBuilder.route("/api/auth", apiAuthRouter);
 		}
+
+		routerBuilder.route("/", this.#configuration.functions);
 
 		if (this.#configuration.asset.enabled) {
 			routerBuilder.get(

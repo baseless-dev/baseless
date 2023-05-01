@@ -12,6 +12,7 @@ import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
 import { IdentityService } from "../../server/services/identity.ts";
 
 Deno.permissions.request({ name: "read", path: import.meta.url });
+Deno.permissions.request({ name: "write", path: import.meta.url });
 Deno.permissions.request({ name: "net" });
 Deno.permissions.request({ name: "env" });
 
@@ -19,8 +20,9 @@ log.setGlobalLogHandler(log.createConsoleLogHandler(log.LogLevel.LOG));
 
 const configuration = config.build();
 
-await caches.delete("baseless-hello-world-public");
-const assetProvider = new WebCacheAssetProvider(await caches.open("baseless-hello-world-public"), new LocalAssetProvider(import.meta.resolve("./public")));
+// await caches.delete("baseless-hello-world-public");
+// const assetProvider = new WebCacheAssetProvider(await caches.open("baseless-hello-world-public"), new LocalAssetProvider(import.meta.resolve("./public")));
+const assetProvider = new LocalAssetProvider(import.meta.resolve("./public"));
 const counterProvider = new MemoryCounterProvider();
 const kvProvider = new WebStorageKVProvider(sessionStorage, "hello-world-kv/");
 const identityKV = new WebStorageKVProvider(sessionStorage, "hello-world-idp/");
@@ -52,7 +54,7 @@ Deno.serve({
 	onListen({ hostname, port }) {
 		console.log(``);
 		console.log(`  %c START %c       Baseless server started and listening`, "background-color: cyan; font-weight: bold", "");
-		console.log(`                http://${hostname ?? "127.0.0.1"}:${port}/`);
+		console.log(`                http://${hostname ?? "localhost"}:${port}/`);
 		console.log(``);
 	},
 	onError(error) {

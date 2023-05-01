@@ -17,7 +17,7 @@
 		"*.ts": "${capture}.test.ts",
 		"*.tsx": "${capture}.test.tsx",
 		"*.js": "${capture}.js.map",
-		"*.css": "${capture}.css.map",
+		"*.css": "${capture}.css.map"
 	},
 	"editor.insertSpaces": false,
 	"editor.detectIndentation": false

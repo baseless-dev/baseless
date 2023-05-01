@@ -4,6 +4,7 @@ import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_k
 import { EmailAuthentificationIdenticator } from "../../providers/auth-email/mod.ts";
 import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";
 import { PasswordAuthentificationChallenger } from "../../providers/auth-password/mod.ts";
+import AuthHandler from "../../auth/handler.ts";
 
 const { publicKey, privateKey } = await generateKeyPair("PS512");
 
@@ -52,3 +53,6 @@ config.auth()
 		new EmailAuthentificationIdenticator(new LoggerMessageProvider()),
 	)
 	.addFlowChallenger("password", new PasswordAuthentificationChallenger());
+
+// Auth SPA
+config.functions().get("/auth/*", AuthHandler);

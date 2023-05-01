@@ -1,4 +1,4 @@
-import { AutoId, assertAutoId, autoid } from "../../shared/autoid.ts";
+import { assertAutoId, AutoId, autoid } from "../../shared/autoid.ts";
 import { createLogger } from "../../server/logger.ts";
 import { KVProvider } from "../../server/providers/kv.ts";
 import {

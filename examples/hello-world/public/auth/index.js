@@ -8737,6 +8737,957 @@ var S7 = { BODY: "bodyAttributes", HTML: "htmlAttributes", TITLE: "titleAttribut
 F4.renderStatic = F4.rewind;
 var Oe4 = F4;
 
+// shared/autoid.ts
+var AutoIdSize = 40;
+var AutoIdChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+var AutoIdCharsLength = AutoIdChars.length;
+var AutoIdRegExp = new RegExp(`^[${AutoIdChars}]{${AutoIdSize}}$`);
+function autoid() {
+  let result = "";
+  const buffer = new Uint8Array(AutoIdSize);
+  crypto.getRandomValues(buffer);
+  for (let i6 = 0; i6 < AutoIdSize; ++i6) {
+    result += AutoIdChars.charAt(buffer[i6] % AutoIdCharsLength);
+  }
+  return result;
+}
+var AutoIdGenerator = class {
+  #hash = [
+    1779033703,
+    3144134277,
+    1013904242,
+    2773480762
+  ];
+  write(chunk) {
+    this.#hash = cyrb128(chunk, ...this.#hash);
+  }
+  read() {
+    let autoid2 = "";
+    const buffer = new Uint8Array(AutoIdSize);
+    const rand = sfc32(
+      this.#hash[0],
+      this.#hash[1],
+      this.#hash[2],
+      this.#hash[3]
+    );
+    for (let i6 = 0; i6 < AutoIdSize; ++i6) {
+      buffer[i6] = rand();
+    }
+    for (let i6 = 0; i6 < AutoIdSize; ++i6) {
+      autoid2 += AutoIdChars.charAt(buffer[i6] % AutoIdCharsLength);
+    }
+    return autoid2;
+  }
+};
+var AutoIdStream = class extends WritableStream {
+  #gen;
+  constructor() {
+    super({
+      write: (chunk) => {
+        this.#gen.write(chunk);
+      }
+    });
+    this.#gen = new AutoIdGenerator();
+  }
+  read() {
+    return this.#gen.read();
+  }
+};
+function cyrb128(buffer, h1 = 1779033703, h22 = 3144134277, h32 = 1013904242, h42 = 2773480762) {
+  for (let i6 = 0, j6 = buffer.length, k3; i6 < j6; i6++) {
+    k3 = buffer[i6];
+    h1 = h22 ^ Math.imul(h1 ^ k3, 597399067);
+    h22 = h32 ^ Math.imul(h22 ^ k3, 2869860233);
+    h32 = h42 ^ Math.imul(h32 ^ k3, 951274213);
+    h42 = h1 ^ Math.imul(h42 ^ k3, 2716044179);
+  }
+  h1 = Math.imul(h32 ^ h1 >>> 18, 597399067);
+  h22 = Math.imul(h42 ^ h22 >>> 22, 2869860233);
+  h32 = Math.imul(h1 ^ h32 >>> 17, 951274213);
+  h42 = Math.imul(h22 ^ h42 >>> 19, 2716044179);
+  return [
+    (h1 ^ h22 ^ h32 ^ h42) >>> 0,
+    (h22 ^ h1) >>> 0,
+    (h32 ^ h1) >>> 0,
+    (h42 ^ h1) >>> 0
+  ];
+}
+function sfc32(a3, b7, c5, d5) {
+  return function() {
+    a3 >>>= 0;
+    b7 >>>= 0;
+    c5 >>>= 0;
+    d5 >>>= 0;
+    let t = a3 + b7 | 0;
+    a3 = b7 ^ b7 >>> 9;
+    b7 = c5 + (c5 << 3) | 0;
+    c5 = c5 << 21 | c5 >>> 11;
+    d5 = d5 + 1 | 0;
+    t = t + d5 | 0;
+    c5 = c5 + t | 0;
+    return t >>> 0;
+  };
+}
+function isAutoId(value) {
+  return !!value && typeof value === "string" && AutoIdRegExp.test(value);
+}
+function assertAutoId(value) {
+  if (!isAutoId(value)) {
+    throw new InvalidAutoIdError();
+  }
+}
+var InvalidAutoIdError = class extends Error {
+};
+
+// server/auth/flow.ts
+function isAuthenticationIdentification(value) {
+  return !!value && typeof value === "object" && "type" in value && typeof value.type === "string" && "icon" in value && typeof value.icon === "string" && "label" in value && typeof value.label === "object" && "prompt" in value && typeof value.prompt === "string" && ["email", "action"].includes(value.prompt);
+}
+function assertAuthenticationIdentification(value) {
+  if (!isAuthenticationIdentification(value)) {
+    throw new InvalidAuthenticationIdentificationError();
+  }
+}
+var InvalidAuthenticationIdentificationError = class extends Error {
+};
+function isAuthenticationChallenge(value) {
+  return !!value && typeof value === "object" && "type" in value && typeof value.type === "string" && "icon" in value && typeof value.icon === "string" && "label" in value && typeof value.label === "object" && "prompt" in value && typeof value.prompt === "string" && ["password", "otp"].includes(value.prompt);
+}
+function assertAuthenticationChallenge(value) {
+  if (!isAuthenticationChallenge(value)) {
+    throw new InvalidAuthenticationChallengeError();
+  }
+}
+var InvalidAuthenticationChallengeError = class extends Error {
+};
+function isAuthenticationSequence(value) {
+  return !!value && typeof value === "object" && "type" in value && typeof value.type === "string" && value.type === "sequence" && "steps" in value && Array.isArray(value.steps) && value.steps.every((s4) => isAuthenticationStep(s4));
+}
+function assertAuthenticationSequence(value) {
+  if (!isAuthenticationSequence(value)) {
+    throw new InvalidAuthenticationSequenceError();
+  }
+}
+var InvalidAuthenticationSequenceError = class extends Error {
+};
+function isAuthenticationChoice(value) {
+  return !!value && typeof value === "object" && "type" in value && typeof value.type === "string" && value.type === "choice" && "choices" in value && Array.isArray(value.choices) && value.choices.every((s4) => isAuthenticationStep(s4));
+}
+function assertAuthenticationChoice(value) {
+  if (!isAuthenticationChoice(value)) {
+    throw new InvalidAuthenticationChoiceError();
+  }
+}
+var InvalidAuthenticationChoiceError = class extends Error {
+};
+function isAuthenticationConditional(value) {
+  return !!value && typeof value === "object" && "type" in value && typeof value.type === "string" && value.type === "conditional" && "condition" in value && typeof value.condition === "function";
+}
+function assertAuthenticationConditional(value) {
+  if (!isAuthenticationConditional(value)) {
+    throw new InvalidAuthenticationConditionalError();
+  }
+}
+var InvalidAuthenticationConditionalError = class extends Error {
+};
+function isAuthenticationStep(value) {
+  return isAuthenticationIdentification(value) || isAuthenticationChallenge(value) || isAuthenticationSequence(value) || isAuthenticationChoice(value) || isAuthenticationConditional(value);
+}
+function assertAuthenticationStep(value) {
+  if (!isAuthenticationStep(value)) {
+    throw new InvalidAuthenticationStepError();
+  }
+}
+var InvalidAuthenticationStepError = class extends Error {
+};
+function isAuthenticationStateAnonymous(value) {
+  return typeof value === "object" && value !== null && "choices" in value && Array.isArray(value.choices) && value.choices.every((c5) => typeof c5 === "string");
+}
+function assertAuthenticationStateAnonymous(value) {
+  if (!isAuthenticationStateAnonymous(value)) {
+    throw new Error("Expected `value` to be an AuthenticationStateAnonymous.");
+  }
+}
+function isAuthenticationStateIdentified(value) {
+  return isAuthenticationStateAnonymous(value) && "identity" in value && isAutoId(value.identity);
+}
+function assertAuthenticationStateIdentified(value) {
+  if (!isAuthenticationStateIdentified(value)) {
+    throw new Error("Expected `value` to be an AuthenticationStateIdentified.");
+  }
+}
+function isAuthenticationState(value) {
+  return isAuthenticationStateAnonymous(value) || isAuthenticationStateIdentified(value);
+}
+function assertAuthenticationState(value) {
+  if (!isAuthenticationState(value)) {
+    throw new Error("Expected `value` to be an AuthenticationState.");
+  }
+}
+function sequence(...steps) {
+  return { type: "sequence", steps };
+}
+function oneOf(...choices) {
+  return { type: "choice", choices };
+}
+function iif(condition) {
+  return { type: "conditional", condition };
+}
+function simplify(step) {
+  if (isAuthenticationSequence(step)) {
+    const steps = [];
+    for (let inner of step.steps) {
+      inner = simplify(inner);
+      if (isAuthenticationSequence(inner)) {
+        steps.push(...inner.steps);
+      } else {
+        steps.push(inner);
+      }
+    }
+    return sequence(...steps);
+  } else if (isAuthenticationChoice(step)) {
+    const choices = [];
+    for (let inner of step.choices) {
+      inner = simplify(inner);
+      if (isAuthenticationChoice(inner)) {
+        choices.push(...inner.choices);
+      } else {
+        choices.push(inner);
+      }
+    }
+    if (choices.length === 1) {
+      return choices.at(0);
+    }
+    return oneOf(...choices);
+  }
+  return step;
+}
+async function simplifyWithContext(step, context, state) {
+  if (isAuthenticationSequence(step)) {
+    const steps = [];
+    for (let inner of step.steps) {
+      inner = await simplifyWithContext(inner, context, state);
+      if (isAuthenticationSequence(inner)) {
+        steps.push(...inner.steps);
+      } else {
+        steps.push(inner);
+      }
+    }
+    return sequence(...steps);
+  } else if (isAuthenticationChoice(step)) {
+    const choices = [];
+    for (let inner of step.choices) {
+      inner = await simplifyWithContext(inner, context, state);
+      if (isAuthenticationChoice(inner)) {
+        choices.push(...inner.choices);
+      } else {
+        choices.push(inner);
+      }
+    }
+    if (choices.length === 1) {
+      return choices.at(0);
+    }
+    return oneOf(...choices);
+  } else if (isAuthenticationConditional(step)) {
+    if (context && state) {
+      const result = await step.condition(context, state);
+      return simplifyWithContext(result, context, state);
+    }
+  }
+  return step;
+}
+function replace(step, search, replacement) {
+  if (step === search) {
+    return replacement;
+  }
+  if (isAuthenticationSequence(step) || isAuthenticationChoice(step)) {
+    let changed = false;
+    const stepsToReplace = isAuthenticationSequence(step) ? step.steps : step.choices;
+    const steps = stepsToReplace.map((step2) => {
+      const replaced = replace(step2, search, replacement);
+      if (replaced !== step2) {
+        changed = true;
+      }
+      return replaced;
+    });
+    if (changed) {
+      return isAuthenticationSequence(step) ? sequence(...steps) : oneOf(...steps);
+    }
+  }
+  return step;
+}
+function email({ icon, label }) {
+  return { type: "email", icon, label, prompt: "email" };
+}
+function password({ icon, label }) {
+  return { type: "password", icon, label, prompt: "password" };
+}
+function action({ type, icon, label }) {
+  return { type, icon, label, prompt: "action" };
+}
+function otp({ type, icon, label }) {
+  return { type, icon, label, prompt: "otp" };
+}
+function isLeafAuthenticationStep(step) {
+  if (isAuthenticationSequence(step)) {
+    return step.steps.every(
+      (step2) => !(isAuthenticationSequence(step2) || isAuthenticationChoice(step2))
+    );
+  }
+  if (isAuthenticationChoice(step)) {
+    return step.choices.every(
+      (step2) => !(isAuthenticationSequence(step2) || isAuthenticationChoice(step2))
+    );
+  }
+  if (isAuthenticationConditional(step)) {
+    return false;
+  }
+  return true;
+}
+function flatten(step) {
+  const decomposed = [];
+  const trees = [step];
+  while (trees.length) {
+    const root2 = trees.shift();
+    if (isLeafAuthenticationStep(root2)) {
+      decomposed.push(root2);
+    } else {
+      let forked = false;
+      const steps = [];
+      const walk = [root2];
+      while (walk.length) {
+        const node = walk.shift();
+        if (isAuthenticationChoice(node)) {
+          trees.push(...node.choices.map((step2) => replace(root2, node, step2)));
+          forked = true;
+        } else if (isAuthenticationSequence(node)) {
+          walk.unshift(...node.steps);
+        } else {
+          steps.push(node);
+        }
+      }
+      if (!forked) {
+        trees.push(
+          isAuthenticationSequence(root2) ? sequence(...steps) : oneOf(...steps)
+        );
+      }
+    }
+  }
+  if (decomposed.length > 1) {
+    return oneOf(...decomposed);
+  }
+  return decomposed.at(0);
+}
+var AuthenticationStepAtPathError = class extends Error {
+};
+function getAuthenticationStepAtPath(step, path) {
+  if (isAuthenticationSequence(step)) {
+    let i6 = 0;
+    const stepLen = step.steps.length;
+    const pathLen = path.length;
+    for (; i6 < pathLen; ++i6) {
+      if (step.steps[i6].type !== path[i6]) {
+        break;
+      }
+    }
+    if (i6 === stepLen) {
+      return { done: true };
+    }
+    if (i6 !== pathLen) {
+      throw new AuthenticationStepAtPathError();
+    }
+    return { done: false, step: step.steps.at(i6) };
+  } else if (isAuthenticationChoice(step)) {
+    const nextSteps = [];
+    for (const inner of step.choices) {
+      try {
+        nextSteps.push(getAuthenticationStepAtPath(inner, path));
+      } catch (_err) {
+      }
+    }
+    if (nextSteps.some((ns) => ns.done)) {
+      return { done: true };
+    }
+    if (nextSteps.length === 1) {
+      return nextSteps.at(0);
+    } else if (nextSteps.length) {
+      const steps = nextSteps.reduce((steps2, step2) => {
+        if (step2.done === false) {
+          steps2.push(step2.step);
+        }
+        return steps2;
+      }, []);
+      return { done: false, step: simplify(oneOf(...new Set(steps))) };
+    }
+  } else if (path.length === 0) {
+    return { done: false, step };
+  } else if (step.type === path.at(0)) {
+    return { done: true };
+  }
+  throw new AuthenticationStepAtPathError();
+}
+
+// bundle-http:https://deno.land/std@0.179.0/encoding/base32.ts
+var lookup = [];
+var revLookup = [];
+var code = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+for (let i6 = 0, len = code.length; i6 < len; ++i6) {
+  lookup[i6] = code[i6];
+  revLookup[code.charCodeAt(i6)] = i6;
+}
+var placeHolderPadLookup = [0, 1, , 2, 3, , 4];
+function _getPadLen(placeHoldersLen) {
+  const maybeLen = placeHolderPadLookup[placeHoldersLen];
+  if (typeof maybeLen !== "number") {
+    throw new Error("Invalid pad length");
+  }
+  return maybeLen;
+}
+function getLens(b32) {
+  const len = b32.length;
+  if (len % 8 > 0) {
+    throw new Error("Invalid string. Length must be a multiple of 8");
+  }
+  let validLen = b32.indexOf("=");
+  if (validLen === -1)
+    validLen = len;
+  const placeHoldersLen = validLen === len ? 0 : 8 - validLen % 8;
+  return [validLen, placeHoldersLen];
+}
+function byteLength(b32) {
+  const [validLen, placeHoldersLen] = getLens(b32);
+  return _byteLength(validLen, placeHoldersLen);
+}
+function _byteLength(validLen, placeHoldersLen) {
+  return (validLen + placeHoldersLen) * 5 / 8 - _getPadLen(placeHoldersLen);
+}
+function decode(b32) {
+  let tmp;
+  const [validLen, placeHoldersLen] = getLens(b32);
+  const arr = new Uint8Array(_byteLength(validLen, placeHoldersLen));
+  let curByte = 0;
+  const len = placeHoldersLen > 0 ? validLen - 8 : validLen;
+  let i6;
+  for (i6 = 0; i6 < len; i6 += 8) {
+    tmp = revLookup[b32.charCodeAt(i6)] << 20 | revLookup[b32.charCodeAt(i6 + 1)] << 15 | revLookup[b32.charCodeAt(i6 + 2)] << 10 | revLookup[b32.charCodeAt(i6 + 3)] << 5 | revLookup[b32.charCodeAt(i6 + 4)];
+    arr[curByte++] = tmp >> 17 & 255;
+    arr[curByte++] = tmp >> 9 & 255;
+    arr[curByte++] = tmp >> 1 & 255;
+    tmp = (tmp & 1) << 15 | revLookup[b32.charCodeAt(i6 + 5)] << 10 | revLookup[b32.charCodeAt(i6 + 6)] << 5 | revLookup[b32.charCodeAt(i6 + 7)];
+    arr[curByte++] = tmp >> 8 & 255;
+    arr[curByte++] = tmp & 255;
+  }
+  if (placeHoldersLen === 1) {
+    tmp = revLookup[b32.charCodeAt(i6)] << 20 | revLookup[b32.charCodeAt(i6 + 1)] << 15 | revLookup[b32.charCodeAt(i6 + 2)] << 10 | revLookup[b32.charCodeAt(i6 + 3)] << 5 | revLookup[b32.charCodeAt(i6 + 4)];
+    arr[curByte++] = tmp >> 17 & 255;
+    arr[curByte++] = tmp >> 9 & 255;
+    arr[curByte++] = tmp >> 1 & 255;
+    tmp = (tmp & 1) << 7 | revLookup[b32.charCodeAt(i6 + 5)] << 2 | revLookup[b32.charCodeAt(i6 + 6)] >> 3;
+    arr[curByte++] = tmp & 255;
+  } else if (placeHoldersLen === 3) {
+    tmp = revLookup[b32.charCodeAt(i6)] << 19 | revLookup[b32.charCodeAt(i6 + 1)] << 14 | revLookup[b32.charCodeAt(i6 + 2)] << 9 | revLookup[b32.charCodeAt(i6 + 3)] << 4 | revLookup[b32.charCodeAt(i6 + 4)] >> 1;
+    arr[curByte++] = tmp >> 16 & 255;
+    arr[curByte++] = tmp >> 8 & 255;
+    arr[curByte++] = tmp & 255;
+  } else if (placeHoldersLen === 4) {
+    tmp = revLookup[b32.charCodeAt(i6)] << 11 | revLookup[b32.charCodeAt(i6 + 1)] << 6 | revLookup[b32.charCodeAt(i6 + 2)] << 1 | revLookup[b32.charCodeAt(i6 + 3)] >> 4;
+    arr[curByte++] = tmp >> 8 & 255;
+    arr[curByte++] = tmp & 255;
+  } else if (placeHoldersLen === 6) {
+    tmp = revLookup[b32.charCodeAt(i6)] << 3 | revLookup[b32.charCodeAt(i6 + 1)] >> 2;
+    arr[curByte++] = tmp & 255;
+  }
+  return arr;
+}
+function encodeChunk(uint8, start, end) {
+  let tmp;
+  const output = [];
+  for (let i6 = start; i6 < end; i6 += 5) {
+    tmp = uint8[i6] << 16 & 16711680 | uint8[i6 + 1] << 8 & 65280 | uint8[i6 + 2] & 255;
+    output.push(lookup[tmp >> 19 & 31]);
+    output.push(lookup[tmp >> 14 & 31]);
+    output.push(lookup[tmp >> 9 & 31]);
+    output.push(lookup[tmp >> 4 & 31]);
+    tmp = (tmp & 15) << 16 | uint8[i6 + 3] << 8 & 65280 | uint8[i6 + 4] & 255;
+    output.push(lookup[tmp >> 15 & 31]);
+    output.push(lookup[tmp >> 10 & 31]);
+    output.push(lookup[tmp >> 5 & 31]);
+    output.push(lookup[tmp & 31]);
+  }
+  return output.join("");
+}
+function encode(uint8) {
+  let tmp;
+  const len = uint8.length;
+  const extraBytes = len % 5;
+  const parts = [];
+  const maxChunkLength = 16385;
+  const len2 = len - extraBytes;
+  for (let i6 = 0; i6 < len2; i6 += maxChunkLength) {
+    parts.push(
+      encodeChunk(
+        uint8,
+        i6,
+        i6 + maxChunkLength > len2 ? len2 : i6 + maxChunkLength
+      )
+    );
+  }
+  if (extraBytes === 4) {
+    tmp = (uint8[len2] & 255) << 16 | (uint8[len2 + 1] & 255) << 8 | uint8[len2 + 2] & 255;
+    parts.push(lookup[tmp >> 19 & 31]);
+    parts.push(lookup[tmp >> 14 & 31]);
+    parts.push(lookup[tmp >> 9 & 31]);
+    parts.push(lookup[tmp >> 4 & 31]);
+    tmp = (tmp & 15) << 11 | uint8[len2 + 3] << 3;
+    parts.push(lookup[tmp >> 10 & 31]);
+    parts.push(lookup[tmp >> 5 & 31]);
+    parts.push(lookup[tmp & 31]);
+    parts.push("=");
+  } else if (extraBytes === 3) {
+    tmp = (uint8[len2] & 255) << 17 | (uint8[len2 + 1] & 255) << 9 | (uint8[len2 + 2] & 255) << 1;
+    parts.push(lookup[tmp >> 20 & 31]);
+    parts.push(lookup[tmp >> 15 & 31]);
+    parts.push(lookup[tmp >> 10 & 31]);
+    parts.push(lookup[tmp >> 5 & 31]);
+    parts.push(lookup[tmp & 31]);
+    parts.push("===");
+  } else if (extraBytes === 2) {
+    tmp = (uint8[len2] & 255) << 12 | (uint8[len2 + 1] & 255) << 4;
+    parts.push(lookup[tmp >> 15 & 31]);
+    parts.push(lookup[tmp >> 10 & 31]);
+    parts.push(lookup[tmp >> 5 & 31]);
+    parts.push(lookup[tmp & 31]);
+    parts.push("====");
+  } else if (extraBytes === 1) {
+    tmp = (uint8[len2] & 255) << 2;
+    parts.push(lookup[tmp >> 5 & 31]);
+    parts.push(lookup[tmp & 31]);
+    parts.push("======");
+  }
+  return parts.join("");
+}
+
+// shared/otp.ts
+function padCounter(counter) {
+  const pairs = counter.toString(16).padStart(16, "0").match(/..?/g);
+  const array = pairs.map((v8) => parseInt(v8, 16));
+  return Uint8Array.from(array);
+}
+function truncate(hmac) {
+  const offset = hmac[19] & 15;
+  return (hmac[offset] & 127) << 24 | hmac[offset + 1] << 16 | hmac[offset + 2] << 8 | hmac[offset + 3];
+}
+async function hotp({ key, counter, algorithm = "SHA-1", digits = 6 }) {
+  let cryptoKey;
+  if (key instanceof CryptoKey) {
+    if (key.algorithm.name !== "HMAC") {
+      throw new Error(`Expected \`key.name\` to be equal to "HMAC".`);
+    }
+    cryptoKey = key;
+  } else if (typeof key === "string") {
+    cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      Uint8Array.from(decode(key)),
+      { name: "HMAC", hash: algorithm },
+      false,
+      ["sign"]
+    );
+  } else {
+    throw new Error(
+      `Expected \`key\` to be either a string or a CryptoKey, got ${key}.`
+    );
+  }
+  const hmac = new Uint8Array(
+    await crypto.subtle.sign("HMAC", cryptoKey, padCounter(counter))
+  );
+  const num = truncate(hmac);
+  return num.toString().padStart(digits, "0").slice(-digits);
+}
+function totp({ key, time = Date.now() / 1e3, period = 60, algorithm, digits }) {
+  return hotp({ key, counter: Math.floor(time / period), algorithm, digits });
+}
+function otp2({ digits = 6 } = {}) {
+  const hmac = new Uint8Array(digits);
+  crypto.getRandomValues(hmac);
+  const num = truncate(hmac);
+  return num.toString().padStart(digits, "0").slice(-digits);
+}
+function generateKey(length = 16) {
+  const buffer = new Uint8Array(length);
+  crypto.getRandomValues(buffer);
+  return encode(buffer).slice(0, length);
+}
+function toURI(options) {
+  options.digits ??= 6;
+  options.algorithm ??= "SHA-1";
+  if (options.type === "hotp") {
+    if (!("counter" in options) || typeof options.counter !== "number") {
+      throw new Error(`Type "hotp" require a "counter" value.`);
+    }
+  } else {
+    options.period ??= 30;
+    if ("period" in options && options.period && typeof options.period !== "number") {
+      throw new Error(`When provided, the "period" options must be a number.`);
+    }
+  }
+  if ("digits" in options && options.digits && typeof options.digits !== "number") {
+    throw new Error(`When provided, the "digits" options must be a number.`);
+  }
+  if ("algorithm" in options && options.algorithm && (typeof options.algorithm !== "string" || !["SHA-1", "SHA-256", "SHA-384", "SHA-512"].includes(options.algorithm))) {
+    throw new Error(
+      `When provided, the "algorithm" options must be either "SHA-1", "SHA-256", "SHA-384" or "SHA-512".`
+    );
+  }
+  const { type, secret, label, ...rest } = options;
+  const uri = new URL(`otpauth://${type}/${encodeURIComponent(label)}`);
+  for (const [key, value] of Object.entries(rest)) {
+    uri.searchParams.set(key, value.toString());
+  }
+  uri.searchParams.set("secret", secret);
+  return uri.toString();
+}
+
+// server/auth/config.ts
+var AuthenticationIdenticator = class {
+  sendMessage = void 0;
+  sendInterval = void 0;
+  sendCount = void 0;
+};
+var AuthenticationChallenger = class {
+  async configureMeta(_challenge) {
+    return {};
+  }
+  async sendChallenge(identityChallenge) {
+  }
+};
+var AuthenticationConfigurationBuilder = class {
+  #enabled = false;
+  #securityKeys;
+  #securitySalt;
+  #flowStep;
+  #flowIdentificators = /* @__PURE__ */ new Map();
+  #flowChalengers = /* @__PURE__ */ new Map();
+  #onCreateIdentityHandler;
+  #onUpdateIdentityHandler;
+  #onDeleteIdentityHandler;
+  #rateLimit;
+  setEnabled(enabled) {
+    this.#enabled = enabled;
+    return this;
+  }
+  setSecurityKeys(keys) {
+    this.#securityKeys = keys;
+    return this;
+  }
+  setSecuritySalt(salt) {
+    this.#securitySalt = salt;
+    return this;
+  }
+  setRateLimit(limits) {
+    this.#rateLimit = {
+      identificationCount: limits.identificationCount,
+      identificationInterval: limits.identificationInterval,
+      challengeCount: limits.challengeCount,
+      challengeInterval: limits.challengeInterval,
+      confirmVerificationCodeCount: limits.confirmVerificationCodeCount,
+      confirmVerificationCodeInterval: limits.confirmVerificationCodeInterval
+    };
+    return this;
+  }
+  setFlowStep(step) {
+    assertAuthenticationStep(step);
+    this.#flowStep = step;
+    return this;
+  }
+  addFlowIdentificator(type, identicator) {
+    this.#flowIdentificators.set(type, identicator);
+    return this;
+  }
+  addFlowChallenger(type, challenger) {
+    this.#flowChalengers.set(type, challenger);
+    return this;
+  }
+  onCreateIdentity(handler) {
+    this.#onCreateIdentityHandler = handler;
+    return this;
+  }
+  onUpdateIdentity(handler) {
+    this.#onUpdateIdentityHandler = handler;
+    return this;
+  }
+  onDeleteIdentity(handler) {
+    this.#onDeleteIdentityHandler = handler;
+    return this;
+  }
+  build() {
+    if (!this.#securityKeys) {
+      throw new Error(`Authentication keys are needed.`);
+    }
+    if (!this.#flowStep) {
+      throw new Error(`Authentication flow is needed.`);
+    }
+    if (!this.#securitySalt) {
+      throw new Error(`Authentication salt is needed.`);
+    }
+    return {
+      enabled: this.#enabled,
+      security: {
+        keys: this.#securityKeys,
+        salt: this.#securitySalt,
+        rateLimit: {
+          identificationCount: 100,
+          identificationInterval: 60,
+          challengeCount: 5,
+          challengeInterval: 60,
+          confirmVerificationCodeCount: 5,
+          confirmVerificationCodeInterval: 60,
+          ...this.#rateLimit
+        }
+      },
+      flow: {
+        step: this.#flowStep,
+        identificators: new Map(this.#flowIdentificators),
+        chalengers: new Map(this.#flowChalengers)
+      },
+      onCreateIdentity: this.#onCreateIdentityHandler,
+      onUpdateIdentity: this.#onUpdateIdentityHandler,
+      onDeleteIdentity: this.#onDeleteIdentityHandler
+    };
+  }
+};
+var AuthenticationMissingIdentificatorError = class extends Error {
+};
+var AuthenticationMissingChallengerError = class extends Error {
+};
+
+// server/services/auth.ts
+function isGetStepYieldResult(value) {
+  return !!value && typeof value === "object" && "done" in value && value.done === false && "step" in value && isAuthenticationStep(value.step) && "first" in value && typeof value.first === "boolean" && "last" in value && typeof value.last === "boolean";
+}
+function assertGetStepYieldResult(value) {
+  if (!isGetStepYieldResult(value)) {
+    throw new InvalidGetStepYieldResultError();
+  }
+}
+var InvalidGetStepYieldResultError = class extends Error {
+};
+function isGetStepReturnResult(value) {
+  return !!value && typeof value === "object" && "done" in value && value.done === true;
+}
+function assertGetStepReturnResult(value) {
+  if (!isGetStepReturnResult(value)) {
+    throw new InvalidGetStepReturnResultError();
+  }
+}
+var InvalidGetStepReturnResultError = class extends Error {
+};
+function isGetStepResult(value) {
+  return isGetStepYieldResult(value) || isGetStepReturnResult(value);
+}
+function assertGetStepResult(value) {
+  if (!isGetStepResult(value)) {
+    throw new InvalidGetStepResultError();
+  }
+}
+var InvalidGetStepResultError = class extends Error {
+};
+var AuthenticationService = class {
+  #configuration;
+  #identityProvider;
+  #counterProvider;
+  #kvProvider;
+  constructor(configuration, identityProvider, counterProvider, kvProvider) {
+    this.#configuration = configuration;
+    this.#identityProvider = identityProvider;
+    this.#counterProvider = counterProvider;
+    this.#kvProvider = kvProvider;
+  }
+  async getStep(state, context) {
+    state ??= { choices: [] };
+    const step = flatten(
+      context ? await simplifyWithContext(
+        this.#configuration.auth.flow.step,
+        context,
+        state
+      ) : simplify(this.#configuration.auth.flow.step)
+    );
+    const result = getAuthenticationStepAtPath(step, state.choices);
+    if (result.done) {
+      return { done: true };
+    }
+    const last = isAuthenticationChoice(result.step) ? false : getAuthenticationStepAtPath(step, [...state.choices, result.step.type]).done;
+    const first = state.choices.length === 0 && isAuthenticationChoice(result.step);
+    return { done: false, step: result.step, first, last };
+  }
+  async submitIdentification(state, type, identification, subject) {
+    const counterInterval = this.#configuration.auth.security.rateLimit.identificationInterval * 1e3;
+    const slidingWindow = Math.round(Date.now() / counterInterval);
+    const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
+    if (await this.#counterProvider.increment(counterKey, 1, counterInterval) > this.#configuration.auth.security.rateLimit.identificationCount) {
+      throw new AuthenticationRateLimitedError();
+    }
+    const result = await this.getStep(state);
+    if (result.done) {
+      throw new AuthenticationFlowDoneError();
+    }
+    const step = isAuthenticationChoice(result.step) ? result.step.choices.find((s4) => s4.type === type) : result.step;
+    if (!step) {
+      throw new AuthenticationInvalidStepError();
+    }
+    const identificator = this.#configuration.auth.flow.identificators.get(
+      step.type
+    );
+    if (!identificator) {
+      throw new AuthenticationMissingIdentificatorError();
+    }
+    const identityIdentification = await this.#identityProvider.matchIdentification(step.type, identification);
+    const identifyResult = await identificator.identify(
+      identityIdentification,
+      identification
+    );
+    if (identifyResult instanceof Response) {
+      return { done: false, response: identifyResult };
+    }
+    const newState = {
+      choices: [...state.choices, type],
+      identity: identityIdentification.identityId
+    };
+    const newResult = await this.getStep(newState);
+    if (newResult.done) {
+      return { done: true, identityId: identityIdentification.identityId };
+    } else {
+      return {
+        ...await this.getStep(newState),
+        state: newState
+      };
+    }
+  }
+  async submitChallenge(state, type, challenge, subject) {
+    assertAuthenticationStateIdentified(state);
+    const counterInterval = this.#configuration.auth.security.rateLimit.identificationInterval * 1e3;
+    const slidingWindow = Math.round(Date.now() / counterInterval);
+    const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
+    if (await this.#counterProvider.increment(counterKey, 1, counterInterval) > this.#configuration.auth.security.rateLimit.identificationCount) {
+      throw new AuthenticationRateLimitedError();
+    }
+    const result = await this.getStep(state);
+    if (result.done) {
+      throw new AuthenticationFlowDoneError();
+    }
+    const step = isAuthenticationChoice(result.step) ? result.step.choices.find((s4) => s4.type === type) : result.step;
+    if (!step) {
+      throw new AuthenticationInvalidStepError();
+    }
+    const challenger = this.#configuration.auth.flow.chalengers.get(step.type);
+    if (!challenger) {
+      throw new AuthenticationMissingChallengerError();
+    }
+    const identityChallenge = await this.#identityProvider.getChallenge(
+      state.identity,
+      step.type
+    );
+    if (!identityChallenge) {
+      throw new AuthenticationMissingChallengeError();
+    }
+    if (!await challenger.verify(identityChallenge, challenge)) {
+      throw new AuthenticationChallengeFailedError();
+    }
+    const newState = {
+      choices: [...state.choices, type],
+      identity: state.identity
+    };
+    const newResult = await this.getStep(newState);
+    if (newResult.done) {
+      return { done: true, identityId: state.identity };
+    }
+    return {
+      ...await this.getStep(newState),
+      state: newState
+    };
+  }
+  async sendIdentificationValidationCode(identityId, type) {
+    const identificator = this.#configuration.auth.flow.identificators.get(
+      type
+    );
+    if (!identificator) {
+      throw new AuthenticationMissingIdentificatorError();
+    }
+    if (identificator.sendMessage) {
+      if (identificator.sendInterval && identificator.sendCount) {
+        const counterInterval = identificator.sendInterval * 1e3;
+        const slidingWindow = Math.round(Date.now() / counterInterval);
+        const counterKey = `/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
+        if (await this.#counterProvider.increment(
+          counterKey,
+          1,
+          identificator.sendInterval
+        ) > identificator.sendCount) {
+          throw new AuthenticationRateLimitedError();
+        }
+      }
+      const code2 = otp2({ digits: 6 });
+      await this.#kvProvider.put(
+        `/auth/validationcode/${identityId}/${type}`,
+        code2,
+        { expiration: 1e3 * 60 * 5 }
+      );
+      const identityIdentifications = await this.#identityProvider.listIdentification(identityId);
+      const identityIdentification = identityIdentifications.find(
+        (ii) => ii.type === type
+      );
+      if (!identityIdentification) {
+        throw new AuthenticationMissingIdentificationError();
+      }
+      await identificator.sendMessage(identityIdentification, { text: code2 });
+    }
+  }
+  async confirmIdentificationValidationCode(identityId, type, code2) {
+    const counterInterval = this.#configuration.auth.security.rateLimit.confirmVerificationCodeInterval * 1e3;
+    const slidingWindow = Math.round(Date.now() / counterInterval);
+    const counterKey = `/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
+    if (await this.#counterProvider.increment(
+      counterKey,
+      1,
+      this.#configuration.auth.security.rateLimit.confirmVerificationCodeInterval
+    ) > this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount) {
+      throw new AuthenticationRateLimitedError();
+    }
+    const identityIdentifications = await this.#identityProvider.listIdentification(identityId);
+    const identityIdentification = identityIdentifications.find(
+      (ii) => ii.type === type
+    );
+    if (!identityIdentification) {
+      throw new AuthenticationMissingIdentificationError();
+    }
+    const savedCode = await this.#kvProvider.get(
+      `/auth/validationcode/${identityId}/${type}`
+    ).catch((_8) => void 0);
+    if (!savedCode || savedCode.value !== code2) {
+      throw new AuthenticationConfirmValidationCodeError();
+    }
+    await this.#identityProvider.updateIdentification({
+      ...identityIdentification,
+      verified: true
+    });
+  }
+};
+var AuthenticationFlowDoneError = class extends Error {
+};
+var AuthenticationInvalidStepError = class extends Error {
+};
+var AuthenticationRateLimitedError = class extends Error {
+};
+var AuthenticationMissingChallengeError = class extends Error {
+};
+var AuthenticationChallengeFailedError = class extends Error {
+};
+var AuthenticationMissingIdentificationError = class extends Error {
+};
+var AuthenticationSendValidationCodeError = class extends Error {
+};
+var AuthenticationConfirmValidationCodeError = class extends Error {
+};
+
 // auth/components/Layout.tsx
 function Layout({ title, subTitle, children }) {
   return /* @__PURE__ */ T("div", {
@@ -8805,7 +9756,24 @@ function Layout({ title, subTitle, children }) {
 }
 
 // auth/pages/Login.tsx
+async function LoginPageLoader() {
+  const resp = await fetch("/api/auth/flow");
+  const data = await resp.json();
+  assertGetStepResult(data);
+  return data;
+}
 function LoginPage({}) {
+  const data = Ae3();
+  if (isGetStepReturnResult(data)) {
+    debugger;
+    return;
+  }
+  if (!isAuthenticationChoice(data.step)) {
+    debugger;
+    return;
+  }
+  const currentLocale = "en";
+  const choices = data.step.choices.filter((choice) => isAuthenticationIdentification(choice) || isAuthenticationChallenge(choice));
   return /* @__PURE__ */ L(Layout, {
     title: "Login",
     children: /* @__PURE__ */ L("div", {
@@ -8813,7 +9781,24 @@ function LoginPage({}) {
       children: /* @__PURE__ */ L("nav", {
         className: "space-y-1",
         "aria-label": "Sidebar",
-        children: "..."
+        children: choices.map((choice) => /* @__PURE__ */ T("a", {
+          href: "#",
+          title: choice.label[currentLocale],
+          className: "group min-w-full flex items-center rounded-md bg-gray-50 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+          children: [
+            /* @__PURE__ */ L("svg", {
+              className: "-ml-1 mr-3 h-6 w-6 flex-shrink-0 text-gray-400 group-hover:text-gray-500",
+              viewBox: "0 0 24 24",
+              fill: "currentColor",
+              "aria-hidden": "true",
+              dangerouslySetInnerHTML: { __html: choice.icon }
+            }),
+            /* @__PURE__ */ L("span", {
+              className: "truncate",
+              children: choice.label[currentLocale]
+            })
+          ]
+        }))
       })
     })
   });
@@ -8824,6 +9809,7 @@ var root = O4(document.getElementById("root"));
 var router = Ue3([
   {
     path: "/",
+    loader: LoginPageLoader,
     element: /* @__PURE__ */ L(LoginPage, {})
   }
 ], {

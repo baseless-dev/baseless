@@ -7,6 +7,9 @@ Deno.test("WebCacheAssetProvider", async (t) => {
 		import.meta.resolve("../asset-local/tests"),
 	);
 	await caches.delete("baseless-asset-cache-test");
-	const ap = new WebCacheAssetProvider("baseless-asset-cache-test", lap);
+	const ap = new WebCacheAssetProvider(
+		await caches.open("baseless-asset-cache-test"),
+		lap,
+	);
 	await testAssetProvider(ap, t);
 });

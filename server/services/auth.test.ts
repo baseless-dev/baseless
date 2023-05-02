@@ -11,8 +11,8 @@ import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_k
 import * as f from "../auth/flow.ts";
 import { IdentityService } from "./identity.ts";
 import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
-import { EmailAuthentificationIdenticator } from "../auth/identicators/email.ts";
-import { PasswordAuthentificationChallenger } from "../auth/identicators/password.ts";
+import { EmailAuthentificationIdenticator } from "../../providers/auth-email/mod.ts";
+import { PasswordAuthentificationChallenger } from "../../providers/auth-password/mod.ts";
 import { Message } from "../providers/message.ts";
 import { setGlobalLogHandler } from "../logger.ts";
 

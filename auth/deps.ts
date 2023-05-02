@@ -18,5 +18,6 @@ export {
 	Link,
 	Route,
 	RouterProvider,
+	useLoaderData,
 } from "https://esm.sh/react-router-dom@6.11.0?deps=react@18.2.0,react-dom@18.2.0";
 export { Helmet } from "https://esm.sh/react-helmet@6.1.0";

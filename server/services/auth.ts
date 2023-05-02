@@ -11,6 +11,8 @@ import {
 	AuthenticationStep,
 	flatten,
 	getAuthenticationStepAtPath,
+	isAuthenticationChoice,
+	isAuthenticationStep,
 	simplify,
 	simplifyWithContext,
 } from "../auth/flow.ts";
@@ -28,6 +30,57 @@ export type GetStepYieldResult = {
 };
 export type GetStepReturnResult = { done: true };
 export type GetStepResult = GetStepYieldResult | GetStepReturnResult;
+
+export function isGetStepYieldResult(
+	value?: unknown,
+): value is GetStepYieldResult {
+	return !!value && typeof value === "object" && "done" in value &&
+		value.done === false && "step" in value &&
+		isAuthenticationStep(value.step) && "first" in value &&
+		typeof value.first === "boolean" && "last" in value &&
+		typeof value.last === "boolean";
+}
+
+export function assertGetStepYieldResult(
+	value: unknown,
+): asserts value is GetStepYieldResult {
+	if (!isGetStepYieldResult(value)) {
+		throw new InvalidGetStepYieldResultError();
+	}
+}
+
+export class InvalidGetStepYieldResultError extends Error {}
+
+export function isGetStepReturnResult(
+	value?: unknown,
+): value is GetStepReturnResult {
+	return !!value && typeof value === "object" && "done" in value &&
+		value.done === true;
+}
+
+export function assertGetStepReturnResult(
+	value?: unknown,
+): asserts value is GetStepReturnResult {
+	if (!isGetStepReturnResult(value)) {
+		throw new InvalidGetStepReturnResultError();
+	}
+}
+
+export class InvalidGetStepReturnResultError extends Error {}
+
+export function isGetStepResult(value?: unknown): value is GetStepResult {
+	return isGetStepYieldResult(value) || isGetStepReturnResult(value);
+}
+
+export function assertGetStepResult(
+	value?: unknown,
+): asserts value is GetStepResult {
+	if (!isGetStepResult(value)) {
+		throw new InvalidGetStepResultError();
+	}
+}
+
+export class InvalidGetStepResultError extends Error {}
 
 export type AuthenticationResult =
 	| { done: true; identityId: AutoId }
@@ -71,12 +124,12 @@ export class AuthenticationService {
 		if (result.done) {
 			return { done: true };
 		}
-		const last = result.step instanceof AuthenticationChoice
+		const last = isAuthenticationChoice(result.step)
 			? false
 			: getAuthenticationStepAtPath(step, [...state.choices, result.step.type])
 				.done;
 		const first = state.choices.length === 0 &&
-			result.step instanceof AuthenticationChoice;
+			isAuthenticationChoice(result.step);
 		return { done: false, step: result.step, first, last };
 	}
 
@@ -100,7 +153,7 @@ export class AuthenticationService {
 		if (result.done) {
 			throw new AuthenticationFlowDoneError();
 		}
-		const step = result.step instanceof AuthenticationChoice
+		const step = isAuthenticationChoice(result.step)
 			? result.step.choices.find((s) => s.type === type)
 			: result.step;
 		if (!step) {
@@ -162,7 +215,7 @@ export class AuthenticationService {
 		if (result.done) {
 			throw new AuthenticationFlowDoneError();
 		}
-		const step = result.step instanceof AuthenticationChoice
+		const step = isAuthenticationChoice(result.step)
 			? result.step.choices.find((s) => s.type === type)
 			: result.step;
 		if (!step) {

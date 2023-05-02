@@ -1,12 +1,160 @@
 import { AutoId, isAutoId } from "../../shared/autoid.ts";
 import { Context } from "../context.ts";
 
+export type AuthenticationIdentification = {
+	readonly type: string;
+	readonly icon: string;
+	readonly label: Record<string, string>;
+	readonly prompt: "email" | "action";
+};
+
+export type AuthenticationChallenge = {
+	readonly type: string;
+	readonly icon: string;
+	readonly label: Record<string, string>;
+	readonly prompt: "password" | "otp";
+};
+
+export type AuthenticationSequence = {
+	readonly type: "sequence";
+	readonly steps: ReadonlyArray<AuthenticationStep>;
+};
+
+export type AuthenticationChoice = {
+	readonly type: "choice";
+	readonly choices: ReadonlyArray<AuthenticationStep>;
+};
+
+export type AuthenticationConditional = {
+	readonly type: "conditional";
+	readonly condition: (
+		context: Context,
+		state: AuthenticationState,
+	) => AuthenticationStep | Promise<AuthenticationStep>;
+};
+
 export type AuthenticationStep =
 	| AuthenticationIdentification
 	| AuthenticationChallenge
 	| AuthenticationSequence
 	| AuthenticationChoice
 	| AuthenticationConditional;
+
+export function isAuthenticationIdentification(
+	value?: unknown,
+): value is AuthenticationIdentification {
+	return !!value && typeof value === "object" && "type" in value &&
+		typeof value.type === "string" && "icon" in value &&
+		typeof value.icon === "string" && "label" in value &&
+		typeof value.label === "object" && "prompt" in value &&
+		typeof value.prompt === "string" &&
+		["email", "action"].includes(value.prompt);
+}
+
+export function assertAuthenticationIdentification(
+	value?: unknown,
+): asserts value is AuthenticationIdentification {
+	if (!isAuthenticationIdentification(value)) {
+		throw new InvalidAuthenticationIdentificationError();
+	}
+}
+
+export class InvalidAuthenticationIdentificationError extends Error {}
+
+export function isAuthenticationChallenge(
+	value?: unknown,
+): value is AuthenticationChallenge {
+	return !!value && typeof value === "object" && "type" in value &&
+		typeof value.type === "string" && "icon" in value &&
+		typeof value.icon === "string" && "label" in value &&
+		typeof value.label === "object" && "prompt" in value &&
+		typeof value.prompt === "string" &&
+		["password", "otp"].includes(value.prompt);
+}
+
+export function assertAuthenticationChallenge(
+	value?: unknown,
+): asserts value is AuthenticationChallenge {
+	if (!isAuthenticationChallenge(value)) {
+		throw new InvalidAuthenticationChallengeError();
+	}
+}
+
+export class InvalidAuthenticationChallengeError extends Error {}
+
+export function isAuthenticationSequence(
+	value?: unknown,
+): value is AuthenticationSequence {
+	return !!value && typeof value === "object" && "type" in value &&
+		typeof value.type === "string" && value.type === "sequence" &&
+		"steps" in value && Array.isArray(value.steps) &&
+		value.steps.every((s) => isAuthenticationStep(s));
+}
+
+export function assertAuthenticationSequence(
+	value?: unknown,
+): asserts value is AuthenticationSequence {
+	if (!isAuthenticationSequence(value)) {
+		throw new InvalidAuthenticationSequenceError();
+	}
+}
+
+export class InvalidAuthenticationSequenceError extends Error {}
+
+export function isAuthenticationChoice(
+	value?: unknown,
+): value is AuthenticationChoice {
+	return !!value && typeof value === "object" && "type" in value &&
+		typeof value.type === "string" && value.type === "choice" &&
+		"choices" in value && Array.isArray(value.choices) &&
+		value.choices.every((s) => isAuthenticationStep(s));
+}
+
+export function assertAuthenticationChoice(
+	value?: unknown,
+): asserts value is AuthenticationChoice {
+	if (!isAuthenticationChoice(value)) {
+		throw new InvalidAuthenticationChoiceError();
+	}
+}
+
+export class InvalidAuthenticationChoiceError extends Error {}
+
+export function isAuthenticationConditional(
+	value?: unknown,
+): value is AuthenticationConditional {
+	return !!value && typeof value === "object" && "type" in value &&
+		typeof value.type === "string" && value.type === "conditional" &&
+		"condition" in value && typeof value.condition === "function";
+}
+
+export function assertAuthenticationConditional(
+	value?: unknown,
+): asserts value is AuthenticationConditional {
+	if (!isAuthenticationConditional(value)) {
+		throw new InvalidAuthenticationConditionalError();
+	}
+}
+
+export class InvalidAuthenticationConditionalError extends Error {}
+
+export function isAuthenticationStep(
+	value?: unknown,
+): value is AuthenticationStep {
+	return isAuthenticationIdentification(value) ||
+		isAuthenticationChallenge(value) || isAuthenticationSequence(value) ||
+		isAuthenticationChoice(value) || isAuthenticationConditional(value);
+}
+
+export function assertAuthenticationStep(
+	value?: unknown,
+): asserts value is AuthenticationStep {
+	if (!isAuthenticationStep(value)) {
+		throw new InvalidAuthenticationStepError();
+	}
+}
+
+export class InvalidAuthenticationStepError extends Error {}
 
 export type AuthenticationStateAnonymous = {
 	readonly choices: string[];
@@ -20,24 +168,6 @@ export type AuthenticationStateIdentified = {
 export type AuthenticationState =
 	| AuthenticationStateAnonymous
 	| AuthenticationStateIdentified;
-
-export function isAuthenticationStep(
-	value?: unknown,
-): value is AuthenticationStep {
-	return value instanceof AuthenticationIdentification ||
-		value instanceof AuthenticationChallenge ||
-		value instanceof AuthenticationSequence ||
-		value instanceof AuthenticationChoice ||
-		value instanceof AuthenticationConditional;
-}
-
-export function assertAuthenticationStep(
-	value?: unknown,
-): asserts value is AuthenticationStep {
-	if (!isAuthenticationStep(value)) {
-		throw new Error("Expected `value` to be an AuthenticationStep.");
-	}
-}
 
 export function isAuthenticationStateAnonymous(
 	value?: unknown,
@@ -85,81 +215,37 @@ export function assertAuthenticationState(
 	}
 }
 
-export class AuthenticationIdentification {
-	constructor(
-		public readonly type: string,
-		public readonly icon: string,
-		public readonly label: Record<string, string>,
-		public readonly prompt: "email" | "action",
-	) {}
-}
-
-export class AuthenticationChallenge {
-	constructor(
-		public readonly type: string,
-		public readonly icon: string,
-		public readonly label: Record<string, string>,
-		public readonly prompt: "password" | "otp",
-	) {}
-}
-
-export class AuthenticationSequence {
-	constructor(public readonly steps: ReadonlyArray<AuthenticationStep>) {}
-	get type(): string {
-		return `sequence(${this.steps.map((s) => s.type)})`;
-	}
-}
-
 export function sequence(...steps: AuthenticationStep[]) {
-	return new AuthenticationSequence(steps);
-}
-
-export class AuthenticationChoice {
-	constructor(public readonly choices: ReadonlyArray<AuthenticationStep>) {}
-	get type(): string {
-		return `choice(${this.choices.map((s) => s.type)})`;
-	}
+	return { type: "sequence" as const, steps };
 }
 
 export function oneOf(...choices: AuthenticationStep[]) {
-	return new AuthenticationChoice(choices);
-}
-
-export class AuthenticationConditional {
-	constructor(
-		public readonly condition: (
-			context: Context,
-			state: AuthenticationState,
-		) => AuthenticationStep | Promise<AuthenticationStep>,
-	) {}
-	get type(): string {
-		return `condition()`;
-	}
+	return { type: "choice" as const, choices };
 }
 
 export function iif(condition: AuthenticationConditional["condition"]) {
-	return new AuthenticationConditional(condition);
+	return { type: "conditional" as const, condition };
 }
 
 export function simplify(
 	step: AuthenticationStep,
 ): AuthenticationStep {
-	if (step instanceof AuthenticationSequence) {
+	if (isAuthenticationSequence(step)) {
 		const steps: AuthenticationStep[] = [];
 		for (let inner of step.steps) {
 			inner = simplify(inner);
-			if (inner instanceof AuthenticationSequence) {
+			if (isAuthenticationSequence(inner)) {
 				steps.push(...inner.steps);
 			} else {
 				steps.push(inner);
 			}
 		}
 		return sequence(...steps);
-	} else if (step instanceof AuthenticationChoice) {
+	} else if (isAuthenticationChoice(step)) {
 		const choices: AuthenticationStep[] = [];
 		for (let inner of step.choices) {
 			inner = simplify(inner);
-			if (inner instanceof AuthenticationChoice) {
+			if (isAuthenticationChoice(inner)) {
 				choices.push(...inner.choices);
 			} else {
 				choices.push(inner);
@@ -178,22 +264,22 @@ export async function simplifyWithContext(
 	context: Context,
 	state: AuthenticationState,
 ): Promise<AuthenticationStep> {
-	if (step instanceof AuthenticationSequence) {
+	if (isAuthenticationSequence(step)) {
 		const steps: AuthenticationStep[] = [];
 		for (let inner of step.steps) {
 			inner = await simplifyWithContext(inner, context, state);
-			if (inner instanceof AuthenticationSequence) {
+			if (isAuthenticationSequence(inner)) {
 				steps.push(...inner.steps);
 			} else {
 				steps.push(inner);
 			}
 		}
 		return sequence(...steps);
-	} else if (step instanceof AuthenticationChoice) {
+	} else if (isAuthenticationChoice(step)) {
 		const choices: AuthenticationStep[] = [];
 		for (let inner of step.choices) {
 			inner = await simplifyWithContext(inner, context, state);
-			if (inner instanceof AuthenticationChoice) {
+			if (isAuthenticationChoice(inner)) {
 				choices.push(...inner.choices);
 			} else {
 				choices.push(inner);
@@ -203,7 +289,7 @@ export async function simplifyWithContext(
 			return choices.at(0)!;
 		}
 		return oneOf(...choices);
-	} else if (step instanceof AuthenticationConditional) {
+	} else if (isAuthenticationConditional(step)) {
 		if (context && state) {
 			const result = await step.condition(context, state);
 			return simplifyWithContext(result, context, state);
@@ -221,11 +307,11 @@ export function replace(
 		return replacement;
 	}
 	if (
-		step instanceof AuthenticationSequence ||
-		step instanceof AuthenticationChoice
+		isAuthenticationSequence(step) ||
+		isAuthenticationChoice(step)
 	) {
 		let changed = false;
-		const stepsToReplace = step instanceof AuthenticationSequence
+		const stepsToReplace = isAuthenticationSequence(step)
 			? step.steps
 			: step.choices;
 		const steps = stepsToReplace.map((step) => {
@@ -236,7 +322,7 @@ export function replace(
 			return replaced;
 		});
 		if (changed) {
-			return step instanceof AuthenticationSequence
+			return isAuthenticationSequence(step)
 				? sequence(...steps)
 				: oneOf(...steps);
 		}
@@ -246,14 +332,14 @@ export function replace(
 
 export function email(
 	{ icon, label }: { icon: string; label: Record<string, string> },
-) {
-	return new AuthenticationIdentification("email", icon, label, "email");
+): AuthenticationIdentification {
+	return { type: "email", icon, label, prompt: "email" };
 }
 
 export function password(
 	{ icon, label }: { icon: string; label: Record<string, string> },
-) {
-	return new AuthenticationChallenge("password", icon, label, "password");
+): AuthenticationChallenge {
+	return { type: "password", icon, label, prompt: "password" };
 }
 
 export function action(
@@ -262,8 +348,8 @@ export function action(
 		icon: string;
 		label: Record<string, string>;
 	},
-) {
-	return new AuthenticationIdentification(type, icon, label, "action");
+): AuthenticationIdentification {
+	return { type, icon, label, prompt: "action" };
 }
 
 export function otp(
@@ -272,24 +358,22 @@ export function otp(
 		icon: string;
 		label: Record<string, string>;
 	},
-) {
-	return new AuthenticationChallenge(type, icon, label, "otp");
+): AuthenticationChallenge {
+	return { type, icon, label, prompt: "otp" };
 }
 
 function isLeafAuthenticationStep(step: AuthenticationStep): boolean {
-	if (step instanceof AuthenticationSequence) {
+	if (isAuthenticationSequence(step)) {
 		return step.steps.every((step) =>
-			!(step instanceof AuthenticationSequence ||
-				step instanceof AuthenticationChoice)
+			!(isAuthenticationSequence(step) || isAuthenticationChoice(step))
 		);
 	}
-	if (step instanceof AuthenticationChoice) {
+	if (isAuthenticationChoice(step)) {
 		return step.choices.every((step) =>
-			!(step instanceof AuthenticationSequence ||
-				step instanceof AuthenticationChoice)
+			!(isAuthenticationSequence(step) || isAuthenticationChoice(step))
 		);
 	}
-	if (step instanceof AuthenticationConditional) {
+	if (isAuthenticationConditional(step)) {
 		return false;
 	}
 	return true;
@@ -309,10 +393,10 @@ export function flatten(step: AuthenticationStep): AuthenticationStep {
 			const walk: AuthenticationStep[] = [root];
 			while (walk.length) {
 				const node = walk.shift()!;
-				if (node instanceof AuthenticationChoice) {
+				if (isAuthenticationChoice(node)) {
 					trees.push(...node.choices.map((step) => replace(root, node, step)));
 					forked = true;
-				} else if (node instanceof AuthenticationSequence) {
+				} else if (isAuthenticationSequence(node)) {
 					walk.unshift(...node.steps);
 				} else {
 					steps.push(node);
@@ -320,9 +404,7 @@ export function flatten(step: AuthenticationStep): AuthenticationStep {
 			}
 			if (!forked) {
 				trees.push(
-					root instanceof AuthenticationSequence
-						? sequence(...steps)
-						: oneOf(...steps),
+					isAuthenticationSequence(root) ? sequence(...steps) : oneOf(...steps),
 				);
 			}
 		}
@@ -349,7 +431,7 @@ export function getAuthenticationStepAtPath(
 	step: AuthenticationStep,
 	path: string[],
 ): GetStepResult {
-	if (step instanceof AuthenticationSequence) {
+	if (isAuthenticationSequence(step)) {
 		let i = 0;
 		const stepLen = step.steps.length;
 		const pathLen = path.length;
@@ -365,7 +447,7 @@ export function getAuthenticationStepAtPath(
 			throw new AuthenticationStepAtPathError();
 		}
 		return { done: false, step: step.steps.at(i)! };
-	} else if (step instanceof AuthenticationChoice) {
+	} else if (isAuthenticationChoice(step)) {
 		const nextSteps: GetStepResult[] = [];
 		for (const inner of step.choices) {
 			try {

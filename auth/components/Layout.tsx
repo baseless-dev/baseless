@@ -20,10 +20,10 @@ export default function Layout(
 			<div className="flex flex-1 flex-col justify-center px-8 py-12 sm:px-6">
 				<div className="mx-auto shadow-xl rounded-lg border border-slate-200 p-5 w-full max-w-sm lg:w-96 bg-gradient-to-b from-slate-100 to-slate-50">
 					<div className="text-center">
-						<div className="inline-block">
+						<div className="inline-block my-6">
 							<img className="h-12 w-auto" src="/favicon.svg" alt="Logo" />
 						</div>
-						<h2 className="mt-6 text-2xl font-bold tracking-tight text-slate-700">
+						<h2 className="m-0 text-2xl font-bold tracking-tight text-slate-700">
 							{title}
 						</h2>
 						{subTitle &&
@@ -35,7 +35,8 @@ export default function Layout(
 				</div>
 				<div className="mt-10">
 					<p className="text-center text-xs text-slate-300">
-						Powered by <a href="https://baseless.dev/" target="_blank">Baseless</a>
+						Powered by{" "}
+						<a href="https://baseless.dev/" target="_blank">Baseless</a>
 					</p>
 				</div>
 			</div>

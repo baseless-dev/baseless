@@ -1,4 +1,5 @@
 import {
+	assertAuthenticationChoice,
 	AuthenticationChallenge,
 	AuthenticationIdentification,
 	isAuthenticationChallenge,
@@ -7,35 +8,31 @@ import {
 } from "../../server/auth/flow.ts";
 import {
 	assertGetStepResult,
+	assertGetStepYieldResult,
 	isGetStepReturnResult,
 } from "../../server/services/auth.ts";
 import Layout from "../components/Layout.tsx";
-import { useLoaderData } from "../deps.ts";
+import { Navigate } from "../deps.ts";
+import useFetch from "../hooks/useFetch.ts";
 
-export type LoginPageProps = {};
-
-export async function LoginPageLoader() {
-	// TODO state
-	const resp = await fetch("/api/auth/flow");
-	const data = await resp.json();
-	assertGetStepResult(data);
-	return data;
-}
+export type ChoicePageProps = {};
 
 // https://github.com/baseless-dev/baseless/blob/41351d2ba2c914e37152afbedc7557497e7cc31a/server/auth/ui/components/Login.ts
-export default function LoginPage({ }: LoginPageProps) {
-	const data = useLoaderData() as Awaited<ReturnType<typeof LoginPageLoader>>;
+export default function ChoicePage({ }: ChoicePageProps) {
+	const currentLocale = "en"; // TODO obtain locale
+	const { loading, data, error } = useFetch("/api/auth/flow", {}, assertGetStepResult);
+	if (loading) {
+		return <Layout title="Login">Loading...</Layout>;
+	}
+	if (error) {
+		return <Layout title="Login">Error...</Layout>;
+	}
 	if (isGetStepReturnResult(data)) {
-		// TODO done
-		debugger;
-		return;
+		return <Navigate to="/auth/done" />
 	}
 	if (!isAuthenticationChoice(data.step)) {
-		// TODO redirect to step prompt
-		debugger;
-		return;
+		return <Navigate to={`/auth/step/${data.step.type}`} />;
 	}
-	const currentLocale = "en";
 	const choices = data.step.choices.filter((
 		choice,
 	): choice is AuthenticationIdentification | AuthenticationChallenge =>

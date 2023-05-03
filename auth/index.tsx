@@ -1,5 +1,5 @@
 import { createBrowserRouter, createRoot, RouterProvider } from "./deps.ts";
-import LoginPage, { LoginPageLoader } from "./pages/Login.tsx";
+import ChoicePage from "./pages/Choice.tsx";
 import "./index.css";
 
 const root = createRoot(document.getElementById("root")!);
@@ -7,9 +7,8 @@ const root = createRoot(document.getElementById("root")!);
 const router = createBrowserRouter([
 	{
 		path: "/",
-		loader: LoginPageLoader,
-		element: <LoginPage />,
-	},
+		element: <ChoicePage />,
+	}
 ], {
 	basename: "/auth",
 });

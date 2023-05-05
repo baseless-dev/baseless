@@ -13,6 +13,7 @@ import {
 	isAuthenticationStateIdentified,
 } from "../auth/flow.ts";
 import {
+	assertAuthenticationResultState,
 	AuthenticationConfirmValidationCodeError,
 	AuthenticationSendValidationCodeError,
 } from "../services/auth.ts";
@@ -59,6 +60,10 @@ function json(
 }
 
 authRouter.get("/flow", async (_request, _params, context) => {
+	return json(await context.config.auth.flow.step, 200);
+});
+
+authRouter.get("/signInStep", async (_request, _params, context) => {
 	try {
 		return json(await context.auth.getStep(), 200);
 	} catch (error) {
@@ -66,7 +71,7 @@ authRouter.get("/flow", async (_request, _params, context) => {
 	}
 });
 
-authRouter.post("/flow", async (request, _params, context) => {
+authRouter.post("/signInStep", async (request, _params, context) => {
 	try {
 		const formData = await request.formData();
 		const encryptedState = formData.get("state")?.toString() ?? "";
@@ -80,48 +85,51 @@ authRouter.post("/flow", async (request, _params, context) => {
 	}
 });
 
-authRouter.post("/submitIdentification", async (request, _params, context) => {
-	try {
-		const formData = await request.formData();
-		const type = formData.get("type")?.toString() ?? "";
-		const identification = formData.get("identification")?.toString() ?? "";
-		const encryptedState = formData.get("state")?.toString() ?? "";
-		const state = await decryptEncryptedAuthenticationState(
-			encryptedState,
-			context.config.auth.security.keys.publicKey,
-		);
-		const subject = isAuthenticationStateIdentified(state)
-			? state.identity
-			: context.remoteAddress;
-		const result = await context.auth.submitIdentification(
-			state,
-			type,
-			identification,
-			subject,
-		);
-		if (result.done) {
-			const session = await context.session.create(result.identityId, {});
-			return json({ done: true, session: session.id }, 200);
-		} else {
-			return json({
-				...result,
-				...("state" in result
-					? {
-						state: await encryptAuthenticationState(
-							result.state,
-							context.config.auth.security.keys.algo,
-							context.config.auth.security.keys.privateKey,
-						),
-					}
-					: {}),
-			}, 200);
+authRouter.post(
+	"/signInSubmitIdentification",
+	async (request, _params, context) => {
+		try {
+			const formData = await request.formData();
+			const type = formData.get("type")?.toString() ?? "";
+			const identification = formData.get("identification")?.toString() ?? "";
+			const encryptedState = formData.get("state")?.toString() ?? "";
+			const state = await decryptEncryptedAuthenticationState(
+				encryptedState,
+				context.config.auth.security.keys.publicKey,
+			);
+			const subject = isAuthenticationStateIdentified(state)
+				? state.identity
+				: context.remoteAddress;
+			const result = await context.auth.submitIdentification(
+				state,
+				type,
+				identification,
+				subject,
+			);
+			if (result.done) {
+				const session = await context.session.create(result.identityId, {});
+				return json({ done: true, session: session.id }, 200);
+			} else {
+				return json({
+					...result,
+					...("state" in result
+						? {
+							encryptedState: await encryptAuthenticationState(
+								result.state,
+								context.config.auth.security.keys.algo,
+								context.config.auth.security.keys.privateKey,
+							),
+						}
+						: {}),
+				}, 200);
+			}
+		} catch (error) {
+			return json({ error: error.constructor.name }, 400);
 		}
-	} catch (error) {
-		return json({ error: error.constructor.name }, 400);
-	}
-});
+	},
+);
 
-authRouter.post("/submitChallenge", async (request, _params, context) => {
+authRouter.post("/signInSubmitChallenge", async (request, _params, context) => {
 	try {
 		const formData = await request.formData();
 		const type = formData.get("type")?.toString() ?? "";
@@ -140,7 +148,7 @@ authRouter.post("/submitChallenge", async (request, _params, context) => {
 		);
 		if (result.done) {
 			const session = await context.session.create(result.identityId, {});
-			return json({ done: true, session: session.id }, 200);
+			return json(result, 200);
 		} else {
 			return json({
 				...result,

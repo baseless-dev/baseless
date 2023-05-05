@@ -18,7 +18,7 @@ export abstract class AuthenticationIdenticator {
 	abstract identify(
 		identityIdentification: IdentityIdentification,
 		identification: string,
-	): Promise<boolean | Response>;
+	): Promise<boolean | URL>;
 
 	sendMessage?: (
 		identityIdentification: IdentityIdentification,

@@ -1,4 +1,4 @@
-import { AutoId } from "../../shared/autoid.ts";
+import { AutoId, isAutoId } from "../../shared/autoid.ts";
 import { otp } from "../../shared/otp.ts";
 import {
 	AuthenticationMissingChallengerError,
@@ -12,6 +12,7 @@ import {
 	flatten,
 	getAuthenticationStepAtPath,
 	isAuthenticationChoice,
+	isAuthenticationState,
 	isAuthenticationStep,
 	simplify,
 	simplifyWithContext,
@@ -82,11 +83,126 @@ export function assertGetStepResult(
 
 export class InvalidGetStepResultError extends Error {}
 
+export type AuthenticationResultDone = { done: true; identityId: AutoId };
+export type AuthenticationResultError = { done: false; error: true };
+export type AuthenticationResultRedirect = { done: false; redirect: URL };
+export type AuthenticationResultState = GetStepYieldResult & {
+	state: AuthenticationState;
+};
+export type AuthenticationResultEncryptedState = GetStepYieldResult & {
+	encryptedState: string;
+};
+
 export type AuthenticationResult =
-	| { done: true; identityId: AutoId }
-	| { done: false; error: true }
-	| { done: false; response: Response }
-	| GetStepYieldResult & { state: AuthenticationState };
+	| AuthenticationResultDone
+	| AuthenticationResultError
+	| AuthenticationResultRedirect
+	| AuthenticationResultState;
+
+export function isAuthenticationResultDone(
+	value?: unknown,
+): value is AuthenticationResultDone {
+	return !!value && typeof value === "object" && "done" in value &&
+		value.done === true && "identityId" in value && isAutoId(value.identityId);
+}
+
+export function assertAuthenticationResultDone(
+	value?: unknown,
+): asserts value is AuthenticationResultDone {
+	if (!isAuthenticationResultDone(value)) {
+		throw new InvalidAuthenticationResultDoneError();
+	}
+}
+
+export class InvalidAuthenticationResultDoneError extends Error {}
+
+export function isAuthenticationResultError(
+	value?: unknown,
+): value is AuthenticationResultError {
+	return !!value && typeof value === "object" && "done" in value &&
+		value.done === false && "error" in value &&
+		typeof value.error === "boolean";
+}
+
+export function assertAuthenticationResultError(
+	value?: unknown,
+): asserts value is AuthenticationResultError {
+	if (!isAuthenticationResultError(value)) {
+		throw new InvalidAuthenticationResultErrorError();
+	}
+}
+
+export class InvalidAuthenticationResultErrorError extends Error {}
+
+export function isAuthenticationResultRedirect(
+	value?: unknown,
+): value is AuthenticationResultRedirect {
+	return !!value && typeof value === "object" && "done" in value &&
+		value.done === false && "redirect" in value &&
+		value.redirect instanceof URL;
+}
+
+export function assertAuthenticationResultRedirect(
+	value?: unknown,
+): asserts value is AuthenticationResultRedirect {
+	if (!isAuthenticationResultRedirect(value)) {
+		throw new InvalidAuthenticationResultRedirectError();
+	}
+}
+
+export class InvalidAuthenticationResultRedirectError extends Error {}
+
+export function isAuthenticationResultState(
+	value?: unknown,
+): value is AuthenticationResultState {
+	return isGetStepYieldResult(value) && "state" in value &&
+		isAuthenticationState(value.state);
+}
+
+export function assertAuthenticationResultState(
+	value?: unknown,
+): asserts value is AuthenticationResultState {
+	if (!isAuthenticationResultState(value)) {
+		throw new InvalidAuthenticationResultStateError();
+	}
+}
+
+export class InvalidAuthenticationResultStateError extends Error {}
+
+export function isAuthenticationResultEncryptedState(
+	value?: unknown,
+): value is AuthenticationResultEncryptedState {
+	return isGetStepYieldResult(value) && "encryptedState" in value &&
+		typeof value.encryptedState === "string";
+}
+
+export function assertAuthenticationResultEncryptedState(
+	value?: unknown,
+): asserts value is AuthenticationResultEncryptedState {
+	if (!isAuthenticationResultEncryptedState(value)) {
+		throw new InvalidAuthenticationResultEncryptedStateError();
+	}
+}
+
+export class InvalidAuthenticationResultEncryptedStateError extends Error {}
+
+export function isAuthenticationResult(
+	value?: unknown,
+): value is AuthenticationResult {
+	return isAuthenticationResultDone(value) ||
+		isAuthenticationResultError(value) ||
+		isAuthenticationResultRedirect(value) || isAuthenticationResultState(value);
+}
+
+export function assertAuthenticationResult(
+	value?: unknown,
+): asserts value is AuthenticationResult {
+	if (!isAuthenticationResult(value)) {
+		throw new InvalidAuthenticationResultError();
+	}
+}
+
+export class InvalidAuthenticationResultError extends Error {}
 
 export class AuthenticationService {
 	#configuration: Configuration;
@@ -128,8 +244,7 @@ export class AuthenticationService {
 			? false
 			: getAuthenticationStepAtPath(step, [...state.choices, result.step.type])
 				.done;
-		const first = state.choices.length === 0 &&
-			isAuthenticationChoice(result.step);
+		const first = state.choices.length === 0;
 		return { done: false, step: result.step, first, last };
 	}
 
@@ -161,21 +276,21 @@ export class AuthenticationService {
 		}
 
 		const identificator = this.#configuration.auth.flow.identificators.get(
-			step.type,
+			type,
 		);
 		if (!identificator) {
 			throw new AuthenticationMissingIdentificatorError();
 		}
 
 		const identityIdentification = await this.#identityProvider
-			.matchIdentification(step.type, identification);
+			.matchIdentification(type, identification);
 
 		const identifyResult = await identificator.identify(
 			identityIdentification,
 			identification,
 		);
-		if (identifyResult instanceof Response) {
-			return { done: false, response: identifyResult };
+		if (identifyResult instanceof URL) {
+			return { done: false, redirect: identifyResult };
 		}
 		const newState = {
 			choices: [...state.choices, type],

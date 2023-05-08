@@ -1,4 +1,6 @@
-import { CounterProvider } from "../providers/counter.ts";
+import { CounterIncrementError, CounterResetError } from "../../common/counter/errors.ts";
+import { PromisedResult } from "../../common/system/result.ts";
+import { CounterProvider } from "../../providers/counter.ts";
 
 export class CounterService {
 	#counterProvider: CounterProvider;
@@ -13,11 +15,11 @@ export class CounterService {
 		key: string,
 		amount: number,
 		expiration: number | Date,
-	): Promise<number> {
+	): PromisedResult<number, CounterIncrementError> {
 		return this.#counterProvider.increment(key, amount, expiration);
 	}
 
-	reset(key: string): Promise<void> {
+	reset(key: string): PromisedResult<void, CounterResetError> {
 		return this.#counterProvider.reset(key);
 	}
 }

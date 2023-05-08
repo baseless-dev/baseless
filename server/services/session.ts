@@ -1,6 +1,9 @@
-import { AutoId } from "../../shared/autoid.ts";
+import { SessionData } from "../../common/session/data.ts";
+import { SessionCreateError, SessionDestroyError, SessionIDNotFoundError } from "../../common/session/errors.ts";
+import { AutoId } from "../../common/system/autoid.ts";
+import { PromisedResult } from "../../common/system/result.ts";
+import { SessionProvider } from "../../providers/session.ts";
 import { Configuration } from "../config.ts";
-import { SessionData, SessionProvider } from "../providers/session.ts";
 
 export class SessionService {
 	#configuration: Configuration;
@@ -16,7 +19,7 @@ export class SessionService {
 
 	get<Meta extends Record<string, unknown>>(
 		sessionId: AutoId,
-	): Promise<SessionData<Meta>> {
+	): PromisedResult<SessionData<Meta>, SessionIDNotFoundError> {
 		return this.#sessionProvider.get(sessionId);
 	}
 
@@ -24,18 +27,18 @@ export class SessionService {
 		identityId: AutoId,
 		meta: Record<string, unknown>,
 		expiration?: number | Date,
-	): Promise<SessionData> {
+	): PromisedResult<SessionData, SessionCreateError> {
 		// TODO rate limit
 		// TODO expiration ??= this.#configuration.auth.session.expiration;
 		return this.#sessionProvider.create(identityId, meta, expiration);
 	}
 
-	destroy(sessionId: AutoId): Promise<void> {
+	destroy(sessionId: AutoId): PromisedResult<void, SessionDestroyError> {
 		// TODO rate limit
 		return this.#sessionProvider.destroy(sessionId);
 	}
 
-	list(identityId: AutoId): Promise<SessionData[]> {
+	list(identityId: AutoId): PromisedResult<SessionData[], never> {
 		return this.#sessionProvider.list(identityId);
 	}
 }

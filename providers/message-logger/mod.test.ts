@@ -1,7 +1,7 @@
+import { Message } from "../../common/message/message.ts";
+import { setGlobalLogHandler } from "../../common/system/logger.ts";
+import testMessageProvider from "../message.test.ts";
 import { LoggerMessageProvider } from "./mod.ts";
-import testMessageProvider from "../../server/providers/message.test.ts";
-import { Message } from "../../server/providers/message.ts";
-import { setGlobalLogHandler } from "../../server/logger.ts";
 
 Deno.test("KVSessionProvider", async (t) => {
 	const mp = new LoggerMessageProvider();
@@ -17,5 +17,5 @@ Deno.test("KVSessionProvider", async (t) => {
 		}
 		return Promise.reject(new Error("No message"));
 	});
-	setGlobalLogHandler(() => {});
+	setGlobalLogHandler(() => { });
 });

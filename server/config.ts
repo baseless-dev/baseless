@@ -1,3 +1,4 @@
+import { Router, RouterBuilder } from "../common/system/router.ts";
 import {
 	AssetConfiguration,
 	AssetConfigurationBuilder,
@@ -7,7 +8,6 @@ import {
 	AuthenticationConfigurationBuilder,
 } from "./auth/config.ts";
 import type { Context } from "./context.ts";
-import { Router, RouterBuilder } from "./router.ts";
 
 export interface Configuration {
 	readonly asset: AssetConfiguration;

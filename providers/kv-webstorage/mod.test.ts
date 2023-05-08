@@ -1,5 +1,5 @@
+import testKVProvider from "../kv.test.ts";
 import { WebStorageKVProvider } from "./mod.ts";
-import testKVProvider from "../../server/providers/kv.test.ts";
 
 Deno.test("WebStorageKVProvider", async (t) => {
 	const kv = new WebStorageKVProvider(

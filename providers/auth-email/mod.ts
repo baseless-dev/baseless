@@ -1,9 +1,7 @@
-import { IdentityIdentification } from "../../server/providers/identity.ts";
-import {
-	MessageData,
-	MessageProvider,
-} from "../../server/providers/message.ts";
-import { AuthenticationIdenticator } from "../../server/auth/config.ts";
+import { AuthenticationIdenticator } from "../../common/authentication/identicator.ts";
+import { IdentityIdentification } from "../../common/identity/identification.ts";
+import { Message } from "../../common/message/message.ts";
+import { MessageProvider } from "../message.ts";
 
 export class EmailAuthentificationIdenticator
 	extends AuthenticationIdenticator {
@@ -15,10 +13,10 @@ export class EmailAuthentificationIdenticator
 
 	sendMessage = async (
 		identification: IdentityIdentification,
-		message: MessageData,
+		message: Omit<Message, 'recipient'>,
 	): Promise<void> => {
 		await this.#messageProvider.send({
-			to: identification.identification,
+			recipient: identification.identification,
 			...message,
 		});
 	};

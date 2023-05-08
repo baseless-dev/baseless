@@ -8,7 +8,7 @@ const router = createBrowserRouter([
 	{
 		path: "/",
 		element: <ChoicePage />,
-	}
+	},
 ], {
 	basename: "/auth",
 });

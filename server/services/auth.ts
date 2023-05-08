@@ -1,27 +1,23 @@
-import { AutoId, isAutoId } from "../../shared/autoid.ts";
-import { otp } from "../../shared/otp.ts";
+import { AuthenticationRateLimitedError, AuthenticationFlowDoneError, AuthenticationInvalidStepError, AuthenticationMissingChallengeError, AuthenticationChallengeFailedError, AuthenticationMissingIdentificationError, AuthenticationConfirmValidationCodeError } from "../../common/authentication/errors.ts";
+import { AuthenticationResult } from "../../common/authentication/results/result.ts";
+import { AuthenticationState, assertAuthenticationStateIdentified } from "../../common/authentication/state.ts";
+import { AuthenticationStep, isAuthenticationStep } from "../../common/authentication/step.ts";
+import { isAuthenticationChoice } from "../../common/authentication/steps/choice.ts";
+import { flatten } from "../../common/authentication/steps/flatten.ts";
+import { getStepAtPath } from "../../common/authentication/steps/get_step_at_path.ts";
+import { simplifyWithContext, simplify } from "../../common/authentication/steps/simplify.ts";
+import { AutoId } from "../../common/system/autoid.ts";
+import { otp } from "../../common/system/otp.ts";
+import { unwrap } from "../../common/system/result.ts";
+import { CounterProvider } from "../../providers/counter.ts";
+import { IdentityProvider } from "../../providers/identity.ts";
+import { KVProvider } from "../../providers/kv.ts";
 import {
 	AuthenticationMissingChallengerError,
 	AuthenticationMissingIdentificatorError,
 } from "../auth/config.ts";
-import {
-	assertAuthenticationStateIdentified,
-	AuthenticationChoice,
-	AuthenticationState,
-	AuthenticationStep,
-	flatten,
-	getAuthenticationStepAtPath,
-	isAuthenticationChoice,
-	isAuthenticationState,
-	isAuthenticationStep,
-	simplify,
-	simplifyWithContext,
-} from "../auth/flow.ts";
 import { Configuration } from "../config.ts";
 import { Context } from "../context.ts";
-import { CounterProvider } from "../providers/counter.ts";
-import { IdentityProvider } from "../providers/identity.ts";
-import { KVProvider } from "../providers/kv.ts";
 
 export type GetStepYieldResult = {
 	done: false;
@@ -50,7 +46,7 @@ export function assertGetStepYieldResult(
 	}
 }
 
-export class InvalidGetStepYieldResultError extends Error {}
+export class InvalidGetStepYieldResultError extends Error { }
 
 export function isGetStepReturnResult(
 	value?: unknown,
@@ -67,7 +63,7 @@ export function assertGetStepReturnResult(
 	}
 }
 
-export class InvalidGetStepReturnResultError extends Error {}
+export class InvalidGetStepReturnResultError extends Error { }
 
 export function isGetStepResult(value?: unknown): value is GetStepResult {
 	return isGetStepYieldResult(value) || isGetStepReturnResult(value);
@@ -81,128 +77,8 @@ export function assertGetStepResult(
 	}
 }
 
-export class InvalidGetStepResultError extends Error {}
+export class InvalidGetStepResultError extends Error { }
 
-export type AuthenticationResultDone = { done: true; identityId: AutoId };
-export type AuthenticationResultError = { done: false; error: true };
-export type AuthenticationResultRedirect = { done: false; redirect: URL };
-export type AuthenticationResultState = GetStepYieldResult & {
-	state: AuthenticationState;
-};
-export type AuthenticationResultEncryptedState = GetStepYieldResult & {
-	encryptedState: string;
-};
-
-export type AuthenticationResult =
-	| AuthenticationResultDone
-	| AuthenticationResultError
-	| AuthenticationResultRedirect
-	| AuthenticationResultState;
-
-export function isAuthenticationResultDone(
-	value?: unknown,
-): value is AuthenticationResultDone {
-	return !!value && typeof value === "object" && "done" in value &&
-		value.done === true && "identityId" in value && isAutoId(value.identityId);
-}
-
-export function assertAuthenticationResultDone(
-	value?: unknown,
-): asserts value is AuthenticationResultDone {
-	if (!isAuthenticationResultDone(value)) {
-		throw new InvalidAuthenticationResultDoneError();
-	}
-}
-
-export class InvalidAuthenticationResultDoneError extends Error {}
-
-export function isAuthenticationResultError(
-	value?: unknown,
-): value is AuthenticationResultError {
-	return !!value && typeof value === "object" && "done" in value &&
-		value.done === false && "error" in value &&
-		typeof value.error === "boolean";
-}
-
-export function assertAuthenticationResultError(
-	value?: unknown,
-): asserts value is AuthenticationResultError {
-	if (!isAuthenticationResultError(value)) {
-		throw new InvalidAuthenticationResultErrorError();
-	}
-}
-
-export class InvalidAuthenticationResultErrorError extends Error {}
-
-export function isAuthenticationResultRedirect(
-	value?: unknown,
-): value is AuthenticationResultRedirect {
-	return !!value && typeof value === "object" && "done" in value &&
-		value.done === false && "redirect" in value &&
-		value.redirect instanceof URL;
-}
-
-export function assertAuthenticationResultRedirect(
-	value?: unknown,
-): asserts value is AuthenticationResultRedirect {
-	if (!isAuthenticationResultRedirect(value)) {
-		throw new InvalidAuthenticationResultRedirectError();
-	}
-}
-
-export class InvalidAuthenticationResultRedirectError extends Error {}
-
-export function isAuthenticationResultState(
-	value?: unknown,
-): value is AuthenticationResultState {
-	return isGetStepYieldResult(value) && "state" in value &&
-		isAuthenticationState(value.state);
-}
-
-export function assertAuthenticationResultState(
-	value?: unknown,
-): asserts value is AuthenticationResultState {
-	if (!isAuthenticationResultState(value)) {
-		throw new InvalidAuthenticationResultStateError();
-	}
-}
-
-export class InvalidAuthenticationResultStateError extends Error {}
-
-export function isAuthenticationResultEncryptedState(
-	value?: unknown,
-): value is AuthenticationResultEncryptedState {
-	return isGetStepYieldResult(value) && "encryptedState" in value &&
-		typeof value.encryptedState === "string";
-}
-
-export function assertAuthenticationResultEncryptedState(
-	value?: unknown,
-): asserts value is AuthenticationResultEncryptedState {
-	if (!isAuthenticationResultEncryptedState(value)) {
-		throw new InvalidAuthenticationResultEncryptedStateError();
-	}
-}
-
-export class InvalidAuthenticationResultEncryptedStateError extends Error {}
-
-export function isAuthenticationResult(
-	value?: unknown,
-): value is AuthenticationResult {
-	return isAuthenticationResultDone(value) ||
-		isAuthenticationResultError(value) ||
-		isAuthenticationResultRedirect(value) || isAuthenticationResultState(value);
-}
-
-export function assertAuthenticationResult(
-	value?: unknown,
-): asserts value is AuthenticationResult {
-	if (!isAuthenticationResult(value)) {
-		throw new InvalidAuthenticationResultError();
-	}
-}
-
-export class InvalidAuthenticationResultError extends Error {}
 
 export class AuthenticationService {
 	#configuration: Configuration;
@@ -236,13 +112,13 @@ export class AuthenticationService {
 				)
 				: simplify(this.#configuration.auth.flow.step),
 		);
-		const result = getAuthenticationStepAtPath(step, state.choices);
+		const result = getStepAtPath(step, state.choices);
 		if (result.done) {
 			return { done: true };
 		}
 		const last = isAuthenticationChoice(result.step)
 			? false
-			: getAuthenticationStepAtPath(step, [...state.choices, result.step.type])
+			: getStepAtPath(step, [...state.choices, result.step.type])
 				.done;
 		const first = state.choices.length === 0;
 		return { done: false, step: result.step, first, last };
@@ -259,8 +135,8 @@ export class AuthenticationService {
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
-			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-				this.#configuration.auth.security.rateLimit.identificationCount
+			unwrap(await this.#counterProvider.increment(counterKey, 1, counterInterval)) >
+			this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -282,8 +158,8 @@ export class AuthenticationService {
 			throw new AuthenticationMissingIdentificatorError();
 		}
 
-		const identityIdentification = await this.#identityProvider
-			.matchIdentification(type, identification);
+		const identityIdentification = unwrap(await this.#identityProvider
+			.matchIdentification(type, identification));
 
 		const identifyResult = await identificator.identify(
 			identityIdentification,
@@ -320,8 +196,8 @@ export class AuthenticationService {
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
-			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-				this.#configuration.auth.security.rateLimit.identificationCount
+			unwrap(await this.#counterProvider.increment(counterKey, 1, counterInterval)) >
+			this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -342,10 +218,10 @@ export class AuthenticationService {
 			throw new AuthenticationMissingChallengerError();
 		}
 
-		const identityChallenge = await this.#identityProvider.getChallenge(
+		const identityChallenge = unwrap(await this.#identityProvider.getChallenge(
 			state.identity,
 			step.type,
-		);
+		));
 		if (!identityChallenge) {
 			throw new AuthenticationMissingChallengeError();
 		}
@@ -386,12 +262,12 @@ export class AuthenticationService {
 				const counterKey =
 					`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
 				if (
-					await this.#counterProvider.increment(
+					unwrap(await this.#counterProvider.increment(
 						counterKey,
 						1,
 						identificator.sendInterval,
-					) >
-						identificator.sendCount
+					)) >
+					identificator.sendCount
 				) {
 					throw new AuthenticationRateLimitedError();
 				}
@@ -403,8 +279,8 @@ export class AuthenticationService {
 				{ expiration: 1000 * 60 * 5 },
 			);
 
-			const identityIdentifications = await this.#identityProvider
-				.listIdentification(identityId);
+			const identityIdentifications = unwrap(await this.#identityProvider
+				.listIdentification(identityId));
 			const identityIdentification = identityIdentifications.find((ii) =>
 				ii.type === type
 			);
@@ -426,19 +302,19 @@ export class AuthenticationService {
 		const counterKey =
 			`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
 		if (
-			await this.#counterProvider.increment(
+			unwrap(await this.#counterProvider.increment(
 				counterKey,
 				1,
 				this.#configuration.auth.security.rateLimit
 					.confirmVerificationCodeInterval,
-			) >
-				this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount
+			)) >
+			this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
 
-		const identityIdentifications = await this.#identityProvider
-			.listIdentification(identityId);
+		const identityIdentifications = unwrap(await this.#identityProvider
+			.listIdentification(identityId));
 		const identityIdentification = identityIdentifications.find((ii) =>
 			ii.type === type
 		);
@@ -446,9 +322,9 @@ export class AuthenticationService {
 			throw new AuthenticationMissingIdentificationError();
 		}
 
-		const savedCode = await this.#kvProvider.get(
+		const savedCode = unwrap(await this.#kvProvider.get(
 			`/auth/validationcode/${identityId}/${type}`,
-		).catch((_) => undefined);
+		));
 		if (!savedCode || savedCode.value !== code) {
 			throw new AuthenticationConfirmValidationCodeError();
 		}
@@ -459,12 +335,3 @@ export class AuthenticationService {
 		});
 	}
 }
-
-export class AuthenticationFlowDoneError extends Error {}
-export class AuthenticationInvalidStepError extends Error {}
-export class AuthenticationRateLimitedError extends Error {}
-export class AuthenticationMissingChallengeError extends Error {}
-export class AuthenticationChallengeFailedError extends Error {}
-export class AuthenticationMissingIdentificationError extends Error {}
-export class AuthenticationSendValidationCodeError extends Error {}
-export class AuthenticationConfirmValidationCodeError extends Error {}

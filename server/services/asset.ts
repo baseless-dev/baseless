@@ -1,4 +1,5 @@
-import { AssetProvider } from "../providers/asset.ts";
+import { PromisedResult } from "../../common/system/result.ts";
+import { AssetProvider } from "../../providers/asset.ts";
 
 export class AssetService {
 	#assetProvider: AssetProvider;
@@ -9,7 +10,7 @@ export class AssetService {
 		this.#assetProvider = assetProvider;
 	}
 
-	fetch(request: Request): Promise<Response> {
+	fetch(request: Request): PromisedResult<Response, never> {
 		// TODO middleware
 		return this.#assetProvider.fetch(request);
 	}

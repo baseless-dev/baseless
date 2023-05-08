@@ -8,18 +8,19 @@ import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";
 import { AuthenticationService } from "./auth.ts";
 import { ConfigurationBuilder } from "../config.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
-import * as f from "../auth/flow.ts";
 import { IdentityService } from "./identity.ts";
 import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
 import { EmailAuthentificationIdenticator } from "../../providers/auth-email/mod.ts";
 import { PasswordAuthentificationChallenger } from "../../providers/auth-password/mod.ts";
-import { Message } from "../providers/message.ts";
-import { setGlobalLogHandler } from "../logger.ts";
+import * as h from "../../common/authentication/steps/helpers.ts";
+import { unwrap } from "../../common/system/result.ts";
+import { Message } from "../../common/message/message.ts";
+import { setGlobalLogHandler } from "../../common/system/logger.ts";
 
 Deno.test("AuthenticationService", async (t) => {
-	const email = f.email({ icon: "", label: {} });
-	const password = f.password({ icon: "", label: {} });
-	const github = f.action({ type: "github", icon: "", label: {} });
+	const email = h.email({ icon: "", label: {} });
+	const password = h.password({ icon: "", label: {} });
+	const github = h.action({ type: "github", icon: "", label: {} });
 
 	const config = new ConfigurationBuilder();
 	const { publicKey, privateKey } = await generateKeyPair("PS512");
@@ -27,8 +28,8 @@ Deno.test("AuthenticationService", async (t) => {
 		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
 		.setSecuritySalt("foobar")
 		.setFlowStep(
-			f.oneOf(
-				f.sequence(email, password),
+			h.oneOf(
+				h.sequence(email, password),
 				github,
 			),
 		)
@@ -55,7 +56,7 @@ Deno.test("AuthenticationService", async (t) => {
 		kvProvider,
 	);
 
-	const ident1 = await identityService.create({});
+	const ident1 = unwrap(await identityService.create({}));
 	await identityService.createIdentification({
 		identityId: ident1.id,
 		type: "email",
@@ -74,7 +75,7 @@ Deno.test("AuthenticationService", async (t) => {
 			await authService.getStep(),
 			{
 				done: false,
-				step: f.oneOf(email, github),
+				step: h.oneOf(email, github),
 				first: true,
 				last: false,
 			},
@@ -167,7 +168,7 @@ Deno.test("AuthenticationService", async (t) => {
 		await authService.sendIdentificationValidationCode(ident1.id, "email");
 		verificationCode = messages.pop()?.message.text ?? "";
 		assertEquals(verificationCode.length, 6);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 	});
 
 	await t.step("confirmIdentificationValidationCode", async () => {

@@ -1,11 +1,6 @@
-import {
-	KVGetOptions,
-	KVKey,
-	KVListOptions,
-	KVListResult,
-	KVProvider,
-	KVPutOptions,
-} from "../providers/kv.ts";
+import { KVKeyNotFoundError, KVPutError } from "../../common/kv/errors.ts";
+import { PromisedResult } from "../../common/system/result.ts";
+import { KVGetOptions, KVKey, KVListOptions, KVListResult, KVProvider, KVPutOptions } from "../../providers/kv.ts";
 
 export class KVService {
 	#kvProvider: KVProvider;
@@ -17,7 +12,7 @@ export class KVService {
 	get(
 		key: string,
 		options?: KVGetOptions,
-	): Promise<KVKey> {
+	): PromisedResult<KVKey, KVKeyNotFoundError> {
 		// TODO security rules
 		return this.#kvProvider.get(key, options);
 	}
@@ -26,17 +21,17 @@ export class KVService {
 		key: string,
 		value: string,
 		options?: KVPutOptions,
-	): Promise<void> {
+	): PromisedResult<void, KVPutError> {
 		// TODO security rules
 		return this.#kvProvider.put(key, value, options);
 	}
 
-	list(options: KVListOptions): Promise<KVListResult> {
+	list(options: KVListOptions): PromisedResult<KVListResult, never> {
 		// TODO security rules
 		return this.#kvProvider.list(options);
 	}
 
-	delete(key: string): Promise<void> {
+	delete(key: string): PromisedResult<void, KVKeyNotFoundError> {
 		// TODO security rules
 		return this.#kvProvider.delete(key);
 	}

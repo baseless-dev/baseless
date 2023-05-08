@@ -1,5 +1,5 @@
+import testKVProvider from "../kv.test.ts";
 import { SqliteKVProvider } from "./mod.ts";
-import testKVProvider from "../../server/providers/kv.test.ts";
 
 Deno.test("SqliteKVProvider", async (t) => {
 	const kv = new SqliteKVProvider(":memory:");

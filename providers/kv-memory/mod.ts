@@ -1,14 +1,8 @@
-import { CacheMap } from "../../shared/cachemap.ts";
-import { createLogger } from "../../server/logger.ts";
-import {
-	KeyNotFoundError,
-	KVGetOptions,
-	KVKey,
-	KVListOptions,
-	KVListResult,
-	KVProvider,
-	KVPutOptions,
-} from "../../server/providers/kv.ts";
+import { CacheMap } from "../../common/collections/cachemap.ts";
+import { KVKeyNotFoundError, KVPutError } from "../../common/kv/errors.ts";
+import { createLogger } from "../../common/system/logger.ts";
+import { PromisedResult, err, isResultOk, ok } from "../../common/system/result.ts";
+import { KVGetOptions, KVKey, KVListOptions, KVListResult, KVProvider, KVPutOptions } from "../kv.ts";
 
 type Item = { value: string; expiration?: number };
 
@@ -33,16 +27,16 @@ export class MemoryKVProvider implements KVProvider {
 	async get(
 		key: string,
 		_options?: KVGetOptions,
-	): Promise<KVKey> {
+	): PromisedResult<KVKey, KVKeyNotFoundError> {
 		const item = this.#cache.get(key);
 		if (!item) {
-			throw new KeyNotFoundError();
+			return err(new KVKeyNotFoundError());
 		}
 		assertItem(item);
-		return {
+		return ok({
 			key,
 			...item,
-		};
+		});
 	}
 
 	// deno-lint-ignore require-await
@@ -50,7 +44,7 @@ export class MemoryKVProvider implements KVProvider {
 		key: string,
 		value: string,
 		options?: KVPutOptions,
-	): Promise<void> {
+	): PromisedResult<void, KVPutError> {
 		const now = new Date().getTime();
 		const expiration = options?.expiration
 			? options.expiration instanceof Date
@@ -59,11 +53,12 @@ export class MemoryKVProvider implements KVProvider {
 			: undefined;
 		const item: Item = { value, expiration };
 		this.#cache.set(key, item, expiration ? expiration - now : undefined);
+		return ok();
 	}
 
 	async list(
 		{ prefix, cursor = "", limit = 10 }: KVListOptions,
-	): Promise<KVListResult> {
+	): PromisedResult<KVListResult, never> {
 		const prefixEnd = prefix.length;
 		const keys: KVKey[] = [];
 		let count = 0;
@@ -73,22 +68,26 @@ export class MemoryKVProvider implements KVProvider {
 				key.substring(0) > cursor
 			) {
 				count++;
-				keys.push(await this.get(key));
+				const result = await this.get(key);
+				if (isResultOk(result)) {
+					keys.push(result.value);
+				}
 				if (count >= limit) {
 					break;
 				}
 			}
 		}
 		const done = count !== limit;
-		return {
+		return ok({
 			keys: keys as unknown as ReadonlyArray<KVKey>,
 			done,
 			next: done ? undefined : keys.at(-1)?.key,
-		};
+		});
 	}
 
 	// deno-lint-ignore require-await
-	async delete(key: string): Promise<void> {
+	async delete(key: string): PromisedResult<void, never> {
 		this.#cache.delete(key);
+		return ok();
 	}
 }

@@ -1,10 +1,10 @@
-import { Configuration } from "./config.ts";
-import { AssetService } from "./services/asset.ts";
-import { AuthenticationService } from "./services/auth.ts";
-import { CounterService } from "./services/counter.ts";
-import { IdentityService } from "./services/identity.ts";
-import { KVService } from "./services/kv.ts";
-import { SessionService } from "./services/session.ts";
+import type { Configuration } from "./config.ts";
+import type { AssetService } from "./services/asset.ts";
+import type { AuthenticationService } from "./services/auth.ts";
+import type { CounterService } from "./services/counter.ts";
+import type { IdentityService } from "./services/identity.ts";
+import type { KVService } from "./services/kv.ts";
+import type { SessionService } from "./services/session.ts";
 
 /**
  * Baseless's context

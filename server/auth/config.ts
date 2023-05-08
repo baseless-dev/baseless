@@ -1,11 +1,8 @@
+import { AuthenticationChallenger } from "../../common/authentication/challenger.ts";
+import { AuthenticationIdenticator } from "../../common/authentication/identicator.ts";
+import { AuthenticationStep, assertAuthenticationStep } from "../../common/authentication/step.ts";
+import { Identity } from "../../common/identity/identity.ts";
 import { Context } from "../context.ts";
-import {
-	Identity,
-	IdentityChallenge,
-	IdentityIdentification,
-} from "../providers/identity.ts";
-import { MessageData } from "../providers/message.ts";
-import { assertAuthenticationStep, AuthenticationStep } from "./flow.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 
 export type AuthenticationKeys = {
@@ -13,37 +10,6 @@ export type AuthenticationKeys = {
 	readonly privateKey: KeyLike;
 	readonly publicKey: KeyLike;
 };
-
-export abstract class AuthenticationIdenticator {
-	abstract identify(
-		identityIdentification: IdentityIdentification,
-		identification: string,
-	): Promise<boolean | URL>;
-
-	sendMessage?: (
-		identityIdentification: IdentityIdentification,
-		message: MessageData,
-	) => Promise<void> = undefined;
-
-	sendInterval?: number = undefined;
-
-	sendCount?: number = undefined;
-}
-
-export abstract class AuthenticationChallenger {
-	// deno-lint-ignore require-await
-	async configureMeta(_challenge: string): Promise<Record<string, string>> {
-		return {};
-	}
-
-	// deno-lint-ignore no-unused-vars
-	async sendChallenge(identityChallenge: IdentityChallenge): Promise<void> {}
-
-	abstract verify(
-		identityChallenge: IdentityChallenge,
-		challenge: string,
-	): Promise<boolean>;
-}
 
 export type AuthenticationConfiguration = {
 	readonly enabled: boolean;
@@ -259,5 +225,5 @@ export class AuthenticationConfigurationBuilder {
 	}
 }
 
-export class AuthenticationMissingIdentificatorError extends Error {}
-export class AuthenticationMissingChallengerError extends Error {}
+export class AuthenticationMissingIdentificatorError extends Error { }
+export class AuthenticationMissingChallengerError extends Error { }

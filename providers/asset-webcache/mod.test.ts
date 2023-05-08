@@ -1,6 +1,6 @@
 import { LocalAssetProvider } from "../asset-local/mod.ts";
+import testAssetProvider from "../asset.test.ts";
 import { WebCacheAssetProvider } from "./mod.ts";
-import testAssetProvider from "../../server/providers/asset.test.ts";
 
 Deno.test("WebCacheAssetProvider", async (t) => {
 	const lap = new LocalAssetProvider(

@@ -20,7 +20,11 @@ export type ChoicePageProps = {};
 // https://github.com/baseless-dev/baseless/blob/41351d2ba2c914e37152afbedc7557497e7cc31a/server/auth/ui/components/Login.ts
 export default function ChoicePage({ }: ChoicePageProps) {
 	const currentLocale = "en"; // TODO obtain locale
-	const { loading, data, error } = useFetch("/api/auth/flow", {}, assertGetStepResult);
+	const { loading, data, error } = useFetch(
+		"/api/auth/flow",
+		{},
+		assertGetStepResult,
+	);
 	if (loading) {
 		return <Layout title="Login">Loading...</Layout>;
 	}
@@ -28,7 +32,7 @@ export default function ChoicePage({ }: ChoicePageProps) {
 		return <Layout title="Login">Error...</Layout>;
 	}
 	if (isGetStepReturnResult(data)) {
-		return <Navigate to="/auth/done" />
+		return <Navigate to="/auth/done" />;
 	}
 	if (!isAuthenticationChoice(data.step)) {
 		return <Navigate to={`/auth/step/${data.step.type}`} />;

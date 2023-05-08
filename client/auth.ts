@@ -6,7 +6,7 @@ import {
 	isAuthenticationResult,
 	isAuthenticationResultEncryptedState,
 } from "../server/services/auth.ts";
-import { EventEmitter } from "../shared/eventemitter.ts";
+import { EventEmitter } from "../common/system/event_emitter.ts";
 import { App, assertApp } from "./app.ts";
 
 // TODO move to server
@@ -28,7 +28,7 @@ export function assertPersistence(
 		throw new InvalidPersistenceError();
 	}
 }
-export class InvalidPersistenceError extends Error {}
+export class InvalidPersistenceError extends Error { }
 
 const tokenMap = new Map<string, Tokens | undefined>();
 const onAuthStateChangeMap = new Map<string, EventEmitter<never>>();
@@ -49,7 +49,7 @@ function getAuthData(app: App) {
 	return { storage, tokens, onAuthStateChange };
 }
 
-export class AuthNotInitializedError extends Error {}
+export class AuthNotInitializedError extends Error { }
 
 export function initializeAuth(app: App): App {
 	assertApp(app);
@@ -58,7 +58,7 @@ export function initializeAuth(app: App): App {
 	}
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	storageMap.set(
 		app.clientId,
 		persistence === "local"
@@ -91,7 +91,7 @@ export function getPersistence(app: App): Persistence {
 	assertInitializedAuth(app);
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	assertPersistence(persistence);
 	return persistence;
 }

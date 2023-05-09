@@ -1,11 +1,10 @@
-import { assertAuthenticationStep } from "../server/auth/flow.ts";
+import { InvalidAuthenticationResultError } from "../common/authentication/errors.ts";
+import { isAuthenticationResultEncryptedState } from "../common/authentication/results/encrypted_state.ts";
 import {
 	assertAuthenticationResult,
-	assertGetStepResult,
-	InvalidAuthenticationResultError,
 	isAuthenticationResult,
-	isAuthenticationResultEncryptedState,
-} from "../server/services/auth.ts";
+} from "../common/authentication/results/result.ts";
+import { assertAuthenticationStep } from "../common/authentication/step.ts";
 import { EventEmitter } from "../common/system/event_emitter.ts";
 import { App, assertApp } from "./app.ts";
 
@@ -28,7 +27,7 @@ export function assertPersistence(
 		throw new InvalidPersistenceError();
 	}
 }
-export class InvalidPersistenceError extends Error { }
+export class InvalidPersistenceError extends Error {}
 
 const tokenMap = new Map<string, Tokens | undefined>();
 const onAuthStateChangeMap = new Map<string, EventEmitter<never>>();
@@ -49,7 +48,7 @@ function getAuthData(app: App) {
 	return { storage, tokens, onAuthStateChange };
 }
 
-export class AuthNotInitializedError extends Error { }
+export class AuthNotInitializedError extends Error {}
 
 export function initializeAuth(app: App): App {
 	assertApp(app);
@@ -58,7 +57,7 @@ export function initializeAuth(app: App): App {
 	}
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-		"local";
+			"local";
 	storageMap.set(
 		app.clientId,
 		persistence === "local"
@@ -91,7 +90,7 @@ export function getPersistence(app: App): Persistence {
 	assertInitializedAuth(app);
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-		"local";
+			"local";
 	assertPersistence(persistence);
 	return persistence;
 }
@@ -143,7 +142,7 @@ export async function getSignInStep(app: App, state?: string) {
 	});
 	const result = await resp.json();
 	// TODO error handling
-	assertGetStepResult(result);
+	assertAuthenticationResult(result);
 	return result;
 }
 

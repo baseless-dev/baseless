@@ -1,5 +1,8 @@
 // deno-lint-ignore no-unused-vars
-import type { CounterIncrementError, CounterResetError } from "../common/counter/errors.ts";
+import type {
+	CounterIncrementError,
+	CounterResetError,
+} from "../common/counter/errors.ts";
 
 /**
  * Counter Provider

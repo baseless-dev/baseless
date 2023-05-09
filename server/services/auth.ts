@@ -8,10 +8,13 @@ import {
 	AuthenticationRateLimitedError,
 	AuthenticationSendValidationCodeError,
 } from "../../common/authentication/errors.ts";
+import { isAuthenticationResultDone } from "../../common/authentication/results/done.ts";
 import { AuthenticationResult } from "../../common/authentication/results/result.ts";
+import { isAuthenticationResultState } from "../../common/authentication/results/state.ts";
 import {
 	assertAuthenticationStateIdentified,
 	AuthenticationState,
+	isAuthenticationStateIdentified,
 } from "../../common/authentication/state.ts";
 import {
 	AuthenticationStep,
@@ -37,66 +40,6 @@ import {
 import { Configuration } from "../config.ts";
 import { Context } from "../context.ts";
 
-export type GetStepYieldResult = {
-	done: false;
-	step: AuthenticationStep;
-	first: boolean;
-	last: boolean;
-};
-export type GetStepReturnResult = { done: true };
-export type GetStepResult = GetStepYieldResult | GetStepReturnResult;
-
-export function isGetStepYieldResult(
-	value?: unknown,
-): value is GetStepYieldResult {
-	return !!value && typeof value === "object" && "done" in value &&
-		value.done === false && "step" in value &&
-		isAuthenticationStep(value.step) && "first" in value &&
-		typeof value.first === "boolean" && "last" in value &&
-		typeof value.last === "boolean";
-}
-
-export function assertGetStepYieldResult(
-	value: unknown,
-): asserts value is GetStepYieldResult {
-	if (!isGetStepYieldResult(value)) {
-		throw new InvalidGetStepYieldResultError();
-	}
-}
-
-export class InvalidGetStepYieldResultError extends Error { }
-
-export function isGetStepReturnResult(
-	value?: unknown,
-): value is GetStepReturnResult {
-	return !!value && typeof value === "object" && "done" in value &&
-		value.done === true;
-}
-
-export function assertGetStepReturnResult(
-	value?: unknown,
-): asserts value is GetStepReturnResult {
-	if (!isGetStepReturnResult(value)) {
-		throw new InvalidGetStepReturnResultError();
-	}
-}
-
-export class InvalidGetStepReturnResultError extends Error { }
-
-export function isGetStepResult(value?: unknown): value is GetStepResult {
-	return isGetStepYieldResult(value) || isGetStepReturnResult(value);
-}
-
-export function assertGetStepResult(
-	value?: unknown,
-): asserts value is GetStepResult {
-	if (!isGetStepResult(value)) {
-		throw new InvalidGetStepResultError();
-	}
-}
-
-export class InvalidGetStepResultError extends Error { }
-
 export class AuthenticationService {
 	#logger = createLogger("auth-service");
 	#configuration: Configuration;
@@ -119,7 +62,7 @@ export class AuthenticationService {
 	async getStep(
 		state?: AuthenticationState,
 		context?: Context,
-	): Promise<GetStepResult> {
+	): Promise<AuthenticationResult> {
 		state ??= { choices: [] };
 		const step = flatten(
 			context
@@ -132,14 +75,17 @@ export class AuthenticationService {
 		);
 		const result = getStepAtPath(step, state.choices);
 		if (result.done) {
-			return { done: true };
+			if (isAuthenticationStateIdentified(state)) {
+				return { done: true, identityId: state.identity };
+			}
+			throw new AuthenticationFlowDoneError();
 		}
 		const last = isAuthenticationChoice(result.step)
 			? false
 			: getStepAtPath(step, [...state.choices, result.step.type])
 				.done;
 		const first = state.choices.length === 0;
-		return { done: false, step: result.step, first, last };
+		return { done: false, step: result.step, first, last, state };
 	}
 
 	async submitIdentification(
@@ -152,12 +98,14 @@ export class AuthenticationService {
 			this.#configuration.auth.security.rateLimit.identificationInterval * 1000;
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
-		if (await this.#counterProvider.increment(counterKey, 1, counterInterval) > this.#configuration.auth.security.rateLimit.identificationCount
+		if (
+			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
+				this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
 		const result = await this.getStep(state);
-		if (result.done) {
+		if (!isAuthenticationResultState(result)) {
 			throw new AuthenticationFlowDoneError();
 		}
 		const step = isAuthenticationChoice(result.step)
@@ -189,14 +137,7 @@ export class AuthenticationService {
 			identity: identityIdentification.identityId,
 		};
 		const newResult = await this.getStep(newState);
-		if (newResult.done) {
-			return { done: true, identityId: identityIdentification.identityId };
-		} else {
-			return {
-				...await this.getStep(newState),
-				state: newState,
-			};
-		}
+		return newResult;
 	}
 
 	/**
@@ -211,17 +152,23 @@ export class AuthenticationService {
 	): Promise<AuthenticationResult> {
 		assertAuthenticationStateIdentified(state);
 
-		const counterInterval = this.#configuration.auth.security.rateLimit.identificationInterval;
-		const counterLimit = this.#configuration.auth.security.rateLimit.identificationCount;
+		const counterInterval =
+			this.#configuration.auth.security.rateLimit.identificationInterval;
+		const counterLimit =
+			this.#configuration.auth.security.rateLimit.identificationCount;
 		const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
-		const counter = await this.#counterProvider.increment(counterKey, 1, counterInterval);
+		const counter = await this.#counterProvider.increment(
+			counterKey,
+			1,
+			counterInterval,
+		);
 		if (counter > counterLimit) {
 			throw new AuthenticationRateLimitedError();
 		}
 
 		const result = await this.getStep(state);
-		if (result.done) {
+		if (!isAuthenticationResultState(result)) {
 			throw new AuthenticationFlowDoneError();
 		}
 		const step = isAuthenticationChoice(result.step)
@@ -250,13 +197,7 @@ export class AuthenticationService {
 			identity: state.identity,
 		};
 		const newResult = await this.getStep(newState);
-		if (newResult.done) {
-			return { done: true, identityId: state.identity };
-		}
-		return {
-			...await this.getStep(newState) as GetStepYieldResult,
-			state: newState,
-		};
+		return newResult;
 	}
 
 	/**
@@ -281,7 +222,11 @@ export class AuthenticationService {
 				const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
 				const counterKey =
 					`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
-				const counter = await this.#counterProvider.increment(counterKey, 1, counterInterval);
+				const counter = await this.#counterProvider.increment(
+					counterKey,
+					1,
+					counterInterval,
+				);
 				if (counter > counterLimit) {
 					throw new AuthenticationRateLimitedError();
 				}
@@ -293,7 +238,8 @@ export class AuthenticationService {
 				{ expiration: 1000 * 60 * 5 },
 			);
 
-			const identityIdentifications = await this.#identityProvider.listIdentification(identityId);
+			const identityIdentifications = await this.#identityProvider
+				.listIdentification(identityId);
 			const identityIdentification = identityIdentifications.find((ii) =>
 				ii.type === type
 			);
@@ -313,17 +259,24 @@ export class AuthenticationService {
 		code: string,
 	): Promise<void> {
 		try {
-			const counterInterval = this.#configuration.auth.security.rateLimit.confirmVerificationCodeInterval;
-			const counterLimit = this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount;
+			const counterInterval = this.#configuration.auth.security.rateLimit
+				.confirmVerificationCodeInterval;
+			const counterLimit = this.#configuration.auth.security.rateLimit
+				.confirmVerificationCodeCount;
 			const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
 			const counterKey =
 				`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
-			const counter = await this.#counterProvider.increment(counterKey, 1, counterInterval);
+			const counter = await this.#counterProvider.increment(
+				counterKey,
+				1,
+				counterInterval,
+			);
 			if (counter > counterLimit) {
 				throw new AuthenticationRateLimitedError();
 			}
 
-			const identityIdentifications = await this.#identityProvider.listIdentification(identityId);
+			const identityIdentifications = await this.#identityProvider
+				.listIdentification(identityId);
 			const identityIdentification = identityIdentifications.find((ii) =>
 				ii.type === type
 			);
@@ -331,16 +284,20 @@ export class AuthenticationService {
 				throw new AuthenticationConfirmValidationCodeError();
 			}
 
-			const savedCode = await this.#kvProvider.get(`/auth/validationcode/${identityId}/${type}`).catch(_ => undefined);
+			const savedCode = await this.#kvProvider.get(
+				`/auth/validationcode/${identityId}/${type}`,
+			).catch((_) => undefined);
 			if (savedCode?.value === code) {
 				await this.#identityProvider.updateIdentification({
 					...identityIdentification,
 					verified: true,
-				})
+				});
 				return;
 			}
 		} catch (inner) {
-			this.#logger.error(`Failed to confirm identification validation code, got ${inner}`);
+			this.#logger.error(
+				`Failed to confirm identification validation code, got ${inner}`,
+			);
 		}
 		throw new AuthenticationConfirmValidationCodeError();
 	}

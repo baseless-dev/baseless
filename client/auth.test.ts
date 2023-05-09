@@ -25,14 +25,18 @@ import { LoggerMessageProvider } from "../providers/message-logger/mod.ts";
 import { IdentityService } from "../server/services/identity.ts";
 import { Server } from "../server/server.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
-import { email, oneOf, otp, password, sequence } from "../server/auth/flow.ts";
 import { EmailAuthentificationIdenticator } from "../providers/auth-email/mod.ts";
 import { PasswordAuthentificationChallenger } from "../providers/auth-password/mod.ts";
 import {
-	assertAuthenticationResultDone,
-	assertAuthenticationResultEncryptedState,
-	assertGetStepYieldResult,
-} from "../server/services/auth.ts";
+	email,
+	oneOf,
+	otp,
+	password,
+	sequence,
+} from "../common/authentication/steps/helpers.ts";
+import { assertAuthenticationResultState } from "../common/authentication/results/state.ts";
+import { assertAuthenticationResultEncryptedState } from "../common/authentication/results/encrypted_state.ts";
+import { assertAuthenticationResultDone } from "../common/authentication/results/done.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const mail = email({
@@ -147,11 +151,11 @@ Deno.test("Client Auth", async (t) => {
 
 	await t.step("getSignInStep", async () => {
 		const result = await getSignInStep(app);
-		assertGetStepYieldResult(result);
+		assertAuthenticationResultState(result);
 		assertEquals(result.first, true);
 		assertEquals(result.last, false);
 		assertEquals(result.step, mail);
-		assertGetStepYieldResult(await getSignInStep(app, "invalid"));
+		assertAuthenticationResultState(await getSignInStep(app, "invalid"));
 	});
 
 	await t.step("submitSignInIdentification", async () => {

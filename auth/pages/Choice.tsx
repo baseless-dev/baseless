@@ -18,7 +18,7 @@ import useFetch from "../hooks/useFetch.ts";
 export type ChoicePageProps = {};
 
 // https://github.com/baseless-dev/baseless/blob/41351d2ba2c914e37152afbedc7557497e7cc31a/server/auth/ui/components/Login.ts
-export default function ChoicePage({ }: ChoicePageProps) {
+export default function ChoicePage({}: ChoicePageProps) {
 	const currentLocale = "en"; // TODO obtain locale
 	const { loading, data, error } = useFetch(
 		"/api/auth/flow",

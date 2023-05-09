@@ -2,8 +2,8 @@ import { useEffect, useReducer, useRef } from "../deps.ts";
 
 export type State<T> =
 	| { loading: false; data: T; error: undefined }
-	| { loading: false; data: undefined; error: Error; }
-	| { loading: true; data: undefined; error: undefined; };
+	| { loading: false; data: undefined; error: Error }
+	| { loading: true; data: undefined; error: undefined };
 
 type Cache<T> = { [url: string]: T };
 

@@ -46,7 +46,7 @@ export class KVIdentityProvider implements IdentityProvider {
 	): Promise<Identity<Partial<Meta>>> {
 		assertAutoId(id);
 		try {
-			const value = await this.kv.get(`${this.prefix}/identities/${id}`)
+			const value = await this.kv.get(`${this.prefix}/identities/${id}`);
 			const identity = JSON.parse(value.value) as unknown;
 			assertIdentity(identity);
 			return identity as Identity<Meta>;
@@ -86,7 +86,7 @@ export class KVIdentityProvider implements IdentityProvider {
 		expiration?: number | Date,
 	): Promise<void> {
 		try {
-			const exists = await this.get(identity.id).catch(_ => undefined);
+			const exists = await this.get(identity.id).catch((_) => undefined);
 			if (!exists) {
 				throw new IdentityExistsError();
 			}
@@ -108,7 +108,7 @@ export class KVIdentityProvider implements IdentityProvider {
 	async delete(id: AutoId): Promise<void> {
 		try {
 			assertAutoId(id);
-			const exists = await this.get(id).catch(_ => undefined);
+			const exists = await this.get(id).catch((_) => undefined);
 			if (!exists) {
 				throw new IdentityExistsError();
 			}
@@ -124,7 +124,7 @@ export class KVIdentityProvider implements IdentityProvider {
 				for (const { type } of await this.listChallenge(id)) {
 					ops.push(this.deleteChallenge(id, type));
 				}
-				await Promise.all(ops)
+				await Promise.all(ops);
 				return;
 			} catch (inner) {
 				this.#logger.error(inner);
@@ -193,7 +193,9 @@ export class KVIdentityProvider implements IdentityProvider {
 				`${this.prefix}/identities/${identityIdentification.identityId}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
 			const keyIdentification =
 				`${this.prefix}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
-			const exists = await this.kv.get(keyIdentification).catch(_ => undefined);
+			const exists = await this.kv.get(keyIdentification).catch((_) =>
+				undefined
+			);
 			if (exists) {
 				throw new IdentityIdentificationExistsError();
 			}
@@ -226,7 +228,9 @@ export class KVIdentityProvider implements IdentityProvider {
 				`${this.prefix}/identities/${identityIdentification.identityId}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
 			const keyIdentification =
 				`${this.prefix}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
-			const exists = await this.kv.get(keyIdentification).catch(_ => undefined);
+			const exists = await this.kv.get(keyIdentification).catch((_) =>
+				undefined
+			);
 			if (!exists) {
 				throw new IdentityIdentificationNotFoundError();
 			}
@@ -261,7 +265,9 @@ export class KVIdentityProvider implements IdentityProvider {
 				`${this.prefix}/identities/${id}/identifications/${type}:${identification}`;
 			const keyIdentification =
 				`${this.prefix}/identifications/${type}:${identification}`;
-			const exists = await this.kv.get(keyIdentification).catch(_ => undefined);
+			const exists = await this.kv.get(keyIdentification).catch((_) =>
+				undefined
+			);
 			if (!exists) {
 				throw new IdentityIdentificationNotFoundError();
 			}
@@ -330,7 +336,7 @@ export class KVIdentityProvider implements IdentityProvider {
 		try {
 			const key =
 				`${this.prefix}/identities/${identityChallenge.identityId}/challenges/${identityChallenge.type}`;
-			const exists = await this.kv.get(key).catch(_ => undefined);
+			const exists = await this.kv.get(key).catch((_) => undefined);
 			if (exists) {
 				throw new IdentityChallengeExistsError();
 			}
@@ -356,7 +362,7 @@ export class KVIdentityProvider implements IdentityProvider {
 		try {
 			const key =
 				`${this.prefix}/identities/${identityChallenge.identityId}/challenges/${identityChallenge.type}`;
-			const exists = await this.kv.get(key).catch(_ => undefined);
+			const exists = await this.kv.get(key).catch((_) => undefined);
 			if (!exists) {
 				throw new IdentityChallengeNotFoundError();
 			}
@@ -382,7 +388,7 @@ export class KVIdentityProvider implements IdentityProvider {
 		try {
 			assertAutoId(id);
 			const key = `${this.prefix}/identities/${id}/challenges/${type}`;
-			const exists = await this.kv.get(key).catch(_ => undefined);
+			const exists = await this.kv.get(key).catch((_) => undefined);
 			if (!exists) {
 				throw new IdentityChallengeNotFoundError();
 			}

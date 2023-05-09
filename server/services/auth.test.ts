@@ -15,6 +15,7 @@ import { PasswordAuthentificationChallenger } from "../../providers/auth-passwor
 import * as h from "../../common/authentication/steps/helpers.ts";
 import { Message } from "../../common/message/message.ts";
 import { setGlobalLogHandler } from "../../common/system/logger.ts";
+import { autoid } from "../../common/system/autoid.ts";
 
 Deno.test("AuthenticationService", async (t) => {
 	const email = h.email({ icon: "", label: {} });
@@ -73,6 +74,7 @@ Deno.test("AuthenticationService", async (t) => {
 		assertEquals(
 			await authService.getStep(),
 			{
+				state: { choices: [] },
 				done: false,
 				step: h.oneOf(email, github),
 				first: true,
@@ -82,23 +84,27 @@ Deno.test("AuthenticationService", async (t) => {
 		assertEquals(
 			await authService.getStep({ choices: ["email"] }),
 			{
+				state: { choices: ["email"] },
 				done: false,
 				step: password,
 				first: false,
 				last: true,
 			},
 		);
-		assertEquals(
-			await authService.getStep({ choices: ["github"] }),
-			{
-				done: true,
-			},
+		await assertRejects(
+			() => authService.getStep({ choices: ["github"] }),
 		);
+		await assertRejects(
+			() => authService.getStep({ choices: ["email", "password"] }),
+		);
+		const identityId = autoid();
 		assertEquals(
 			await authService.getStep({
+				identity: identityId,
 				choices: ["email", "password"],
 			}),
 			{
+				identityId,
 				done: true,
 			},
 		);
@@ -167,7 +173,7 @@ Deno.test("AuthenticationService", async (t) => {
 		await authService.sendIdentificationValidationCode(ident1.id, "email");
 		verificationCode = messages.pop()?.message.text ?? "";
 		assertEquals(verificationCode.length, 6);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 	});
 
 	await t.step("confirmIdentificationValidationCode", async () => {

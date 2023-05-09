@@ -143,6 +143,7 @@ export class SqliteKVProvider implements KVProvider {
 					],
 				);
 				this.#logger.debug(`Key "${key}" set.`);
+				return;
 			} catch (inner) {
 				this.#logger.error(`Could not set key "${key}", got error : ${inner}`);
 			}
@@ -202,6 +203,7 @@ export class SqliteKVProvider implements KVProvider {
 					key,
 				]);
 				this.#logger.debug(`Key "${key}" deleted.`);
+				return;
 			} catch (inner) {
 				this.#logger.error(
 					`Could not delete key "${key}", got error : ${inner}`,
@@ -234,5 +236,5 @@ export class SqliteKVProvider implements KVProvider {
 	}
 }
 
-export class SqliteNotOpenedError extends Error { }
-export class SqliteUnknownError extends Error { }
+export class SqliteNotOpenedError extends Error {}
+export class SqliteUnknownError extends Error {}

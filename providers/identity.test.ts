@@ -91,11 +91,13 @@ export default async function testIdentityProvider(
 			ident2.type,
 			ident2.identification,
 		);
-		await assertRejects(() => ip.deleteIdentification(
-			identityId,
-			ident2.type,
-			ident2.identification,
-		));
+		await assertRejects(() =>
+			ip.deleteIdentification(
+				identityId,
+				ident2.type,
+				ident2.identification,
+			)
+		);
 	});
 
 	const challeng1: IdentityChallenge = {

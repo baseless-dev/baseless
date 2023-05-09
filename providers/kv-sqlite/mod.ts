@@ -8,7 +8,6 @@ import {
 	KVPutOptions,
 } from "../kv.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { err, ok, PromisedResult } from "../../common/system/result.ts";
 import { KVKeyNotFoundError, KVPutError } from "../../common/kv/errors.ts";
 
 export type SqliteKVProviderOptions = {
@@ -41,11 +40,12 @@ export class SqliteKVProvider implements KVProvider {
 
 	/**
 	 * Open a handle to the SQLite database
+	 * @throws {SqliteNotOpenedError}
 	 */
 	// deno-lint-ignore require-await
-	public async open(): PromisedResult<void, SqliteNotOpenedError> {
+	public async open(): Promise<void> {
 		if ("db" in this.#options) {
-			return ok();
+			throw new SqliteNotOpenedError();
 		}
 		try {
 			const db = this.#options.path === ":memory:"
@@ -56,20 +56,20 @@ export class SqliteKVProvider implements KVProvider {
 			);
 			this.#logger.debug(`Database initialized.`);
 			this.db = db;
-			return ok();
 		} catch (_inner) {
 			this.#logger.error(
 				`Could not create base table '${this.#options.tableName}'.`,
 			);
-			return err(new SqliteNotOpenedError());
+			throw new SqliteNotOpenedError();
 		}
 	}
 
 	/**
 	 * Close the handle to the SQLite database
+	 * @throws {SqliteUnknownError}
 	 */
 	// deno-lint-ignore require-await
-	public async close(): PromisedResult<void, SqliteUnknownError> {
+	public async close(): Promise<void> {
 		if ("db" in this.#options) {
 			this.db = undefined;
 		} else if (this.db) {
@@ -79,19 +79,21 @@ export class SqliteKVProvider implements KVProvider {
 				this.db = undefined;
 			} catch (_inner) {
 				this.#logger.error(`Could not close the database.`);
-				return err(new SqliteUnknownError());
+				throw new SqliteUnknownError();
 			}
 		}
-		return ok();
 	}
 
+	/**
+	 * @throws {KVKeyNotFoundError}
+	 */
 	// deno-lint-ignore require-await
 	async get(
 		key: string,
 		_options?: KVGetOptions,
-	): PromisedResult<KVKey, KVKeyNotFoundError> {
+	): Promise<KVKey> {
 		if (!this.db) {
-			return err(new KVKeyNotFoundError());
+			throw new KVKeyNotFoundError();
 		}
 		const now = new Date().getTime();
 		try {
@@ -101,27 +103,30 @@ export class SqliteKVProvider implements KVProvider {
 			);
 			if (rows.length === 0) {
 				this.#logger.debug(`Key "${key}" does not exists.`);
-				return err(new KVKeyNotFoundError());
+				throw new KVKeyNotFoundError();
 			}
-			return ok({
+			return {
 				key,
 				expiration: rows[0][1] ?? undefined,
 				value: rows[0][0],
-			});
+			};
 		} catch (inner) {
 			this.#logger.error(
 				`Could not retrieve key "${key}", got error : ${inner}`,
 			);
 		}
-		return err(new KVKeyNotFoundError());
+		throw new KVKeyNotFoundError();
 	}
 
+	/**
+	 * @throws {KVPutError}
+	 */
 	// deno-lint-ignore require-await
 	async put(
 		key: string,
 		value: string,
 		options?: KVPutOptions,
-	): PromisedResult<void, KVPutError> {
+	): Promise<void> {
 		if (this.db) {
 			const expireAt = options?.expiration
 				? options.expiration instanceof Date
@@ -142,13 +147,13 @@ export class SqliteKVProvider implements KVProvider {
 				this.#logger.error(`Could not set key "${key}", got error : ${inner}`);
 			}
 		}
-		return err(new KVPutError());
+		throw new KVPutError();
 	}
 
 	// deno-lint-ignore require-await
 	async list(
 		{ prefix, cursor = "", limit = 10 }: KVListOptions,
-	): PromisedResult<KVListResult, never> {
+	): Promise<KVListResult> {
 		if (this.db) {
 			const prefixMatch = `${prefix}%`;
 			const now = new Date().getTime();
@@ -168,26 +173,29 @@ export class SqliteKVProvider implements KVProvider {
 					}),
 				);
 				const done = keys.length !== limit;
-				return ok({
+				return {
 					keys: keys as unknown as ReadonlyArray<KVKey>,
 					done,
 					next: done ? undefined : keys[keys.length - 1]?.key,
-				});
+				};
 			} catch (inner) {
 				this.#logger.error(
 					`Could not list prefix "${prefix}", got error : ${inner}`,
 				);
 			}
 		}
-		return ok({
+		return {
 			done: true,
 			keys: [],
 			next: undefined,
-		});
+		};
 	}
 
+	/**
+	 * @throws {KVKeyNotFoundError}
+	 */
 	// deno-lint-ignore require-await
-	async delete(key: string): PromisedResult<void, KVKeyNotFoundError> {
+	async delete(key: string): Promise<void> {
 		if (this.db) {
 			try {
 				this.db.query(`DELETE FROM ${this.#options.tableName} WHERE key = ?`, [
@@ -200,16 +208,17 @@ export class SqliteKVProvider implements KVProvider {
 				);
 			}
 		}
-		return err(new KVKeyNotFoundError());
+		throw new KVKeyNotFoundError();
 	}
 
 	/**
 	 * Delete expired keys
+	 * @throws {SqliteNotOpenedError}
 	 */
 	// deno-lint-ignore require-await
-	async deleteExpiredKeys(): PromisedResult<void, SqliteNotOpenedError> {
+	async deleteExpiredKeys(): Promise<void> {
 		if (!this.db) {
-			return err(new SqliteNotOpenedError());
+			throw new SqliteNotOpenedError();
 		}
 		const now = new Date().getTime();
 		try {
@@ -220,11 +229,10 @@ export class SqliteKVProvider implements KVProvider {
 			this.#logger.debug(`Expired keys deleted.`);
 		} catch (inner) {
 			this.#logger.error(`Could not delete expired keys, got error : ${inner}`);
-			return err(new SqliteNotOpenedError());
+			throw new SqliteNotOpenedError();
 		}
-		return ok();
 	}
 }
 
-export class SqliteNotOpenedError extends Error {}
-export class SqliteUnknownError extends Error {}
+export class SqliteNotOpenedError extends Error { }
+export class SqliteUnknownError extends Error { }

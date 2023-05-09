@@ -1,5 +1,5 @@
-import { KVKeyNotFoundError, KVPutError } from "../common/kv/errors.ts";
-import { Result } from "../common/system/result.ts";
+// deno-lint-ignore no-unused-vars
+import type { KVKeyNotFoundError, KVPutError } from "../common/kv/errors.ts";
 
 /**
  * Options when getting a key
@@ -52,29 +52,31 @@ export interface KVProvider {
 	/**
 	 * Retrieve a single key
 	 *
-	 * @throw {@link KVKeyNotFoundError} This exception is thrown if the key is not found
+	 * @throws {KVKeyNotFoundError} This exception is thrown if the key is not found
 	 */
 	get(
 		key: string,
 		options?: KVGetOptions,
-	): Promise<Result<KVKey, KVKeyNotFoundError>>;
+	): Promise<KVKey>;
 
 	/**
 	 * Put a key
+	 * @throws {KVPutError}
 	 */
 	put(
 		key: string,
 		value: string,
 		options?: KVPutOptions,
-	): Promise<Result<void, KVPutError>>;
+	): Promise<void>;
 
 	/**
 	 * Retrieve keys at prefix
 	 */
-	list(options: KVListOptions): Promise<Result<KVListResult, never>>;
+	list(options: KVListOptions): Promise<KVListResult>;
 
 	/**
 	 * Delete a key
+	 * @throws {KVKeyNotFoundError}
 	 */
-	delete(key: string): Promise<Result<void, KVKeyNotFoundError>>;
+	delete(key: string): Promise<void>;
 }

@@ -1,12 +1,6 @@
 import { KVKeyNotFoundError, KVPutError } from "../../common/kv/errors.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import {
-	err,
-	isResultOk,
-	ok,
-	PromisedResult,
-} from "../../common/system/result.ts";
-import {
 	KVGetOptions,
 	KVKey,
 	KVListOptions,
@@ -24,15 +18,18 @@ export class WebStorageKVProvider implements KVProvider {
 	) {
 	}
 
+	/**
+	 * @throws {KVKeyNotFoundError}
+	 */
 	// deno-lint-ignore require-await
 	async get(
 		key: string,
 		_options?: KVGetOptions,
-	): PromisedResult<KVKey, KVKeyNotFoundError> {
+	): Promise<KVKey> {
 		const json = this.storage.getItem(`${this.prefix}${key}`);
 		if (json === null) {
 			this.#logger.debug(`Key "${key}" does not exists.`);
-			return err(new KVKeyNotFoundError());
+			throw new KVKeyNotFoundError();
 		}
 		let obj: Record<string, unknown>;
 		try {
@@ -41,7 +38,7 @@ export class WebStorageKVProvider implements KVProvider {
 			this.#logger.error(
 				`Coudn't parse JSON for key "${key}", got error : ${inner}.`,
 			);
-			return err(new KVKeyNotFoundError());
+			throw new KVKeyNotFoundError();
 		}
 		const value = typeof obj.value === "string" ? obj.value.toString() : "";
 		const expiration: number | undefined = typeof obj.expiration === "number"
@@ -50,21 +47,24 @@ export class WebStorageKVProvider implements KVProvider {
 		if (expiration && Date.now() > expiration) {
 			this.storage.removeItem(`/${this.prefix}${key}`);
 			this.#logger.debug(`Key "${key}" does not exists.`);
-			return err(new KVKeyNotFoundError());
+			throw new KVKeyNotFoundError();
 		}
-		return ok({
+		return {
 			key,
 			value: value,
 			expiration,
-		});
+		};
 	}
 
+	/**
+	 * @throws {KVPutError}
+	 */
 	// deno-lint-ignore require-await
 	async put(
 		key: string,
 		value: string,
 		options?: KVPutOptions,
-	): PromisedResult<void, KVPutError> {
+	): Promise<void> {
 		const expiration = options?.expiration
 			? options.expiration instanceof Date
 				? options.expiration.getTime()
@@ -75,12 +75,11 @@ export class WebStorageKVProvider implements KVProvider {
 			JSON.stringify({ value, expiration }),
 		);
 		this.#logger.debug(`Key "${key}" set.`);
-		return ok();
 	}
 
 	async list(
 		{ prefix, cursor = "", limit = 10 }: KVListOptions,
-	): PromisedResult<KVListResult, never> {
+	): Promise<KVListResult> {
 		const prefixStart = this.prefix.length;
 		const prefixEnd = this.prefix.length + prefix.length;
 		const keys: KVKey[] = [];
@@ -94,26 +93,23 @@ export class WebStorageKVProvider implements KVProvider {
 			) {
 				count++;
 				const result = await this.get(key.substring(prefixStart));
-				if (isResultOk(result)) {
-					keys.push(result.value);
-				}
+				keys.push(result);
 				if (count >= limit) {
 					break;
 				}
 			}
 		}
 		const done = count !== limit;
-		return ok({
+		return {
 			keys: keys as unknown as ReadonlyArray<KVKey>,
 			done,
 			next: done ? undefined : keys.at(-1)?.key,
-		});
+		};
 	}
 
 	// deno-lint-ignore require-await
-	async delete(key: string): PromisedResult<void, never> {
+	async delete(key: string): Promise<void> {
 		this.storage.removeItem(`${this.prefix}${key}`);
 		this.#logger.debug(`Key "${key}" deleted.`);
-		return ok();
 	}
 }

@@ -13,7 +13,6 @@ import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
 import { EmailAuthentificationIdenticator } from "../../providers/auth-email/mod.ts";
 import { PasswordAuthentificationChallenger } from "../../providers/auth-password/mod.ts";
 import * as h from "../../common/authentication/steps/helpers.ts";
-import { unwrap } from "../../common/system/result.ts";
 import { Message } from "../../common/message/message.ts";
 import { setGlobalLogHandler } from "../../common/system/logger.ts";
 
@@ -56,7 +55,7 @@ Deno.test("AuthenticationService", async (t) => {
 		kvProvider,
 	);
 
-	const ident1 = unwrap(await identityService.create({}));
+	const ident1 = await identityService.create({});
 	await identityService.createIdentification({
 		identityId: ident1.id,
 		type: "email",
@@ -168,7 +167,7 @@ Deno.test("AuthenticationService", async (t) => {
 		await authService.sendIdentificationValidationCode(ident1.id, "email");
 		verificationCode = messages.pop()?.message.text ?? "";
 		assertEquals(verificationCode.length, 6);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 	});
 
 	await t.step("confirmIdentificationValidationCode", async () => {

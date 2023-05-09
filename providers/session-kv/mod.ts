@@ -16,13 +16,6 @@ import {
 	InvalidAutoIdError,
 } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import {
-	assertResultOk,
-	err,
-	ok,
-	PromisedResult,
-	unwrap,
-} from "../../common/system/result.ts";
 import { KVProvider } from "../kv.ts";
 import { SessionProvider } from "../session.ts";
 
@@ -39,27 +32,32 @@ export class KVSessionProvider implements SessionProvider {
 		this.#prefix = prefix;
 	}
 
+	/**
+	 * @throws {SessionIDNotFoundError}
+	 */
 	async get<Meta extends Record<string, unknown>>(
 		sessionId: AutoId,
-	): PromisedResult<SessionData<Meta>, SessionIDNotFoundError> {
+	): Promise<SessionData<Meta>> {
 		try {
 			assertAutoId(sessionId);
 			const result = await this.#kvProvider.get(`/byId/${sessionId}`);
-			assertResultOk(result);
-			const sessionData = JSON.parse(result.value.value);
+			const sessionData = JSON.parse(result.value);
 			assertSessionData(sessionData);
-			return ok(sessionData as SessionData<Meta>);
+			return sessionData as SessionData<Meta>;
 		} catch (inner) {
 			this.#logger.error(`Failed to get session ${sessionId}, got ${inner}`);
 		}
-		return err(new SessionIDNotFoundError());
+		throw new SessionIDNotFoundError();
 	}
 
+	/**
+	 * @throws {SessionCreateError}
+	 */
 	async create(
 		identityId: AutoId,
 		meta: Record<string, unknown>,
 		expiration?: number | Date,
-	): PromisedResult<SessionData, SessionCreateError> {
+	): Promise<SessionData> {
 		try {
 			assertAutoId(identityId);
 			const id = autoid();
@@ -68,7 +66,7 @@ export class KVSessionProvider implements SessionProvider {
 				identityId,
 				meta,
 			};
-			const results = await Promise.all([
+			await Promise.all([
 				this.#kvProvider.put(`/byId/${id}`, JSON.stringify(sessionData), {
 					expiration,
 				}),
@@ -78,22 +76,22 @@ export class KVSessionProvider implements SessionProvider {
 					{ expiration },
 				),
 			]);
-			for (const result of results) {
-				assertResultOk(result);
-			}
-			return ok(sessionData);
+			return sessionData;
 		} catch (inner) {
 			this.#logger.error(`Failed to create session, got ${inner}`);
 		}
-		return err(new SessionCreateError());
+		throw new SessionCreateError();
 	}
 
+	/**
+	 * @throws {SessionUpdateError}
+	 */
 	async update(
 		sessionData: SessionData,
-	): PromisedResult<void, SessionUpdateError> {
+	): Promise<void> {
 		try {
 			assertSessionData(sessionData);
-			const results = await Promise.all([
+			await Promise.all([
 				this.#kvProvider.put(
 					`/byId/${sessionData.id}`,
 					JSON.stringify(sessionData),
@@ -103,58 +101,51 @@ export class KVSessionProvider implements SessionProvider {
 					JSON.stringify(sessionData),
 				),
 			]);
-			for (const result of results) {
-				assertResultOk(result);
-			}
-			return ok();
+			return;
 		} catch (inner) {
 			this.#logger.error(
 				`Failed to update session ${sessionData.id}, got ${inner}`,
 			);
 		}
-		return err(new SessionUpdateError());
+		throw new SessionUpdateError();
 	}
 
-	async destroy(sessionId: AutoId): PromisedResult<void, SessionDestroyError> {
+	/**
+	 * @throws {SessionDestroyError}
+	 */
+	async destroy(sessionId: AutoId): Promise<void> {
 		try {
 			assertAutoId(sessionId);
-			const sessionData = unwrap(await this.get(sessionId));
-			const results = await Promise.all([
+			const sessionData = await this.get(sessionId);
+			await Promise.all([
 				this.#kvProvider.delete(`/byId/${sessionData.id}`),
 				this.#kvProvider.delete(
 					`/byIdentity/${sessionData.identityId}/${sessionData.id}`,
 				),
 			]);
-			for (const result of results) {
-				assertResultOk(result);
-			}
-			return ok();
+			return;
 		} catch (inner) {
 			this.#logger.error(
 				`Failed to destroy session ${sessionId}, got ${inner}`,
 			);
 		}
-		return err(new SessionDestroyError());
+		throw new SessionDestroyError();
 	}
 
-	async list(identityId: AutoId): PromisedResult<SessionData[], never> {
+	async list(identityId: AutoId): Promise<SessionData[]> {
 		try {
 			assertAutoId(identityId);
-			const result = unwrap(
-				await this.#kvProvider.list({
-					prefix: `/byIdentity/${identityId}`,
-				}),
-			);
-			return ok(
-				result.keys.map((key) => JSON.parse(key.value)).filter(
-					isSessionData,
-				),
+			const result = await this.#kvProvider.list({
+				prefix: `/byIdentity/${identityId}`,
+			});
+			return result.keys.map((key) => JSON.parse(key.value)).filter(
+				isSessionData,
 			);
 		} catch (inner) {
 			this.#logger.error(
 				`Failed to list sessions for identity ${identityId}, got ${inner}`,
 			);
 		}
-		return ok([]);
+		return [];
 	}
 }

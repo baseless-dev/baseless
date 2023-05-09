@@ -6,18 +6,33 @@ import type {
 	SessionUpdateError,
 } from "../common/session/errors.ts";
 import type { AutoId } from "../common/system/autoid.ts";
-import type { Result } from "../common/system/result.ts";
 
 export interface SessionProvider {
+	/**
+	 * @throws {SessionIDNotFoundError}
+	 */
 	get<Meta extends Record<string, unknown>>(
 		sessionId: AutoId,
-	): Promise<Result<SessionData<Meta>, SessionIDNotFoundError>>;
+	): Promise<SessionData<Meta>>;
+
+	/**
+	 * @throws {SessionCreateError}
+	 */
 	create(
 		identityId: AutoId,
 		meta: Record<string, unknown>,
 		expiration?: number | Date,
-	): Promise<Result<SessionData, SessionCreateError>>;
-	update(sessionData: SessionData): Promise<Result<void, SessionUpdateError>>;
-	destroy(sessionId: AutoId): Promise<Result<void, SessionDestroyError>>;
-	list(identityId: AutoId): Promise<Result<SessionData[], never>>;
+	): Promise<SessionData>;
+
+	/**
+	 * @throws {SessionUpdateError}
+	 */
+	update(sessionData: SessionData): Promise<void>;
+
+	/**
+	 * @throws {SessionDestroyError}
+	 */
+	destroy(sessionId: AutoId): Promise<void>;
+
+	list(identityId: AutoId): Promise<SessionData[]>;
 }

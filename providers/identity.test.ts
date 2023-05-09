@@ -15,31 +15,31 @@ export default async function testIdentityProvider(
 ) {
 	let identityId = "";
 	await t.step("create", async () => {
-		const id1 = (await ip.create({ foo: "bar" })).unwrap;
+		const id1 = await ip.create({ foo: "bar" });
 		assertIdentity(id1);
 		assertEquals(id1.meta, { foo: "bar" });
 		identityId = id1.id;
 	});
 
 	await t.step("get", async () => {
-		const id1 = (await ip.get(identityId)).unwrap();
+		const id1 = await ip.get(identityId);
 		assertIdentity(id1);
 		assertEquals(id1.meta, { foo: "bar" });
 	});
 
 	await t.step("update", async () => {
 		await ip.update({ id: identityId, meta: { foo: "foo" } });
-		const ident1 = (await ip.get(identityId)).unwrap();
+		const ident1 = await ip.get(identityId);
 		assertIdentity(ident1);
 		assertEquals(ident1.meta, { foo: "foo" });
-		assert((await ip.update({ id: autoid(), meta: {} })).isError);
+		await assertRejects(() => ip.update({ id: autoid(), meta: {} }));
 	});
 
 	await t.step("delete", async () => {
-		const id2 = (await ip.create({ bar: "foo" })).unwrap();
+		const id2 = await ip.create({ bar: "foo" });
 		await ip.delete(id2.id);
-		assert((await ip.delete(id2.id)).isError);
-		assert((await ip.get(id2.id)).isError);
+		await assertRejects(() => ip.delete(id2.id));
+		await assertRejects(() => ip.get(id2.id));
 		await ip.get(identityId);
 	});
 
@@ -52,16 +52,16 @@ export default async function testIdentityProvider(
 	};
 	await t.step("createIdentification", async () => {
 		await ip.createIdentification(ident1);
-		assert((await ip.createIdentification(ident1)).isError);
+		await assertRejects(() => ip.createIdentification(ident1));
 	});
 
 	await t.step("matchIdentification", async () => {
-		const ident2 = (await ip.matchIdentification("username", "test")).unwrap();
+		const ident2 = await ip.matchIdentification("username", "test");
 		assertEquals(ident2, ident1);
 	});
 
 	await t.step("listIdentification", async () => {
-		const idents = (await ip.listIdentification(identityId)).unwrap();
+		const idents = await ip.listIdentification(identityId);
 		assertEquals(idents, [ident1]);
 	});
 
@@ -71,13 +71,13 @@ export default async function testIdentityProvider(
 			verified: true,
 		};
 		await ip.updateIdentification(ident2);
-		const ident3 = (await ip.matchIdentification("username", "test")).unwrap();
+		const ident3 = await ip.matchIdentification("username", "test");
 		assertEquals(ident2, ident3);
 		const ident4: IdentityIdentification = {
 			...ident1,
 			type: "foo",
 		};
-		assert((await ip.updateIdentification(ident4)).isError);
+		await assertRejects(() => ip.updateIdentification(ident4));
 	});
 
 	await t.step("deleteIdentification", async () => {
@@ -85,19 +85,17 @@ export default async function testIdentityProvider(
 			...ident1,
 			identification: "test2",
 		};
-		(await ip.createIdentification(ident2)).expect();
-		(await ip.deleteIdentification(
+		await ip.createIdentification(ident2);
+		await ip.deleteIdentification(
 			identityId,
 			ident2.type,
 			ident2.identification,
-		)).expect();
-		assert(
-			(await ip.deleteIdentification(
-				identityId,
-				ident2.type,
-				ident2.identification,
-			)).isError,
 		);
+		await assertRejects(() => ip.deleteIdentification(
+			identityId,
+			ident2.type,
+			ident2.identification,
+		));
 	});
 
 	const challeng1: IdentityChallenge = {
@@ -106,17 +104,17 @@ export default async function testIdentityProvider(
 		meta: { hash: "foo" },
 	};
 	await t.step("createChallenge", async () => {
-		(await ip.createChallenge(challeng1)).expect();
-		assert((await ip.createChallenge(challeng1)).isError);
+		await ip.createChallenge(challeng1);
+		await assertRejects(() => ip.createChallenge(challeng1));
 	});
 
 	await t.step("getChallenge", async () => {
-		const challeng2 = (await ip.getChallenge(identityId, "password")).unwrap();
+		const challeng2 = await ip.getChallenge(identityId, "password");
 		assertEquals(challeng2, challeng1);
 	});
 
 	await t.step("listChallenge", async () => {
-		const challengs = (await ip.listChallenge(identityId)).unwrap();
+		const challengs = await ip.listChallenge(identityId);
 		assertEquals(challengs, [challeng1]);
 	});
 
@@ -126,13 +124,13 @@ export default async function testIdentityProvider(
 			meta: { foo: "bar" },
 		};
 		await ip.updateChallenge(challeng2);
-		const challeng3 = (await ip.getChallenge(identityId, "password")).unwrap();
+		const challeng3 = await ip.getChallenge(identityId, "password");
 		assertEquals(challeng2, challeng3);
 		const challeng4: IdentityChallenge = {
 			...challeng1,
 			type: "foo",
 		};
-		assert((await ip.updateChallenge(challeng4)).isError);
+		await assertRejects(() => ip.updateChallenge(challeng4));
 	});
 
 	await t.step("deleteIdentification", async () => {
@@ -140,8 +138,8 @@ export default async function testIdentityProvider(
 			...challeng1,
 			type: "password2",
 		};
-		(await ip.createChallenge(challeng2)).expect();
-		(await ip.deleteChallenge(identityId, challeng2.type)).expect();
-		assert((await ip.deleteChallenge(identityId, challeng2.type)).isError);
+		await ip.createChallenge(challeng2);
+		await ip.deleteChallenge(identityId, challeng2.type);
+		await assertRejects(() => ip.deleteChallenge(identityId, challeng2.type));
 	});
 }

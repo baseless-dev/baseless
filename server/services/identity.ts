@@ -24,11 +24,6 @@ import {
 } from "../../common/identity/identification.ts";
 import { Identity } from "../../common/identity/identity.ts";
 import { AutoId } from "../../common/system/autoid.ts";
-import {
-	err,
-	isResultError,
-	PromisedResult,
-} from "../../common/system/result.ts";
 import { CounterProvider } from "../../providers/counter.ts";
 import { IdentityProvider } from "../../providers/identity.ts";
 import { AuthenticationMissingChallengerError } from "../auth/config.ts";
@@ -49,63 +44,74 @@ export class IdentityService {
 		this.#counterProvider = counterProvider;
 	}
 
+	/**
+	 * @throws {IdentityNotFoundError}
+	 */
 	get<Meta extends Record<string, unknown>>(
 		id: AutoId,
-	): PromisedResult<Identity<Partial<Meta>>, IdentityNotFoundError> {
+	): Promise<Identity<Partial<Meta>>> {
 		return this.#identityProvider.get(id);
 	}
 
+	/**
+	 * @throws {IdentityCreateError}
+	 */
 	create(
 		meta: Record<string, unknown>,
 		expiration?: number | Date,
-	): PromisedResult<Identity, IdentityCreateError> {
+	): Promise<Identity> {
 		// TODO life cycle hooks
 		return this.#identityProvider.create(meta, expiration);
 	}
 
+	/**
+	 * @throws {IdentityUpdateError}
+	 */
 	update(
 		identity: Identity<Record<string, unknown>>,
 		expiration?: number | Date,
-	): PromisedResult<void, IdentityUpdateError> {
+	): Promise<void> {
 		// TODO life cycle hooks
 		return this.#identityProvider.update(identity, expiration);
 	}
 
-	delete(id: AutoId): PromisedResult<void, IdentityDeleteError> {
+	/**
+	 * @throws {IdentityDeleteError}
+	 */
+	delete(id: AutoId): Promise<void> {
 		// TODO life cycle hooks
 		return this.#identityProvider.delete(id);
 	}
 
 	listIdentification(
 		id: AutoId,
-	): PromisedResult<IdentityIdentification[], never> {
+	): Promise<IdentityIdentification[]> {
 		return this.#identityProvider.listIdentification(id);
 	}
 
+	/**
+	 * @throws {IdentityIdentificationNotFoundError}
+	 */
 	matchIdentification<Meta extends Record<string, unknown>>(
 		type: string,
 		identification: string,
-	): PromisedResult<
-		IdentityIdentification<Meta>,
-		IdentityIdentificationNotFoundError
-	> {
+	): Promise<IdentityIdentification<Meta>> {
 		return this.#identityProvider.matchIdentification(type, identification);
 	}
 
+	/**
+	 * @throws {AuthenticationRateLimitedError}
+	 * @throws {IdentityIdentificationCreateError}
+	 */
 	async createIdentification(
 		identityIdentification: IdentityIdentification,
 		expiration?: number | Date,
-	): PromisedResult<
-		void,
-		AuthenticationRateLimitedError | IdentityIdentificationCreateError
-	> {
+	): Promise<void> {
 		const key =
 			`/auth/identification/${identityIdentification.type}:${identityIdentification.identification}`;
 		const result = await this.#counterProvider.increment(key, 1, 5 * 60 * 1000);
-		if (isResultError(result)) {
-			return err(new IdentityIdentificationCreateError());
-		} else if (result.value > 1) {
-			return err(new AuthenticationRateLimitedError());
+		if (result > 1) {
+			throw new AuthenticationRateLimitedError();
 		}
 		// TODO life cycle hooks
 		return this.#identityProvider.createIdentification(
@@ -114,10 +120,13 @@ export class IdentityService {
 		);
 	}
 
+	/**
+	 * @throws {IdentityIdentificationUpdateError}
+	 */
 	updateIdentification(
 		identityIdentification: IdentityIdentification,
 		expiration?: number | Date,
-	): PromisedResult<void, IdentityIdentificationUpdateError> {
+	): Promise<void> {
 		try {
 			assertIdentityIdentification(identityIdentification);
 			// TODO life cycle hooks
@@ -128,14 +137,17 @@ export class IdentityService {
 		} catch (_error) {
 			// skip
 		}
-		return Promise.resolve(err(new IdentityIdentificationUpdateError()));
+		throw new IdentityIdentificationUpdateError();
 	}
 
+	/**
+	 * @throws {IdentityIdentificationDeleteError}
+	 */
 	deleteIdentification(
 		id: AutoId,
 		type: string,
 		identification: string,
-	): PromisedResult<void, IdentityIdentificationDeleteError> {
+	): Promise<void> {
 		// TODO life cycle hooks
 		return this.#identityProvider.deleteIdentification(
 			id,
@@ -144,23 +156,29 @@ export class IdentityService {
 		);
 	}
 
-	listChallenge(id: AutoId): PromisedResult<IdentityChallenge[], never> {
+	listChallenge(id: AutoId): Promise<IdentityChallenge[]> {
 		return this.#identityProvider.listChallenge(id);
 	}
 
+	/**
+	 * @throws {IdentityChallengeNotFoundError}
+	 */
 	getChallenge<Meta extends Record<string, unknown>>(
 		id: AutoId,
 		type: string,
-	): PromisedResult<IdentityChallenge<Meta>, IdentityChallengeNotFoundError> {
+	): Promise<IdentityChallenge<Meta>> {
 		return this.#identityProvider.getChallenge(id, type);
 	}
 
+	/**
+	 * @throws {IdentityChallengeCreateError}
+	 */
 	async createChallenge(
 		identityId: AutoId,
 		type: string,
 		challenge: string,
 		expiration?: number | Date,
-	): PromisedResult<void, IdentityChallengeCreateError> {
+	): Promise<void> {
 		const challenger = this.#configuration.auth.flow.chalengers.get(type);
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
@@ -174,10 +192,13 @@ export class IdentityService {
 		}, expiration);
 	}
 
+	/**
+	 * @throws {IdentityChallengeCreateError}
+	 */
 	createChallengeWithMeta(
 		identityChallenge: IdentityChallenge,
 		expiration?: number | Date,
-	): PromisedResult<void, IdentityChallengeCreateError> {
+	): Promise<void> {
 		try {
 			assertIdentityChallenge(identityChallenge);
 			// TODO life cycle hooks
@@ -188,13 +209,16 @@ export class IdentityService {
 		} catch (_error) {
 			// skip
 		}
-		return Promise.resolve(err(new IdentityChallengeCreateError()));
+		throw new IdentityChallengeCreateError();
 	}
 
+	/**
+	 * @throws {IdentityChallengeUpdateError}
+	 */
 	updateChallenge(
 		identityChallenge: IdentityChallenge,
 		expiration?: number | Date,
-	): PromisedResult<void, IdentityChallengeUpdateError> {
+	): Promise<void> {
 		// TODO life cycle hooks
 		return this.#identityProvider.updateChallenge(
 			identityChallenge,
@@ -202,10 +226,13 @@ export class IdentityService {
 		);
 	}
 
+	/**
+	 * @throws {IdentityChallengeDeleteError}
+	 */
 	deleteChallenge(
 		id: AutoId,
 		type: string,
-	): PromisedResult<void, IdentityChallengeDeleteError> {
+	): Promise<void> {
 		// TODO life cycle hooks
 		return this.#identityProvider.deleteChallenge(id, type);
 	}

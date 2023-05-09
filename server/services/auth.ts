@@ -1,14 +1,33 @@
-import { AuthenticationRateLimitedError, AuthenticationFlowDoneError, AuthenticationInvalidStepError, AuthenticationMissingChallengeError, AuthenticationChallengeFailedError, AuthenticationMissingIdentificationError, AuthenticationConfirmValidationCodeError } from "../../common/authentication/errors.ts";
+import {
+	AuthenticationChallengeFailedError,
+	AuthenticationConfirmValidationCodeError,
+	AuthenticationFlowDoneError,
+	AuthenticationInvalidStepError,
+	AuthenticationMissingChallengeError,
+	AuthenticationMissingIdentificationError,
+	AuthenticationRateLimitedError,
+	AuthenticationSendValidationCodeError,
+} from "../../common/authentication/errors.ts";
 import { AuthenticationResult } from "../../common/authentication/results/result.ts";
-import { AuthenticationState, assertAuthenticationStateIdentified } from "../../common/authentication/state.ts";
-import { AuthenticationStep, isAuthenticationStep } from "../../common/authentication/step.ts";
+import {
+	assertAuthenticationStateIdentified,
+	AuthenticationState,
+} from "../../common/authentication/state.ts";
+import {
+	AuthenticationStep,
+	isAuthenticationStep,
+} from "../../common/authentication/step.ts";
 import { isAuthenticationChoice } from "../../common/authentication/steps/choice.ts";
 import { flatten } from "../../common/authentication/steps/flatten.ts";
 import { getStepAtPath } from "../../common/authentication/steps/get_step_at_path.ts";
-import { simplifyWithContext, simplify } from "../../common/authentication/steps/simplify.ts";
+import {
+	simplify,
+	simplifyWithContext,
+} from "../../common/authentication/steps/simplify.ts";
 import { AutoId } from "../../common/system/autoid.ts";
+import { createLogger } from "../../common/system/logger.ts";
 import { otp } from "../../common/system/otp.ts";
-import { unwrap } from "../../common/system/result.ts";
+import { Result, err, ok } from "../../common/system/result.ts";
 import { CounterProvider } from "../../providers/counter.ts";
 import { IdentityProvider } from "../../providers/identity.ts";
 import { KVProvider } from "../../providers/kv.ts";
@@ -79,8 +98,8 @@ export function assertGetStepResult(
 
 export class InvalidGetStepResultError extends Error { }
 
-
 export class AuthenticationService {
+	#logger = createLogger("auth-service");
 	#configuration: Configuration;
 	#identityProvider: IdentityProvider;
 	#counterProvider: CounterProvider;
@@ -135,7 +154,9 @@ export class AuthenticationService {
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
-			unwrap(await this.#counterProvider.increment(counterKey, 1, counterInterval)) >
+			unwrap(
+				await this.#counterProvider.increment(counterKey, 1, counterInterval),
+			) >
 			this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
@@ -158,8 +179,10 @@ export class AuthenticationService {
 			throw new AuthenticationMissingIdentificatorError();
 		}
 
-		const identityIdentification = unwrap(await this.#identityProvider
-			.matchIdentification(type, identification));
+		const identityIdentification = unwrap(
+			await this.#identityProvider
+				.matchIdentification(type, identification),
+		);
 
 		const identifyResult = await identificator.identify(
 			identityIdentification,
@@ -188,150 +211,141 @@ export class AuthenticationService {
 		type: string,
 		challenge: string,
 		subject: string,
-	): Promise<AuthenticationResult> {
-		assertAuthenticationStateIdentified(state);
+	): Promise<Result<AuthenticationResult, AuthenticationRateLimitedError | AuthenticationInvalidStepError>> {
+		try {
+			assertAuthenticationStateIdentified(state);
 
-		const counterInterval =
-			this.#configuration.auth.security.rateLimit.identificationInterval * 1000;
-		const slidingWindow = Math.round(Date.now() / counterInterval);
-		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
-		if (
-			unwrap(await this.#counterProvider.increment(counterKey, 1, counterInterval)) >
-			this.#configuration.auth.security.rateLimit.identificationCount
-		) {
-			throw new AuthenticationRateLimitedError();
-		}
+			const counterInterval = this.#configuration.auth.security.rateLimit.identificationInterval;
+			const counterLimit = this.#configuration.auth.security.rateLimit.identificationCount;
+			const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
+			const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
+			const counter = (await this.#counterProvider.increment(counterKey, 1, counterInterval)).or(ok(counterLimit)).unwrap();
+			if (counter > counterLimit) {
+				return err(new AuthenticationRateLimitedError());
+			}
 
-		const result = await this.getStep(state);
-		if (result.done) {
-			throw new AuthenticationFlowDoneError();
-		}
-		const step = isAuthenticationChoice(result.step)
-			? result.step.choices.find((s) => s.type === type)
-			: result.step;
-		if (!step) {
-			throw new AuthenticationInvalidStepError();
-		}
+			const result = await this.getStep(state);
+			if (result.done) {
+				throw new AuthenticationFlowDoneError();
+			}
+			const step = isAuthenticationChoice(result.step)
+				? result.step.choices.find((s) => s.type === type)
+				: result.step;
+			if (!step) {
+				throw new AuthenticationInvalidStepError();
+			}
 
-		const challenger = this.#configuration.auth.flow.chalengers.get(step.type);
-		if (!challenger) {
-			throw new AuthenticationMissingChallengerError();
-		}
+			const challenger = this.#configuration.auth.flow.chalengers.get(step.type);
+			if (!challenger) {
+				throw new AuthenticationMissingChallengerError();
+			}
 
-		const identityChallenge = unwrap(await this.#identityProvider.getChallenge(
-			state.identity,
-			step.type,
-		));
-		if (!identityChallenge) {
-			throw new AuthenticationMissingChallengeError();
-		}
+			const identityChallenge = (await this.#identityProvider.getChallenge(
+				state.identity,
+				step.type,
+			)).mapErr(() => err(new AuthenticationMissingChallengeError())).unwrap();
 
-		if (!await challenger.verify(identityChallenge, challenge)) {
-			throw new AuthenticationChallengeFailedError();
-		}
+			if (!await challenger.verify(identityChallenge, challenge)) {
+				throw new AuthenticationChallengeFailedError();
+			}
 
-		const newState = {
-			choices: [...state.choices, type],
-			identity: state.identity,
-		};
-		const newResult = await this.getStep(newState);
-		if (newResult.done) {
-			return { done: true, identityId: state.identity };
+			const newState = {
+				choices: [...state.choices, type],
+				identity: state.identity,
+			};
+			const newResult = await this.getStep(newState);
+			if (newResult.done) {
+				return { done: true, identityId: state.identity };
+			}
+			return {
+				...await this.getStep(newState) as GetStepYieldResult,
+				state: newState,
+			};
+		} catch (inner) {
+
 		}
-		return {
-			...await this.getStep(newState) as GetStepYieldResult,
-			state: newState,
-		};
 	}
 
 	async sendIdentificationValidationCode(
 		identityId: AutoId,
 		type: string,
-	) {
-		const identificator = this.#configuration.auth.flow.identificators.get(
-			type,
-		);
-		if (!identificator) {
-			throw new AuthenticationMissingIdentificatorError();
-		}
+	): Promise<Result<void, AuthenticationRateLimitedError | AuthenticationSendValidationCodeError>> {
+		try {
+			const identificator = this.#configuration.auth.flow.identificators.get(
+				type,
+			);
+			if (!identificator) {
+				return err(new AuthenticationSendValidationCodeError());
+			}
 
-		if (identificator.sendMessage) {
-			if (identificator.sendInterval && identificator.sendCount) {
-				const counterInterval = identificator.sendInterval * 1000;
-				const slidingWindow = Math.round(Date.now() / counterInterval);
-				const counterKey =
-					`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
-				if (
-					unwrap(await this.#counterProvider.increment(
-						counterKey,
-						1,
-						identificator.sendInterval,
-					)) >
-					identificator.sendCount
-				) {
-					throw new AuthenticationRateLimitedError();
+			if (identificator.sendMessage) {
+				if (identificator.sendInterval && identificator.sendCount) {
+					const counterInterval = identificator.sendInterval;
+					const counterLimit = identificator.sendCount;
+					const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
+					const counterKey =
+						`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
+					const counter = (await this.#counterProvider.increment(counterKey, 1, counterInterval)).or(ok(counterLimit)).unwrap();
+					if (counter > counterLimit) {
+						return err(new AuthenticationRateLimitedError());
+					}
+				}
+				const code = otp({ digits: 6 });
+				(await this.#kvProvider.put(
+					`/auth/validationcode/${identityId}/${type}`,
+					code,
+					{ expiration: 1000 * 60 * 5 },
+				)).expect(new AuthenticationSendValidationCodeError());
+
+				const identityIdentifications = (await this.#identityProvider.listIdentification(identityId)).unwrap();
+				const identityIdentification = identityIdentifications.find((ii) =>
+					ii.type === type
+				);
+				if (identityIdentification) {
+					await identificator.sendMessage(identityIdentification, { text: code });
 				}
 			}
-			const code = otp({ digits: 6 });
-			await this.#kvProvider.put(
-				`/auth/validationcode/${identityId}/${type}`,
-				code,
-				{ expiration: 1000 * 60 * 5 },
-			);
-
-			const identityIdentifications = unwrap(await this.#identityProvider
-				.listIdentification(identityId));
-			const identityIdentification = identityIdentifications.find((ii) =>
-				ii.type === type
-			);
-			if (!identityIdentification) {
-				throw new AuthenticationMissingIdentificationError();
-			}
-			await identificator.sendMessage(identityIdentification, { text: code });
+		} catch (inner) {
+			this.#logger.error(`Failed to send validation code, got ${inner}`);
 		}
+		return err(new AuthenticationSendValidationCodeError());
 	}
 
 	async confirmIdentificationValidationCode(
 		identityId: AutoId,
 		type: string,
 		code: string,
-	) {
-		const counterInterval = this.#configuration.auth.security.rateLimit
-			.confirmVerificationCodeInterval * 1000;
-		const slidingWindow = Math.round(Date.now() / counterInterval);
-		const counterKey =
-			`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
-		if (
-			unwrap(await this.#counterProvider.increment(
-				counterKey,
-				1,
-				this.#configuration.auth.security.rateLimit
-					.confirmVerificationCodeInterval,
-			)) >
-			this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount
-		) {
-			throw new AuthenticationRateLimitedError();
-		}
+	): Promise<Result<void, AuthenticationRateLimitedError | AuthenticationConfirmValidationCodeError>> {
+		try {
+			const counterInterval = this.#configuration.auth.security.rateLimit.confirmVerificationCodeInterval;
+			const counterLimit = this.#configuration.auth.security.rateLimit.confirmVerificationCodeCount;
+			const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
+			const counterKey =
+				`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
+			const counter = (await this.#counterProvider.increment(counterKey, 1, counterInterval)).or(ok(counterLimit)).unwrap();
+			if (counter > counterLimit) {
+				return err(new AuthenticationRateLimitedError());
+			}
 
-		const identityIdentifications = unwrap(await this.#identityProvider
-			.listIdentification(identityId));
-		const identityIdentification = identityIdentifications.find((ii) =>
-			ii.type === type
-		);
-		if (!identityIdentification) {
-			throw new AuthenticationMissingIdentificationError();
-		}
+			const identityIdentifications = (await this.#identityProvider.listIdentification(identityId)).unwrap();
+			const identityIdentification = identityIdentifications.find((ii) =>
+				ii.type === type
+			);
+			if (!identityIdentification) {
+				return err(new AuthenticationConfirmValidationCodeError());
+			}
 
-		const savedCode = unwrap(await this.#kvProvider.get(
-			`/auth/validationcode/${identityId}/${type}`,
-		));
-		if (!savedCode || savedCode.value !== code) {
-			throw new AuthenticationConfirmValidationCodeError();
+			const savedCode = await this.#kvProvider.get(`/auth/validationcode/${identityId}/${type}`);
+			if (savedCode.isOk && savedCode.value.value !== code) {
+				(await this.#identityProvider.updateIdentification({
+					...identityIdentification,
+					verified: true,
+				})).expect();
+				return ok();
+			}
+		} catch (inner) {
+			this.#logger.error(`Failed to confirm identification validation code, got ${inner}`);
 		}
-
-		await this.#identityProvider.updateIdentification({
-			...identityIdentification,
-			verified: true,
-		});
+		return err(new AuthenticationConfirmValidationCodeError());
 	}
 }

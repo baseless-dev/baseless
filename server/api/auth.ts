@@ -1,4 +1,3 @@
-import { RouterBuilder } from "../router.ts";
 import { Context } from "../context.ts";
 import type {
 	JWTPayload,
@@ -6,17 +5,9 @@ import type {
 } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 import { SignJWT } from "https://deno.land/x/jose@v4.13.1/jwt/sign.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.13.1/jwt/verify.ts";
-import {
-	assertAuthenticationState,
-	assertAuthenticationStateIdentified,
-	AuthenticationState,
-	isAuthenticationStateIdentified,
-} from "../auth/flow.ts";
-import {
-	assertAuthenticationResultState,
-	AuthenticationConfirmValidationCodeError,
-	AuthenticationSendValidationCodeError,
-} from "../services/auth.ts";
+import { AuthenticationSendValidationCodeError, AuthenticationConfirmValidationCodeError } from "../../common/authentication/errors.ts";
+import { AuthenticationState, assertAuthenticationState, isAuthenticationStateIdentified, assertAuthenticationStateIdentified } from "../../common/authentication/state.ts";
+import { RouterBuilder } from "../../common/system/router.ts";
 
 const authRouter = new RouterBuilder<[context: Context]>();
 

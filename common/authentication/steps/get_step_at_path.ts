@@ -4,7 +4,7 @@ import { oneOf } from "./helpers.ts";
 import { isAuthenticationSequence } from "./sequence.ts";
 import { simplify } from "./simplify.ts";
 
-export class AuthenticationStepAtPathError extends Error { }
+export class AuthenticationStepAtPathError extends Error {}
 
 export type GetStepAtPathYieldResult = {
 	done: false;

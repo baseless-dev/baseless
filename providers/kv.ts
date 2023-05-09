@@ -1,5 +1,5 @@
 import { KVKeyNotFoundError, KVPutError } from "../common/kv/errors.ts";
-import { PromisedResult } from "../common/system/result.ts";
+import { Result } from "../common/system/result.ts";
 
 /**
  * Options when getting a key
@@ -57,7 +57,7 @@ export interface KVProvider {
 	get(
 		key: string,
 		options?: KVGetOptions,
-	): PromisedResult<KVKey, KVKeyNotFoundError>;
+	): Promise<Result<KVKey, KVKeyNotFoundError>>;
 
 	/**
 	 * Put a key
@@ -66,15 +66,15 @@ export interface KVProvider {
 		key: string,
 		value: string,
 		options?: KVPutOptions,
-	): PromisedResult<void, KVPutError>;
+	): Promise<Result<void, KVPutError>>;
 
 	/**
 	 * Retrieve keys at prefix
 	 */
-	list(options: KVListOptions): PromisedResult<KVListResult, never>;
+	list(options: KVListOptions): Promise<Result<KVListResult, never>>;
 
 	/**
 	 * Delete a key
 	 */
-	delete(key: string): PromisedResult<void, KVKeyNotFoundError>;
+	delete(key: string): Promise<Result<void, KVKeyNotFoundError>>;
 }

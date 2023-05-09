@@ -17,5 +17,5 @@ Deno.test("KVSessionProvider", async (t) => {
 		}
 		return Promise.reject(new Error("No message"));
 	});
-	setGlobalLogHandler(() => { });
+	setGlobalLogHandler(() => {});
 });

@@ -8,7 +8,7 @@ import {
 import { contentType } from "https://deno.land/std@0.179.0/media_types/mod.ts";
 import { AssetProvider } from "../asset.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { PromisedResult, ok } from "../../common/system/result.ts";
+import { ok, Result } from "../../common/system/result.ts";
 
 export class LocalAssetProvider implements AssetProvider {
 	#logger = createLogger("asset-local");
@@ -18,7 +18,7 @@ export class LocalAssetProvider implements AssetProvider {
 		this.#rootDir = resolve(fromFileUrl(rootDir));
 	}
 
-	async fetch(request: Request): PromisedResult<Response, never> {
+	async fetch(request: Request): Promise<Result<Response, never>> {
 		const url = new URL(request.url);
 		try {
 			let filePath = join(this.#rootDir, normalize(url.pathname));
@@ -29,12 +29,14 @@ export class LocalAssetProvider implements AssetProvider {
 			}
 			if (stat.isFile) {
 				const file = await Deno.open(filePath, { read: true });
-				return ok(new Response(file.readable, {
-					headers: {
-						"Content-Type": contentType(extname(filePath)) ??
-							"application/octet",
-					},
-				}));
+				return ok(
+					new Response(file.readable, {
+						headers: {
+							"Content-Type": contentType(extname(filePath)) ??
+								"application/octet",
+						},
+					}),
+				);
 			} else {
 				return ok(new Response(null, { status: 404 }));
 			}

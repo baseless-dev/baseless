@@ -14,7 +14,10 @@ export default async function testAssetProvider(
 			resp1.value.headers.get("Content-Type"),
 			"text/html; charset=UTF-8",
 		);
-		assertEquals(await resp1.value.text(), "<html><body>This is HTML</body></html>");
+		assertEquals(
+			await resp1.value.text(),
+			"<html><body>This is HTML</body></html>",
+		);
 		const resp2 = await ap.fetch(new Request("http://test.local/404"));
 		assertResultOk(resp2, (v): v is Response => v instanceof Response);
 		assertEquals(resp2.value.status, 404);

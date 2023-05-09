@@ -13,7 +13,7 @@ export class EmailAuthentificationIdenticator
 
 	sendMessage = async (
 		identification: IdentityIdentification,
-		message: Omit<Message, 'recipient'>,
+		message: Omit<Message, "recipient">,
 	): Promise<void> => {
 		await this.#messageProvider.send({
 			recipient: identification.identification,

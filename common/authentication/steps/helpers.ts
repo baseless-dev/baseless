@@ -1,4 +1,4 @@
-import { AuthenticationStep, assertAuthenticationStep } from "../step.ts";
+import { assertAuthenticationStep, AuthenticationStep } from "../step.ts";
 import { AuthenticationChallenge } from "./challenge.ts";
 import { AuthenticationConditional } from "./conditional.ts";
 import { AuthenticationIdentification } from "./identification.ts";
@@ -52,4 +52,3 @@ export function otp(
 ): AuthenticationChallenge {
 	return { type, icon, label, prompt: "otp" };
 }
-

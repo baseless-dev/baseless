@@ -4,7 +4,7 @@ import {
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { SessionProvider } from "./session.ts";
 import { autoid } from "../common/system/autoid.ts";
-import { SessionData, assertSessionData } from "../common/session/data.ts";
+import { assertSessionData, SessionData } from "../common/session/data.ts";
 import { assertResultError, unwrap } from "../common/system/result.ts";
 
 export default async function testSessionProvider(

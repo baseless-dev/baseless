@@ -1,10 +1,34 @@
 import { AuthenticationRateLimitedError } from "../../common/authentication/errors.ts";
-import { IdentityChallenge, assertIdentityChallenge } from "../../common/identity/challenge.ts";
-import { IdentityChallengeCreateError, IdentityChallengeDeleteError, IdentityChallengeNotFoundError, IdentityChallengeUpdateError, IdentityCreateError, IdentityDeleteError, IdentityIdentificationCreateError, IdentityIdentificationDeleteError, IdentityIdentificationExistsError, IdentityIdentificationNotFoundError, IdentityIdentificationUpdateError, IdentityNotFoundError, IdentityUpdateError } from "../../common/identity/errors.ts";
-import { IdentityIdentification, assertIdentityIdentification } from "../../common/identity/identification.ts";
+import {
+	assertIdentityChallenge,
+	IdentityChallenge,
+} from "../../common/identity/challenge.ts";
+import {
+	IdentityChallengeCreateError,
+	IdentityChallengeDeleteError,
+	IdentityChallengeNotFoundError,
+	IdentityChallengeUpdateError,
+	IdentityCreateError,
+	IdentityDeleteError,
+	IdentityIdentificationCreateError,
+	IdentityIdentificationDeleteError,
+	IdentityIdentificationExistsError,
+	IdentityIdentificationNotFoundError,
+	IdentityIdentificationUpdateError,
+	IdentityNotFoundError,
+	IdentityUpdateError,
+} from "../../common/identity/errors.ts";
+import {
+	assertIdentityIdentification,
+	IdentityIdentification,
+} from "../../common/identity/identification.ts";
 import { Identity } from "../../common/identity/identity.ts";
 import { AutoId } from "../../common/system/autoid.ts";
-import { PromisedResult, err, isResultError } from "../../common/system/result.ts";
+import {
+	err,
+	isResultError,
+	PromisedResult,
+} from "../../common/system/result.ts";
 import { CounterProvider } from "../../providers/counter.ts";
 import { IdentityProvider } from "../../providers/identity.ts";
 import { AuthenticationMissingChallengerError } from "../auth/config.ts";
@@ -52,21 +76,29 @@ export class IdentityService {
 		return this.#identityProvider.delete(id);
 	}
 
-	listIdentification(id: AutoId): PromisedResult<IdentityIdentification[], never> {
+	listIdentification(
+		id: AutoId,
+	): PromisedResult<IdentityIdentification[], never> {
 		return this.#identityProvider.listIdentification(id);
 	}
 
 	matchIdentification<Meta extends Record<string, unknown>>(
 		type: string,
 		identification: string,
-	): PromisedResult<IdentityIdentification<Meta>, IdentityIdentificationNotFoundError> {
+	): PromisedResult<
+		IdentityIdentification<Meta>,
+		IdentityIdentificationNotFoundError
+	> {
 		return this.#identityProvider.matchIdentification(type, identification);
 	}
 
 	async createIdentification(
 		identityIdentification: IdentityIdentification,
 		expiration?: number | Date,
-	): PromisedResult<void, AuthenticationRateLimitedError | IdentityIdentificationCreateError> {
+	): PromisedResult<
+		void,
+		AuthenticationRateLimitedError | IdentityIdentificationCreateError
+	> {
 		const key =
 			`/auth/identification/${identityIdentification.type}:${identityIdentification.identification}`;
 		const result = await this.#counterProvider.increment(key, 1, 5 * 60 * 1000);
@@ -170,7 +202,10 @@ export class IdentityService {
 		);
 	}
 
-	deleteChallenge(id: AutoId, type: string): PromisedResult<void, IdentityChallengeDeleteError> {
+	deleteChallenge(
+		id: AutoId,
+		type: string,
+	): PromisedResult<void, IdentityChallengeDeleteError> {
 		// TODO life cycle hooks
 		return this.#identityProvider.deleteChallenge(id, type);
 	}

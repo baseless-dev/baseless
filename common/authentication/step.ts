@@ -1,9 +1,24 @@
 import { InvalidAuthenticationStepError } from "./errors.ts";
-import { AuthenticationChallenge, isAuthenticationChallenge } from "./steps/challenge.ts";
-import { AuthenticationChoice, isAuthenticationChoice } from "./steps/choice.ts";
-import { AuthenticationConditional, isAuthenticationConditional } from "./steps/conditional.ts";
-import { AuthenticationIdentification, isAuthenticationIdentification } from "./steps/identification.ts";
-import { AuthenticationSequence, isAuthenticationSequence } from "./steps/sequence.ts";
+import {
+	AuthenticationChallenge,
+	isAuthenticationChallenge,
+} from "./steps/challenge.ts";
+import {
+	AuthenticationChoice,
+	isAuthenticationChoice,
+} from "./steps/choice.ts";
+import {
+	AuthenticationConditional,
+	isAuthenticationConditional,
+} from "./steps/conditional.ts";
+import {
+	AuthenticationIdentification,
+	isAuthenticationIdentification,
+} from "./steps/identification.ts";
+import {
+	AuthenticationSequence,
+	isAuthenticationSequence,
+} from "./steps/sequence.ts";
 
 export type AuthenticationStep =
 	| AuthenticationIdentification

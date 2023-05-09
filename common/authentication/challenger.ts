@@ -7,7 +7,7 @@ export abstract class AuthenticationChallenger {
 	}
 
 	// deno-lint-ignore no-unused-vars
-	async sendChallenge(identityChallenge: IdentityChallenge): Promise<void> { }
+	async sendChallenge(identityChallenge: IdentityChallenge): Promise<void> {}
 
 	abstract verify(
 		identityChallenge: IdentityChallenge,

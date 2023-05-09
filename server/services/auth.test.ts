@@ -168,7 +168,7 @@ Deno.test("AuthenticationService", async (t) => {
 		await authService.sendIdentificationValidationCode(ident1.id, "email");
 		verificationCode = messages.pop()?.message.text ?? "";
 		assertEquals(verificationCode.length, 6);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 	});
 
 	await t.step("confirmIdentificationValidationCode", async () => {

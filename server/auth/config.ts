@@ -1,6 +1,9 @@
 import { AuthenticationChallenger } from "../../common/authentication/challenger.ts";
 import { AuthenticationIdenticator } from "../../common/authentication/identicator.ts";
-import { AuthenticationStep, assertAuthenticationStep } from "../../common/authentication/step.ts";
+import {
+	assertAuthenticationStep,
+	AuthenticationStep,
+} from "../../common/authentication/step.ts";
 import { Identity } from "../../common/identity/identity.ts";
 import { Context } from "../context.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
@@ -225,5 +228,5 @@ export class AuthenticationConfigurationBuilder {
 	}
 }
 
-export class AuthenticationMissingIdentificatorError extends Error { }
-export class AuthenticationMissingChallengerError extends Error { }
+export class AuthenticationMissingIdentificatorError extends Error {}
+export class AuthenticationMissingChallengerError extends Error {}

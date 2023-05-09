@@ -1,5 +1,5 @@
 import { CacheMap } from "../../common/collections/cachemap.ts";
-import { PromisedResult, ok } from "../../common/system/result.ts";
+import { ok, Result } from "../../common/system/result.ts";
 import { CounterProvider } from "../counter.ts";
 
 export class MemoryCounterProvider implements CounterProvider {
@@ -12,7 +12,7 @@ export class MemoryCounterProvider implements CounterProvider {
 		key: string,
 		amount: number,
 		expiration?: number | Date,
-	): PromisedResult<number, never> {
+	): Promise<Result<number, never>> {
 		amount += this.#keys.get(key) ?? 0;
 		if (amount > 0) {
 			this.#keys.set(key, amount, expiration);
@@ -20,7 +20,7 @@ export class MemoryCounterProvider implements CounterProvider {
 		return Promise.resolve(ok(amount));
 	}
 
-	reset(key: string): PromisedResult<void, never> {
+	reset(key: string): Promise<Result<void, never>> {
 		this.#keys.delete(key);
 		return Promise.resolve(ok());
 	}

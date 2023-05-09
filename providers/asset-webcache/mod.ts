@@ -1,5 +1,5 @@
 import { createLogger } from "../../common/system/logger.ts";
-import { PromisedResult, isResultOk, ok } from "../../common/system/result.ts";
+import { ok, Result } from "../../common/system/result.ts";
 import { AssetProvider } from "../asset.ts";
 
 export class WebCacheAssetProvider implements AssetProvider {
@@ -12,7 +12,7 @@ export class WebCacheAssetProvider implements AssetProvider {
 		this.#fallbackAssetProvider = fallbackAssetProvider;
 	}
 
-	async fetch(request: Request): PromisedResult<Response, never> {
+	async fetch(request: Request): Promise<Result<Response, never>> {
 		const url = new URL(request.url);
 		try {
 			const response = await this.#cache.match(request);
@@ -20,7 +20,7 @@ export class WebCacheAssetProvider implements AssetProvider {
 				return ok(response);
 			}
 			const fallbackResponse = await this.#fallbackAssetProvider.fetch(request);
-			if (isResultOk(fallbackResponse, (v): v is Response => v instanceof Response)) {
+			if (fallbackResponse.isOk) {
 				this.#cache.put(request, fallbackResponse.value.clone());
 				return fallbackResponse;
 			}

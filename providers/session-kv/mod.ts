@@ -1,8 +1,28 @@
-import { SessionData, assertSessionData, isSessionData } from "../../common/session/data.ts";
-import { SessionCreateError, SessionDestroyError, SessionIDNotFoundError, SessionUpdateError } from "../../common/session/errors.ts";
-import { AutoId, InvalidAutoIdError, assertAutoId, autoid } from "../../common/system/autoid.ts";
+import {
+	assertSessionData,
+	isSessionData,
+	SessionData,
+} from "../../common/session/data.ts";
+import {
+	SessionCreateError,
+	SessionDestroyError,
+	SessionIDNotFoundError,
+	SessionUpdateError,
+} from "../../common/session/errors.ts";
+import {
+	assertAutoId,
+	AutoId,
+	autoid,
+	InvalidAutoIdError,
+} from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { PromisedResult, assertResultOk, err, ok, unwrap } from "../../common/system/result.ts";
+import {
+	assertResultOk,
+	err,
+	ok,
+	PromisedResult,
+	unwrap,
+} from "../../common/system/result.ts";
 import { KVProvider } from "../kv.ts";
 import { SessionProvider } from "../session.ts";
 
@@ -68,7 +88,9 @@ export class KVSessionProvider implements SessionProvider {
 		return err(new SessionCreateError());
 	}
 
-	async update(sessionData: SessionData): PromisedResult<void, SessionUpdateError> {
+	async update(
+		sessionData: SessionData,
+	): PromisedResult<void, SessionUpdateError> {
 		try {
 			assertSessionData(sessionData);
 			const results = await Promise.all([
@@ -86,7 +108,9 @@ export class KVSessionProvider implements SessionProvider {
 			}
 			return ok();
 		} catch (inner) {
-			this.#logger.error(`Failed to update session ${sessionData.id}, got ${inner}`);
+			this.#logger.error(
+				`Failed to update session ${sessionData.id}, got ${inner}`,
+			);
 		}
 		return err(new SessionUpdateError());
 	}
@@ -106,7 +130,9 @@ export class KVSessionProvider implements SessionProvider {
 			}
 			return ok();
 		} catch (inner) {
-			this.#logger.error(`Failed to destroy session ${sessionId}, got ${inner}`);
+			this.#logger.error(
+				`Failed to destroy session ${sessionId}, got ${inner}`,
+			);
 		}
 		return err(new SessionDestroyError());
 	}
@@ -114,14 +140,20 @@ export class KVSessionProvider implements SessionProvider {
 	async list(identityId: AutoId): PromisedResult<SessionData[], never> {
 		try {
 			assertAutoId(identityId);
-			const result = unwrap(await this.#kvProvider.list({
-				prefix: `/byIdentity/${identityId}`,
-			}));
-			return ok(result.keys.map((key) => JSON.parse(key.value)).filter(
-				isSessionData,
-			));
+			const result = unwrap(
+				await this.#kvProvider.list({
+					prefix: `/byIdentity/${identityId}`,
+				}),
+			);
+			return ok(
+				result.keys.map((key) => JSON.parse(key.value)).filter(
+					isSessionData,
+				),
+			);
 		} catch (inner) {
-			this.#logger.error(`Failed to list sessions for identity ${identityId}, got ${inner}`);
+			this.#logger.error(
+				`Failed to list sessions for identity ${identityId}, got ${inner}`,
+			);
 		}
 		return ok([]);
 	}

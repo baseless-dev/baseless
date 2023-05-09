@@ -1,5 +1,8 @@
-import { CounterIncrementError, CounterResetError } from "../common/counter/errors.ts";
-import { PromisedResult } from "../common/system/result.ts";
+import {
+	CounterIncrementError,
+	CounterResetError,
+} from "../common/counter/errors.ts";
+import { Result } from "../common/system/result.ts";
 
 /**
  * Counter Provider
@@ -12,10 +15,10 @@ export interface CounterProvider {
 		key: string,
 		amount: number,
 		expiration?: number | Date,
-	): PromisedResult<number, CounterIncrementError>;
+	): Promise<Result<number, CounterIncrementError>>;
 
 	/**
 	 * Reset counter for key
 	 */
-	reset(key: string): PromisedResult<void, CounterResetError>;
+	reset(key: string): Promise<Result<void, CounterResetError>>;
 }

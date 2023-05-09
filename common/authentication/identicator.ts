@@ -9,7 +9,7 @@ export abstract class AuthenticationIdenticator {
 
 	sendMessage?: (
 		identityIdentification: IdentityIdentification,
-		message: Omit<Message, 'recipient'>,
+		message: Omit<Message, "recipient">,
 	) => Promise<void> = undefined;
 
 	sendInterval?: number = undefined;

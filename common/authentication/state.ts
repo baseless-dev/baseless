@@ -1,5 +1,9 @@
 import { AutoId, isAutoId } from "../system/autoid.ts";
-import { InvalidAuthenticationState, InvalidAuthenticationStateAnonymous, InvalidAuthenticationStateIdentified } from "./errors.ts";
+import {
+	InvalidAuthenticationState,
+	InvalidAuthenticationStateAnonymous,
+	InvalidAuthenticationStateIdentified,
+} from "./errors.ts";
 
 export type AuthenticationStateAnonymous = {
 	readonly choices: string[];

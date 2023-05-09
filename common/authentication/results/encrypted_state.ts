@@ -7,7 +7,8 @@ export type AuthenticationResultEncryptedState = {
 export function isAuthenticationResultEncryptedState(
 	value?: unknown,
 ): value is AuthenticationResultEncryptedState {
-	return !!value && typeof value === "object" && "encryptedState" in value && typeof value.encryptedState === "string";
+	return !!value && typeof value === "object" && "encryptedState" in value &&
+		typeof value.encryptedState === "string";
 }
 
 export function assertAuthenticationResultEncryptedState(

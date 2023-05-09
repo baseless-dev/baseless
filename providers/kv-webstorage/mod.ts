@@ -1,7 +1,19 @@
 import { KVKeyNotFoundError, KVPutError } from "../../common/kv/errors.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { PromisedResult, err, isResultOk, ok } from "../../common/system/result.ts";
-import { KVGetOptions, KVKey, KVListOptions, KVListResult, KVProvider, KVPutOptions } from "../kv.ts";
+import {
+	err,
+	isResultOk,
+	ok,
+	PromisedResult,
+} from "../../common/system/result.ts";
+import {
+	KVGetOptions,
+	KVKey,
+	KVListOptions,
+	KVListResult,
+	KVProvider,
+	KVPutOptions,
+} from "../kv.ts";
 
 export class WebStorageKVProvider implements KVProvider {
 	#logger = createLogger("baseless-kv-webstorage");

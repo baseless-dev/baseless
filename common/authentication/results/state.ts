@@ -8,7 +8,8 @@ export type AuthenticationResultState = {
 export function isAuthenticationResultState(
 	value?: unknown,
 ): value is AuthenticationResultState {
-	return !!value && typeof value === "object" && "state" in value && isAuthenticationState(value.state);
+	return !!value && typeof value === "object" && "state" in value &&
+		isAuthenticationState(value.state);
 }
 
 export function assertAuthenticationResultState(

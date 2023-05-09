@@ -1,7 +1,12 @@
 import { MessageSendError } from "../../common/message/errors.ts";
 import { Message } from "../../common/message/message.ts";
-import { LogLevel, LogLevelMethod, Logger, createLogger } from "../../common/system/logger.ts";
-import { PromisedResult, ok } from "../../common/system/result.ts";
+import {
+	createLogger,
+	Logger,
+	LogLevel,
+	LogLevelMethod,
+} from "../../common/system/logger.ts";
+import { ok, PromisedResult } from "../../common/system/result.ts";
 import { MessageProvider } from "../message.ts";
 
 /**

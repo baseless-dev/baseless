@@ -1,5 +1,15 @@
-export class InvalidSessionDataError extends Error { }
-export class SessionIDNotFoundError extends Error { }
-export class SessionCreateError extends Error { }
-export class SessionUpdateError extends Error { }
-export class SessionDestroyError extends Error { }
+export class InvalidSessionDataError extends Error {
+	name = "InvalidSessionDataError" as const;
+}
+export class SessionIDNotFoundError extends Error {
+	name = "SessionIDNotFoundError" as const;
+}
+export class SessionCreateError extends Error {
+	name = "SessionCreateError" as const;
+}
+export class SessionUpdateError extends Error {
+	name = "SessionUpdateError" as const;
+}
+export class SessionDestroyError extends Error {
+	name = "SessionDestroyError" as const;
+}

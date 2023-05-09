@@ -1,7 +1,7 @@
 import { MessageSendError } from "../../common/message/errors.ts";
 import { Message } from "../../common/message/message.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { PromisedResult, err, ok } from "../../common/system/result.ts";
+import { err, ok, PromisedResult } from "../../common/system/result.ts";
 import { MessageProvider } from "../message.ts";
 
 export type IAddress = {

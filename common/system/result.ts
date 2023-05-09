@@ -1,80 +1,106 @@
-export type ResultOk<Value> = { kind: "ok"; value: Value };
-export type ResultError<Error> = { kind: "error"; error: Error };
-
-export type Result<Value, Error> =
-	| ResultOk<Value>
-	| ResultError<Error>;
-
-export type PromisedResult<Value, Error> = Promise<Result<Value, Error>>;
-
-export function ok(): ResultOk<undefined>
-export function ok<Value>(value: Value): ResultOk<Value>
-export function ok<Value>(value?: Value): ResultOk<Value | undefined> {
-	return { kind: "ok", value };
-}
-
-export function err(): ResultError<undefined>
-export function err<Error>(error: Error): ResultError<Error>
-export function err<Error>(error?: Error): ResultError<Error | undefined> {
-	return { kind: "error", error };
-}
-
-export function unwrap<Value, Error>(value: Result<Value, Error>): Value {
-	assertResultOk(value);
-	return value.value;
-}
-
-export function or<Value, Error, Default>(value: Result<Value, Error>, defaultValue: (() => Default)): Value | Default {
-	if (isResultOk(value)) {
-		return value.value;
+abstract class IResult<Value, Error> {
+	abstract readonly isOk: boolean;
+	abstract readonly isError: boolean;
+	abstract unwrap(): Value;
+	expect(error?: string | globalThis.Error): void {
+		try {
+			this.unwrap();
+		} catch (inner) {
+			throw error ?? inner;
+		}
 	}
-	return defaultValue();
+	abstract and(res: Result<Value, Error>): Result<Value, Error>;
+	abstract andThen(op: () => Result<Value, Error>): Result<Value, Error>;
+	abstract or(res: Result<Value, Error>): Result<Value, Error>;
+	abstract orThen(op: () => Result<Value, Error>): Result<Value, Error>;
+	abstract map<NewValue>(op: (value: Value) => Result<NewValue, Error>): Result<NewValue, Error>;
+	abstract mapErr<NewError>(op: (error: Error) => Result<Value, NewError>): Result<Value, NewError>;
 }
 
-export function isResultOk<Value>(value: unknown): value is ResultOk<unknown>
-export function isResultOk<Value>(value: unknown, typeGuard: (value: unknown) => value is Value): value is ResultOk<Value>
-export function isResultOk<Value>(value: unknown, typeGuard?: (value: unknown) => value is Value): value is ResultOk<Value> {
-	return !!value && typeof value === "object" && "kind" in value && value.kind === "ok" && "value" in value && (!typeGuard || typeGuard(value.value));
-}
-
-export function assertResultOk<Value>(value: unknown): asserts value is ResultOk<unknown>
-export function assertResultOk<Value>(value: unknown, typeGuard: (value: unknown) => value is Value): asserts value is ResultOk<Value>
-export function assertResultOk<Value>(value: unknown, typeGuard?: (value: unknown) => value is Value): Value | void {
-	if (!isResultOk(value, typeGuard!)) {
-		throw new InvalidResultOkError();
+export class Ok<Value> extends IResult<Value, never> {
+	get isOk() {
+		return true as const;
 	}
-}
-
-export function isResultError<Error>(value: unknown): value is ResultError<unknown>
-export function isResultError<Error>(value: unknown, typeGuard: (value: unknown) => value is Error): value is ResultError<Error>
-export function isResultError<Error>(value: unknown, typeGuard?: (value: unknown) => value is Error): value is ResultError<Error> {
-	return !!value && typeof value === "object" && "kind" in value && value.kind === "error" && "error" in value && (!typeGuard || typeGuard(value.error));
-}
-
-export function assertResultError<Error>(value: unknown): asserts value is ResultError<unknown>
-export function assertResultError<Error>(value: unknown, typeGuard: (value: unknown) => value is Error): asserts value is ResultError<Error>
-export function assertResultError<Error>(value: unknown, typeGuard?: (value: unknown) => value is Error): asserts value is ResultError<Error> {
-	if (!isResultError(value, typeGuard!)) {
-		throw new InvalidResultErrorError();
+	get isError() {
+		return false as const;
+	}
+	#value: Value;
+	constructor(value: Value) {
+		super();
+		this.#value = value;
+	}
+	get value() {
+		return this.#value;
+	}
+	unwrap() {
+		return this.#value;
+	}
+	and<Error>(res: Result<Value, Error>): Result<Value, Error> {
+		return res;
+	}
+	andThen<Error>(op: () => Result<Value, Error>): Result<Value, Error> {
+		return this.and(op());
+	}
+	or<Error>(_res: Result<Value, Error>): Result<Value, Error> {
+		return this;
+	}
+	orThen<Error>(op: () => Result<Value, Error>): Result<Value, Error> {
+		return this.or(op());
+	}
+	map<NewValue>(op: (value: Value) => Result<NewValue, never>): Result<NewValue, never> {
+		return op(this.value);
+	}
+	mapErr(): Result<Value, never> {
+		return this;
 	}
 }
 
-export function isResult<Value, Error>(value: unknown): value is Result<unknown, unknown>
-export function isResult<Value, Error>(value: unknown, valueGuard?: (value: unknown) => value is Value): value is Result<Value, unknown>
-export function isResult<Value, Error>(value: unknown, valueGuard?: (value: unknown) => value is Value, errorGuard?: (error: unknown) => error is Error): value is Result<Value, Error>
-export function isResult<Value, Error>(value: unknown, valueGuard?: (value: unknown) => value is Value, errorGuard?: (error: unknown) => error is Error): value is Result<Value, Error> {
-	return isResultOk(value, valueGuard!) || isResultError(value, errorGuard!);
-}
-
-export function assertResult<Value, Error>(value: unknown): asserts value is Result<unknown, unknown>
-export function assertResult<Value, Error>(value: unknown, valueGuard?: (value: unknown) => value is Value): asserts value is Result<Value, unknown>
-export function assertResult<Value, Error>(value: unknown, valueGuard?: (value: unknown) => value is Value, errorGuard?: (error: unknown) => error is Error): asserts value is Result<Value, Error>
-export function assertResult<Value, Error>(value: unknown, valueGuard?: (value: unknown) => value is Value, errorGuard?: (error: unknown) => error is Error): asserts value is Result<Value, Error> {
-	if (!isResult(value, valueGuard, errorGuard)) {
-		throw new InvalidResultError();
+export class Err<Error> extends IResult<never, Error> {
+	get isOk() {
+		return false as const;
+	}
+	get isError() {
+		return true as const;
+	}
+	#error: Error;
+	constructor(error: Error) {
+		super();
+		this.#error = error;
+	}
+	get error() {
+		return this.#error;
+	}
+	unwrap(): never {
+		throw this.#error;
+	}
+	and<Value>(_res: Result<Value, Error>): Result<Value, Error> {
+		return this;
+	}
+	andThen<Value>(op: () => Result<Value, Error>): Result<Value, Error> {
+		return this.and(op());
+	}
+	or<Value>(res: Result<Value, Error>): Result<Value, Error> {
+		return res;
+	}
+	orThen<Value>(op: () => Result<Value, Error>): Result<Value, Error> {
+		return this.or(op());
+	}
+	map(): Result<never, Error> {
+		return this;
+	}
+	mapErr<NewError>(op: (error: Error) => Result<never, NewError>): Result<never, NewError> {
+		return op(this.error);
 	}
 }
 
-export class InvalidResultOkError extends Error { }
-export class InvalidResultErrorError extends Error { }
-export class InvalidResultError extends Error { }
+export type Result<Value, Error> = Ok<Value> | Err<Error>;
+export function ok(): Ok<void>;
+export function ok<Value>(value: Value): Ok<Value>;
+export function ok<Value>(value?: Value): Ok<Value> {
+	return new Ok(value as Value);
+}
+export function err(): Err<void>;
+export function err<Error>(error: Error): Err<Error>;
+export function err<Error>(error?: Error): Err<Error> {
+	return new Err(error as Error);
+}

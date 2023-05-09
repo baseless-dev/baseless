@@ -1,7 +1,14 @@
 import { DB, SqliteOptions } from "https://deno.land/x/sqlite@v3.4.1/mod.ts";
-import { KVGetOptions, KVKey, KVListOptions, KVListResult, KVProvider, KVPutOptions } from "../kv.ts";
+import {
+	KVGetOptions,
+	KVKey,
+	KVListOptions,
+	KVListResult,
+	KVProvider,
+	KVPutOptions,
+} from "../kv.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { PromisedResult, err, ok } from "../../common/system/result.ts";
+import { err, ok, PromisedResult } from "../../common/system/result.ts";
 import { KVKeyNotFoundError, KVPutError } from "../../common/kv/errors.ts";
 
 export type SqliteKVProviderOptions = {
@@ -175,7 +182,7 @@ export class SqliteKVProvider implements KVProvider {
 		return ok({
 			done: true,
 			keys: [],
-			next: undefined
+			next: undefined,
 		});
 	}
 
@@ -188,7 +195,9 @@ export class SqliteKVProvider implements KVProvider {
 				]);
 				this.#logger.debug(`Key "${key}" deleted.`);
 			} catch (inner) {
-				this.#logger.error(`Could not delete key "${key}", got error : ${inner}`);
+				this.#logger.error(
+					`Could not delete key "${key}", got error : ${inner}`,
+				);
 			}
 		}
 		return err(new KVKeyNotFoundError());
@@ -217,5 +226,5 @@ export class SqliteKVProvider implements KVProvider {
 	}
 }
 
-export class SqliteNotOpenedError extends Error { }
-export class SqliteUnknownError extends Error { }
+export class SqliteNotOpenedError extends Error {}
+export class SqliteUnknownError extends Error {}

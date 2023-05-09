@@ -1,4 +1,8 @@
-import { assertResultError, assertResultOk, unwrap } from "../common/system/result.ts";
+import {
+	assertResultError,
+	assertResultOk,
+	unwrap,
+} from "../common/system/result.ts";
 import { KVProvider } from "./kv.ts";
 import {
 	assertEquals,
@@ -47,7 +51,9 @@ export default async function testKVProvider(
 		assertEquals(result2.keys[1].value, "Title B");
 		assertExists(result2.next);
 
-		const result3 = unwrap(await kv.list({ prefix: "/posts", cursor: result2.next }));
+		const result3 = unwrap(
+			await kv.list({ prefix: "/posts", cursor: result2.next }),
+		);
 		assertEquals(result3.keys.length, 3);
 		assertEquals(result3.keys[0].key, "/posts/b/comments/a");
 		assertEquals(result3.keys[0].value, "Comment A on B");

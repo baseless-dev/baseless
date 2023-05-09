@@ -22,7 +22,8 @@ export interface Message<To extends string = string> {
 }
 
 export function isMessage(value?: unknown): value is Message {
-	return !!value && typeof value === "object" && "to" in value && typeof value.to === "string" &&
+	return !!value && typeof value === "object" && "to" in value &&
+		typeof value.to === "string" &&
 		"text" in value && typeof value.text === "string" &&
 		(!("subject" in value) || typeof value.subject === "string") &&
 		(!("html" in value) || typeof value.html === "string");

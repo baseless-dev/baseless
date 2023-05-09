@@ -16,61 +16,107 @@ import type {
 import type { IdentityIdentification } from "../common/identity/identification.ts";
 import type { Identity } from "../common/identity/identity.ts";
 import type { AutoId } from "../common/system/autoid.ts";
-import type { Result } from "../common/system/result.ts";
 
 /**
  * Identity Provider
  */
 export interface IdentityProvider {
+	/**
+	 * @throws {IdentityNotFoundError}
+	 */
 	get<Meta extends Record<string, unknown>>(
 		id: AutoId,
-	): Promise<Result<Identity<Partial<Meta>>, IdentityNotFoundError>>;
+	): Promise<Identity<Partial<Meta>>>;
+
+	/**
+	 * @throws {IdentityCreateError}
+	 */
 	create(
 		meta: Record<string, unknown>,
 		expiration?: number | Date,
-	): Promise<Result<Identity, IdentityCreateError>>;
+	): Promise<Identity>;
+
+	/**
+	 * @throws {IdentityUpdateError}
+	 */
 	update(
 		identity: Identity<Record<string, unknown>>,
 		expiration?: number | Date,
-	): Promise<Result<void, IdentityUpdateError>>;
-	delete(id: AutoId): Promise<Result<void, IdentityDeleteError>>;
+	): Promise<void>;
+
+	/**
+	 * @throws {IdentityDeleteError}
+	 */
+	delete(id: AutoId): Promise<void>;
+
 	listIdentification(
 		id: AutoId,
-	): Promise<Result<IdentityIdentification[], never>>;
+	): Promise<IdentityIdentification[]>;
+
+	/**
+	 * @throws {IdentityIdentificationNotFoundError}
+	 */
 	matchIdentification<Meta extends Record<string, unknown>>(
 		type: string,
 		identification: string,
-	): Promise<
-		Result<IdentityIdentification<Meta>, IdentityIdentificationNotFoundError>
-	>;
+	): Promise<IdentityIdentification<Meta>>;
+
+	/**
+	 * @throws {IdentityIdentificationCreateError}
+	 */
 	createIdentification(
 		identityIdentification: IdentityIdentification,
 		expiration?: number | Date,
-	): Promise<Result<void, IdentityIdentificationCreateError>>;
+	): Promise<void>;
+
+	/**
+	 * @throws {IdentityIdentificationUpdateError}
+	 */
 	updateIdentification(
 		identityIdentification: IdentityIdentification,
 		expiration?: number | Date,
-	): Promise<Result<void, IdentityIdentificationUpdateError>>;
+	): Promise<void>;
+
+	/**
+	 * @throws {IdentityIdentificationDeleteError}
+	 */
 	deleteIdentification(
 		id: AutoId,
 		type: string,
 		identification: string,
-	): Promise<Result<void, IdentityIdentificationDeleteError>>;
-	listChallenge(id: AutoId): Promise<Result<IdentityChallenge[], never>>;
+	): Promise<void>;
+
+	listChallenge(id: AutoId): Promise<IdentityChallenge[]>;
+
+	/**
+	 * @throws {IdentityChallengeNotFoundError}
+	 */
 	getChallenge<Meta extends Record<string, unknown>>(
 		identityId: AutoId,
 		type: string,
-	): Promise<Result<IdentityChallenge<Meta>, IdentityChallengeNotFoundError>>;
+	): Promise<IdentityChallenge<Meta>>;
+
+	/**
+	 * @throws {IdentityChallengeCreateError}
+	 */
 	createChallenge(
 		identityChallenge: IdentityChallenge,
 		expiration?: number | Date,
-	): Promise<Result<void, IdentityChallengeCreateError>>;
+	): Promise<void>;
+
+	/**
+	 * @throws {IdentityChallengeUpdateError}
+	 */
 	updateChallenge(
 		identityChallenge: IdentityChallenge,
 		expiration?: number | Date,
-	): Promise<Result<void, IdentityChallengeUpdateError>>;
+	): Promise<void>;
+
+	/**
+	 * @throws {IdentityChallengeDeleteError}
+	 */
 	deleteChallenge(
 		id: AutoId,
 		type: string,
-	): Promise<Result<void, IdentityChallengeDeleteError>>;
+	): Promise<void>;
 }

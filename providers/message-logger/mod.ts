@@ -6,7 +6,6 @@ import {
 	LogLevel,
 	LogLevelMethod,
 } from "../../common/system/logger.ts";
-import { ok, PromisedResult } from "../../common/system/result.ts";
 import { MessageProvider } from "../message.ts";
 
 /**
@@ -22,8 +21,7 @@ export class LoggerMessageProvider implements MessageProvider {
 	}
 
 	// deno-lint-ignore require-await
-	public async send(message: Message): PromisedResult<void, never> {
+	public async send(message: Message): Promise<void> {
 		this.#logger[this.#logMethod](JSON.stringify(message));
-		return ok();
 	}
 }

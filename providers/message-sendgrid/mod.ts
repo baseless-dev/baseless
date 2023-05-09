@@ -1,7 +1,6 @@
 import { MessageSendError } from "../../common/message/errors.ts";
 import { Message } from "../../common/message/message.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { err, ok, PromisedResult } from "../../common/system/result.ts";
 import { MessageProvider } from "../message.ts";
 
 export type IAddress = {
@@ -37,7 +36,10 @@ export class SendgridMessageProvider implements MessageProvider {
 		this.#dynamicTemplateData = options.dynamicTemplateData;
 	}
 
-	public async send(message: Message): PromisedResult<void, MessageSendError> {
+	/**
+	 * @throws {MessageSendError}
+	 */
+	public async send(message: Message): Promise<void> {
 		try {
 			const content = [
 				{
@@ -59,7 +61,7 @@ export class SendgridMessageProvider implements MessageProvider {
 				content,
 				templateId: this.#templateId,
 			};
-			const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+			await fetch("https://api.sendgrid.com/v3/mail/send", {
 				method: "POST",
 				headers: {
 					"Authorization": `Bearer ${this.#apiKey}`,
@@ -67,12 +69,9 @@ export class SendgridMessageProvider implements MessageProvider {
 				},
 				body: JSON.stringify(body),
 			});
-			if (response.status === 202) {
-				return ok();
-			}
 		} catch (inner) {
 			this.#logger.error(`Error while sending message, got error : ${inner}`);
 		}
-		return err(new MessageSendError());
+		throw new MessageSendError();
 	}
 }

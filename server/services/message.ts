@@ -2,7 +2,6 @@ import { MessageSendError } from "../../common/message/errors.ts";
 import { assertMessage, Message } from "../../common/message/message.ts";
 import { assertAutoId, AutoId } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { err, ok, PromisedResult, unwrap } from "../../common/system/result.ts";
 import { IdentityProvider } from "../../providers/identity.ts";
 import { MessageProvider } from "../../providers/message.ts";
 import { Configuration } from "../config.ts";
@@ -23,17 +22,18 @@ export class MessageService {
 		this.#identityProvider = identityProvider;
 	}
 
+	/**
+	 * @throws {MessageSendError}
+	 */
 	public async send(
 		identityId: AutoId,
 		message: Message,
-	): PromisedResult<void, MessageSendError> {
+	): Promise<void> {
 		try {
 			assertAutoId(identityId);
 			assertMessage(message);
-			const identifications = unwrap(
-				await this.#identityProvider.listIdentification(
-					identityId,
-				),
+			const identifications = await this.#identityProvider.listIdentification(
+				identityId,
 			);
 			const verifiedIdentifications = identifications.filter((i) => i.verified);
 			const sendMessages = verifiedIdentifications.reduce(
@@ -49,10 +49,9 @@ export class MessageService {
 				[] as Promise<void>[],
 			);
 			await Promise.allSettled(sendMessages);
-			return ok();
 		} catch (inner) {
 			this.#logger.error(`Failed to send message, got ${inner}`);
 		}
-		return err(new MessageSendError());
+		throw new MessageSendError();
 	}
 }

@@ -1,8 +1,5 @@
-import {
-	CounterIncrementError,
-	CounterResetError,
-} from "../../common/counter/errors.ts";
-import { PromisedResult } from "../../common/system/result.ts";
+// deno-lint-ignore no-unused-vars
+import type { CounterIncrementError, CounterResetError } from "../../common/counter/errors.ts";
 import { CounterProvider } from "../../providers/counter.ts";
 
 export class CounterService {
@@ -14,15 +11,21 @@ export class CounterService {
 		this.#counterProvider = counterProvider;
 	}
 
+	/**
+	 * @throws {CounterIncrementError}
+	 */
 	increment(
 		key: string,
 		amount: number,
 		expiration: number | Date,
-	): PromisedResult<number, CounterIncrementError> {
+	): Promise<number> {
 		return this.#counterProvider.increment(key, amount, expiration);
 	}
 
-	reset(key: string): PromisedResult<void, CounterResetError> {
+	/**
+	 * @throws {CounterResetError}
+	 */
+	reset(key: string): Promise<void> {
 		return this.#counterProvider.reset(key);
 	}
 }

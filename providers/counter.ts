@@ -1,8 +1,5 @@
-import {
-	CounterIncrementError,
-	CounterResetError,
-} from "../common/counter/errors.ts";
-import { Result } from "../common/system/result.ts";
+// deno-lint-ignore no-unused-vars
+import type { CounterIncrementError, CounterResetError } from "../common/counter/errors.ts";
 
 /**
  * Counter Provider
@@ -10,15 +7,17 @@ import { Result } from "../common/system/result.ts";
 export interface CounterProvider {
 	/**
 	 * Increment counter for key by some amount
+	 * @throws {CounterIncrementError}
 	 */
 	increment(
 		key: string,
 		amount: number,
 		expiration?: number | Date,
-	): Promise<Result<number, CounterIncrementError>>;
+	): Promise<number>;
 
 	/**
 	 * Reset counter for key
+	 * @throws {CounterResetError}
 	 */
-	reset(key: string): Promise<Result<void, CounterResetError>>;
+	reset(key: string): Promise<void>;
 }

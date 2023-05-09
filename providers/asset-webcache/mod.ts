@@ -1,5 +1,4 @@
 import { createLogger } from "../../common/system/logger.ts";
-import { ok, Result } from "../../common/system/result.ts";
 import { AssetProvider } from "../asset.ts";
 
 export class WebCacheAssetProvider implements AssetProvider {
@@ -12,21 +11,13 @@ export class WebCacheAssetProvider implements AssetProvider {
 		this.#fallbackAssetProvider = fallbackAssetProvider;
 	}
 
-	async fetch(request: Request): Promise<Result<Response, never>> {
-		const url = new URL(request.url);
-		try {
-			const response = await this.#cache.match(request);
-			if (response) {
-				return ok(response);
-			}
-			const fallbackResponse = await this.#fallbackAssetProvider.fetch(request);
-			if (fallbackResponse.isOk) {
-				this.#cache.put(request, fallbackResponse.value.clone());
-				return fallbackResponse;
-			}
-		} catch (inner) {
-			this.#logger.debug(`Could not process ${url.pathname}, got ${inner}.`);
+	async fetch(request: Request): Promise<Response> {
+		let response = await this.#cache.match(request);
+		if (response) {
+			return response;
 		}
-		return ok(new Response(null, { status: 404 }));
+		response = await this.#fallbackAssetProvider.fetch(request);
+		await this.#cache.put(request, response.clone());
+		return response;
 	}
 }

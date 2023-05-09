@@ -8,7 +8,6 @@ import {
 import { contentType } from "https://deno.land/std@0.179.0/media_types/mod.ts";
 import { AssetProvider } from "../asset.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { ok, Result } from "../../common/system/result.ts";
 
 export class LocalAssetProvider implements AssetProvider {
 	#logger = createLogger("asset-local");
@@ -18,7 +17,7 @@ export class LocalAssetProvider implements AssetProvider {
 		this.#rootDir = resolve(fromFileUrl(rootDir));
 	}
 
-	async fetch(request: Request): Promise<Result<Response, never>> {
+	async fetch(request: Request): Promise<Response> {
 		const url = new URL(request.url);
 		try {
 			let filePath = join(this.#rootDir, normalize(url.pathname));
@@ -29,20 +28,16 @@ export class LocalAssetProvider implements AssetProvider {
 			}
 			if (stat.isFile) {
 				const file = await Deno.open(filePath, { read: true });
-				return ok(
-					new Response(file.readable, {
-						headers: {
-							"Content-Type": contentType(extname(filePath)) ??
-								"application/octet",
-						},
-					}),
-				);
-			} else {
-				return ok(new Response(null, { status: 404 }));
+				return new Response(file.readable, {
+					headers: {
+						"Content-Type": contentType(extname(filePath)) ??
+							"application/octet",
+					},
+				});
 			}
 		} catch (inner) {
 			this.#logger.debug(`Could not process ${url.pathname}, got ${inner}.`);
 		}
-		return ok(new Response(null, { status: 404 }));
+		return new Response(null, { status: 404 });
 	}
 }

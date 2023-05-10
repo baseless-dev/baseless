@@ -6,7 +6,7 @@ import {
 import { assertApp, initializeApp } from "./app.ts";
 import {
 	assertPersistence,
-	getAuthFlow,
+	getSignInFlow,
 	getPersistence,
 	getSignInStep,
 	initializeAuth,
@@ -138,8 +138,8 @@ Deno.test("Client Auth", async (t) => {
 		assertEquals(stateChange, []);
 	});
 
-	await t.step("getAuthFlow", async () => {
-		const flow = await getAuthFlow(app);
+	await t.step("getSignInFlow", async () => {
+		const flow = await getSignInFlow(app);
 		assertEquals(
 			flow,
 			oneOf(

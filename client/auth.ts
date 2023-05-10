@@ -1,3 +1,4 @@
+import { assertApiResult, isApiResultError } from "../common/api/result.ts";
 import { InvalidAuthenticationResultError } from "../common/authentication/errors.ts";
 import { isAuthenticationResultEncryptedState } from "../common/authentication/results/encrypted_state.ts";
 import {
@@ -7,6 +8,7 @@ import {
 import { assertAuthenticationStep } from "../common/authentication/step.ts";
 import { EventEmitter } from "../common/system/event_emitter.ts";
 import { App, assertApp } from "./app.ts";
+import { throwIfApiError } from "./error.ts";
 
 // TODO move to server
 export type Tokens = {
@@ -27,7 +29,7 @@ export function assertPersistence(
 		throw new InvalidPersistenceError();
 	}
 }
-export class InvalidPersistenceError extends Error {}
+export class InvalidPersistenceError extends Error { }
 
 const tokenMap = new Map<string, Tokens | undefined>();
 const onAuthStateChangeMap = new Map<string, EventEmitter<never>>();
@@ -48,7 +50,7 @@ function getAuthData(app: App) {
 	return { storage, tokens, onAuthStateChange };
 }
 
-export class AuthNotInitializedError extends Error {}
+export class AuthNotInitializedError extends Error { }
 
 export function initializeAuth(app: App): App {
 	assertApp(app);
@@ -57,7 +59,7 @@ export function initializeAuth(app: App): App {
 	}
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	storageMap.set(
 		app.clientId,
 		persistence === "local"
@@ -90,7 +92,7 @@ export function getPersistence(app: App): Persistence {
 	assertInitializedAuth(app);
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	assertPersistence(persistence);
 	return persistence;
 }
@@ -116,14 +118,14 @@ export function onAuthStateChange(app: App, listener: () => void) {
 	return onAuthStateChange.listen(listener);
 }
 
-export async function getAuthFlow(app: App) {
+export async function getSignInFlow(app: App) {
 	assertApp(app);
 	assertInitializedAuth(app);
 	const resp = await app.fetch(`${app.apiEndpoint}/auth/flow`);
-	const flow = await resp.json();
-	// TODO error handling
-	assertAuthenticationStep(flow);
-	return flow;
+	const result = await resp.json();
+	throwIfApiError(result);
+	assertAuthenticationStep(result.data);
+	return result.data;
 }
 
 export async function getSignInStep(app: App, state?: string) {
@@ -141,9 +143,9 @@ export async function getSignInStep(app: App, state?: string) {
 		method,
 	});
 	const result = await resp.json();
-	// TODO error handling
-	assertAuthenticationResult(result);
-	return result;
+	throwIfApiError(result);
+	assertAuthenticationResult(result.data);
+	return result.data;
 }
 
 export async function submitSignInIdentification(
@@ -165,14 +167,14 @@ export async function submitSignInIdentification(
 		{ body, method: "POST" },
 	);
 	const result = await resp.json();
-	// TODO error handling
+	throwIfApiError(result);
 	if (
-		!isAuthenticationResult(result) &&
-		!isAuthenticationResultEncryptedState(result)
+		!isAuthenticationResult(result.data) &&
+		!isAuthenticationResultEncryptedState(result.data)
 	) {
 		throw new InvalidAuthenticationResultError();
 	}
-	return result;
+	return result.data;
 }
 
 export async function submitSignInChallenge(
@@ -192,12 +194,12 @@ export async function submitSignInChallenge(
 		{ body, method: "POST" },
 	);
 	const result = await resp.json();
-	// TODO error handling
+	throwIfApiError(result);
 	if (
-		!isAuthenticationResult(result) &&
-		!isAuthenticationResultEncryptedState(result)
+		!isAuthenticationResult(result.data) &&
+		!isAuthenticationResultEncryptedState(result.data)
 	) {
 		throw new InvalidAuthenticationResultError();
 	}
-	return result;
+	return result.data;
 }

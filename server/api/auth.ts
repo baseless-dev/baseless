@@ -6,18 +6,13 @@ import type {
 import { SignJWT } from "https://deno.land/x/jose@v4.13.1/jwt/sign.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.13.1/jwt/verify.ts";
 import {
-	AuthenticationConfirmValidationCodeError,
-	AuthenticationSendValidationCodeError,
-} from "../../common/authentication/errors.ts";
-import {
 	assertAuthenticationState,
 	assertAuthenticationStateIdentified,
 	AuthenticationState,
 	isAuthenticationStateIdentified,
 } from "../../common/authentication/state.ts";
 import { RouterBuilder } from "../../common/system/router.ts";
-
-const authRouter = new RouterBuilder<[context: Context]>();
+import { ApiResult } from "../../common/api/result.ts";
 
 async function decryptEncryptedAuthenticationState(
 	data: string,
@@ -45,186 +40,161 @@ async function encryptAuthenticationState(
 		.sign(privateKey);
 }
 
-function json(
-	value: Record<string, unknown>,
-	status = 200,
-	headers = new Headers(),
-): Response {
+function json<Params, Result>(handler: (request: Request, params: Params, context: Context) => Result | Promise<Result>, headers = new Headers()) {
 	headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
 	headers.set("Content-Type", "application/json");
-	return new Response(JSON.stringify(value), {
-		status,
-		headers,
-	});
+	return async (request: Request, params: Params, context: Context) => {
+		let result: ApiResult;
+		try {
+			result = { data: await handler(request, params, context) as Record<string, unknown> };
+		} catch (error) {
+			result = { error: error.constructor.name };
+		}
+		return new Response(JSON.stringify(result), {
+			status: 200,
+			headers,
+		});
+	};
 }
 
-authRouter.get("/flow", async (_request, _params, context) => {
-	return json(await context.config.auth.flow.step, 200);
-});
+function getFlowHandler(_request: Request, _params: Record<never, never>, context: Context) {
+	return context.config.auth.flow.step;
+}
 
-authRouter.get("/signInStep", async (_request, _params, context) => {
-	try {
-		return json(await context.auth.getStep(), 200);
-	} catch (error) {
-		return json({ error: error.constructor.name }, 400);
+function getSignInStep(_request: Request, _params: Record<never, never>, context: Context) {
+	return context.auth.getStep();
+}
+
+async function postSignInStep(request: Request, _params: Record<never, never>, context: Context) {
+	const formData = await request.formData();
+	const encryptedState = formData.get("state")?.toString() ?? "";
+	const state = await decryptEncryptedAuthenticationState(
+		encryptedState,
+		context.config.auth.security.keys.publicKey,
+	);
+	return context.auth.getStep(state, context);
+}
+
+async function postSignInSubmitIdentification(request: Request, _params: Record<never, never>, context: Context) {
+	const formData = await request.formData();
+	const type = formData.get("type")?.toString() ?? "";
+	const identification = formData.get("identification")?.toString() ?? "";
+	const encryptedState = formData.get("state")?.toString() ?? "";
+	const state = await decryptEncryptedAuthenticationState(
+		encryptedState,
+		context.config.auth.security.keys.publicKey,
+	);
+	const subject = isAuthenticationStateIdentified(state)
+		? state.identity
+		: context.remoteAddress;
+	const result = await context.auth.submitIdentification(
+		state,
+		type,
+		identification,
+		subject,
+	);
+	if (result.done) {
+		const session = await context.session.create(result.identityId, {});
+		return { done: true, session: session.id };
+	} else {
+		return {
+			...result,
+			...("state" in result
+				? {
+					encryptedState: await encryptAuthenticationState(
+						result.state,
+						context.config.auth.security.keys.algo,
+						context.config.auth.security.keys.privateKey,
+					),
+				}
+				: {}),
+		};
 	}
-});
+}
 
-authRouter.post("/signInStep", async (request, _params, context) => {
-	try {
-		const formData = await request.formData();
-		const encryptedState = formData.get("state")?.toString() ?? "";
-		const state = await decryptEncryptedAuthenticationState(
-			encryptedState,
-			context.config.auth.security.keys.publicKey,
-		);
-		return json(await context.auth.getStep(state, context), 200);
-	} catch (error) {
-		return json({ error: error.constructor.name }, 400);
+async function postSignInSubmitChallenge(request: Request, _params: Record<never, never>, context: Context) {
+	const formData = await request.formData();
+	const type = formData.get("type")?.toString() ?? "";
+	const challenge = formData.get("challenge")?.toString() ?? "";
+	const encryptedState = formData.get("state")?.toString() ?? "";
+	const state = await decryptEncryptedAuthenticationState(
+		encryptedState,
+		context.config.auth.security.keys.publicKey,
+	);
+	assertAuthenticationStateIdentified(state);
+	const result = await context.auth.submitChallenge(
+		state,
+		type,
+		challenge,
+		state.identity,
+	);
+	if (result.done) {
+		const session = await context.session.create(result.identityId, {});
+		return result;
+	} else {
+		return {
+			...result,
+			...("state" in result
+				? {
+					state: await encryptAuthenticationState(
+						result.state,
+						context.config.auth.security.keys.algo,
+						context.config.auth.security.keys.privateKey,
+					),
+				}
+				: {}),
+		};
 	}
-});
+}
 
-authRouter.post(
-	"/signInSubmitIdentification",
-	async (request, _params, context) => {
-		try {
-			const formData = await request.formData();
-			const type = formData.get("type")?.toString() ?? "";
-			const identification = formData.get("identification")?.toString() ?? "";
-			const encryptedState = formData.get("state")?.toString() ?? "";
-			const state = await decryptEncryptedAuthenticationState(
-				encryptedState,
-				context.config.auth.security.keys.publicKey,
-			);
-			const subject = isAuthenticationStateIdentified(state)
-				? state.identity
-				: context.remoteAddress;
-			const result = await context.auth.submitIdentification(
-				state,
-				type,
-				identification,
-				subject,
-			);
-			if (result.done) {
-				const session = await context.session.create(result.identityId, {});
-				return json({ done: true, session: session.id }, 200);
-			} else {
-				return json({
-					...result,
-					...("state" in result
-						? {
-							encryptedState: await encryptAuthenticationState(
-								result.state,
-								context.config.auth.security.keys.algo,
-								context.config.auth.security.keys.privateKey,
-							),
-						}
-						: {}),
-				}, 200);
-			}
-		} catch (error) {
-			return json({ error: error.constructor.name }, 400);
-		}
-	},
-);
+async function postSendIdentificationValidationCode(request: Request, _params: Record<never, never>, context: Context) {
+	const formData = await request.formData();
+	const type = formData.get("type")?.toString() ?? "";
+	const identification = formData.get("identification")?.toString() ?? "";
+	const identityIdentification = await context.identity.matchIdentification(
+		type,
+		identification,
+	);
+	await context.auth.sendIdentificationValidationCode(
+		identityIdentification.identityId,
+		type,
+	);
+	return { sent: true };
+}
 
-authRouter.post("/signInSubmitChallenge", async (request, _params, context) => {
-	try {
-		const formData = await request.formData();
-		const type = formData.get("type")?.toString() ?? "";
-		const challenge = formData.get("challenge")?.toString() ?? "";
-		const encryptedState = formData.get("state")?.toString() ?? "";
-		const state = await decryptEncryptedAuthenticationState(
-			encryptedState,
-			context.config.auth.security.keys.publicKey,
-		);
-		assertAuthenticationStateIdentified(state);
-		const result = await context.auth.submitChallenge(
-			state,
-			type,
-			challenge,
-			state.identity,
-		);
-		if (result.done) {
-			const session = await context.session.create(result.identityId, {});
-			return json(result, 200);
-		} else {
-			return json({
-				...result,
-				...("state" in result
-					? {
-						state: await encryptAuthenticationState(
-							result.state,
-							context.config.auth.security.keys.algo,
-							context.config.auth.security.keys.privateKey,
-						),
-					}
-					: {}),
-			}, 200);
-		}
-	} catch (error) {
-		return json({ error: error.constructor.name }, 400);
-	}
-});
+async function postConfirmIdentificationValidationCode(request: Request, _params: Record<never, never>, context: Context) {
+	const formData = await request.formData();
+	const type = formData.get("type")?.toString() ?? "";
+	const identification = formData.get("identification")?.toString() ?? "";
+	const code = formData.get("code")?.toString() ?? "";
+	const identityIdentification = await context.identity.matchIdentification(
+		type,
+		identification,
+	);
+	await context.auth.confirmIdentificationValidationCode(
+		identityIdentification.identityId,
+		type,
+		code,
+	);
+	return { confirmed: true };
+}
 
-authRouter.post(
-	"/sendIdentificationValidationCode",
-	async (request, _params, context) => {
-		try {
-			const formData = await request.formData();
-			const type = formData.get("type")?.toString() ?? "";
-			const identification = formData.get("identification")?.toString() ?? "";
-			const identityIdentification = await context.identity.matchIdentification(
-				type,
-				identification,
-			);
-			await context.auth.sendIdentificationValidationCode(
-				identityIdentification.identityId,
-				type,
-			);
-			return json({ sent: true }, 200);
-		} catch (_error) {
-			return json({ error: AuthenticationSendValidationCodeError.name }, 400);
-		}
-	},
-);
+async function postSignOut(request: Request, _params: Record<never, never>, context: Context) {
+	const formData = await request.formData();
+	const session = formData.get("session")?.toString() ?? "";
+	await context.session.destroy(session);
+	return {};
+}
 
-authRouter.post(
-	"/confirmIdentificationValidationCode",
-	async (request, _params, context) => {
-		try {
-			const formData = await request.formData();
-			const type = formData.get("type")?.toString() ?? "";
-			const identification = formData.get("identification")?.toString() ?? "";
-			const code = formData.get("code")?.toString() ?? "";
-			const identityIdentification = await context.identity.matchIdentification(
-				type,
-				identification,
-			);
-			await context.auth.confirmIdentificationValidationCode(
-				identityIdentification.identityId,
-				type,
-				code,
-			);
-			return json({ confirmed: true }, 200);
-		} catch (_error) {
-			return json(
-				{ error: AuthenticationConfirmValidationCodeError.name },
-				400,
-			);
-		}
-	},
-);
+const authRouter = new RouterBuilder<[context: Context]>();
 
-authRouter.post("/signOut", async (request, _params, context) => {
-	try {
-		const formData = await request.formData();
-		const session = formData.get("session")?.toString() ?? "";
-		await context.session.destroy(session);
-	} finally {
-		// ignore
-	}
-	return json({}, 200);
-});
+authRouter.get("/flow", json(getFlowHandler));
+authRouter.get("/signInStep", json(getSignInStep));
+authRouter.post("/signInStep", json(postSignInStep));
+authRouter.post("/signInSubmitIdentification", json(postSignInSubmitIdentification));
+authRouter.post("/signInSubmitChallenge", json(postSignInSubmitChallenge));
+authRouter.post("/sendIdentificationValidationCode", json(postSendIdentificationValidationCode));
+authRouter.post("/confirmIdentificationValidationCode", json(postConfirmIdentificationValidationCode));
+authRouter.post("/signOut", json(postSignOut));
 
 export default authRouter;

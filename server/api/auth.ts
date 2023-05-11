@@ -12,7 +12,7 @@ import {
 	isAuthenticationCeremonyStateIdentified,
 } from "../../common/authentication/ceremony/state.ts";
 import { RouterBuilder } from "../../common/system/router.ts";
-import { ApiResult } from "../../common/api/result.ts";
+import { ApiResponse } from "../../common/api/response.ts";
 
 async function decryptEncryptedAuthenticationCeremonyState(
 	data: string,
@@ -51,7 +51,7 @@ function json<Params, Result>(
 	headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
 	headers.set("Content-Type", "application/json");
 	return async (request: Request, params: Params, context: Context) => {
-		let result: ApiResult;
+		let result: ApiResponse;
 		try {
 			result = {
 				data: await handler(request, params, context) as Record<

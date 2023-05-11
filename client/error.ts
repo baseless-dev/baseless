@@ -1,5 +1,5 @@
 import * as apiErrors from "../common/api/errors.ts";
-import { ApiResultData, isApiResultError } from "../common/api/result.ts";
+import { ApiResponseData, isApiResponseError } from "../common/api/response.ts";
 import * as authErrors from "../common/authentication/errors.ts";
 import * as counterErrors from "../common/counter/errors.ts";
 import * as identityErrors from "../common/identity/errors.ts";
@@ -8,7 +8,7 @@ import * as messageErrors from "../common/message/errors.ts";
 import * as sessionErrors from "../common/session/errors.ts";
 
 interface Error {
-	new (message?: string, options?: ErrorOptions): globalThis.Error;
+	new(message?: string, options?: ErrorOptions): globalThis.Error;
 }
 
 const errorMap = new Map<string, Error>([
@@ -23,17 +23,17 @@ const errorMap = new Map<string, Error>([
 
 export function throwIfApiError(
 	value: unknown,
-): asserts value is ApiResultData {
-	if (isApiResultError(value)) {
+): asserts value is ApiResponseData {
+	if (isApiResponseError(value)) {
 		const errorName = value.error;
 		const errorConstructor = errorMap.get(errorName);
 		if (errorConstructor) {
 			throw new errorConstructor();
 		}
-		throw new UnknownApiResultError();
+		throw new UnknownApiResponseError();
 	}
 }
 
-export class UnknownApiResultError extends Error {
-	name = "UnknownApiResultError" as const;
+export class UnknownApiResponseError extends Error {
+	name = "UnknownApiResponseError" as const;
 }

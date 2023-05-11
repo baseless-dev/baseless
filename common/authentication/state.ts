@@ -1,65 +1,65 @@
 import { AutoId, isAutoId } from "../system/autoid.ts";
 import {
-	InvalidAuthenticationState,
-	InvalidAuthenticationStateAnonymous,
-	InvalidAuthenticationStateIdentified,
+	InvalidAuthenticationCeremonyState,
+	InvalidAuthenticationCeremonyStateAnonymous,
+	InvalidAuthenticationCeremonyStateIdentified,
 } from "./errors.ts";
 
-export type AuthenticationStateAnonymous = {
+export type AuthenticationCeremonyStateAnonymous = {
 	readonly choices: string[];
 };
 
-export type AuthenticationStateIdentified = {
+export type AuthenticationCeremonyStateIdentified = {
 	readonly identity: AutoId;
 	readonly choices: string[];
 };
 
-export type AuthenticationState =
-	| AuthenticationStateAnonymous
-	| AuthenticationStateIdentified;
+export type AuthenticationCeremonyState =
+	| AuthenticationCeremonyStateAnonymous
+	| AuthenticationCeremonyStateIdentified;
 
-export function isAuthenticationStateAnonymous(
+export function isAuthenticationCeremonyStateAnonymous(
 	value?: unknown,
-): value is AuthenticationStateAnonymous {
+): value is AuthenticationCeremonyStateAnonymous {
 	return typeof value === "object" && value !== null && "choices" in value &&
 		Array.isArray(value.choices) &&
 		value.choices.every((c) => typeof c === "string");
 }
 
-export function assertAuthenticationStateAnonymous(
+export function assertAuthenticationCeremonyStateAnonymous(
 	value?: unknown,
-): asserts value is AuthenticationStateAnonymous {
-	if (!isAuthenticationStateAnonymous(value)) {
-		throw new InvalidAuthenticationStateAnonymous();
+): asserts value is AuthenticationCeremonyStateAnonymous {
+	if (!isAuthenticationCeremonyStateAnonymous(value)) {
+		throw new InvalidAuthenticationCeremonyStateAnonymous();
 	}
 }
 
-export function isAuthenticationStateIdentified(
+export function isAuthenticationCeremonyStateIdentified(
 	value?: unknown,
-): value is AuthenticationStateIdentified {
-	return isAuthenticationStateAnonymous(value) && "identity" in value &&
+): value is AuthenticationCeremonyStateIdentified {
+	return isAuthenticationCeremonyStateAnonymous(value) && "identity" in value &&
 		isAutoId(value.identity);
 }
 
-export function assertAuthenticationStateIdentified(
+export function assertAuthenticationCeremonyStateIdentified(
 	value?: unknown,
-): asserts value is AuthenticationStateIdentified {
-	if (!isAuthenticationStateIdentified(value)) {
-		throw new InvalidAuthenticationStateIdentified();
+): asserts value is AuthenticationCeremonyStateIdentified {
+	if (!isAuthenticationCeremonyStateIdentified(value)) {
+		throw new InvalidAuthenticationCeremonyStateIdentified();
 	}
 }
 
-export function isAuthenticationState(
+export function isAuthenticationCeremonyState(
 	value?: unknown,
-): value is AuthenticationState {
-	return isAuthenticationStateAnonymous(value) ||
-		isAuthenticationStateIdentified(value);
+): value is AuthenticationCeremonyState {
+	return isAuthenticationCeremonyStateAnonymous(value) ||
+		isAuthenticationCeremonyStateIdentified(value);
 }
 
-export function assertAuthenticationState(
+export function assertAuthenticationCeremonyState(
 	value?: unknown,
-): asserts value is AuthenticationState {
-	if (!isAuthenticationState(value)) {
-		throw new InvalidAuthenticationState();
+): asserts value is AuthenticationCeremonyState {
+	if (!isAuthenticationCeremonyState(value)) {
+		throw new InvalidAuthenticationCeremonyState();
 	}
 }

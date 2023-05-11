@@ -6,8 +6,8 @@ import {
 import { assertApp, initializeApp } from "./app.ts";
 import {
 	assertPersistence,
-	getSignInFlow,
 	getPersistence,
+	getSignInFlow,
 	getSignInStep,
 	initializeAuth,
 	onAuthStateChange,
@@ -33,10 +33,10 @@ import {
 	otp,
 	password,
 	sequence,
-} from "../common/authentication/steps/helpers.ts";
-import { assertAuthenticationResultState } from "../common/authentication/results/state.ts";
-import { assertAuthenticationResultEncryptedState } from "../common/authentication/results/encrypted_state.ts";
-import { assertAuthenticationResultDone } from "../common/authentication/results/done.ts";
+} from "../common/authentication/component/helpers.ts";
+import { assertAuthenticationResponseState } from "../common/authentication/response/state.ts";
+import { assertAuthenticationResponseEncryptedState } from "../common/authentication/response/encrypted_state.ts";
+import { assertAuthenticationResponseDone } from "../common/authentication/response/done.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const mail = email({
@@ -151,11 +151,11 @@ Deno.test("Client Auth", async (t) => {
 
 	await t.step("getSignInStep", async () => {
 		const result = await getSignInStep(app);
-		assertAuthenticationResultState(result);
+		assertAuthenticationResponseState(result);
 		assertEquals(result.first, true);
 		assertEquals(result.last, false);
-		assertEquals(result.step, mail);
-		assertAuthenticationResultState(await getSignInStep(app, "invalid"));
+		assertEquals(result.component, mail);
+		assertAuthenticationResponseState(await getSignInStep(app, "invalid"));
 	});
 
 	await t.step("submitSignInIdentification", async () => {
@@ -164,10 +164,10 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		assertAuthenticationResultEncryptedState(result);
+		assertAuthenticationResponseEncryptedState(result);
 		assertEquals(result.first, false);
 		assertEquals(result.last, false);
-		assertEquals(result.step, oneOf(pass, code));
+		assertEquals(result.component, oneOf(pass, code));
 		await assertRejects(() =>
 			submitSignInIdentification(app, "email", "unknown@test.local")
 		);
@@ -179,13 +179,13 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		assertAuthenticationResultEncryptedState(result1);
+		assertAuthenticationResponseEncryptedState(result1);
 		const result2 = await submitSignInChallenge(
 			app,
 			"password",
 			"123",
 			result1.encryptedState,
 		);
-		assertAuthenticationResultDone(result2);
+		assertAuthenticationResponseDone(result2);
 	});
 });

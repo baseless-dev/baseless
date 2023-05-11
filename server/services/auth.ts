@@ -1,32 +1,32 @@
 import {
-	AuthenticationChallengeFailedError,
+	AuthenticationCeremonyComponentChallengeFailedError,
+	AuthenticationCeremonyDoneError,
 	AuthenticationConfirmValidationCodeError,
-	AuthenticationFlowDoneError,
 	AuthenticationInvalidStepError,
 	AuthenticationMissingChallengeError,
 	AuthenticationMissingIdentificationError,
 	AuthenticationRateLimitedError,
 	AuthenticationSendValidationCodeError,
 } from "../../common/authentication/errors.ts";
-import { isAuthenticationResultDone } from "../../common/authentication/results/done.ts";
-import { AuthenticationResult } from "../../common/authentication/results/result.ts";
-import { isAuthenticationResultState } from "../../common/authentication/results/state.ts";
+import { isAuthenticationResponseDone } from "../../common/authentication/response/done.ts";
+import { AuthenticationResponse } from "../../common/authentication/response/result.ts";
+import { isAuthenticationResponseState } from "../../common/authentication/response/state.ts";
 import {
-	assertAuthenticationStateIdentified,
-	AuthenticationState,
-	isAuthenticationStateIdentified,
+	assertAuthenticationCeremonyStateIdentified,
+	AuthenticationCeremonyState,
+	isAuthenticationCeremonyStateIdentified,
 } from "../../common/authentication/state.ts";
 import {
-	AuthenticationStep,
-	isAuthenticationStep,
-} from "../../common/authentication/step.ts";
-import { isAuthenticationChoice } from "../../common/authentication/steps/choice.ts";
-import { flatten } from "../../common/authentication/steps/flatten.ts";
-import { getStepAtPath } from "../../common/authentication/steps/get_step_at_path.ts";
+	AuthenticationCeremonyComponent,
+	isAuthenticationCeremonyComponent,
+} from "../../common/authentication/ceremony.ts";
+import { isAuthenticationCeremonyComponentChoice } from "../../common/authentication/component/choice.ts";
+import { flatten } from "../../common/authentication/component/flatten.ts";
+import { getComponentAtPath } from "../../common/authentication/component/get_component_at_path.ts";
 import {
 	simplify,
 	simplifyWithContext,
-} from "../../common/authentication/steps/simplify.ts";
+} from "../../common/authentication/component/simplify.ts";
 import { AutoId } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import { otp } from "../../common/system/otp.ts";
@@ -60,9 +60,9 @@ export class AuthenticationService {
 	}
 
 	async getStep(
-		state?: AuthenticationState,
+		state?: AuthenticationCeremonyState,
 		context?: Context,
-	): Promise<AuthenticationResult> {
+	): Promise<AuthenticationResponse> {
 		state ??= { choices: [] };
 		const step = flatten(
 			context
@@ -73,44 +73,44 @@ export class AuthenticationService {
 				)
 				: simplify(this.#configuration.auth.flow.step),
 		);
-		const result = getStepAtPath(step, state.choices);
+		const result = getComponentAtPath(step, state.choices);
 		if (result.done) {
-			if (isAuthenticationStateIdentified(state)) {
+			if (isAuthenticationCeremonyStateIdentified(state)) {
 				return { done: true, identityId: state.identity };
 			}
-			throw new AuthenticationFlowDoneError();
+			throw new AuthenticationCeremonyDoneError();
 		}
-		const last = isAuthenticationChoice(result.step)
+		const last = isAuthenticationCeremonyComponentChoice(result.component)
 			? false
-			: getStepAtPath(step, [...state.choices, result.step.type])
+			: getComponentAtPath(step, [...state.choices, result.component.type])
 				.done;
 		const first = state.choices.length === 0;
-		return { done: false, step: result.step, first, last, state };
+		return { done: false, component: result.component, first, last, state };
 	}
 
 	async submitIdentification(
-		state: AuthenticationState,
+		state: AuthenticationCeremonyState,
 		type: string,
 		identification: string,
 		subject: string,
-	): Promise<AuthenticationResult> {
+	): Promise<AuthenticationResponse> {
 		const counterInterval =
 			this.#configuration.auth.security.rateLimit.identificationInterval * 1000;
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-				this.#configuration.auth.security.rateLimit.identificationCount
+			this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
 		const result = await this.getStep(state);
-		if (!isAuthenticationResultState(result)) {
-			throw new AuthenticationFlowDoneError();
+		if (!isAuthenticationResponseState(result)) {
+			throw new AuthenticationCeremonyDoneError();
 		}
-		const step = isAuthenticationChoice(result.step)
-			? result.step.choices.find((s) => s.type === type)
-			: result.step;
+		const step = isAuthenticationCeremonyComponentChoice(result.component)
+			? result.component.components.find((s) => s.type === type)
+			: result.component;
 		if (!step) {
 			throw new AuthenticationInvalidStepError();
 		}
@@ -145,12 +145,12 @@ export class AuthenticationService {
 	 * @throws {AuthenticationInvalidStepError}
 	 */
 	async submitChallenge(
-		state: AuthenticationState,
+		state: AuthenticationCeremonyState,
 		type: string,
 		challenge: string,
 		subject: string,
-	): Promise<AuthenticationResult> {
-		assertAuthenticationStateIdentified(state);
+	): Promise<AuthenticationResponse> {
+		assertAuthenticationCeremonyStateIdentified(state);
 
 		const counterInterval =
 			this.#configuration.auth.security.rateLimit.identificationInterval;
@@ -168,12 +168,12 @@ export class AuthenticationService {
 		}
 
 		const result = await this.getStep(state);
-		if (!isAuthenticationResultState(result)) {
-			throw new AuthenticationFlowDoneError();
+		if (!isAuthenticationResponseState(result)) {
+			throw new AuthenticationCeremonyDoneError();
 		}
-		const step = isAuthenticationChoice(result.step)
-			? result.step.choices.find((s) => s.type === type)
-			: result.step;
+		const step = isAuthenticationCeremonyComponentChoice(result.component)
+			? result.component.components.find((s) => s.type === type)
+			: result.component;
 		if (!step) {
 			throw new AuthenticationInvalidStepError();
 		}
@@ -189,7 +189,7 @@ export class AuthenticationService {
 		);
 
 		if (!await challenger.verify(identityChallenge, challenge)) {
-			throw new AuthenticationChallengeFailedError();
+			throw new AuthenticationCeremonyComponentChallengeFailedError();
 		}
 
 		const newState = {

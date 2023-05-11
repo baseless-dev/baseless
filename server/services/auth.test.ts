@@ -12,7 +12,7 @@ import { IdentityService } from "./identity.ts";
 import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
 import { EmailAuthentificationIdenticator } from "../../providers/auth-email/mod.ts";
 import { PasswordAuthentificationChallenger } from "../../providers/auth-password/mod.ts";
-import * as h from "../../common/authentication/steps/helpers.ts";
+import * as h from "../../common/authentication/component/helpers.ts";
 import { Message } from "../../common/message/message.ts";
 import { setGlobalLogHandler } from "../../common/system/logger.ts";
 import { autoid } from "../../common/system/autoid.ts";
@@ -76,7 +76,7 @@ Deno.test("AuthenticationService", async (t) => {
 			{
 				state: { choices: [] },
 				done: false,
-				step: h.oneOf(email, github),
+				component: h.oneOf(email, github),
 				first: true,
 				last: false,
 			},
@@ -86,7 +86,7 @@ Deno.test("AuthenticationService", async (t) => {
 			{
 				state: { choices: ["email"] },
 				done: false,
-				step: password,
+				component: password,
 				first: false,
 				last: true,
 			},
@@ -120,7 +120,7 @@ Deno.test("AuthenticationService", async (t) => {
 			),
 			{
 				done: false,
-				step: password,
+				component: password,
 				first: false,
 				last: true,
 				state: { choices: ["email"], identity: ident1.id },
@@ -173,7 +173,7 @@ Deno.test("AuthenticationService", async (t) => {
 		await authService.sendIdentificationValidationCode(ident1.id, "email");
 		verificationCode = messages.pop()?.message.text ?? "";
 		assertEquals(verificationCode.length, 6);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 	});
 
 	await t.step("confirmIdentificationValidationCode", async () => {

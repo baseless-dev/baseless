@@ -1,9 +1,9 @@
 import { AuthenticationChallenger } from "../../common/authentication/challenger.ts";
 import { AuthenticationIdenticator } from "../../common/authentication/identicator.ts";
 import {
-	assertAuthenticationStep,
-	AuthenticationStep,
-} from "../../common/authentication/step.ts";
+	assertAuthenticationCeremonyComponent,
+	AuthenticationCeremonyComponent,
+} from "../../common/authentication/ceremony.ts";
 import { Identity } from "../../common/identity/identity.ts";
 import { Context } from "../context.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
@@ -29,7 +29,7 @@ export type AuthenticationConfiguration = {
 		};
 	};
 	readonly flow: {
-		readonly step: AuthenticationStep;
+		readonly step: AuthenticationCeremonyComponent;
 		readonly identificators: Map<string, AuthenticationIdenticator>;
 		readonly chalengers: Map<string, AuthenticationChallenger>;
 	};
@@ -46,7 +46,7 @@ export type AuthenticationHandler = (
 export type AuthenticationViewPrompParams = {
 	request: Request;
 	context: Context;
-	step: AuthenticationStep;
+	step: AuthenticationCeremonyComponent;
 	isFirstStep: boolean;
 	isLastStep: boolean;
 };
@@ -62,7 +62,7 @@ export class AuthenticationConfigurationBuilder {
 	#enabled = false;
 	#securityKeys?: AuthenticationKeys;
 	#securitySalt?: string;
-	#flowStep?: AuthenticationStep;
+	#flowStep?: AuthenticationCeremonyComponent;
 	#flowIdentificators = new Map<string, AuthenticationIdenticator>();
 	#flowChalengers = new Map<string, AuthenticationChallenger>();
 	#onCreateIdentityHandler?: AuthenticationHandler;
@@ -126,8 +126,8 @@ export class AuthenticationConfigurationBuilder {
 	 * @param step The allowed authentication methods
 	 * @returns The builder
 	 */
-	public setFlowStep(step: AuthenticationStep) {
-		assertAuthenticationStep(step);
+	public setFlowStep(step: AuthenticationCeremonyComponent) {
+		assertAuthenticationCeremonyComponent(step);
 		this.#flowStep = step;
 		return this;
 	}

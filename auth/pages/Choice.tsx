@@ -1,24 +1,24 @@
 import {
-	assertAuthenticationChoice,
-	AuthenticationChallenge,
-	AuthenticationIdentification,
-	isAuthenticationChallenge,
-	isAuthenticationChoice,
-	isAuthenticationIdentification,
+	assertAuthenticationCeremonyComponentChoice,
+	AuthenticationCeremonyComponentChallenge,
+	AuthenticationCeremonyComponentIdentification,
+	isAuthenticationCeremonyComponentChallenge,
+	isAuthenticationCeremonyComponentChoice,
+	isAuthenticationCeremonyComponentIdentification,
 } from "../../server/auth/flow.ts";
 import {
 	assertGetStepResult,
 	assertGetStepYieldResult,
 	isGetStepReturnResult,
 } from "../../server/services/auth.ts";
-import Layout from "../components/Layout.tsx";
+import Layout from "../component/Layout.tsx";
 import { Navigate } from "../deps.ts";
 import useFetch from "../hooks/useFetch.ts";
 
 export type ChoicePageProps = {};
 
-// https://github.com/baseless-dev/baseless/blob/41351d2ba2c914e37152afbedc7557497e7cc31a/server/auth/ui/components/Login.ts
-export default function ChoicePage({}: ChoicePageProps) {
+// https://github.com/baseless-dev/baseless/blob/41351d2ba2c914e37152afbedc7557497e7cc31a/server/auth/ui/component/Login.ts
+export default function ChoicePage({ }: ChoicePageProps) {
 	const currentLocale = "en"; // TODO obtain locale
 	const { loading, data, error } = useFetch(
 		"/api/auth/flow",
@@ -34,13 +34,16 @@ export default function ChoicePage({}: ChoicePageProps) {
 	if (isGetStepReturnResult(data)) {
 		return <Navigate to="/auth/done" />;
 	}
-	if (!isAuthenticationChoice(data.step)) {
+	if (!isAuthenticationCeremonyComponentChoice(data.step)) {
 		return <Navigate to={`/auth/step/${data.step.type}`} />;
 	}
 	const choices = data.step.choices.filter((
 		choice,
-	): choice is AuthenticationIdentification | AuthenticationChallenge =>
-		isAuthenticationIdentification(choice) || isAuthenticationChallenge(choice)
+	): choice is
+		| AuthenticationCeremonyComponentIdentification
+		| AuthenticationCeremonyComponentChallenge =>
+		isAuthenticationCeremonyComponentIdentification(choice) ||
+		isAuthenticationCeremonyComponentChallenge(choice)
 	);
 	return (
 		<Layout title="Login">

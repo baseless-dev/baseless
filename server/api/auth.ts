@@ -6,29 +6,29 @@ import type {
 import { SignJWT } from "https://deno.land/x/jose@v4.13.1/jwt/sign.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.13.1/jwt/verify.ts";
 import {
-	assertAuthenticationState,
-	assertAuthenticationStateIdentified,
-	AuthenticationState,
-	isAuthenticationStateIdentified,
+	assertAuthenticationCeremonyState,
+	assertAuthenticationCeremonyStateIdentified,
+	AuthenticationCeremonyState,
+	isAuthenticationCeremonyStateIdentified,
 } from "../../common/authentication/state.ts";
 import { RouterBuilder } from "../../common/system/router.ts";
 import { ApiResult } from "../../common/api/result.ts";
 
-async function decryptEncryptedAuthenticationState(
+async function decryptEncryptedAuthenticationCeremonyState(
 	data: string,
 	publicKey: KeyLike,
-): Promise<AuthenticationState> {
+): Promise<AuthenticationCeremonyState> {
 	try {
 		const { payload } = await jwtVerify(data, publicKey);
-		assertAuthenticationState(payload);
+		assertAuthenticationCeremonyState(payload);
 		return payload;
 	} catch (_error) {
 		return { choices: [] };
 	}
 }
 
-async function encryptAuthenticationState(
-	state: AuthenticationState,
+async function encryptAuthenticationCeremonyState(
+	state: AuthenticationCeremonyState,
 	alg: string,
 	privateKey: KeyLike,
 	expiration: string | number = "10m",
@@ -40,13 +40,25 @@ async function encryptAuthenticationState(
 		.sign(privateKey);
 }
 
-function json<Params, Result>(handler: (request: Request, params: Params, context: Context) => Result | Promise<Result>, headers = new Headers()) {
+function json<Params, Result>(
+	handler: (
+		request: Request,
+		params: Params,
+		context: Context,
+	) => Result | Promise<Result>,
+	headers = new Headers(),
+) {
 	headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
 	headers.set("Content-Type", "application/json");
 	return async (request: Request, params: Params, context: Context) => {
 		let result: ApiResult;
 		try {
-			result = { data: await handler(request, params, context) as Record<string, unknown> };
+			result = {
+				data: await handler(request, params, context) as Record<
+					string,
+					unknown
+				>,
+			};
 		} catch (error) {
 			result = { error: error.constructor.name };
 		}
@@ -57,34 +69,50 @@ function json<Params, Result>(handler: (request: Request, params: Params, contex
 	};
 }
 
-function getFlowHandler(_request: Request, _params: Record<never, never>, context: Context) {
+function getFlowHandler(
+	_request: Request,
+	_params: Record<never, never>,
+	context: Context,
+) {
 	return context.config.auth.flow.step;
 }
 
-function getSignInStep(_request: Request, _params: Record<never, never>, context: Context) {
+function getSignInStep(
+	_request: Request,
+	_params: Record<never, never>,
+	context: Context,
+) {
 	return context.auth.getStep();
 }
 
-async function postSignInStep(request: Request, _params: Record<never, never>, context: Context) {
+async function postSignInStep(
+	request: Request,
+	_params: Record<never, never>,
+	context: Context,
+) {
 	const formData = await request.formData();
 	const encryptedState = formData.get("state")?.toString() ?? "";
-	const state = await decryptEncryptedAuthenticationState(
+	const state = await decryptEncryptedAuthenticationCeremonyState(
 		encryptedState,
 		context.config.auth.security.keys.publicKey,
 	);
 	return context.auth.getStep(state, context);
 }
 
-async function postSignInSubmitIdentification(request: Request, _params: Record<never, never>, context: Context) {
+async function postSignInSubmitIdentification(
+	request: Request,
+	_params: Record<never, never>,
+	context: Context,
+) {
 	const formData = await request.formData();
 	const type = formData.get("type")?.toString() ?? "";
 	const identification = formData.get("identification")?.toString() ?? "";
 	const encryptedState = formData.get("state")?.toString() ?? "";
-	const state = await decryptEncryptedAuthenticationState(
+	const state = await decryptEncryptedAuthenticationCeremonyState(
 		encryptedState,
 		context.config.auth.security.keys.publicKey,
 	);
-	const subject = isAuthenticationStateIdentified(state)
+	const subject = isAuthenticationCeremonyStateIdentified(state)
 		? state.identity
 		: context.remoteAddress;
 	const result = await context.auth.submitIdentification(
@@ -101,7 +129,7 @@ async function postSignInSubmitIdentification(request: Request, _params: Record<
 			...result,
 			...("state" in result
 				? {
-					encryptedState: await encryptAuthenticationState(
+					encryptedState: await encryptAuthenticationCeremonyState(
 						result.state,
 						context.config.auth.security.keys.algo,
 						context.config.auth.security.keys.privateKey,
@@ -112,16 +140,20 @@ async function postSignInSubmitIdentification(request: Request, _params: Record<
 	}
 }
 
-async function postSignInSubmitChallenge(request: Request, _params: Record<never, never>, context: Context) {
+async function postSignInSubmitChallenge(
+	request: Request,
+	_params: Record<never, never>,
+	context: Context,
+) {
 	const formData = await request.formData();
 	const type = formData.get("type")?.toString() ?? "";
 	const challenge = formData.get("challenge")?.toString() ?? "";
 	const encryptedState = formData.get("state")?.toString() ?? "";
-	const state = await decryptEncryptedAuthenticationState(
+	const state = await decryptEncryptedAuthenticationCeremonyState(
 		encryptedState,
 		context.config.auth.security.keys.publicKey,
 	);
-	assertAuthenticationStateIdentified(state);
+	assertAuthenticationCeremonyStateIdentified(state);
 	const result = await context.auth.submitChallenge(
 		state,
 		type,
@@ -136,7 +168,7 @@ async function postSignInSubmitChallenge(request: Request, _params: Record<never
 			...result,
 			...("state" in result
 				? {
-					state: await encryptAuthenticationState(
+					state: await encryptAuthenticationCeremonyState(
 						result.state,
 						context.config.auth.security.keys.algo,
 						context.config.auth.security.keys.privateKey,
@@ -147,7 +179,11 @@ async function postSignInSubmitChallenge(request: Request, _params: Record<never
 	}
 }
 
-async function postSendIdentificationValidationCode(request: Request, _params: Record<never, never>, context: Context) {
+async function postSendIdentificationValidationCode(
+	request: Request,
+	_params: Record<never, never>,
+	context: Context,
+) {
 	const formData = await request.formData();
 	const type = formData.get("type")?.toString() ?? "";
 	const identification = formData.get("identification")?.toString() ?? "";
@@ -162,7 +198,11 @@ async function postSendIdentificationValidationCode(request: Request, _params: R
 	return { sent: true };
 }
 
-async function postConfirmIdentificationValidationCode(request: Request, _params: Record<never, never>, context: Context) {
+async function postConfirmIdentificationValidationCode(
+	request: Request,
+	_params: Record<never, never>,
+	context: Context,
+) {
 	const formData = await request.formData();
 	const type = formData.get("type")?.toString() ?? "";
 	const identification = formData.get("identification")?.toString() ?? "";
@@ -179,7 +219,11 @@ async function postConfirmIdentificationValidationCode(request: Request, _params
 	return { confirmed: true };
 }
 
-async function postSignOut(request: Request, _params: Record<never, never>, context: Context) {
+async function postSignOut(
+	request: Request,
+	_params: Record<never, never>,
+	context: Context,
+) {
 	const formData = await request.formData();
 	const session = formData.get("session")?.toString() ?? "";
 	await context.session.destroy(session);
@@ -191,10 +235,19 @@ const authRouter = new RouterBuilder<[context: Context]>();
 authRouter.get("/flow", json(getFlowHandler));
 authRouter.get("/signInStep", json(getSignInStep));
 authRouter.post("/signInStep", json(postSignInStep));
-authRouter.post("/signInSubmitIdentification", json(postSignInSubmitIdentification));
+authRouter.post(
+	"/signInSubmitIdentification",
+	json(postSignInSubmitIdentification),
+);
 authRouter.post("/signInSubmitChallenge", json(postSignInSubmitChallenge));
-authRouter.post("/sendIdentificationValidationCode", json(postSendIdentificationValidationCode));
-authRouter.post("/confirmIdentificationValidationCode", json(postConfirmIdentificationValidationCode));
+authRouter.post(
+	"/sendIdentificationValidationCode",
+	json(postSendIdentificationValidationCode),
+);
+authRouter.post(
+	"/confirmIdentificationValidationCode",
+	json(postConfirmIdentificationValidationCode),
+);
 authRouter.post("/signOut", json(postSignOut));
 
 export default authRouter;

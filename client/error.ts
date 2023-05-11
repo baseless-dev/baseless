@@ -8,7 +8,7 @@ import * as messageErrors from "../common/message/errors.ts";
 import * as sessionErrors from "../common/session/errors.ts";
 
 interface Error {
-	new(message?: string, options?: ErrorOptions): globalThis.Error;
+	new (message?: string, options?: ErrorOptions): globalThis.Error;
 }
 
 const errorMap = new Map<string, Error>([
@@ -21,7 +21,9 @@ const errorMap = new Map<string, Error>([
 	...Object.entries(sessionErrors),
 ]);
 
-export function throwIfApiError(value: unknown): asserts value is ApiResultData {
+export function throwIfApiError(
+	value: unknown,
+): asserts value is ApiResultData {
 	if (isApiResultError(value)) {
 		const errorName = value.error;
 		const errorConstructor = errorMap.get(errorName);

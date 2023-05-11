@@ -1,7 +1,7 @@
 import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import * as h from "./helpers.ts";
 import { simplify, simplifyWithContext } from "./simplify.ts";
-import type { AuthenticationState } from "../state.ts";
+import type { AuthenticationCeremonyState } from "../state.ts";
 import type { Context } from "../../../server/context.ts";
 
 Deno.test("simplify", async (t) => {
@@ -52,7 +52,7 @@ Deno.test("simplify", async (t) => {
 
 	await t.step("with context", async () => {
 		const ctx = {} as Context;
-		const state = {} as AuthenticationState;
+		const state = {} as AuthenticationCeremonyState;
 		assertEquals(
 			await simplifyWithContext(conditional, ctx, state),
 			h.sequence(email, password),

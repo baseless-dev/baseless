@@ -1,11 +1,11 @@
 import { assertApiResult, isApiResultError } from "../common/api/result.ts";
-import { InvalidAuthenticationResultError } from "../common/authentication/errors.ts";
-import { isAuthenticationResultEncryptedState } from "../common/authentication/results/encrypted_state.ts";
+import { InvalidAuthenticationResponseError } from "../common/authentication/errors.ts";
+import { isAuthenticationResponseEncryptedState } from "../common/authentication/response/encrypted_state.ts";
 import {
-	assertAuthenticationResult,
-	isAuthenticationResult,
-} from "../common/authentication/results/result.ts";
-import { assertAuthenticationStep } from "../common/authentication/step.ts";
+	assertAuthenticationResponse,
+	isAuthenticationResponse,
+} from "../common/authentication/response/result.ts";
+import { assertAuthenticationCeremonyComponent } from "../common/authentication/ceremony.ts";
 import { EventEmitter } from "../common/system/event_emitter.ts";
 import { App, assertApp } from "./app.ts";
 import { throwIfApiError } from "./error.ts";
@@ -124,7 +124,7 @@ export async function getSignInFlow(app: App) {
 	const resp = await app.fetch(`${app.apiEndpoint}/auth/flow`);
 	const result = await resp.json();
 	throwIfApiError(result);
-	assertAuthenticationStep(result.data);
+	assertAuthenticationCeremonyComponent(result.data);
 	return result.data;
 }
 
@@ -144,7 +144,7 @@ export async function getSignInStep(app: App, state?: string) {
 	});
 	const result = await resp.json();
 	throwIfApiError(result);
-	assertAuthenticationResult(result.data);
+	assertAuthenticationResponse(result.data);
 	return result.data;
 }
 
@@ -169,10 +169,10 @@ export async function submitSignInIdentification(
 	const result = await resp.json();
 	throwIfApiError(result);
 	if (
-		!isAuthenticationResult(result.data) &&
-		!isAuthenticationResultEncryptedState(result.data)
+		!isAuthenticationResponse(result.data) &&
+		!isAuthenticationResponseEncryptedState(result.data)
 	) {
-		throw new InvalidAuthenticationResultError();
+		throw new InvalidAuthenticationResponseError();
 	}
 	return result.data;
 }
@@ -196,10 +196,10 @@ export async function submitSignInChallenge(
 	const result = await resp.json();
 	throwIfApiError(result);
 	if (
-		!isAuthenticationResult(result.data) &&
-		!isAuthenticationResultEncryptedState(result.data)
+		!isAuthenticationResponse(result.data) &&
+		!isAuthenticationResponseEncryptedState(result.data)
 	) {
-		throw new InvalidAuthenticationResultError();
+		throw new InvalidAuthenticationResponseError();
 	}
 	return result.data;
 }

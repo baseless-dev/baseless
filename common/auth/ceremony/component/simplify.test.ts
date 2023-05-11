@@ -2,7 +2,7 @@ import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import * as h from "./helpers.ts";
 import { simplify, simplifyWithContext } from "./simplify.ts";
 import type { AuthenticationCeremonyState } from "../state.ts";
-import type { Context } from "../../../../server/context.ts";
+import type { Context } from "../../../server/context.ts";
 
 Deno.test("simplify", async (t) => {
 	const email = h.email({ icon: "", label: {} });

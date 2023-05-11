@@ -32,13 +32,14 @@ import {
 	IdentityIdentification,
 } from "../../common/identity/identification.ts";
 import { Identity } from "../../common/identity/identity.ts";
+import type { Configuration } from "../../common/server/config/config.ts";
+import { IIdentityService } from "../../common/server/services/identity.ts";
 import { AutoId } from "../../common/system/autoid.ts";
 import { CounterProvider } from "../../providers/counter.ts";
 import { IdentityProvider } from "../../providers/identity.ts";
 import { AuthenticationMissingChallengerError } from "../auth/config.ts";
-import { Configuration } from "../config.ts";
 
-export class IdentityService {
+export class IdentityService implements IIdentityService {
 	#configuration: Configuration;
 	#identityProvider: IdentityProvider;
 	#counterProvider: CounterProvider;

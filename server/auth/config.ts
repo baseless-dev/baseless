@@ -4,58 +4,9 @@ import {
 	assertAuthenticationCeremonyComponent,
 	AuthenticationCeremonyComponent,
 } from "../../common/auth/ceremony/ceremony.ts";
-import { Identity } from "../../common/identity/identity.ts";
-import { Context } from "../context.ts";
-import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
+import { AuthenticationConfiguration, AuthenticationHandler, AuthenticationKeys } from "../../common/server/config/auth.ts";
 
-export type AuthenticationKeys = {
-	readonly algo: string;
-	readonly privateKey: KeyLike;
-	readonly publicKey: KeyLike;
-};
 
-export type AuthenticationConfiguration = {
-	readonly enabled: boolean;
-	readonly security: {
-		readonly keys: AuthenticationKeys;
-		readonly salt: string;
-		readonly rateLimit: {
-			readonly identificationCount: number;
-			readonly identificationInterval: number;
-			readonly challengeCount: number;
-			readonly challengeInterval: number;
-			readonly confirmVerificationCodeCount: number;
-			readonly confirmVerificationCodeInterval: number;
-		};
-	};
-	readonly ceremony: AuthenticationCeremonyComponent;
-	readonly identificators: Map<string, AuthenticationIdenticator>;
-	readonly chalengers: Map<string, AuthenticationChallenger>;
-	readonly onCreateIdentity?: AuthenticationHandler;
-	readonly onUpdateIdentity?: AuthenticationHandler;
-	readonly onDeleteIdentity?: AuthenticationHandler;
-};
-
-export type AuthenticationHandler = (
-	context: Context,
-	request: Request,
-	identity: Identity,
-) => void | Promise<void>;
-export type AuthenticationViewPrompParams = {
-	request: Request;
-	context: Context;
-	step: AuthenticationCeremonyComponent;
-	isFirstStep: boolean;
-	isLastStep: boolean;
-};
-export interface AuthenticationRenderer {
-	index(request: Request, context: Context): string;
-	rateLimited(request: Request, context: Context): string;
-	promptChoice(options: AuthenticationViewPrompParams): string;
-	promptEmail(options: AuthenticationViewPrompParams): string;
-	promptPassword(options: AuthenticationViewPrompParams): string;
-	promptOTP(options: AuthenticationViewPrompParams): string;
-}
 export class AuthenticationConfigurationBuilder {
 	#enabled = false;
 	#securityKeys?: AuthenticationKeys;
@@ -224,5 +175,5 @@ export class AuthenticationConfigurationBuilder {
 	}
 }
 
-export class AuthenticationMissingIdentificatorError extends Error {}
-export class AuthenticationMissingChallengerError extends Error {}
+export class AuthenticationMissingIdentificatorError extends Error { }
+export class AuthenticationMissingChallengerError extends Error { }

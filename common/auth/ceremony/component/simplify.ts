@@ -1,10 +1,10 @@
-import type { Context } from "../../../../server/context.ts";
 import type { AuthenticationCeremonyState } from "../state.ts";
 import type { AuthenticationCeremonyComponent } from "../ceremony.ts";
 import { isAuthenticationCeremonyComponentChoice } from "./choice.ts";
 import { isAuthenticationCeremonyComponentConditional } from "./conditional.ts";
 import { oneOf, sequence } from "./helpers.ts";
 import { isAuthenticationCeremonyComponentSequence } from "./sequence.ts";
+import type { Context } from "../../../server/context.ts";
 
 export function simplify(
 	component: AuthenticationCeremonyComponent,

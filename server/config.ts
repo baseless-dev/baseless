@@ -1,19 +1,8 @@
-import { Router, RouterBuilder } from "../common/system/router.ts";
-import {
-	AssetConfiguration,
-	AssetConfigurationBuilder,
-} from "./asset/config.ts";
-import {
-	AuthenticationConfiguration,
-	AuthenticationConfigurationBuilder,
-} from "./auth/config.ts";
-import type { Context } from "./context.ts";
-
-export interface Configuration {
-	readonly asset: AssetConfiguration;
-	readonly auth: AuthenticationConfiguration;
-	readonly functions: Router<[context: Context]>;
-}
+import { Configuration } from "../common/server/config/config.ts";
+import { Context } from "../common/server/context.ts";
+import { RouterBuilder } from "../common/system/router.ts";
+import { AssetConfigurationBuilder } from "./asset/config.ts";
+import { AuthenticationConfigurationBuilder } from "./auth/config.ts";
 
 export class ConfigurationBuilder {
 	#asset = new AssetConfigurationBuilder();

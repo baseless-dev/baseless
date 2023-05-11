@@ -1,3 +1,5 @@
+import { Configuration } from "../common/server/config/config.ts";
+import { Context } from "../common/server/context.ts";
 import { createLogger } from "../common/system/logger.ts";
 import { Router, RouterBuilder } from "../common/system/router.ts";
 import { AssetProvider } from "../providers/asset.ts";
@@ -6,8 +8,6 @@ import { IdentityProvider } from "../providers/identity.ts";
 import { KVProvider } from "../providers/kv.ts";
 import { SessionProvider } from "../providers/session.ts";
 import apiAuthRouter from "./api/auth.ts";
-import { Configuration } from "./config.ts";
-import { Context } from "./context.ts";
 import { AssetService } from "./services/asset.ts";
 import { AuthenticationService } from "./services/auth.ts";
 import { CounterService } from "./services/counter.ts";

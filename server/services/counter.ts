@@ -4,9 +4,10 @@ import type {
 	// deno-lint-ignore no-unused-vars
 	CounterResetError,
 } from "../../common/counter/errors.ts";
+import { ICounterService } from "../../common/server/services/counter.ts";
 import { CounterProvider } from "../../providers/counter.ts";
 
-export class CounterService {
+export class CounterService implements ICounterService {
 	#counterProvider: CounterProvider;
 
 	constructor(

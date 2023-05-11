@@ -1,6 +1,4 @@
-export type AssetConfiguration = {
-	readonly enabled: boolean;
-};
+import { AssetConfiguration } from "../../common/server/config/asset.ts";
 
 export class AssetConfigurationBuilder {
 	#enabled = false;

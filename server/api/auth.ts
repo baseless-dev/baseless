@@ -1,4 +1,3 @@
-import { Context } from "../context.ts";
 import type {
 	JWTPayload,
 	KeyLike,
@@ -16,6 +15,7 @@ import { ApiResponse } from "../../common/api/response.ts";
 import { SendIdentificationValidationCodeResponse } from "../../common/auth/send_identification_validation_code.ts";
 import { AuthenticationCeremonyResponse } from "../../common/auth/ceremony/response.ts";
 import { ConfirmIdentificationValidationCodeResponse } from "../../common/auth/confirm_identification_validation_code.ts";
+import { Context } from "../../common/server/context.ts";
 
 async function decryptEncryptedAuthenticationCeremonyState(
 	data: string,

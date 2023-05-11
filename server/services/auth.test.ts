@@ -27,17 +27,17 @@ Deno.test("AuthenticationService", async (t) => {
 	config.auth()
 		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
 		.setSecuritySalt("foobar")
-		.setFlowStep(
+		.setCeremony(
 			h.oneOf(
 				h.sequence(email, password),
 				github,
 			),
 		)
-		.addFlowIdentificator(
+		.addIdentificator(
 			"email",
 			new EmailAuthentificationIdenticator(new LoggerMessageProvider()),
 		)
-		.addFlowChallenger("password", new PasswordAuthentificationChallenger());
+		.addChallenger("password", new PasswordAuthentificationChallenger());
 
 	const configuration = config.build();
 
@@ -72,7 +72,7 @@ Deno.test("AuthenticationService", async (t) => {
 
 	await t.step("getStep", async () => {
 		assertEquals(
-			await authService.getStep(),
+			await authService.getAuthenticationCeremony(),
 			{
 				state: { choices: [] },
 				done: false,
@@ -82,7 +82,7 @@ Deno.test("AuthenticationService", async (t) => {
 			},
 		);
 		assertEquals(
-			await authService.getStep({ choices: ["email"] }),
+			await authService.getAuthenticationCeremony({ choices: ["email"] }),
 			{
 				state: { choices: ["email"] },
 				done: false,
@@ -92,14 +92,17 @@ Deno.test("AuthenticationService", async (t) => {
 			},
 		);
 		await assertRejects(
-			() => authService.getStep({ choices: ["github"] }),
+			() => authService.getAuthenticationCeremony({ choices: ["github"] }),
 		);
 		await assertRejects(
-			() => authService.getStep({ choices: ["email", "password"] }),
+			() =>
+				authService.getAuthenticationCeremony({
+					choices: ["email", "password"],
+				}),
 		);
 		const identityId = autoid();
 		assertEquals(
-			await authService.getStep({
+			await authService.getAuthenticationCeremony({
 				identity: identityId,
 				choices: ["email", "password"],
 			}),
@@ -112,7 +115,7 @@ Deno.test("AuthenticationService", async (t) => {
 
 	await t.step("submitIdentification", async () => {
 		assertEquals(
-			await authService.submitIdentification(
+			await authService.submitAuthenticationIdentification(
 				{ choices: [] },
 				"email",
 				"john@test.local",
@@ -127,7 +130,7 @@ Deno.test("AuthenticationService", async (t) => {
 			},
 		);
 		await assertRejects(() =>
-			authService.submitIdentification(
+			authService.submitAuthenticationIdentification(
 				{ choices: [] },
 				"email",
 				"unknown@test.local",
@@ -138,7 +141,7 @@ Deno.test("AuthenticationService", async (t) => {
 
 	await t.step("submitChallenge", async () => {
 		assertEquals(
-			await authService.submitChallenge(
+			await authService.submitAuthenticationChallenge(
 				{ choices: ["email"], identity: ident1.id },
 				"password",
 				"123",
@@ -147,7 +150,7 @@ Deno.test("AuthenticationService", async (t) => {
 			{ done: true, identityId: ident1.id },
 		);
 		await assertRejects(() =>
-			authService.submitChallenge(
+			authService.submitAuthenticationChallenge(
 				{ choices: [], identity: ident1.id },
 				"password",
 				"123",
@@ -155,7 +158,7 @@ Deno.test("AuthenticationService", async (t) => {
 			)
 		);
 		await assertRejects(() =>
-			authService.submitChallenge(
+			authService.submitAuthenticationChallenge(
 				{ choices: ["email"], identity: ident1.id },
 				"password",
 				"abc",

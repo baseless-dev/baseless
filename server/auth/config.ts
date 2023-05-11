@@ -28,11 +28,9 @@ export type AuthenticationConfiguration = {
 			readonly confirmVerificationCodeInterval: number;
 		};
 	};
-	readonly flow: {
-		readonly step: AuthenticationCeremonyComponent;
-		readonly identificators: Map<string, AuthenticationIdenticator>;
-		readonly chalengers: Map<string, AuthenticationChallenger>;
-	};
+	readonly ceremony: AuthenticationCeremonyComponent;
+	readonly identificators: Map<string, AuthenticationIdenticator>;
+	readonly chalengers: Map<string, AuthenticationChallenger>;
 	readonly onCreateIdentity?: AuthenticationHandler;
 	readonly onUpdateIdentity?: AuthenticationHandler;
 	readonly onDeleteIdentity?: AuthenticationHandler;
@@ -62,9 +60,9 @@ export class AuthenticationConfigurationBuilder {
 	#enabled = false;
 	#securityKeys?: AuthenticationKeys;
 	#securitySalt?: string;
-	#flowStep?: AuthenticationCeremonyComponent;
-	#flowIdentificators = new Map<string, AuthenticationIdenticator>();
-	#flowChalengers = new Map<string, AuthenticationChallenger>();
+	#ceremony?: AuthenticationCeremonyComponent;
+	#identificators = new Map<string, AuthenticationIdenticator>();
+	#challengers = new Map<string, AuthenticationChallenger>();
 	#onCreateIdentityHandler?: AuthenticationHandler;
 	#onUpdateIdentityHandler?: AuthenticationHandler;
 	#onDeleteIdentityHandler?: AuthenticationHandler;
@@ -123,37 +121,37 @@ export class AuthenticationConfigurationBuilder {
 
 	/**
 	 * Defines the authentication methods and their login methods
-	 * @param step The allowed authentication methods
+	 * @param component The allowed authentication methods
 	 * @returns The builder
 	 */
-	public setFlowStep(step: AuthenticationCeremonyComponent) {
-		assertAuthenticationCeremonyComponent(step);
-		this.#flowStep = step;
+	public setCeremony(component: AuthenticationCeremonyComponent) {
+		assertAuthenticationCeremonyComponent(component);
+		this.#ceremony = component;
 		return this;
 	}
 
 	/**
-	 * Defines a flow identificator
+	 * Defines a identificator
 	 * @param type The identification type
 	 * @param identicator The {@link AuthenticationIdenticator}
 	 * @returns The builder
 	 */
-	public addFlowIdentificator(
+	public addIdentificator(
 		type: string,
 		identicator: AuthenticationIdenticator,
 	) {
-		this.#flowIdentificators.set(type, identicator);
+		this.#identificators.set(type, identicator);
 		return this;
 	}
 
 	/**
-	 * Defines a flow challenger
+	 * Defines a challenger
 	 * @param type The challenger type
 	 * @param challenger The {@link AuthenticationChallenger}
 	 * @returns The builder
 	 */
-	public addFlowChallenger(type: string, challenger: AuthenticationChallenger) {
-		this.#flowChalengers.set(type, challenger);
+	public addChallenger(type: string, challenger: AuthenticationChallenger) {
+		this.#challengers.set(type, challenger);
 		return this;
 	}
 
@@ -195,7 +193,7 @@ export class AuthenticationConfigurationBuilder {
 		if (!this.#securityKeys) {
 			throw new Error(`Authentication keys are needed.`);
 		}
-		if (!this.#flowStep) {
+		if (!this.#ceremony) {
 			throw new Error(`Authentication flow is needed.`);
 		}
 		if (!this.#securitySalt) {
@@ -216,11 +214,9 @@ export class AuthenticationConfigurationBuilder {
 					...this.#rateLimit,
 				},
 			},
-			flow: {
-				step: this.#flowStep,
-				identificators: new Map(this.#flowIdentificators),
-				chalengers: new Map(this.#flowChalengers),
-			},
+			ceremony: this.#ceremony,
+			identificators: new Map(this.#identificators),
+			chalengers: new Map(this.#challengers),
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,

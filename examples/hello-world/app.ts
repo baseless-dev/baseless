@@ -40,7 +40,7 @@ config.asset().setEnabled(true);
 
 config.auth()
 	.setEnabled(true)
-	.setFlowStep(oneOf(
+	.setCeremony(oneOf(
 		sequence(mail, pass),
 		sequence(mail, code),
 		google,
@@ -48,11 +48,11 @@ config.auth()
 	))
 	.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
 	.setSecuritySalt("foobar")
-	.addFlowIdentificator(
+	.addIdentificator(
 		"email",
 		new EmailAuthentificationIdenticator(new LoggerMessageProvider()),
 	)
-	.addFlowChallenger("password", new PasswordAuthentificationChallenger());
+	.addChallenger("password", new PasswordAuthentificationChallenger());
 
 // Auth SPA
 config.functions().get("/auth/*", AuthHandler);

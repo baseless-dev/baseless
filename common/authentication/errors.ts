@@ -28,23 +28,24 @@ export class InvalidAuthenticationCeremonyComponentIdentificationError
 export class InvalidAuthenticationCeremonyComponentSequenceError extends Error {
 	name = "InvalidAuthenticationCeremonyComponentSequenceError" as const;
 }
-export class InvalidAuthenticationResponseDoneError extends Error {
-	name = "InvalidAuthenticationResponseDoneError" as const;
+export class InvalidAuthenticationCeremonyResponseDoneError extends Error {
+	name = "InvalidAuthenticationCeremonyResponseDoneError" as const;
 }
-export class InvalidAuthenticationResponseErrorError extends Error {
-	name = "InvalidAuthenticationResponseErrorError" as const;
+export class InvalidAuthenticationCeremonyResponseErrorError extends Error {
+	name = "InvalidAuthenticationCeremonyResponseErrorError" as const;
 }
-export class InvalidAuthenticationResponseRedirectError extends Error {
-	name = "InvalidAuthenticationResponseRedirectError" as const;
+export class InvalidAuthenticationCeremonyResponseRedirectError extends Error {
+	name = "InvalidAuthenticationCeremonyResponseRedirectError" as const;
 }
-export class InvalidAuthenticationResponseStateError extends Error {
-	name = "InvalidAuthenticationResponseStateError" as const;
+export class InvalidAuthenticationCeremonyResponseStateError extends Error {
+	name = "InvalidAuthenticationCeremonyResponseStateError" as const;
 }
-export class InvalidAuthenticationResponseEncryptedStateError extends Error {
-	name = "InvalidAuthenticationResponseEncryptedStateError" as const;
+export class InvalidAuthenticationCeremonyResponseEncryptedStateError
+	extends Error {
+	name = "InvalidAuthenticationCeremonyResponseEncryptedStateError" as const;
 }
-export class InvalidAuthenticationResponseError extends Error {
-	name = "InvalidAuthenticationResponseError" as const;
+export class InvalidAuthenticationCeremonyResponseError extends Error {
+	name = "InvalidAuthenticationCeremonyResponseError" as const;
 }
 export class AuthenticationCeremonyDoneError extends Error {
 	name = "AuthenticationCeremonyDoneError" as const;

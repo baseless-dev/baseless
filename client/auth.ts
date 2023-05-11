@@ -1,10 +1,10 @@
 import { assertApiResult, isApiResultError } from "../common/api/result.ts";
-import { InvalidAuthenticationResponseError } from "../common/authentication/errors.ts";
-import { isAuthenticationResponseEncryptedState } from "../common/authentication/response/encrypted_state.ts";
+import { InvalidAuthenticationCeremonyResponseError } from "../common/authentication/errors.ts";
+import { isAuthenticationCeremonyResponseEncryptedState } from "../common/authentication/ceremony/response/encrypted_state.ts";
 import {
-	assertAuthenticationResponse,
-	isAuthenticationResponse,
-} from "../common/authentication/response/result.ts";
+	assertAuthenticationCeremonyResponse,
+	isAuthenticationCeremonyResponse,
+} from "../common/authentication/ceremony/response.ts";
 import { assertAuthenticationCeremonyComponent } from "../common/authentication/ceremony/ceremony.ts";
 import { EventEmitter } from "../common/system/event_emitter.ts";
 import { App, assertApp } from "./app.ts";
@@ -118,17 +118,7 @@ export function onAuthStateChange(app: App, listener: () => void) {
 	return onAuthStateChange.listen(listener);
 }
 
-export async function getSignInFlow(app: App) {
-	assertApp(app);
-	assertInitializedAuth(app);
-	const resp = await app.fetch(`${app.apiEndpoint}/auth/flow`);
-	const result = await resp.json();
-	throwIfApiError(result);
-	assertAuthenticationCeremonyComponent(result.data);
-	return result.data;
-}
-
-export async function getSignInStep(app: App, state?: string) {
+export async function getAuthenticationCeremony(app: App, state?: string) {
 	assertApp(app);
 	assertInitializedAuth(app);
 	let method = "GET";
@@ -138,17 +128,20 @@ export async function getSignInStep(app: App, state?: string) {
 		body = new FormData();
 		body.set("state", state);
 	}
-	const resp = await app.fetch(`${app.apiEndpoint}/auth/signInStep`, {
-		body,
-		method,
-	});
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/getAuthenticationCeremony`,
+		{
+			body,
+			method,
+		},
+	);
 	const result = await resp.json();
 	throwIfApiError(result);
-	assertAuthenticationResponse(result.data);
+	assertAuthenticationCeremonyResponse(result.data);
 	return result.data;
 }
 
-export async function submitSignInIdentification(
+export async function submitAuthenticationIdentification(
 	app: App,
 	type: string,
 	identification: string,
@@ -163,21 +156,21 @@ export async function submitSignInIdentification(
 		body.set("state", state);
 	}
 	const resp = await app.fetch(
-		`${app.apiEndpoint}/auth/signInSubmitIdentification`,
+		`${app.apiEndpoint}/auth/submitAuthenticationIdentification`,
 		{ body, method: "POST" },
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
 	if (
-		!isAuthenticationResponse(result.data) &&
-		!isAuthenticationResponseEncryptedState(result.data)
+		!isAuthenticationCeremonyResponse(result.data) &&
+		!isAuthenticationCeremonyResponseEncryptedState(result.data)
 	) {
-		throw new InvalidAuthenticationResponseError();
+		throw new InvalidAuthenticationCeremonyResponseError();
 	}
 	return result.data;
 }
 
-export async function submitSignInChallenge(
+export async function submitAuthenticationChallenge(
 	app: App,
 	type: string,
 	challenge: string,
@@ -190,16 +183,16 @@ export async function submitSignInChallenge(
 	body.set("challenge", challenge);
 	body.set("state", state);
 	const resp = await app.fetch(
-		`${app.apiEndpoint}/auth/signInSubmitChallenge`,
+		`${app.apiEndpoint}/auth/submitAuthenticationChallenge`,
 		{ body, method: "POST" },
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
 	if (
-		!isAuthenticationResponse(result.data) &&
-		!isAuthenticationResponseEncryptedState(result.data)
+		!isAuthenticationCeremonyResponse(result.data) &&
+		!isAuthenticationCeremonyResponseEncryptedState(result.data)
 	) {
-		throw new InvalidAuthenticationResponseError();
+		throw new InvalidAuthenticationCeremonyResponseError();
 	}
 	return result.data;
 }

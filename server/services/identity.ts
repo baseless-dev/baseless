@@ -179,7 +179,7 @@ export class IdentityService {
 		challenge: string,
 		expiration?: number | Date,
 	): Promise<void> {
-		const challenger = this.#configuration.auth.flow.chalengers.get(type);
+		const challenger = this.#configuration.auth.chalengers.get(type);
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
 		}

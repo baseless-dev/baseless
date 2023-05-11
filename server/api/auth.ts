@@ -69,37 +69,24 @@ function json<Params, Result>(
 	};
 }
 
-function getFlowHandler(
-	_request: Request,
-	_params: Record<never, never>,
-	context: Context,
-) {
-	return context.config.auth.flow.step;
-}
-
-function getSignInStep(
-	_request: Request,
-	_params: Record<never, never>,
-	context: Context,
-) {
-	return context.auth.getStep();
-}
-
-async function postSignInStep(
+async function getAuthenticationCeremony(
 	request: Request,
 	_params: Record<never, never>,
 	context: Context,
 ) {
-	const formData = await request.formData();
-	const encryptedState = formData.get("state")?.toString() ?? "";
-	const state = await decryptEncryptedAuthenticationCeremonyState(
-		encryptedState,
-		context.config.auth.security.keys.publicKey,
-	);
-	return context.auth.getStep(state, context);
+	if (request.method === "POST") {
+		const formData = await request.formData();
+		const encryptedState = formData.get("state")?.toString() ?? "";
+		const state = await decryptEncryptedAuthenticationCeremonyState(
+			encryptedState,
+			context.config.auth.security.keys.publicKey,
+		);
+		return context.auth.getAuthenticationCeremony(state, context);
+	}
+	return context.auth.getAuthenticationCeremony();
 }
 
-async function postSignInSubmitIdentification(
+async function submitAuthenticationIdentification(
 	request: Request,
 	_params: Record<never, never>,
 	context: Context,
@@ -115,7 +102,7 @@ async function postSignInSubmitIdentification(
 	const subject = isAuthenticationCeremonyStateIdentified(state)
 		? state.identity
 		: context.remoteAddress;
-	const result = await context.auth.submitIdentification(
+	const result = await context.auth.submitAuthenticationIdentification(
 		state,
 		type,
 		identification,
@@ -140,7 +127,7 @@ async function postSignInSubmitIdentification(
 	}
 }
 
-async function postSignInSubmitChallenge(
+async function submitAuthenticationChallenge(
 	request: Request,
 	_params: Record<never, never>,
 	context: Context,
@@ -154,7 +141,7 @@ async function postSignInSubmitChallenge(
 		context.config.auth.security.keys.publicKey,
 	);
 	assertAuthenticationCeremonyStateIdentified(state);
-	const result = await context.auth.submitChallenge(
+	const result = await context.auth.submitAuthenticationChallenge(
 		state,
 		type,
 		challenge,
@@ -179,7 +166,7 @@ async function postSignInSubmitChallenge(
 	}
 }
 
-async function postSendIdentificationValidationCode(
+async function sendIdentificationValidationCode(
 	request: Request,
 	_params: Record<never, never>,
 	context: Context,
@@ -198,7 +185,7 @@ async function postSendIdentificationValidationCode(
 	return { sent: true };
 }
 
-async function postConfirmIdentificationValidationCode(
+async function confirmIdentificationValidationCode(
 	request: Request,
 	_params: Record<never, never>,
 	context: Context,
@@ -219,7 +206,7 @@ async function postConfirmIdentificationValidationCode(
 	return { confirmed: true };
 }
 
-async function postSignOut(
+async function signOut(
 	request: Request,
 	_params: Record<never, never>,
 	context: Context,
@@ -232,22 +219,24 @@ async function postSignOut(
 
 const authRouter = new RouterBuilder<[context: Context]>();
 
-authRouter.get("/flow", json(getFlowHandler));
-authRouter.get("/signInStep", json(getSignInStep));
-authRouter.post("/signInStep", json(postSignInStep));
+authRouter.get("/getAuthenticationCeremony", json(getAuthenticationCeremony));
+authRouter.post("/getAuthenticationCeremony", json(getAuthenticationCeremony));
 authRouter.post(
-	"/signInSubmitIdentification",
-	json(postSignInSubmitIdentification),
+	"/submitAuthenticationIdentification",
+	json(submitAuthenticationIdentification),
 );
-authRouter.post("/signInSubmitChallenge", json(postSignInSubmitChallenge));
+authRouter.post(
+	"/submitAuthenticationChallenge",
+	json(submitAuthenticationChallenge),
+);
 authRouter.post(
 	"/sendIdentificationValidationCode",
-	json(postSendIdentificationValidationCode),
+	json(sendIdentificationValidationCode),
 );
 authRouter.post(
 	"/confirmIdentificationValidationCode",
-	json(postConfirmIdentificationValidationCode),
+	json(confirmIdentificationValidationCode),
 );
-authRouter.post("/signOut", json(postSignOut));
+authRouter.post("/signOut", json(signOut));
 
 export default authRouter;

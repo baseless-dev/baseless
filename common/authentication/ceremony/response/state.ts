@@ -1,14 +1,14 @@
-import { InvalidAuthenticationResponseStateError } from "../errors.ts";
+import { InvalidAuthenticationCeremonyResponseStateError } from "../../errors.ts";
 import {
 	AuthenticationCeremonyState,
 	isAuthenticationCeremonyState,
-} from "../ceremony/state.ts";
+} from "../state.ts";
 import {
 	AuthenticationCeremonyComponent,
 	isAuthenticationCeremonyComponent,
-} from "../ceremony/ceremony.ts";
+} from "../ceremony.ts";
 
-export type AuthenticationResponseState = {
+export type AuthenticationCeremonyResponseState = {
 	state: AuthenticationCeremonyState;
 	done: false;
 	component: AuthenticationCeremonyComponent;
@@ -16,9 +16,9 @@ export type AuthenticationResponseState = {
 	last: boolean;
 };
 
-export function isAuthenticationResponseState(
+export function isAuthenticationCeremonyResponseState(
 	value?: unknown,
-): value is AuthenticationResponseState {
+): value is AuthenticationCeremonyResponseState {
 	return !!value && typeof value === "object" && "state" in value &&
 		isAuthenticationCeremonyState(value.state) && "done" in value &&
 		typeof value.done === "boolean" &&
@@ -28,10 +28,10 @@ export function isAuthenticationResponseState(
 		"last" in value && typeof value.last === "boolean";
 }
 
-export function assertAuthenticationResponseState(
+export function assertAuthenticationCeremonyResponseState(
 	value?: unknown,
-): asserts value is AuthenticationResponseState {
-	if (!isAuthenticationResponseState(value)) {
-		throw new InvalidAuthenticationResponseStateError();
+): asserts value is AuthenticationCeremonyResponseState {
+	if (!isAuthenticationCeremonyResponseState(value)) {
+		throw new InvalidAuthenticationCeremonyResponseStateError();
 	}
 }

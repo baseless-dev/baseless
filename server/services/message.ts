@@ -38,9 +38,10 @@ export class MessageService {
 			const verifiedIdentifications = identifications.filter((i) => i.verified);
 			const sendMessages = verifiedIdentifications.reduce(
 				(messages, identification) => {
-					const identicator = this.#configuration.auth.flow.identificators.get(
-						identification.type,
-					);
+					const identicator = this.#configuration.auth.ceremony.identificators
+						.get(
+							identification.type,
+						);
 					if (identicator && identicator.sendMessage) {
 						messages.push(identicator.sendMessage(identification, message));
 					}

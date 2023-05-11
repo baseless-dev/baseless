@@ -6,14 +6,13 @@ import {
 import { assertApp, initializeApp } from "./app.ts";
 import {
 	assertPersistence,
+	getAuthenticationCeremony,
 	getPersistence,
-	getSignInFlow,
-	getSignInStep,
 	initializeAuth,
 	onAuthStateChange,
 	setPersistence,
-	submitSignInChallenge,
-	submitSignInIdentification,
+	submitAuthenticationChallenge,
+	submitAuthenticationIdentification,
 } from "./auth.ts";
 import { config } from "../server/config.ts";
 import { LocalAssetProvider } from "../providers/asset-local/mod.ts";
@@ -34,9 +33,9 @@ import {
 	password,
 	sequence,
 } from "../common/authentication/ceremony/component/helpers.ts";
-import { assertAuthenticationResponseState } from "../common/authentication/response/state.ts";
-import { assertAuthenticationResponseEncryptedState } from "../common/authentication/response/encrypted_state.ts";
-import { assertAuthenticationResponseDone } from "../common/authentication/response/done.ts";
+import { assertAuthenticationCeremonyResponseState } from "../common/authentication/ceremony/response/state.ts";
+import { assertAuthenticationCeremonyResponseEncryptedState } from "../common/authentication/ceremony/response/encrypted_state.ts";
+import { assertAuthenticationCeremonyResponseDone } from "../common/authentication/ceremony/response/done.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const mail = email({
@@ -52,17 +51,17 @@ Deno.test("Client Auth", async (t) => {
 	const { publicKey, privateKey } = await generateKeyPair("PS512");
 	config.auth()
 		.setEnabled(true)
-		.setFlowStep(oneOf(
+		.setCeremony(oneOf(
 			sequence(mail, pass),
 			sequence(mail, code),
 		))
 		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
 		.setSecuritySalt("foobar")
-		.addFlowIdentificator(
+		.addIdentificator(
 			"email",
 			new EmailAuthentificationIdenticator(new LoggerMessageProvider()),
 		)
-		.addFlowChallenger("password", new PasswordAuthentificationChallenger());
+		.addChallenger("password", new PasswordAuthentificationChallenger());
 
 	const configuration = config.build();
 	const assetProvider = new LocalAssetProvider(import.meta.resolve("./public"));
@@ -138,54 +137,45 @@ Deno.test("Client Auth", async (t) => {
 		assertEquals(stateChange, []);
 	});
 
-	await t.step("getSignInFlow", async () => {
-		const flow = await getSignInFlow(app);
-		assertEquals(
-			flow,
-			oneOf(
-				sequence(mail, pass),
-				sequence(mail, code),
-			),
-		);
-	});
-
-	await t.step("getSignInStep", async () => {
-		const result = await getSignInStep(app);
-		assertAuthenticationResponseState(result);
+	await t.step("getAuthenticationCeremony", async () => {
+		const result = await getAuthenticationCeremony(app);
+		assertAuthenticationCeremonyResponseState(result);
 		assertEquals(result.first, true);
 		assertEquals(result.last, false);
 		assertEquals(result.component, mail);
-		assertAuthenticationResponseState(await getSignInStep(app, "invalid"));
+		assertAuthenticationCeremonyResponseState(
+			await getAuthenticationCeremony(app, "invalid"),
+		);
 	});
 
-	await t.step("submitSignInIdentification", async () => {
-		const result = await submitSignInIdentification(
+	await t.step("submitAuthenticationIdentification", async () => {
+		const result = await submitAuthenticationIdentification(
 			app,
 			"email",
 			"john@test.local",
 		);
-		assertAuthenticationResponseEncryptedState(result);
+		assertAuthenticationCeremonyResponseEncryptedState(result);
 		assertEquals(result.first, false);
 		assertEquals(result.last, false);
 		assertEquals(result.component, oneOf(pass, code));
 		await assertRejects(() =>
-			submitSignInIdentification(app, "email", "unknown@test.local")
+			submitAuthenticationIdentification(app, "email", "unknown@test.local")
 		);
 	});
 
-	await t.step("submitSignInChallenge", async () => {
-		const result1 = await submitSignInIdentification(
+	await t.step("submitAuthenticationChallenge", async () => {
+		const result1 = await submitAuthenticationIdentification(
 			app,
 			"email",
 			"john@test.local",
 		);
-		assertAuthenticationResponseEncryptedState(result1);
-		const result2 = await submitSignInChallenge(
+		assertAuthenticationCeremonyResponseEncryptedState(result1);
+		const result2 = await submitAuthenticationChallenge(
 			app,
 			"password",
 			"123",
 			result1.encryptedState,
 		);
-		assertAuthenticationResponseDone(result2);
+		assertAuthenticationCeremonyResponseDone(result2);
 	});
 });

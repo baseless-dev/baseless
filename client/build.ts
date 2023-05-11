@@ -1,4 +1,4 @@
-import { build, emptyDir } from "https://deno.land/x/dnt/mod.ts";
+import { build, emptyDir } from "https://deno.land/x/dnt@0.34.0/mod.ts";
 
 await emptyDir("./npm");
 
@@ -10,12 +10,20 @@ await build({
 	],
 	outDir: "./npm",
 	typeCheck: false,
-	declaration: true,
+	declaration: "inline",
 	test: false,
 	scriptModule: "cjs",
 	skipSourceOutput: true,
 	shims: {
 		deno: false,
+		crypto: true,
+		undici: true,
+		custom: [{
+			package: {
+				name: "stream/web",
+			},
+			globalNames: ["ReadableStream", "TransformStream", "WritableStream"],
+		}],
 	},
 	package: {
 		name: "baseless",

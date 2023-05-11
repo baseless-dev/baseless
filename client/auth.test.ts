@@ -1,5 +1,4 @@
 import {
-	assert,
 	assertEquals,
 	assertRejects,
 	assertThrows,

@@ -1,5 +1,4 @@
 import { InvalidAuthenticationCeremonyResponseError } from "../common/auth/errors.ts";
-import { isAuthenticationCeremonyResponseEncryptedState } from "../common/auth/ceremony/response/encrypted_state.ts";
 import {
 	AuthenticationCeremonyResponse,
 	assertAuthenticationCeremonyResponse,

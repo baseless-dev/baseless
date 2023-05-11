@@ -190,8 +190,12 @@ Deno.test("Client Auth", async (t) => {
 				messages.push({ ns, lvl, message: JSON.parse(msg)! });
 			}
 		});
-		const result = await sendIdentificationValidationCode(app, "email", "john@test.local");
-		setGlobalLogHandler(() => { });
+		const result = await sendIdentificationValidationCode(
+			app,
+			"email",
+			"john@test.local",
+		);
+		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
 		assertEquals(messages[0]?.message.text.length, 6);
 	});
@@ -203,11 +207,20 @@ Deno.test("Client Auth", async (t) => {
 				messages.push({ ns, lvl, message: JSON.parse(msg)! });
 			}
 		});
-		const sendResult = await sendIdentificationValidationCode(app, "email", "john@test.local");
-		setGlobalLogHandler(() => { });
+		const sendResult = await sendIdentificationValidationCode(
+			app,
+			"email",
+			"john@test.local",
+		);
+		setGlobalLogHandler(() => {});
 		assertEquals(sendResult.sent, true);
 		const validationCode = messages[0]?.message.text;
-		const confirmResult = await confirmIdentificationValidationCode(app, "email", "john@test.local", validationCode);
+		const confirmResult = await confirmIdentificationValidationCode(
+			app,
+			"email",
+			"john@test.local",
+			validationCode,
+		);
 		assertEquals(confirmResult.confirmed, true);
 	});
 });

@@ -2,7 +2,7 @@ import { InvalidSendIdentificationValidationCodeResponseError } from "./errors.t
 
 export type SendIdentificationValidationCodeResponse = {
 	readonly sent: boolean;
-}
+};
 
 export function isSendIdentificationValidationCodeResponse(
 	value: unknown,

@@ -72,10 +72,12 @@ export class AuthenticationConfirmValidationCodeError extends Error {
 	name = "AuthenticationConfirmValidationCodeError" as const;
 }
 
-export class InvalidSendIdentificationValidationCodeResponseError extends Error {
+export class InvalidSendIdentificationValidationCodeResponseError
+	extends Error {
 	name = "InvalidSendIdentificationValidationCodeResponseError" as const;
 }
 
-export class InvalidConfirmIdentificationValidationCodeResponseError extends Error {
+export class InvalidConfirmIdentificationValidationCodeResponseError
+	extends Error {
 	name = "InvalidConfirmIdentificationValidationCodeResponseError" as const;
 }

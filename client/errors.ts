@@ -16,7 +16,7 @@ export * from "../common/message/errors.ts";
 export * from "../common/session/errors.ts";
 
 interface Error {
-	new(message?: string, options?: ErrorOptions): globalThis.Error;
+	new (message?: string, options?: ErrorOptions): globalThis.Error;
 }
 
 const errorMap = new Map<string, Error>([

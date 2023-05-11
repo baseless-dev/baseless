@@ -2,7 +2,7 @@ import { InvalidConfirmIdentificationValidationCodeResponseError } from "./error
 
 export type ConfirmIdentificationValidationCodeResponse = {
 	readonly confirmed: boolean;
-}
+};
 
 export function isConfirmIdentificationValidationCodeResponse(
 	value: unknown,

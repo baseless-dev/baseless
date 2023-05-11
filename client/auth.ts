@@ -1,14 +1,20 @@
 import { InvalidAuthenticationCeremonyResponseError } from "../common/auth/errors.ts";
 import {
-	AuthenticationCeremonyResponse,
 	assertAuthenticationCeremonyResponse,
+	AuthenticationCeremonyResponse,
 	isAuthenticationCeremonyResponse,
 } from "../common/auth/ceremony/response.ts";
 import { EventEmitter } from "../common/system/event_emitter.ts";
 import { App, assertApp } from "./app.ts";
 import { throwIfApiError } from "./errors.ts";
-import { SendIdentificationValidationCodeResponse, assertSendIdentificationValidationCodeResponse } from "../common/auth/send_identification_validation_code.ts";
-import { ConfirmIdentificationValidationCodeResponse, assertConfirmIdentificationValidationCodeResponse } from "../common/auth/confirm_identification_validation_code.ts";
+import {
+	assertSendIdentificationValidationCodeResponse,
+	SendIdentificationValidationCodeResponse,
+} from "../common/auth/send_identification_validation_code.ts";
+import {
+	assertConfirmIdentificationValidationCodeResponse,
+	ConfirmIdentificationValidationCodeResponse,
+} from "../common/auth/confirm_identification_validation_code.ts";
 
 // TODO move to server
 export type Tokens = {
@@ -29,7 +35,7 @@ export function assertPersistence(
 		throw new InvalidPersistenceError();
 	}
 }
-export class InvalidPersistenceError extends Error { }
+export class InvalidPersistenceError extends Error {}
 
 const tokenMap = new Map<string, Tokens | undefined>();
 const onAuthStateChangeMap = new Map<string, EventEmitter<never>>();
@@ -50,7 +56,7 @@ function getAuthData(app: App) {
 	return { storage, tokens, onAuthStateChange };
 }
 
-export class AuthNotInitializedError extends Error { }
+export class AuthNotInitializedError extends Error {}
 
 export function initializeAuth(app: App): App {
 	assertApp(app);
@@ -59,7 +65,7 @@ export function initializeAuth(app: App): App {
 	}
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-		"local";
+			"local";
 	storageMap.set(
 		app.clientId,
 		persistence === "local"
@@ -92,7 +98,7 @@ export function getPersistence(app: App): Persistence {
 	assertInitializedAuth(app);
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-		"local";
+			"local";
 	assertPersistence(persistence);
 	return persistence;
 }
@@ -119,7 +125,10 @@ export function onAuthStateChange(app: App, listener: () => void) {
 	return onAuthStateChange.listen(listener);
 }
 
-export async function getAuthenticationCeremony(app: App, state?: string): Promise<AuthenticationCeremonyResponse> {
+export async function getAuthenticationCeremony(
+	app: App,
+	state?: string,
+): Promise<AuthenticationCeremonyResponse> {
 	assertApp(app);
 	assertInitializedAuth(app);
 	let method = "GET";

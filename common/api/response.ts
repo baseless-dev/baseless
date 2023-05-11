@@ -38,7 +38,9 @@ export function isApiResponse(value?: unknown): value is ApiResponse {
 	return isApiResponseData(value) || isApiResponseError(value);
 }
 
-export function assertApiResponse(value?: unknown): asserts value is ApiResponse {
+export function assertApiResponse(
+	value?: unknown,
+): asserts value is ApiResponse {
 	if (!isApiResponse(value)) {
 		throw new InvalidApiResponseError();
 	}

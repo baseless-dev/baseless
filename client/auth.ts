@@ -6,7 +6,7 @@ import {
 } from "../common/auth/ceremony/response.ts";
 import { EventEmitter } from "../common/system/event_emitter.ts";
 import { App, assertApp } from "./app.ts";
-import { throwIfApiError } from "./error.ts";
+import { throwIfApiError } from "./errors.ts";
 import { SendIdentificationValidationCodeResponse, assertSendIdentificationValidationCodeResponse } from "../common/auth/send_identification_validation_code.ts";
 import { ConfirmIdentificationValidationCodeResponse, assertConfirmIdentificationValidationCodeResponse } from "../common/auth/confirm_identification_validation_code.ts";
 

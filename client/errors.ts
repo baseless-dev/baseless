@@ -7,6 +7,14 @@ import * as kvErrors from "../common/kv/errors.ts";
 import * as messageErrors from "../common/message/errors.ts";
 import * as sessionErrors from "../common/session/errors.ts";
 
+export * from "../common/api/errors.ts";
+export * from "../common/auth/errors.ts";
+export * from "../common/counter/errors.ts";
+export * from "../common/identity/errors.ts";
+export * from "../common/kv/errors.ts";
+export * from "../common/message/errors.ts";
+export * from "../common/session/errors.ts";
+
 interface Error {
 	new(message?: string, options?: ErrorOptions): globalThis.Error;
 }

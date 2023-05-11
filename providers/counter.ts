@@ -1,6 +1,7 @@
-// deno-lint-ignore no-unused-vars
 import type {
+	// deno-lint-ignore no-unused-vars
 	CounterIncrementError,
+	// deno-lint-ignore no-unused-vars
 	CounterResetError,
 } from "../common/counter/errors.ts";
 

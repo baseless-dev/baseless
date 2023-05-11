@@ -1,7 +1,10 @@
 import { SessionData } from "../../common/session/data.ts";
 import {
+	// deno-lint-ignore no-unused-vars
 	SessionCreateError,
+	// deno-lint-ignore no-unused-vars
 	SessionDestroyError,
+	// deno-lint-ignore no-unused-vars
 	SessionIDNotFoundError,
 } from "../../common/session/errors.ts";
 import { AutoId } from "../../common/system/autoid.ts";

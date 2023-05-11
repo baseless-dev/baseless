@@ -148,7 +148,8 @@ async function submitAuthenticationChallenge(
 		state.identity,
 	);
 	if (result.done) {
-		const session = await context.session.create(result.identityId, {});
+		const _session = await context.session.create(result.identityId, {});
+		// TODO communicate session id to client
 		return result;
 	} else {
 		return {

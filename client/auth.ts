@@ -1,11 +1,9 @@
-import { assertApiResult, isApiResultError } from "../common/api/result.ts";
 import { InvalidAuthenticationCeremonyResponseError } from "../common/authentication/errors.ts";
 import { isAuthenticationCeremonyResponseEncryptedState } from "../common/authentication/ceremony/response/encrypted_state.ts";
 import {
 	assertAuthenticationCeremonyResponse,
 	isAuthenticationCeremonyResponse,
 } from "../common/authentication/ceremony/response.ts";
-import { assertAuthenticationCeremonyComponent } from "../common/authentication/ceremony/ceremony.ts";
 import { EventEmitter } from "../common/system/event_emitter.ts";
 import { App, assertApp } from "./app.ts";
 import { throwIfApiError } from "./error.ts";
@@ -99,8 +97,8 @@ export function getPersistence(app: App): Persistence {
 
 export function setPersistence(app: App, persistence: Persistence) {
 	assertApp(app);
+	assertInitializedAuth(app);
 	assertPersistence(persistence);
-	const { storage } = getAuthData(app);
 	globalThis.localStorage.setItem(
 		`baseless_${app.clientId}_persistence`,
 		persistence,
@@ -114,6 +112,7 @@ export function setPersistence(app: App, persistence: Persistence) {
 
 export function onAuthStateChange(app: App, listener: () => void) {
 	assertApp(app);
+	assertInitializedAuth(app);
 	const { onAuthStateChange } = getAuthData(app);
 	return onAuthStateChange.listen(listener);
 }

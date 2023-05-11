@@ -5,17 +5,26 @@ import {
 } from "../../common/identity/challenge.ts";
 import {
 	IdentityChallengeCreateError,
+	// deno-lint-ignore no-unused-vars
 	IdentityChallengeDeleteError,
+	// deno-lint-ignore no-unused-vars
 	IdentityChallengeNotFoundError,
+	// deno-lint-ignore no-unused-vars
 	IdentityChallengeUpdateError,
+	// deno-lint-ignore no-unused-vars
 	IdentityCreateError,
+	// deno-lint-ignore no-unused-vars
 	IdentityDeleteError,
+	// deno-lint-ignore no-unused-vars
 	IdentityIdentificationCreateError,
+	// deno-lint-ignore no-unused-vars
 	IdentityIdentificationDeleteError,
-	IdentityIdentificationExistsError,
+	// deno-lint-ignore no-unused-vars
 	IdentityIdentificationNotFoundError,
 	IdentityIdentificationUpdateError,
+	// deno-lint-ignore no-unused-vars
 	IdentityNotFoundError,
+	// deno-lint-ignore no-unused-vars
 	IdentityUpdateError,
 } from "../../common/identity/errors.ts";
 import {

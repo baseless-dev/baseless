@@ -1,4 +1,3 @@
-import { MessageSendError } from "../../common/message/errors.ts";
 import { Message } from "../../common/message/message.ts";
 import {
 	createLogger,

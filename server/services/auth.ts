@@ -3,12 +3,9 @@ import {
 	AuthenticationCeremonyDoneError,
 	AuthenticationConfirmValidationCodeError,
 	AuthenticationInvalidStepError,
-	AuthenticationMissingChallengeError,
-	AuthenticationMissingIdentificationError,
 	AuthenticationRateLimitedError,
 	AuthenticationSendValidationCodeError,
 } from "../../common/authentication/errors.ts";
-import { isAuthenticationCeremonyResponseDone } from "../../common/authentication/ceremony/response/done.ts";
 import { AuthenticationCeremonyResponse } from "../../common/authentication/ceremony/response.ts";
 import { isAuthenticationCeremonyResponseState } from "../../common/authentication/ceremony/response/state.ts";
 import {
@@ -16,10 +13,6 @@ import {
 	AuthenticationCeremonyState,
 	isAuthenticationCeremonyStateIdentified,
 } from "../../common/authentication/ceremony/state.ts";
-import {
-	AuthenticationCeremonyComponent,
-	isAuthenticationCeremonyComponent,
-} from "../../common/authentication/ceremony/ceremony.ts";
 import { isAuthenticationCeremonyComponentChoice } from "../../common/authentication/ceremony/component/choice.ts";
 import { flatten } from "../../common/authentication/ceremony/component/flatten.ts";
 import { getComponentAtPath } from "../../common/authentication/ceremony/component/get_component_at_path.ts";

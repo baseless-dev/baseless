@@ -1,3 +1,4 @@
+// deno-lint-ignore no-unused-vars
 import { KVKeyNotFoundError, KVPutError } from "../../common/kv/errors.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import {

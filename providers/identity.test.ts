@@ -1,5 +1,4 @@
 import {
-	assert,
 	assertEquals,
 	assertRejects,
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";

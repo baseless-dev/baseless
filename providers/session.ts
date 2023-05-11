@@ -1,15 +1,19 @@
 import type { SessionData } from "../common/session/data.ts";
 import type {
+	// deno-lint-ignore no-unused-vars
 	SessionCreateError,
+	// deno-lint-ignore no-unused-vars
 	SessionDestroyError,
+	// deno-lint-ignore no-unused-vars
 	SessionIDNotFoundError,
+	// deno-lint-ignore no-unused-vars
 	SessionUpdateError,
 } from "../common/session/errors.ts";
 import type { AutoId } from "../common/system/autoid.ts";
 
 export interface SessionProvider {
 	/**
-	 * @throws {SessionIDNotFoundError}
+	 * @throws { SessionIDNotFoundError}
 	 */
 	get<Meta extends Record<string, unknown>>(
 		sessionId: AutoId,

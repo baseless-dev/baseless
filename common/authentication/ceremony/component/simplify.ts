@@ -1,4 +1,4 @@
-import type { Context } from "../../../server/context.ts";
+import type { Context } from "../../../../server/context.ts";
 import type { AuthenticationCeremonyState } from "../state.ts";
 import type { AuthenticationCeremonyComponent } from "../ceremony.ts";
 import { isAuthenticationCeremonyComponentChoice } from "./choice.ts";

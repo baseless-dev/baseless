@@ -2,7 +2,7 @@ import { InvalidAuthenticationResponseEncryptedStateError } from "../errors.ts";
 import {
 	AuthenticationCeremonyComponent,
 	isAuthenticationCeremonyComponent,
-} from "../ceremony.ts";
+} from "../ceremony/ceremony.ts";
 
 export type AuthenticationResponseEncryptedState = {
 	encryptedState: string;

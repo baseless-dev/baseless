@@ -1,5 +1,5 @@
-import type { Context } from "../../../server/context.ts";
-import { InvalidAuthenticationCeremonyComponentConditionalError } from "../errors.ts";
+import type { Context } from "../../../../server/context.ts";
+import { InvalidAuthenticationCeremonyComponentConditionalError } from "../../errors.ts";
 import type { AuthenticationCeremonyState } from "../state.ts";
 import type { AuthenticationCeremonyComponent } from "../ceremony.ts";
 

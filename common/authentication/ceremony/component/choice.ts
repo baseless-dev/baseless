@@ -1,4 +1,4 @@
-import { InvalidAuthenticationCeremonyComponentChoiceError } from "../errors.ts";
+import { InvalidAuthenticationCeremonyComponentChoiceError } from "../../errors.ts";
 import {
 	AuthenticationCeremonyComponent,
 	isAuthenticationCeremonyComponent,

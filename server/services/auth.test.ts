@@ -12,7 +12,7 @@ import { IdentityService } from "./identity.ts";
 import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
 import { EmailAuthentificationIdenticator } from "../../providers/auth-email/mod.ts";
 import { PasswordAuthentificationChallenger } from "../../providers/auth-password/mod.ts";
-import * as h from "../../common/authentication/component/helpers.ts";
+import * as h from "../../common/authentication/ceremony/component/helpers.ts";
 import { Message } from "../../common/message/message.ts";
 import { setGlobalLogHandler } from "../../common/system/logger.ts";
 import { autoid } from "../../common/system/autoid.ts";
@@ -173,7 +173,7 @@ Deno.test("AuthenticationService", async (t) => {
 		await authService.sendIdentificationValidationCode(ident1.id, "email");
 		verificationCode = messages.pop()?.message.text ?? "";
 		assertEquals(verificationCode.length, 6);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 	});
 
 	await t.step("confirmIdentificationValidationCode", async () => {

@@ -33,7 +33,7 @@ import {
 	otp,
 	password,
 	sequence,
-} from "../common/authentication/component/helpers.ts";
+} from "../common/authentication/ceremony/component/helpers.ts";
 import { assertAuthenticationResponseState } from "../common/authentication/response/state.ts";
 import { assertAuthenticationResponseEncryptedState } from "../common/authentication/response/encrypted_state.ts";
 import { assertAuthenticationResponseDone } from "../common/authentication/response/done.ts";

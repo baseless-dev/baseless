@@ -1,4 +1,4 @@
-import { InvalidAuthenticationCeremonyComponentChallengeError } from "../errors.ts";
+import { InvalidAuthenticationCeremonyComponentChallengeError } from "../../errors.ts";
 
 export type AuthenticationCeremonyComponentChallenge = {
 	readonly type: string;

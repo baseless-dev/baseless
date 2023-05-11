@@ -1,4 +1,4 @@
-import { InvalidAuthenticationCeremonyComponentSequenceError } from "../errors.ts";
+import { InvalidAuthenticationCeremonyComponentSequenceError } from "../../errors.ts";
 import {
 	AuthenticationCeremonyComponent,
 	isAuthenticationCeremonyComponent,

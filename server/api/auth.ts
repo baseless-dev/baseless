@@ -10,7 +10,7 @@ import {
 	assertAuthenticationCeremonyStateIdentified,
 	AuthenticationCeremonyState,
 	isAuthenticationCeremonyStateIdentified,
-} from "../../common/authentication/state.ts";
+} from "../../common/authentication/ceremony/state.ts";
 import { RouterBuilder } from "../../common/system/router.ts";
 import { ApiResult } from "../../common/api/result.ts";
 

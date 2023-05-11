@@ -15,18 +15,18 @@ import {
 	assertAuthenticationCeremonyStateIdentified,
 	AuthenticationCeremonyState,
 	isAuthenticationCeremonyStateIdentified,
-} from "../../common/authentication/state.ts";
+} from "../../common/authentication/ceremony/state.ts";
 import {
 	AuthenticationCeremonyComponent,
 	isAuthenticationCeremonyComponent,
-} from "../../common/authentication/ceremony.ts";
-import { isAuthenticationCeremonyComponentChoice } from "../../common/authentication/component/choice.ts";
-import { flatten } from "../../common/authentication/component/flatten.ts";
-import { getComponentAtPath } from "../../common/authentication/component/get_component_at_path.ts";
+} from "../../common/authentication/ceremony/ceremony.ts";
+import { isAuthenticationCeremonyComponentChoice } from "../../common/authentication/ceremony/component/choice.ts";
+import { flatten } from "../../common/authentication/ceremony/component/flatten.ts";
+import { getComponentAtPath } from "../../common/authentication/ceremony/component/get_component_at_path.ts";
 import {
 	simplify,
 	simplifyWithContext,
-} from "../../common/authentication/component/simplify.ts";
+} from "../../common/authentication/ceremony/component/simplify.ts";
 import { AutoId } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import { otp } from "../../common/system/otp.ts";
@@ -100,7 +100,7 @@ export class AuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-			this.#configuration.auth.security.rateLimit.identificationCount
+				this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}

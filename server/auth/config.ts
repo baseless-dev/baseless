@@ -3,7 +3,7 @@ import { AuthenticationIdenticator } from "../../common/authentication/identicat
 import {
 	assertAuthenticationCeremonyComponent,
 	AuthenticationCeremonyComponent,
-} from "../../common/authentication/ceremony.ts";
+} from "../../common/authentication/ceremony/ceremony.ts";
 import { Identity } from "../../common/identity/identity.ts";
 import { Context } from "../context.ts";
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";

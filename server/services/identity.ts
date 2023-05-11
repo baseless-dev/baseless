@@ -1,4 +1,4 @@
-import { AuthenticationRateLimitedError } from "../../common/authentication/errors.ts";
+import { AuthenticationRateLimitedError } from "../../common/auth/errors.ts";
 import {
 	assertIdentityChallenge,
 	IdentityChallenge,

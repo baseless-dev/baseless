@@ -1,6 +1,6 @@
 import * as apiErrors from "../common/api/errors.ts";
 import { ApiResponseData, isApiResponseError } from "../common/api/response.ts";
-import * as authErrors from "../common/authentication/errors.ts";
+import * as authErrors from "../common/auth/errors.ts";
 import * as counterErrors from "../common/counter/errors.ts";
 import * as identityErrors from "../common/identity/errors.ts";
 import * as kvErrors from "../common/kv/errors.ts";

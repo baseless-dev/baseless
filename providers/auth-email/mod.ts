@@ -1,4 +1,4 @@
-import { AuthenticationIdenticator } from "../../common/authentication/identicator.ts";
+import { AuthenticationIdenticator } from "../../common/auth/identicator.ts";
 import { IdentityIdentification } from "../../common/identity/identification.ts";
 import { Message } from "../../common/message/message.ts";
 import { MessageProvider } from "../message.ts";

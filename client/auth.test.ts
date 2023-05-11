@@ -1,4 +1,5 @@
 import {
+	assert,
 	assertEquals,
 	assertRejects,
 	assertThrows,
@@ -6,10 +7,12 @@ import {
 import { assertApp, initializeApp } from "./app.ts";
 import {
 	assertPersistence,
+	confirmIdentificationValidationCode,
 	getAuthenticationCeremony,
 	getPersistence,
 	initializeAuth,
 	onAuthStateChange,
+	sendIdentificationValidationCode,
 	setPersistence,
 	submitAuthenticationChallenge,
 	submitAuthenticationIdentification,
@@ -32,10 +35,12 @@ import {
 	otp,
 	password,
 	sequence,
-} from "../common/authentication/ceremony/component/helpers.ts";
-import { assertAuthenticationCeremonyResponseState } from "../common/authentication/ceremony/response/state.ts";
-import { assertAuthenticationCeremonyResponseEncryptedState } from "../common/authentication/ceremony/response/encrypted_state.ts";
-import { assertAuthenticationCeremonyResponseDone } from "../common/authentication/ceremony/response/done.ts";
+} from "../common/auth/ceremony/component/helpers.ts";
+import { assertAuthenticationCeremonyResponseState } from "../common/auth/ceremony/response/state.ts";
+import { assertAuthenticationCeremonyResponseEncryptedState } from "../common/auth/ceremony/response/encrypted_state.ts";
+import { assertAuthenticationCeremonyResponseDone } from "../common/auth/ceremony/response/done.ts";
+import { Message } from "../common/message/message.ts";
+import { setGlobalLogHandler } from "../common/system/logger.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const mail = email({
@@ -177,5 +182,33 @@ Deno.test("Client Auth", async (t) => {
 			result1.encryptedState,
 		);
 		assertAuthenticationCeremonyResponseDone(result2);
+	});
+
+	await t.step("sendIdentificationValidationCode", async () => {
+		const messages: { ns: string; lvl: string; message: Message }[] = [];
+		setGlobalLogHandler((ns, lvl, msg) => {
+			if (ns === "message-logger") {
+				messages.push({ ns, lvl, message: JSON.parse(msg)! });
+			}
+		});
+		const result = await sendIdentificationValidationCode(app, "email", "john@test.local");
+		setGlobalLogHandler(() => { });
+		assertEquals(result.sent, true);
+		assertEquals(messages[0]?.message.text.length, 6);
+	});
+
+	await t.step("confirmIdentificationValidationCode", async () => {
+		const messages: { ns: string; lvl: string; message: Message }[] = [];
+		setGlobalLogHandler((ns, lvl, msg) => {
+			if (ns === "message-logger") {
+				messages.push({ ns, lvl, message: JSON.parse(msg)! });
+			}
+		});
+		const sendResult = await sendIdentificationValidationCode(app, "email", "john@test.local");
+		setGlobalLogHandler(() => { });
+		assertEquals(sendResult.sent, true);
+		const validationCode = messages[0]?.message.text;
+		const confirmResult = await confirmIdentificationValidationCode(app, "email", "john@test.local", validationCode);
+		assertEquals(confirmResult.confirmed, true);
 	});
 });

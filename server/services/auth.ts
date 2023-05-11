@@ -5,21 +5,21 @@ import {
 	AuthenticationInvalidStepError,
 	AuthenticationRateLimitedError,
 	AuthenticationSendValidationCodeError,
-} from "../../common/authentication/errors.ts";
-import { AuthenticationCeremonyResponse } from "../../common/authentication/ceremony/response.ts";
-import { isAuthenticationCeremonyResponseState } from "../../common/authentication/ceremony/response/state.ts";
+} from "../../common/auth/errors.ts";
+import { AuthenticationCeremonyResponse } from "../../common/auth/ceremony/response.ts";
+import { isAuthenticationCeremonyResponseState } from "../../common/auth/ceremony/response/state.ts";
 import {
 	assertAuthenticationCeremonyStateIdentified,
 	AuthenticationCeremonyState,
 	isAuthenticationCeremonyStateIdentified,
-} from "../../common/authentication/ceremony/state.ts";
-import { isAuthenticationCeremonyComponentChoice } from "../../common/authentication/ceremony/component/choice.ts";
-import { flatten } from "../../common/authentication/ceremony/component/flatten.ts";
-import { getComponentAtPath } from "../../common/authentication/ceremony/component/get_component_at_path.ts";
+} from "../../common/auth/ceremony/state.ts";
+import { isAuthenticationCeremonyComponentChoice } from "../../common/auth/ceremony/component/choice.ts";
+import { flatten } from "../../common/auth/ceremony/component/flatten.ts";
+import { getComponentAtPath } from "../../common/auth/ceremony/component/get_component_at_path.ts";
 import {
 	simplify,
 	simplifyWithContext,
-} from "../../common/authentication/ceremony/component/simplify.ts";
+} from "../../common/auth/ceremony/component/simplify.ts";
 import { AutoId } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import { otp } from "../../common/system/otp.ts";
@@ -93,7 +93,7 @@ export class AuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-				this.#configuration.auth.security.rateLimit.identificationCount
+			this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}

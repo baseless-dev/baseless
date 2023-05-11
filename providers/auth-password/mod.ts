@@ -1,5 +1,5 @@
 import { encode } from "https://deno.land/std@0.179.0/encoding/base64.ts";
-import { AuthenticationChallenger } from "../../common/authentication/challenger.ts";
+import { AuthenticationChallenger } from "../../common/auth/challenger.ts";
 import { IdentityChallenge } from "../../common/identity/challenge.ts";
 
 export class PasswordAuthentificationChallenger

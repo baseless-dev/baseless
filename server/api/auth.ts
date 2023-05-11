@@ -10,9 +10,12 @@ import {
 	assertAuthenticationCeremonyStateIdentified,
 	AuthenticationCeremonyState,
 	isAuthenticationCeremonyStateIdentified,
-} from "../../common/authentication/ceremony/state.ts";
+} from "../../common/auth/ceremony/state.ts";
 import { RouterBuilder } from "../../common/system/router.ts";
 import { ApiResponse } from "../../common/api/response.ts";
+import { SendIdentificationValidationCodeResponse } from "../../common/auth/send_identification_validation_code.ts";
+import { AuthenticationCeremonyResponse } from "../../common/auth/ceremony/response.ts";
+import { ConfirmIdentificationValidationCodeResponse } from "../../common/auth/confirm_identification_validation_code.ts";
 
 async function decryptEncryptedAuthenticationCeremonyState(
 	data: string,
@@ -73,7 +76,7 @@ async function getAuthenticationCeremony(
 	request: Request,
 	_params: Record<never, never>,
 	context: Context,
-) {
+): Promise<AuthenticationCeremonyResponse> {
 	if (request.method === "POST") {
 		const formData = await request.formData();
 		const encryptedState = formData.get("state")?.toString() ?? "";
@@ -90,7 +93,7 @@ async function submitAuthenticationIdentification(
 	request: Request,
 	_params: Record<never, never>,
 	context: Context,
-) {
+): Promise<AuthenticationCeremonyResponse> {
 	const formData = await request.formData();
 	const type = formData.get("type")?.toString() ?? "";
 	const identification = formData.get("identification")?.toString() ?? "";
@@ -110,7 +113,7 @@ async function submitAuthenticationIdentification(
 	);
 	if (result.done) {
 		const session = await context.session.create(result.identityId, {});
-		return { done: true, session: session.id };
+		return { done: true, identityId: session.identityId };
 	} else {
 		return {
 			...result,
@@ -131,7 +134,7 @@ async function submitAuthenticationChallenge(
 	request: Request,
 	_params: Record<never, never>,
 	context: Context,
-) {
+): Promise<AuthenticationCeremonyResponse> {
 	const formData = await request.formData();
 	const type = formData.get("type")?.toString() ?? "";
 	const challenge = formData.get("challenge")?.toString() ?? "";
@@ -148,15 +151,14 @@ async function submitAuthenticationChallenge(
 		state.identity,
 	);
 	if (result.done) {
-		const _session = await context.session.create(result.identityId, {});
-		// TODO communicate session id to client
-		return result;
+		const session = await context.session.create(result.identityId, {});
+		return { done: true, identityId: session.identityId };
 	} else {
 		return {
 			...result,
 			...("state" in result
 				? {
-					state: await encryptAuthenticationCeremonyState(
+					encryptedState: await encryptAuthenticationCeremonyState(
 						result.state,
 						context.config.auth.security.keys.algo,
 						context.config.auth.security.keys.privateKey,
@@ -171,40 +173,48 @@ async function sendIdentificationValidationCode(
 	request: Request,
 	_params: Record<never, never>,
 	context: Context,
-) {
-	const formData = await request.formData();
-	const type = formData.get("type")?.toString() ?? "";
-	const identification = formData.get("identification")?.toString() ?? "";
-	const identityIdentification = await context.identity.matchIdentification(
-		type,
-		identification,
-	);
-	await context.auth.sendIdentificationValidationCode(
-		identityIdentification.identityId,
-		type,
-	);
-	return { sent: true };
+): Promise<SendIdentificationValidationCodeResponse> {
+	try {
+		const formData = await request.formData();
+		const type = formData.get("type")?.toString() ?? "";
+		const identification = formData.get("identification")?.toString() ?? "";
+		const identityIdentification = await context.identity.matchIdentification(
+			type,
+			identification,
+		);
+		await context.auth.sendIdentificationValidationCode(
+			identityIdentification.identityId,
+			type,
+		);
+		return { sent: true };
+	} catch (_error) {
+		return { sent: false };
+	}
 }
 
 async function confirmIdentificationValidationCode(
 	request: Request,
 	_params: Record<never, never>,
 	context: Context,
-) {
-	const formData = await request.formData();
-	const type = formData.get("type")?.toString() ?? "";
-	const identification = formData.get("identification")?.toString() ?? "";
-	const code = formData.get("code")?.toString() ?? "";
-	const identityIdentification = await context.identity.matchIdentification(
-		type,
-		identification,
-	);
-	await context.auth.confirmIdentificationValidationCode(
-		identityIdentification.identityId,
-		type,
-		code,
-	);
-	return { confirmed: true };
+): Promise<ConfirmIdentificationValidationCodeResponse> {
+	try {
+		const formData = await request.formData();
+		const type = formData.get("type")?.toString() ?? "";
+		const identification = formData.get("identification")?.toString() ?? "";
+		const code = formData.get("code")?.toString() ?? "";
+		const identityIdentification = await context.identity.matchIdentification(
+			type,
+			identification,
+		);
+		await context.auth.confirmIdentificationValidationCode(
+			identityIdentification.identityId,
+			type,
+			code,
+		);
+		return { confirmed: true };
+	} catch (_error) {
+		return { confirmed: false };
+	}
 }
 
 async function signOut(

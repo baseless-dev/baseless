@@ -1,12 +1,15 @@
-import { InvalidAuthenticationCeremonyResponseError } from "../common/authentication/errors.ts";
-import { isAuthenticationCeremonyResponseEncryptedState } from "../common/authentication/ceremony/response/encrypted_state.ts";
+import { InvalidAuthenticationCeremonyResponseError } from "../common/auth/errors.ts";
+import { isAuthenticationCeremonyResponseEncryptedState } from "../common/auth/ceremony/response/encrypted_state.ts";
 import {
+	AuthenticationCeremonyResponse,
 	assertAuthenticationCeremonyResponse,
 	isAuthenticationCeremonyResponse,
-} from "../common/authentication/ceremony/response.ts";
+} from "../common/auth/ceremony/response.ts";
 import { EventEmitter } from "../common/system/event_emitter.ts";
 import { App, assertApp } from "./app.ts";
 import { throwIfApiError } from "./error.ts";
+import { SendIdentificationValidationCodeResponse, assertSendIdentificationValidationCodeResponse } from "../common/auth/send_identification_validation_code.ts";
+import { ConfirmIdentificationValidationCodeResponse, assertConfirmIdentificationValidationCodeResponse } from "../common/auth/confirm_identification_validation_code.ts";
 
 // TODO move to server
 export type Tokens = {
@@ -27,7 +30,7 @@ export function assertPersistence(
 		throw new InvalidPersistenceError();
 	}
 }
-export class InvalidPersistenceError extends Error {}
+export class InvalidPersistenceError extends Error { }
 
 const tokenMap = new Map<string, Tokens | undefined>();
 const onAuthStateChangeMap = new Map<string, EventEmitter<never>>();
@@ -48,7 +51,7 @@ function getAuthData(app: App) {
 	return { storage, tokens, onAuthStateChange };
 }
 
-export class AuthNotInitializedError extends Error {}
+export class AuthNotInitializedError extends Error { }
 
 export function initializeAuth(app: App): App {
 	assertApp(app);
@@ -57,7 +60,7 @@ export function initializeAuth(app: App): App {
 	}
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	storageMap.set(
 		app.clientId,
 		persistence === "local"
@@ -90,7 +93,7 @@ export function getPersistence(app: App): Persistence {
 	assertInitializedAuth(app);
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	assertPersistence(persistence);
 	return persistence;
 }
@@ -117,7 +120,7 @@ export function onAuthStateChange(app: App, listener: () => void) {
 	return onAuthStateChange.listen(listener);
 }
 
-export async function getAuthenticationCeremony(app: App, state?: string) {
+export async function getAuthenticationCeremony(app: App, state?: string): Promise<AuthenticationCeremonyResponse> {
 	assertApp(app);
 	assertInitializedAuth(app);
 	let method = "GET";
@@ -145,7 +148,7 @@ export async function submitAuthenticationIdentification(
 	type: string,
 	identification: string,
 	state?: string,
-) {
+): Promise<AuthenticationCeremonyResponse> {
 	assertApp(app);
 	assertInitializedAuth(app);
 	const body = new FormData();
@@ -160,10 +163,7 @@ export async function submitAuthenticationIdentification(
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
-	if (
-		!isAuthenticationCeremonyResponse(result.data) &&
-		!isAuthenticationCeremonyResponseEncryptedState(result.data)
-	) {
+	if (!isAuthenticationCeremonyResponse(result.data)) {
 		throw new InvalidAuthenticationCeremonyResponseError();
 	}
 	return result.data;
@@ -174,7 +174,7 @@ export async function submitAuthenticationChallenge(
 	type: string,
 	challenge: string,
 	state: string,
-) {
+): Promise<AuthenticationCeremonyResponse> {
 	assertApp(app);
 	assertInitializedAuth(app);
 	const body = new FormData();
@@ -187,11 +187,50 @@ export async function submitAuthenticationChallenge(
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
-	if (
-		!isAuthenticationCeremonyResponse(result.data) &&
-		!isAuthenticationCeremonyResponseEncryptedState(result.data)
-	) {
+	if (!isAuthenticationCeremonyResponse(result.data)) {
 		throw new InvalidAuthenticationCeremonyResponseError();
 	}
+	return result.data;
+}
+
+export async function sendIdentificationValidationCode(
+	app: App,
+	type: string,
+	identification: string,
+): Promise<SendIdentificationValidationCodeResponse> {
+	assertApp(app);
+	assertInitializedAuth(app);
+	const body = new FormData();
+	body.set("type", type);
+	body.set("identification", identification);
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/sendIdentificationValidationCode`,
+		{ body, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+	assertSendIdentificationValidationCodeResponse(result.data);
+	return result.data;
+}
+
+export async function confirmIdentificationValidationCode(
+	app: App,
+	type: string,
+	identification: string,
+	code: string,
+): Promise<ConfirmIdentificationValidationCodeResponse> {
+	assertApp(app);
+	assertInitializedAuth(app);
+	const body = new FormData();
+	body.set("type", type);
+	body.set("identification", identification);
+	body.set("code", code);
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/confirmIdentificationValidationCode`,
+		{ body, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+	assertConfirmIdentificationValidationCodeResponse(result.data);
 	return result.data;
 }

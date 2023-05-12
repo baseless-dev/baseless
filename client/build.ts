@@ -12,6 +12,10 @@ await build({
 	typeCheck: false,
 	declaration: "inline",
 	test: false,
+	esModule: true,
+	compilerOptions: {
+		sourceMap: true,
+	},
 	scriptModule: "cjs",
 	skipSourceOutput: true,
 	shims: {

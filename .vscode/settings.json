@@ -16,7 +16,7 @@
 		"deno.json": "deno.lock, import-map.json, .gitignore, .prettierrc",
 		"*.ts": "${capture}.test.ts",
 		"*.tsx": "${capture}.test.tsx",
-		"*.js": "${capture}.js.map",
+		"*.js": "${capture}.js.map, ${capture}.d.ts",
 		"*.css": "${capture}.css.map"
 	},
 	"editor.insertSpaces": false,

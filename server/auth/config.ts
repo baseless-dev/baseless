@@ -4,8 +4,11 @@ import {
 	assertAuthenticationCeremonyComponent,
 	AuthenticationCeremonyComponent,
 } from "../../common/auth/ceremony/ceremony.ts";
-import { AuthenticationConfiguration, AuthenticationHandler, AuthenticationKeys } from "../../common/server/config/auth.ts";
-
+import {
+	AuthenticationConfiguration,
+	AuthenticationHandler,
+	AuthenticationKeys,
+} from "../../common/server/config/auth.ts";
 
 export class AuthenticationConfigurationBuilder {
 	#enabled = false;
@@ -175,5 +178,5 @@ export class AuthenticationConfigurationBuilder {
 	}
 }
 
-export class AuthenticationMissingIdentificatorError extends Error { }
-export class AuthenticationMissingChallengerError extends Error { }
+export class AuthenticationMissingIdentificatorError extends Error {}
+export class AuthenticationMissingChallengerError extends Error {}

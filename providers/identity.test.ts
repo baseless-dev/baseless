@@ -54,6 +54,11 @@ export default async function testIdentityProvider(
 		await assertRejects(() => ip.createIdentification(ident1));
 	});
 
+	await t.step("getIdentification", async () => {
+		const ident2 = await ip.getIdentification(identityId, "username");
+		assertEquals(ident2, ident1);
+	});
+
 	await t.step("matchIdentification", async () => {
 		const ident2 = await ip.matchIdentification("username", "test");
 		assertEquals(ident2, ident1);

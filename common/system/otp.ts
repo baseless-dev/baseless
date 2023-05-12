@@ -1,5 +1,80 @@
 import * as b32 from "https://deno.land/std@0.179.0/encoding/base32.ts";
 
+export type OTPAlgorithm = "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
+
+export type HOTPOptions = {
+	readonly key: string | CryptoKey;
+	readonly algorithm?: OTPAlgorithm;
+	readonly digits?: number;
+};
+
+export type TOTPOptions = {
+	readonly key: string | CryptoKey;
+	readonly period: number;
+	readonly algorithm?: OTPAlgorithm;
+	readonly digits?: number;
+};
+
+export type OTPOptions = {
+	readonly digits?: number;
+};
+
+export function isOTPAlgorithm(value?: unknown): value is OTPAlgorithm {
+	return !!value && typeof value === "string" &&
+		["SHA-1", "SHA-256", "SHA-384", "SHA-512"].includes(value);
+}
+
+export function assertOTPAlgorithm(
+	value?: unknown,
+): asserts value is OTPAlgorithm {
+	if (!isOTPAlgorithm(value)) {
+		throw new InvalidOTPAlgorithmError();
+	}
+}
+
+export class InvalidOTPAlgorithmError extends Error {
+	name = "InvalidOTPAlgorithmError" as const;
+}
+
+export function isHOTPOptions(value?: unknown): value is HOTPOptions {
+	return !!value && typeof value === "object" && "key" in value &&
+		(typeof value.key === "string" || value.key instanceof CryptoKey) &&
+		(!("algorithm" in value) || isOTPAlgorithm(value.algorithm)) &&
+		(!("digits" in value) || typeof value.digits === "number");
+}
+
+export function assertHOTPOptions(
+	value?: unknown,
+): asserts value is HOTPOptions {
+	if (!isHOTPOptions(value)) {
+		throw new InvalidHOTPOptionsError();
+	}
+}
+
+export class InvalidHOTPOptionsError extends Error {
+	name = "InvalidHOTPOptionsError" as const;
+}
+
+export function isTOTPOptions(value?: unknown): value is TOTPOptions {
+	return !!value && typeof value === "object" && "key" in value &&
+		(typeof value.key === "string" || value.key instanceof CryptoKey) &&
+		"period" in value && typeof value.period === "number" &&
+		(!("algorithm" in value) || isOTPAlgorithm(value.algorithm)) &&
+		(!("digits" in value) || typeof value.digits === "number");
+}
+
+export function assertTOTPOptions(
+	value?: unknown,
+): asserts value is TOTPOptions {
+	if (!isTOTPOptions(value)) {
+		throw new InvalidTOTPOptionsError();
+	}
+}
+
+export class InvalidTOTPOptionsError extends Error {
+	name = "InvalidTOTPOptionsError" as const;
+}
+
 /**
  * Converts a counter value to a 128-bit Uint8Array representation with padding.
  * @param {number} counter - The counter value to convert.
@@ -34,13 +109,11 @@ function truncate(hmac: Uint8Array) {
  * @throws {Error} - Throws an error if the provided key is not valid.
  */
 export async function hotp(
-	{ key, counter, algorithm = "SHA-1", digits = 6 }: {
-		key: string | CryptoKey;
+	{ key, counter, algorithm = "SHA-1", digits = 6 }: HOTPOptions & {
 		counter: number;
-		algorithm?: "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
-		digits?: number;
 	},
 ) {
+	assertOTPAlgorithm(algorithm);
 	let cryptoKey: CryptoKey;
 	if (key instanceof CryptoKey) {
 		if (key.algorithm.name !== "HMAC") {
@@ -78,13 +151,9 @@ export async function hotp(
  * @returns {string} - The generated TOTP as a string.
  */
 export function totp(
-	{ key, time = Date.now() / 1000, period = 60, algorithm, digits }: {
-		key: string | CryptoKey;
-		time: number;
-		period: number;
-		algorithm?: "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
-		digits?: number;
-	},
+	{ key, time = Date.now() / 1000, period = 60, algorithm, digits }:
+		& TOTPOptions
+		& { time: number },
 ) {
 	return hotp({ key, counter: Math.floor(time / period), algorithm, digits });
 }
@@ -118,7 +187,7 @@ export type OTPAuthURIOptions =
 		type: "hotp";
 		secret: string;
 		label: string;
-		algorithm?: "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
+		algorithm?: OTPAlgorithm;
 		digits?: number;
 		counter: number;
 	}
@@ -126,7 +195,7 @@ export type OTPAuthURIOptions =
 		type: "totp";
 		secret: string;
 		label: string;
-		algorithm?: "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
+		algorithm?: OTPAlgorithm;
 		digits?: number;
 		period?: number;
 	};
@@ -160,8 +229,7 @@ export function toURI(options: OTPAuthURIOptions) {
 	}
 	if (
 		"algorithm" in options && options.algorithm &&
-		(typeof options.algorithm !== "string" ||
-			!["SHA-1", "SHA-256", "SHA-384", "SHA-512"].includes(options.algorithm))
+		!isOTPAlgorithm(options.algorithm)
 	) {
 		throw new Error(
 			`When provided, the "algorithm" options must be either "SHA-1", "SHA-256", "SHA-384" or "SHA-512".`,

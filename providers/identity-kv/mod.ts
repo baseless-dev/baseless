@@ -160,6 +160,28 @@ export class KVIdentityProvider implements IdentityProvider {
 	/**
 	 * @throws {IdentityIdentificationNotFoundError}
 	 */
+	async getIdentification<Meta extends Record<string, unknown>>(
+		identityId: AutoId,
+		type: string,
+	): Promise<IdentityIdentification<Meta>> {
+		try {
+			const result = await this.kv.get(
+				`${this.prefix}/identities/${identityId}/identifications/${type}`,
+			);
+			const data = JSON.parse(result.value);
+			assertIdentityIdentification(data);
+			return data as IdentityIdentification<Meta>;
+		} catch (inner) {
+			this.#logger.error(
+				`Failed to match identification ${type}, got ${inner}`,
+			);
+		}
+		throw new IdentityIdentificationNotFoundError();
+	}
+
+	/**
+	 * @throws {IdentityIdentificationNotFoundError}
+	 */
 	async matchIdentification<
 		Meta extends Record<string, unknown> = Record<string, unknown>,
 	>(
@@ -190,7 +212,7 @@ export class KVIdentityProvider implements IdentityProvider {
 	): Promise<void> {
 		try {
 			const keyIdentity =
-				`${this.prefix}/identities/${identityIdentification.identityId}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
+				`${this.prefix}/identities/${identityIdentification.identityId}/identifications/${identityIdentification.type}`;
 			const keyIdentification =
 				`${this.prefix}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
 			const exists = await this.kv.get(keyIdentification).catch((_) =>
@@ -225,7 +247,7 @@ export class KVIdentityProvider implements IdentityProvider {
 	): Promise<void> {
 		try {
 			const keyIdentity =
-				`${this.prefix}/identities/${identityIdentification.identityId}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
+				`${this.prefix}/identities/${identityIdentification.identityId}/identifications/${identityIdentification.type}`;
 			const keyIdentification =
 				`${this.prefix}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
 			const exists = await this.kv.get(keyIdentification).catch((_) =>
@@ -262,7 +284,7 @@ export class KVIdentityProvider implements IdentityProvider {
 		try {
 			assertAutoId(id);
 			const keyIdentity =
-				`${this.prefix}/identities/${id}/identifications/${type}:${identification}`;
+				`${this.prefix}/identities/${id}/identifications/${type}`;
 			const keyIdentification =
 				`${this.prefix}/identifications/${type}:${identification}`;
 			const exists = await this.kv.get(keyIdentification).catch((_) =>

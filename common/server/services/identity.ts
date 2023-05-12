@@ -28,6 +28,9 @@ import {
 	// deno-lint-ignore no-unused-vars
 	IdentityUpdateError,
 } from "../../identity/errors.ts";
+// deno-lint-ignore no-unused-vars
+import type { MessageSendError } from "../../message/errors.ts";
+import { Message } from "../../message/message.ts";
 
 export interface IIdentityService {
 	/**
@@ -138,5 +141,22 @@ export interface IIdentityService {
 	deleteChallenge(
 		id: AutoId,
 		type: string,
+	): Promise<void>;
+
+	/**
+	 * @throws {MessageSendError}
+	 */
+	broadcastMessage(
+		identityId: AutoId,
+		message: Omit<Message, "recipient">,
+	): Promise<void>;
+
+	/**
+	 * @throws {MessageSendError}
+	 */
+	sendMessage(
+		identityId: AutoId,
+		identificationType: string,
+		message: Omit<Message, "recipient">,
 	): Promise<void>;
 }

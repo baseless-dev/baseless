@@ -27,9 +27,15 @@ export interface IAuthenticationService {
 		identityId: AutoId,
 		type: string,
 	): Promise<void>;
+
 	confirmIdentificationValidationCode(
 		identityId: AutoId,
 		type: string,
 		code: string,
+	): Promise<void>;
+
+	sendIdentificationChallenge(
+		identityId: AutoId,
+		type: string,
 	): Promise<void>;
 }

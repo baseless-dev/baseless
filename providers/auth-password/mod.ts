@@ -10,7 +10,7 @@ export class PasswordAuthentificationChallenger
 		);
 	}
 
-	async configureMeta(challenge: string): Promise<Record<string, string>> {
+	async configureMeta(challenge: string): Promise<Record<string, unknown>> {
 		const hash = await this.#hash(challenge);
 		return { hash };
 	}

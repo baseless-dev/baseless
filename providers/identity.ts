@@ -25,6 +25,8 @@ import type {
 	// deno-lint-ignore no-unused-vars
 	IdentityUpdateError,
 } from "../common/identity/errors.ts";
+// deno-lint-ignore no-unused-vars
+import type { MessageSendError } from "../common/message/errors.ts";
 import type { IdentityIdentification } from "../common/identity/identification.ts";
 import type { Identity } from "../common/identity/identity.ts";
 import type { AutoId } from "../common/system/autoid.ts";
@@ -71,6 +73,14 @@ export interface IdentityProvider {
 	matchIdentification<Meta extends Record<string, unknown>>(
 		type: string,
 		identification: string,
+	): Promise<IdentityIdentification<Meta>>;
+
+	/**
+	 * @throws {IdentityIdentificationNotFoundError}
+	 */
+	getIdentification<Meta extends Record<string, unknown>>(
+		identityId: AutoId,
+		type: string,
 	): Promise<IdentityIdentification<Meta>>;
 
 	/**

@@ -11,6 +11,7 @@ import {
 	getPersistence,
 	initializeAuth,
 	onAuthStateChange,
+	sendIdentificationChallenge,
 	sendIdentificationValidationCode,
 	setPersistence,
 	submitAuthenticationChallenge,
@@ -40,24 +41,27 @@ import { assertAuthenticationCeremonyResponseEncryptedState } from "../common/au
 import { assertAuthenticationCeremonyResponseDone } from "../common/auth/ceremony/response/done.ts";
 import { Message } from "../common/message/message.ts";
 import { setGlobalLogHandler } from "../common/system/logger.ts";
+import { TOTPLoggerAuthentificationChallenger } from "../providers/auth-totp-logger/mod.ts";
+import { generateKey } from "../common/system/otp.ts";
+import { assertSendIdentificationChallengeResponse } from "../common/auth/send_identification_challenge_response.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const mail = email({
 		icon: "",
-		label: { en: "Sign in with Email" },
+		label: {},
 	});
-	const pass = password({ icon: "", label: { en: "Sign in with Password" } });
-	const code = otp({
-		type: "otp",
+	const pass = password({ icon: "", label: {} });
+	const totp = otp({
+		type: "totp",
 		icon: "",
-		label: { en: "Sign in with Code" },
+		label: {},
 	});
 	const { publicKey, privateKey } = await generateKeyPair("PS512");
 	config.auth()
 		.setEnabled(true)
 		.setCeremony(oneOf(
 			sequence(mail, pass),
-			sequence(mail, code),
+			sequence(mail, totp),
 		))
 		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
 		.setSecuritySalt("foobar")
@@ -65,7 +69,15 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			new EmailAuthentificationIdenticator(new LoggerMessageProvider()),
 		)
-		.addChallenger("password", new PasswordAuthentificationChallenger());
+		.addChallenger("password", new PasswordAuthentificationChallenger())
+		.addChallenger(
+			"totp",
+			new TOTPLoggerAuthentificationChallenger({
+				period: 60,
+				algorithm: "SHA-256",
+				digits: 6,
+			}, new LoggerMessageProvider()),
+		);
 
 	const configuration = config.build();
 	const assetProvider = new LocalAssetProvider(import.meta.resolve("./public"));
@@ -93,6 +105,11 @@ Deno.test("Client Auth", async (t) => {
 		john.id,
 		"password",
 		"123",
+	);
+	await identityService.createChallenge(
+		john.id,
+		"totp",
+		await generateKey(16),
 	);
 
 	const server = new Server({
@@ -161,7 +178,7 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseEncryptedState(result);
 		assertEquals(result.first, false);
 		assertEquals(result.last, false);
-		assertEquals(result.component, oneOf(pass, code));
+		assertEquals(result.component, oneOf(pass, totp));
 		await assertRejects(() =>
 			submitAuthenticationIdentification(app, "email", "unknown@test.local")
 		);
@@ -183,6 +200,37 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseDone(result2);
 	});
 
+	await t.step("sendIdentificationChallenge", async () => {
+		const result1 = await submitAuthenticationIdentification(
+			app,
+			"email",
+			"john@test.local",
+		);
+		assertAuthenticationCeremonyResponseEncryptedState(result1);
+		const messages: { ns: string; lvl: string; message: Message }[] = [];
+		setGlobalLogHandler((ns, lvl, msg) => {
+			if (ns === "message-logger") {
+				messages.push({ ns, lvl, message: JSON.parse(msg)! });
+			}
+		});
+		const result2 = await sendIdentificationChallenge(
+			app,
+			"totp",
+			result1.encryptedState,
+		);
+		assertSendIdentificationChallengeResponse(result2);
+		const challengeCode = messages.pop()?.message.text ?? "";
+		assertEquals(challengeCode.length, 6);
+		setGlobalLogHandler(() => { });
+		const result3 = await submitAuthenticationChallenge(
+			app,
+			"totp",
+			challengeCode,
+			result1.encryptedState,
+		);
+		assertAuthenticationCeremonyResponseDone(result3);
+	});
+
 	await t.step("sendIdentificationValidationCode", async () => {
 		const messages: { ns: string; lvl: string; message: Message }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
@@ -195,12 +243,12 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		assertEquals(result.sent, true);
 		assertEquals(messages[0]?.message.text.length, 6);
 	});
 
-	await t.step("confirmIdentificationValidationCode", async () => {
+	await t.step("sendIdentificationValidationCode", async () => {
 		const messages: { ns: string; lvl: string; message: Message }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
 			if (ns === "message-logger") {
@@ -212,7 +260,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		assertEquals(sendResult.sent, true);
 		const validationCode = messages[0]?.message.text;
 		const confirmResult = await confirmIdentificationValidationCode(

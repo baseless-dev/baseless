@@ -16,9 +16,12 @@ import * as h from "../../common/auth/ceremony/component/helpers.ts";
 import { Message } from "../../common/message/message.ts";
 import { setGlobalLogHandler } from "../../common/system/logger.ts";
 import { autoid } from "../../common/system/autoid.ts";
+import { TOTPLoggerAuthentificationChallenger } from "../../providers/auth-totp-logger/mod.ts";
+import { generateKey } from "../../common/system/otp.ts";
 
 Deno.test("AuthenticationService", async (t) => {
 	const email = h.email({ icon: "", label: {} });
+	const totp = h.otp({ type: "totp", icon: "", label: {} });
 	const password = h.password({ icon: "", label: {} });
 	const github = h.action({ type: "github", icon: "", label: {} });
 
@@ -30,6 +33,7 @@ Deno.test("AuthenticationService", async (t) => {
 		.setCeremony(
 			h.oneOf(
 				h.sequence(email, password),
+				h.sequence(email, totp),
 				github,
 			),
 		)
@@ -37,7 +41,15 @@ Deno.test("AuthenticationService", async (t) => {
 			"email",
 			new EmailAuthentificationIdenticator(new LoggerMessageProvider()),
 		)
-		.addChallenger("password", new PasswordAuthentificationChallenger());
+		.addChallenger("password", new PasswordAuthentificationChallenger())
+		.addChallenger(
+			"totp",
+			new TOTPLoggerAuthentificationChallenger({
+				period: 60,
+				algorithm: "SHA-256",
+				digits: 6,
+			}, new LoggerMessageProvider()),
+		);
 
 	const configuration = config.build();
 
@@ -69,8 +81,13 @@ Deno.test("AuthenticationService", async (t) => {
 		"password",
 		"123",
 	);
+	await identityService.createChallenge(
+		ident1.id,
+		"totp",
+		await generateKey(16),
+	);
 
-	await t.step("getStep", async () => {
+	await t.step("getAuthenticationCeremony", async () => {
 		assertEquals(
 			await authService.getAuthenticationCeremony(),
 			{
@@ -86,9 +103,9 @@ Deno.test("AuthenticationService", async (t) => {
 			{
 				state: { choices: ["email"] },
 				done: false,
-				component: password,
+				component: h.oneOf(password, totp),
 				first: false,
-				last: true,
+				last: false,
 			},
 		);
 		await assertRejects(
@@ -123,9 +140,9 @@ Deno.test("AuthenticationService", async (t) => {
 			),
 			{
 				done: false,
-				component: password,
+				component: h.oneOf(password, totp),
 				first: false,
-				last: true,
+				last: false,
 				state: { choices: ["email"], identity: ident1.id },
 			},
 		);
@@ -191,6 +208,26 @@ Deno.test("AuthenticationService", async (t) => {
 			ident1.id,
 			"email",
 			verificationCode,
+		);
+	});
+
+	await t.step("sendIdentificationChallenge", async () => {
+		const messages: { ns: string; lvl: string; message: Message }[] = [];
+		setGlobalLogHandler((ns, lvl, msg) => {
+			messages.push({ ns, lvl, message: JSON.parse(msg)! });
+		});
+		await authService.sendIdentificationChallenge(ident1.id, "totp");
+		const challengeCode = messages.pop()?.message.text ?? "";
+		assertEquals(challengeCode.length, 6);
+		setGlobalLogHandler(() => {});
+		assertEquals(
+			await authService.submitAuthenticationChallenge(
+				{ choices: ["email"], identity: ident1.id },
+				"totp",
+				challengeCode,
+				"localhost",
+			),
+			{ done: true, identityId: ident1.id },
 		);
 	});
 });

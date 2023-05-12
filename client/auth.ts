@@ -1,8 +1,6 @@
-import { InvalidAuthenticationCeremonyResponseError } from "../common/auth/errors.ts";
 import {
 	assertAuthenticationCeremonyResponse,
 	AuthenticationCeremonyResponse,
-	isAuthenticationCeremonyResponse,
 } from "../common/auth/ceremony/response.ts";
 import { EventEmitter } from "../common/system/event_emitter.ts";
 import { App, assertApp } from "./app.ts";
@@ -10,11 +8,15 @@ import { throwIfApiError } from "./errors.ts";
 import {
 	assertSendIdentificationValidationCodeResponse,
 	SendIdentificationValidationCodeResponse,
-} from "../common/auth/send_identification_validation_code.ts";
+} from "../common/auth/send_identification_validation_code_response.ts";
 import {
 	assertConfirmIdentificationValidationCodeResponse,
 	ConfirmIdentificationValidationCodeResponse,
-} from "../common/auth/confirm_identification_validation_code.ts";
+} from "../common/auth/confirm_identification_validation_code_response.ts";
+import {
+	assertSendIdentificationChallengeResponse,
+	SendIdentificationChallengeResponse,
+} from "../common/auth/send_identification_challenge_response.ts";
 
 // TODO move to server
 export type Tokens = {
@@ -171,9 +173,7 @@ export async function submitAuthenticationIdentification(
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
-	if (!isAuthenticationCeremonyResponse(result.data)) {
-		throw new InvalidAuthenticationCeremonyResponseError();
-	}
+	assertAuthenticationCeremonyResponse(result.data);
 	return result.data;
 }
 
@@ -195,9 +195,27 @@ export async function submitAuthenticationChallenge(
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
-	if (!isAuthenticationCeremonyResponse(result.data)) {
-		throw new InvalidAuthenticationCeremonyResponseError();
-	}
+	assertAuthenticationCeremonyResponse(result.data);
+	return result.data;
+}
+
+export async function sendIdentificationChallenge(
+	app: App,
+	type: string,
+	state: string,
+): Promise<SendIdentificationChallengeResponse> {
+	assertApp(app);
+	assertInitializedAuth(app);
+	const body = new FormData();
+	body.set("type", type);
+	body.set("state", state);
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/sendIdentificationChallenge`,
+		{ body, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+	assertSendIdentificationChallengeResponse(result.data);
 	return result.data;
 }
 

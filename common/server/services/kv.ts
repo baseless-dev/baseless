@@ -1,6 +1,15 @@
-import type { KVGetOptions, KVKey, KVPutOptions, KVListOptions, KVListResult } from "../../../providers/kv.ts";
+import type {
+	KVGetOptions,
+	KVKey,
+	KVListOptions,
+	KVListResult,
+	KVPutOptions,
+} from "../../../providers/kv.ts";
 // deno-lint-ignore no-unused-vars
-import type { KVKeyNotFoundError, KVPutError } from "../../../common/kv/errors.ts";
+import type {
+	KVKeyNotFoundError,
+	KVPutError,
+} from "../../../common/kv/errors.ts";
 
 export interface IKVService {
 	/**

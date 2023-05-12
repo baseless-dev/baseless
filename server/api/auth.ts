@@ -12,10 +12,11 @@ import {
 } from "../../common/auth/ceremony/state.ts";
 import { RouterBuilder } from "../../common/system/router.ts";
 import { ApiResponse } from "../../common/api/response.ts";
-import { SendIdentificationValidationCodeResponse } from "../../common/auth/send_identification_validation_code.ts";
+import { SendIdentificationValidationCodeResponse } from "../../common/auth/send_identification_validation_code_response.ts";
 import { AuthenticationCeremonyResponse } from "../../common/auth/ceremony/response.ts";
-import { ConfirmIdentificationValidationCodeResponse } from "../../common/auth/confirm_identification_validation_code.ts";
+import { ConfirmIdentificationValidationCodeResponse } from "../../common/auth/confirm_identification_validation_code_response.ts";
 import { Context } from "../../common/server/context.ts";
+import { SendIdentificationChallengeResponse } from "../../common/auth/send_identification_challenge_response.ts";
 
 async function decryptEncryptedAuthenticationCeremonyState(
 	data: string,
@@ -169,6 +170,30 @@ async function submitAuthenticationChallenge(
 	}
 }
 
+async function sendIdentificationChallenge(
+	request: Request,
+	_params: Record<never, never>,
+	context: Context,
+): Promise<SendIdentificationChallengeResponse> {
+	try {
+		const formData = await request.formData();
+		const type = formData.get("type")?.toString() ?? "";
+		const encryptedState = formData.get("state")?.toString() ?? "";
+		const state = await decryptEncryptedAuthenticationCeremonyState(
+			encryptedState,
+			context.config.auth.security.keys.publicKey,
+		);
+		assertAuthenticationCeremonyStateIdentified(state);
+		await context.auth.sendIdentificationChallenge(
+			state.identity,
+			type,
+		);
+		return { sent: true };
+	} catch (_error) {
+		return { sent: false };
+	}
+}
+
 async function sendIdentificationValidationCode(
 	request: Request,
 	_params: Record<never, never>,
@@ -239,6 +264,10 @@ authRouter.post(
 authRouter.post(
 	"/submitAuthenticationChallenge",
 	json(submitAuthenticationChallenge),
+);
+authRouter.post(
+	"/sendIdentificationChallenge",
+	json(sendIdentificationChallenge),
 );
 authRouter.post(
 	"/sendIdentificationValidationCode",

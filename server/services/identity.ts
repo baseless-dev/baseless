@@ -1,3 +1,4 @@
+import { MessageSendError } from "../../client/errors.ts";
 import { AuthenticationRateLimitedError } from "../../common/auth/errors.ts";
 import {
 	assertIdentityChallenge,
@@ -32,9 +33,11 @@ import {
 	IdentityIdentification,
 } from "../../common/identity/identification.ts";
 import { Identity } from "../../common/identity/identity.ts";
+import { assertMessage, Message } from "../../common/message/message.ts";
 import type { Configuration } from "../../common/server/config/config.ts";
+import { Context } from "../../common/server/context.ts";
 import { IIdentityService } from "../../common/server/services/identity.ts";
-import { AutoId } from "../../common/system/autoid.ts";
+import { assertAutoId, AutoId } from "../../common/system/autoid.ts";
 import { CounterProvider } from "../../providers/counter.ts";
 import { IdentityProvider } from "../../providers/identity.ts";
 import { AuthenticationMissingChallengerError } from "../auth/config.ts";
@@ -97,6 +100,16 @@ export class IdentityService implements IIdentityService {
 		id: AutoId,
 	): Promise<IdentityIdentification[]> {
 		return this.#identityProvider.listIdentification(id);
+	}
+
+	/**
+	 * @throws {IdentityIdentificationNotFoundError}
+	 */
+	getIdentification<Meta extends Record<string, unknown>>(
+		id: AutoId,
+		type: string,
+	): Promise<IdentityIdentification<Meta>> {
+		return this.#identityProvider.getIdentification(id, type);
 	}
 
 	/**
@@ -245,5 +258,68 @@ export class IdentityService implements IIdentityService {
 	): Promise<void> {
 		// TODO life cycle hooks
 		return this.#identityProvider.deleteChallenge(id, type);
+	}
+
+	/**
+	 * @throws {MessageSendError}
+	 */
+	public async broadcastMessage(
+		identityId: AutoId,
+		message: Omit<Message, "recipient">,
+	): Promise<void> {
+		try {
+			assertAutoId(identityId);
+			assertMessage(message);
+			const identifications = await this.#identityProvider.listIdentification(
+				identityId,
+			);
+			const verifiedIdentifications = identifications.filter((i) => i.verified);
+			const sendMessages = verifiedIdentifications.reduce(
+				(messages, identification) => {
+					const identicator = this.#configuration.auth.identificators
+						.get(
+							identification.type,
+						);
+					if (identicator && identicator.sendMessage) {
+						messages.push(identicator.sendMessage(identification, message));
+					}
+					return messages;
+				},
+				[] as Promise<void>[],
+			);
+			await Promise.allSettled(sendMessages);
+		} catch (_error) {
+			throw new MessageSendError();
+		}
+	}
+
+	/**
+	 * @throws {MessageSendError}
+	 */
+	async sendMessage(
+		identityId: AutoId,
+		identificationType: string,
+		message: Omit<Message, "recipient">,
+	): Promise<void> {
+		try {
+			assertAutoId(identityId);
+			assertMessage(message);
+			const identicator = this.#configuration.auth.identificators
+				.get(
+					identificationType,
+				);
+			if (identicator && identicator.sendMessage) {
+				const identityIdentification = await this.getIdentification(
+					identityId,
+					identificationType,
+				);
+				if (identityIdentification) {
+					return identicator.sendMessage(identityIdentification, message);
+				}
+			}
+		} catch (_error) {
+			// skip
+		}
+		throw new MessageSendError();
 	}
 }

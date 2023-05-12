@@ -4,6 +4,7 @@ import {
 	AuthenticationConfirmValidationCodeError,
 	AuthenticationInvalidStepError,
 	AuthenticationRateLimitedError,
+	AuthenticationSendIdentificationChallengeError,
 	AuthenticationSendValidationCodeError,
 } from "../../common/auth/errors.ts";
 import { AuthenticationCeremonyResponse } from "../../common/auth/ceremony/response.ts";
@@ -94,7 +95,7 @@ export class AuthenticationService implements IAuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-			this.#configuration.auth.security.rateLimit.identificationCount
+				this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -294,5 +295,44 @@ export class AuthenticationService implements IAuthenticationService {
 			);
 		}
 		throw new AuthenticationConfirmValidationCodeError();
+	}
+
+	async sendIdentificationChallenge(
+		identityId: AutoId,
+		type: string,
+	): Promise<void> {
+		const challenger = this.#configuration.auth.chalengers.get(
+			type,
+		);
+		if (!challenger) {
+			throw new AuthenticationSendIdentificationChallengeError();
+		}
+
+		const identityChallenge = await this.#identityProvider.getChallenge(
+			identityId,
+			type,
+		);
+		if (!identityChallenge) {
+			throw new AuthenticationSendIdentificationChallengeError();
+		}
+
+		if (challenger.sendChallenge) {
+			if (challenger.sendInterval && challenger.sendCount) {
+				const counterInterval = challenger.sendInterval;
+				const counterLimit = challenger.sendCount;
+				const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
+				const counterKey =
+					`/auth/sendchallenge/${identityId}/${type}/${slidingWindow}`;
+				const counter = await this.#counterProvider.increment(
+					counterKey,
+					1,
+					counterInterval,
+				);
+				if (counter > counterLimit) {
+					throw new AuthenticationRateLimitedError();
+				}
+			}
+			await challenger.sendChallenge(identityChallenge);
+		}
 	}
 }

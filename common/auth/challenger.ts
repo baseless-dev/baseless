@@ -2,12 +2,16 @@ import type { IdentityChallenge } from "../identity/challenge.ts";
 
 export abstract class AuthenticationChallenger {
 	// deno-lint-ignore require-await
-	async configureMeta(_challenge: string): Promise<Record<string, string>> {
+	async configureMeta(_challenge: string): Promise<Record<string, unknown>> {
 		return {};
 	}
 
-	// deno-lint-ignore no-unused-vars
-	async sendChallenge(identityChallenge: IdentityChallenge): Promise<void> {}
+	sendChallenge?: (identityChallenge: IdentityChallenge) => Promise<void> =
+		undefined;
+
+	sendInterval?: number = undefined;
+
+	sendCount?: number = undefined;
 
 	abstract verify(
 		identityChallenge: IdentityChallenge,

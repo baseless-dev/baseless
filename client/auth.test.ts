@@ -248,7 +248,7 @@ Deno.test("Client Auth", async (t) => {
 		assertEquals(messages[0]?.message.text.length, 6);
 	});
 
-	await t.step("sendIdentificationValidationCode", async () => {
+	await t.step("confirmIdentificationValidationCode", async () => {
 		const messages: { ns: string; lvl: string; message: Message }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
 			if (ns === "message-logger") {

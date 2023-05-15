@@ -18,6 +18,12 @@ export type AuthenticationIdenticatorSendMessageOptions = {
 export abstract class AuthenticationIdenticator implements AuthenticationCeremonyComponentIdentification {
 	abstract kind: string;
 	abstract prompt: "email" | "action";
+	toJSON() {
+		return {
+			kind: this.kind,
+			prompt: this.prompt,
+		};
+	}
 	abstract identify(options: AuthenticationIdenticatorIdentifyOptions): Promise<boolean | URL>;
 
 	sendMessage?: (options: AuthenticationIdenticatorSendMessageOptions) => Promise<void> = undefined;

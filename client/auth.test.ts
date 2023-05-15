@@ -46,31 +46,22 @@ import { KVService } from "../server/services/kv.ts";
 import { Context } from "../common/server/context.ts";
 
 Deno.test("Client Auth", async (t) => {
-	const email = { kind: "email", prompt: "email" as const };
-	const password = { kind: "password", prompt: "password" as const };
-	const totp = { kind: "totp", prompt: "otp" as const };
+	const email = new EmailAuthentificationIdenticator(new LoggerMessageProvider());
+	const password = new PasswordAuthentificationChallenger();
+	const totp = new TOTPLoggerAuthentificationChallenger({
+		period: 60,
+		algorithm: "SHA-256",
+		digits: 6,
+	});
 	const { publicKey, privateKey } = await generateKeyPair("PS512");
 	config.auth()
 		.setEnabled(true)
+		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
+		.setSecuritySalt("foobar")
 		.setCeremony(oneOf(
 			sequence(email, password),
 			sequence(email, totp),
-		))
-		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
-		.setSecuritySalt("foobar")
-		.addIdentificator(
-			"email",
-			new EmailAuthentificationIdenticator(new LoggerMessageProvider()),
-		)
-		.addChallenger("password", new PasswordAuthentificationChallenger())
-		.addChallenger(
-			"totp",
-			new TOTPLoggerAuthentificationChallenger({
-				period: 60,
-				algorithm: "SHA-256",
-				digits: 6,
-			}),
-		);
+		));
 
 	const configuration = config.build();
 	const assetProvider = new LocalAssetProvider(import.meta.resolve("./public"));
@@ -176,7 +167,7 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseState(result);
 		assertEquals(result.first, true);
 		assertEquals(result.last, false);
-		assertEquals(result.component, email);
+		assertEquals(result.component, email.toJSON());
 		assertAuthenticationCeremonyResponseState(
 			await getAuthenticationCeremony(app, "invalid"),
 		);
@@ -191,7 +182,7 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseEncryptedState(result);
 		assertEquals(result.first, false);
 		assertEquals(result.last, false);
-		assertEquals(result.component, oneOf(password, totp));
+		assertEquals(result.component, oneOf(password.toJSON(), totp.toJSON()));
 		await assertRejects(() =>
 			submitAuthenticationIdentification(app, "email", "unknown@test.local")
 		);

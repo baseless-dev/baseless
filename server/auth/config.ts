@@ -9,12 +9,14 @@ import {
 	AuthenticationHandler,
 	AuthenticationKeys,
 } from "../../common/server/config/auth.ts";
+import { extract } from "../../common/auth/ceremony/component/extract.ts";
 
 export class AuthenticationConfigurationBuilder {
 	#enabled = false;
 	#securityKeys?: AuthenticationKeys;
 	#securitySalt?: string;
 	#ceremony?: AuthenticationCeremonyComponent;
+	#components = new Set<AuthenticationCeremonyComponent>();
 	#onCreateIdentityHandler?: AuthenticationHandler;
 	#onUpdateIdentityHandler?: AuthenticationHandler;
 	#onDeleteIdentityHandler?: AuthenticationHandler;
@@ -83,6 +85,17 @@ export class AuthenticationConfigurationBuilder {
 	}
 
 	/**
+	 * Defines an authentication ceremony component
+	 * @param component The authentication ceremony component
+	 * @returns The builder
+	 */
+	public addCeremonyComponent(component: AuthenticationCeremonyComponent) {
+		assertAuthenticationCeremonyComponent(component);
+		this.#components.add(component);
+		return this;
+	}
+
+	/**
 	 * Defines a callback to be triggered when a new {@see Identity} is created
 	 * @param handler The callback
 	 * @returns The builder
@@ -126,6 +139,10 @@ export class AuthenticationConfigurationBuilder {
 		if (!this.#securitySalt) {
 			throw new Error(`Authentication salt is needed.`);
 		}
+		const ceremonyComponents = extract(this.#ceremony);
+		ceremonyComponents.push(...this.#components);
+		const identificatorCompoenents = ceremonyComponents.filter((component): component is AuthenticationIdenticator => component instanceof AuthenticationIdenticator);
+		const challengerComponents = ceremonyComponents.filter((component): component is AuthenticationChallenger => component instanceof AuthenticationChallenger);
 		return {
 			enabled: this.#enabled,
 			security: {
@@ -142,9 +159,8 @@ export class AuthenticationConfigurationBuilder {
 				},
 			},
 			ceremony: this.#ceremony,
-			// TODO extract identificators and challengers from ceremony
-			identificators: new Map(this.#identificators),
-			challengers: new Map(this.#challengers),
+			identificators: new Map(identificatorCompoenents.map(c => [c.kind, c])),
+			challengers: new Map(challengerComponents.map(c => [c.kind, c])),
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,

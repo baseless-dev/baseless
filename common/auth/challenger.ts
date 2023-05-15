@@ -22,6 +22,12 @@ export type AuthenticationChallengerVerifyOptions = {
 export abstract class AuthenticationChallenger implements AuthenticationCeremonyComponentChallenge {
 	abstract kind: string;
 	abstract prompt: "password" | "otp";
+	toJSON() {
+		return {
+			kind: this.kind,
+			prompt: this.prompt,
+		};
+	}
 	configureIdentityChallenge?: (options: AuthenticationChallengerConfigureIdentityChallengeOptions) => Promise<IdentityChallenge["meta"]> = undefined;
 
 	sendChallenge?: (options: AuthenticationChallengerSendChallengeOptions) => Promise<void> = undefined;

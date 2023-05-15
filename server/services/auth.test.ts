@@ -27,14 +27,19 @@ import { KVService } from "./kv.ts";
 import { TOTPLoggerAuthentificationChallenger } from "../../providers/auth-totp-logger/mod.ts";
 
 Deno.test("AuthenticationService", async (t) => {
-	const email = { kind: "email", prompt: "email" as const };
-	const totp = { kind: "totp", prompt: "otp" as const };
-	const password = { kind: "password", prompt: "password" as const };
+	const email = new EmailAuthentificationIdenticator(new LoggerMessageProvider());
+	const password = new PasswordAuthentificationChallenger();
+	const totp = new TOTPLoggerAuthentificationChallenger({
+		period: 60,
+		algorithm: "SHA-256",
+		digits: 6,
+	});
 	const github = { kind: "github", prompt: "action" as const };
 
 	const config = new ConfigurationBuilder();
 	const { publicKey, privateKey } = await generateKeyPair("PS512");
 	config.auth()
+		.setEnabled(true)
 		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
 		.setSecuritySalt("foobar")
 		.setCeremony(
@@ -43,19 +48,6 @@ Deno.test("AuthenticationService", async (t) => {
 				h.sequence(email, totp),
 				github,
 			),
-		)
-		.addIdentificator(
-			"email",
-			new EmailAuthentificationIdenticator(new LoggerMessageProvider()),
-		)
-		.addChallenger("password", new PasswordAuthentificationChallenger())
-		.addChallenger(
-			"totp",
-			new TOTPLoggerAuthentificationChallenger({
-				period: 60,
-				algorithm: "SHA-256",
-				digits: 6,
-			}),
 		);
 
 	const configuration = config.build();

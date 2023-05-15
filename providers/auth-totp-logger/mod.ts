@@ -1,35 +1,36 @@
-import { AuthenticationChallenger } from "../../common/auth/challenger.ts";
-import { IdentityChallenge } from "../../common/identity/challenge.ts";
+import { AuthenticationChallenger, AuthenticationChallengerConfigureIdentityChallengeOptions, AuthenticationChallengerSendChallengeOptions, AuthenticationChallengerVerifyOptions } from "../../common/auth/challenger.ts";
+import { createLogger, Logger, LogLevel, LogLevelMethod } from "../../common/system/logger.ts";
 import {
 	assertTOTPOptions,
 	totp,
 	TOTPOptions,
 } from "../../common/system/otp.ts";
-import { MessageProvider } from "../message.ts";
 
 export class TOTPLoggerAuthentificationChallenger
 	extends AuthenticationChallenger {
 	#options: Omit<TOTPOptions, "key">;
-	#messageProvider: MessageProvider;
+	#logger = createLogger("auth-totp-logger");
+
+	#logMethod: keyof Logger;
 	constructor(
 		options: Omit<TOTPOptions, "key">,
-		messageProvider: MessageProvider,
+		logLevel = LogLevel.INFO
 	) {
 		super();
 		assertTOTPOptions({ ...options, key: "" });
 		this.#options = options;
-		this.#messageProvider = messageProvider;
+		this.#logMethod = LogLevelMethod[logLevel];
 	}
 
 	// deno-lint-ignore require-await
-	async configureMeta(challenge: string): Promise<Record<string, unknown>> {
+	configureIdentityChallenge = async ({ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions) => {
 		return {
 			key: challenge,
 		};
 	}
 
 	sendChallenge = async (
-		identityChallenge: IdentityChallenge,
+		{ identityChallenge }: AuthenticationChallengerSendChallengeOptions,
 	): Promise<void> => {
 		if (
 			"key" in identityChallenge.meta &&
@@ -40,17 +41,13 @@ export class TOTPLoggerAuthentificationChallenger
 				key: identityChallenge.meta.key,
 				time: Date.now(),
 			});
-			await this.#messageProvider.send({
-				recipient: identityChallenge.identityId,
-				subject: "TOTP Authentication",
-				text: code,
-			});
+			// TODO template?
+			this.#logger[this.#logMethod](code);
 		}
 	};
 
 	async verify(
-		identityChallenge: IdentityChallenge,
-		challenge: string,
+		{ challenge, identityChallenge }: AuthenticationChallengerVerifyOptions
 	): Promise<boolean> {
 		if (
 			"key" in identityChallenge.meta &&

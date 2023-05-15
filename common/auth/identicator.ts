@@ -1,18 +1,23 @@
 import type { IdentityIdentification } from "../identity/identification.ts";
 import { Message } from "../message/message.ts";
+import { Context } from "../server/context.ts";
+
+export type AuthenticationIdenticatorIdentifyOptions = {
+	context: Context;
+	identityIdentification: IdentityIdentification;
+	identification: string;
+}
+
+export type AuthenticationIdenticatorSendMessageOptions = {
+	context: Context;
+	identityIdentification: IdentityIdentification;
+	message: Omit<Message, "recipient">;
+}
 
 export abstract class AuthenticationIdenticator {
-	abstract identify(
-		identityIdentification: IdentityIdentification,
-		identification: string,
-	): Promise<boolean | URL>;
+	abstract identify(options: AuthenticationIdenticatorIdentifyOptions): Promise<boolean | URL>;
 
-	sendMessage?: (
-		identityIdentification: IdentityIdentification,
-		message: Omit<Message, "recipient">,
-	) => Promise<void> = undefined;
+	sendMessage?: (options: AuthenticationIdenticatorSendMessageOptions) => Promise<void> = undefined;
 
-	sendInterval?: number = undefined;
-
-	sendCount?: number = undefined;
+	rateLimit: { interval: number; count: number } = { interval: 0, count: 0 };
 }

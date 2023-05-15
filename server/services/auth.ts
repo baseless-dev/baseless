@@ -84,6 +84,7 @@ export class AuthenticationService implements IAuthenticationService {
 	}
 
 	async submitAuthenticationIdentification(
+		context: Context,
 		state: AuthenticationCeremonyState,
 		type: string,
 		identification: string,
@@ -95,7 +96,7 @@ export class AuthenticationService implements IAuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-				this.#configuration.auth.security.rateLimit.identificationCount
+			this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -120,10 +121,11 @@ export class AuthenticationService implements IAuthenticationService {
 		const identityIdentification = await this.#identityProvider
 			.matchIdentification(type, identification);
 
-		const identifyResult = await identificator.identify(
+		const identifyResult = await identificator.identify({
+			context,
 			identityIdentification,
 			identification,
-		);
+		});
 		if (identifyResult instanceof URL) {
 			return { done: false, redirect: identifyResult };
 		}
@@ -140,6 +142,7 @@ export class AuthenticationService implements IAuthenticationService {
 	 * @throws {AuthenticationInvalidStepError}
 	 */
 	async submitAuthenticationChallenge(
+		context: Context,
 		state: AuthenticationCeremonyState,
 		type: string,
 		challenge: string,
@@ -183,7 +186,7 @@ export class AuthenticationService implements IAuthenticationService {
 			step.type,
 		);
 
-		if (!await challenger.verify(identityChallenge, challenge)) {
+		if (!await challenger.verify({ context, identityChallenge, challenge })) {
 			throw new AuthenticationCeremonyComponentChallengeFailedError();
 		}
 
@@ -200,8 +203,10 @@ export class AuthenticationService implements IAuthenticationService {
 	 * @throws {AuthenticationSendValidationCodeError}
 	 */
 	async sendIdentificationValidationCode(
+		context: Context,
 		identityId: AutoId,
 		type: string,
+		locale: string,
 	): Promise<void> {
 		const identificator = this.#configuration.auth.identificators.get(
 			type,
@@ -211,18 +216,17 @@ export class AuthenticationService implements IAuthenticationService {
 		}
 
 		if (identificator.sendMessage) {
-			if (identificator.sendInterval && identificator.sendCount) {
-				const counterInterval = identificator.sendInterval;
-				const counterLimit = identificator.sendCount;
-				const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
+			if (identificator.rateLimit.interval) {
+				const { interval, count } = identificator.rateLimit;
+				const slidingWindow = Math.round(Date.now() / interval * 1000);
 				const counterKey =
 					`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
 				const counter = await this.#counterProvider.increment(
 					counterKey,
 					1,
-					counterInterval,
+					interval,
 				);
-				if (counter > counterLimit) {
+				if (counter > count) {
 					throw new AuthenticationRateLimitedError();
 				}
 			}
@@ -239,7 +243,7 @@ export class AuthenticationService implements IAuthenticationService {
 				ii.type === type
 			);
 			if (identityIdentification) {
-				await identificator.sendMessage(identityIdentification, { text: code });
+				await identificator.sendMessage({ context, identityIdentification, message: { text: code } });
 			}
 		}
 	}
@@ -298,8 +302,10 @@ export class AuthenticationService implements IAuthenticationService {
 	}
 
 	async sendIdentificationChallenge(
+		context: Context,
 		identityId: AutoId,
 		type: string,
+		locale: string,
 	): Promise<void> {
 		const challenger = this.#configuration.auth.chalengers.get(
 			type,
@@ -317,22 +323,21 @@ export class AuthenticationService implements IAuthenticationService {
 		}
 
 		if (challenger.sendChallenge) {
-			if (challenger.sendInterval && challenger.sendCount) {
-				const counterInterval = challenger.sendInterval;
-				const counterLimit = challenger.sendCount;
-				const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
+			if (challenger.rateLimit.interval) {
+				const { interval, count } = challenger.rateLimit;
+				const slidingWindow = Math.round(Date.now() / interval * 1000);
 				const counterKey =
 					`/auth/sendchallenge/${identityId}/${type}/${slidingWindow}`;
 				const counter = await this.#counterProvider.increment(
 					counterKey,
 					1,
-					counterInterval,
+					interval,
 				);
-				if (counter > counterLimit) {
+				if (counter > count) {
 					throw new AuthenticationRateLimitedError();
 				}
 			}
-			await challenger.sendChallenge(identityChallenge);
+			await challenger.sendChallenge({ identityChallenge, context, locale });
 		}
 	}
 }

@@ -44,6 +44,12 @@ import { setGlobalLogHandler } from "../common/system/logger.ts";
 import { TOTPLoggerAuthentificationChallenger } from "../providers/auth-totp-logger/mod.ts";
 import { generateKey } from "../common/system/otp.ts";
 import { assertSendIdentificationChallengeResponse } from "../common/auth/send_identification_challenge_response.ts";
+import { AuthenticationService } from "../server/services/auth.ts";
+import { AssetService } from "../server/services/asset.ts";
+import { CounterService } from "../server/services/counter.ts";
+import { SessionService } from "../server/services/session.ts";
+import { KVService } from "../server/services/kv.ts";
+import { Context } from "../common/server/context.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const mail = email({
@@ -76,7 +82,7 @@ Deno.test("Client Auth", async (t) => {
 				period: 60,
 				algorithm: "SHA-256",
 				digits: 6,
-			}, new LoggerMessageProvider()),
+			}),
 		);
 
 	const configuration = config.build();
@@ -87,12 +93,30 @@ Deno.test("Client Auth", async (t) => {
 	const identityProvider = new KVIdentityProvider(identityKV);
 	const sessionKV = new MemoryKVProvider();
 	const sessionProvider = new KVSessionProvider(sessionKV);
-
+	const authService = new AuthenticationService(
+		configuration,
+		identityProvider,
+		counterProvider,
+		kvProvider,
+	);
 	const identityService = new IdentityService(
 		configuration,
 		identityProvider,
 		counterProvider,
 	);
+	const context: Context = {
+		config: configuration,
+		asset: new AssetService(assetProvider),
+		auth: authService,
+		counter: new CounterService(counterProvider),
+		identity: identityService,
+		session: new SessionService(configuration, sessionProvider),
+		kv: new KVService(kvProvider),
+		remoteAddress: "127.0.0.1",
+		waitUntil() { }
+	}
+
+
 	const john = await identityService.create({});
 	await identityService.createIdentification({
 		identityId: john.id,
@@ -102,11 +126,13 @@ Deno.test("Client Auth", async (t) => {
 		meta: {},
 	});
 	await identityService.createChallenge(
+		context,
 		john.id,
 		"password",
 		"123",
 	);
 	await identityService.createChallenge(
+		context,
 		john.id,
 		"totp",
 		await generateKey(16),
@@ -207,10 +233,10 @@ Deno.test("Client Auth", async (t) => {
 			"john@test.local",
 		);
 		assertAuthenticationCeremonyResponseEncryptedState(result1);
-		const messages: { ns: string; lvl: string; message: Message }[] = [];
+		const messages: { ns: string; lvl: string; message: string }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
-			if (ns === "message-logger") {
-				messages.push({ ns, lvl, message: JSON.parse(msg)! });
+			if (ns === "auth-totp-logger") {
+				messages.push({ ns, lvl, message: msg! });
 			}
 		});
 		const result2 = await sendIdentificationChallenge(
@@ -219,7 +245,7 @@ Deno.test("Client Auth", async (t) => {
 			result1.encryptedState,
 		);
 		assertSendIdentificationChallengeResponse(result2);
-		const challengeCode = messages.pop()?.message.text ?? "";
+		const challengeCode = messages.pop()?.message ?? "";
 		assertEquals(challengeCode.length, 6);
 		setGlobalLogHandler(() => { });
 		const result3 = await submitAuthenticationChallenge(

@@ -1,6 +1,4 @@
-import { AuthenticationIdenticator } from "../../common/auth/identicator.ts";
-import { IdentityIdentification } from "../../common/identity/identification.ts";
-import { Message } from "../../common/message/message.ts";
+import { AuthenticationIdenticator, AuthenticationIdenticatorIdentifyOptions, AuthenticationIdenticatorSendMessageOptions } from "../../common/auth/identicator.ts";
 import { MessageProvider } from "../message.ts";
 
 export class EmailAuthentificationIdenticator
@@ -12,19 +10,17 @@ export class EmailAuthentificationIdenticator
 	}
 
 	sendMessage = async (
-		identification: IdentityIdentification,
-		message: Omit<Message, "recipient">,
+		{ message, identityIdentification }: AuthenticationIdenticatorSendMessageOptions
 	): Promise<void> => {
 		await this.#messageProvider.send({
-			recipient: identification.identification,
+			recipient: identityIdentification.identification,
 			...message,
 		});
 	};
 
 	// deno-lint-ignore require-await
 	async identify(
-		identityIdentification: IdentityIdentification,
-		identification: string,
+		{ identityIdentification, identification }: AuthenticationIdenticatorIdentifyOptions
 	): Promise<boolean> {
 		return identityIdentification.identification === identification;
 	}

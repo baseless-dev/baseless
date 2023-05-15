@@ -12,14 +12,18 @@ export async function sendIdentificationChallenge(
 		const formData = await request.formData();
 		const type = formData.get("type")?.toString() ?? "";
 		const encryptedState = formData.get("state")?.toString() ?? "";
+		// TODO default locale
+		const locale = formData.get("locale")?.toString() ?? "en";
 		const state = await decryptEncryptedAuthenticationCeremonyState(
 			encryptedState,
 			context.config.auth.security.keys.publicKey,
 		);
 		assertAuthenticationCeremonyStateIdentified(state);
 		await context.auth.sendIdentificationChallenge(
+			context,
 			state.identity,
 			type,
+			locale,
 		);
 		return { sent: true };
 	} catch (_error) {

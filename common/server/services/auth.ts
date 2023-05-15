@@ -10,6 +10,7 @@ export interface IAuthenticationService {
 	): Promise<AuthenticationCeremonyResponse>;
 
 	submitAuthenticationIdentification(
+		context: Context,
 		state: AuthenticationCeremonyState,
 		type: string,
 		identification: string,
@@ -17,6 +18,7 @@ export interface IAuthenticationService {
 	): Promise<AuthenticationCeremonyResponse>;
 
 	submitAuthenticationChallenge(
+		context: Context,
 		state: AuthenticationCeremonyState,
 		type: string,
 		challenge: string,
@@ -24,8 +26,10 @@ export interface IAuthenticationService {
 	): Promise<AuthenticationCeremonyResponse>;
 
 	sendIdentificationValidationCode(
+		context: Context,
 		identityId: AutoId,
 		type: string,
+		locale: string,
 	): Promise<void>;
 
 	confirmIdentificationValidationCode(
@@ -35,7 +39,9 @@ export interface IAuthenticationService {
 	): Promise<void>;
 
 	sendIdentificationChallenge(
+		context: Context,
 		identityId: AutoId,
 		type: string,
+		locale: string,
 	): Promise<void>;
 }

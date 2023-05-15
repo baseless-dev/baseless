@@ -197,6 +197,7 @@ export class IdentityService implements IIdentityService {
 	 * @throws {IdentityChallengeCreateError}
 	 */
 	async createChallenge(
+		context: Context,
 		identityId: AutoId,
 		type: string,
 		challenge: string,
@@ -206,7 +207,7 @@ export class IdentityService implements IIdentityService {
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
 		}
-		const meta = await challenger.configureMeta(challenge);
+		const meta = await challenger.configureIdentityChallenge?.({ context, challenge }) ?? {};
 		// TODO life cycle hooks
 		return this.createChallengeWithMeta({
 			identityId,
@@ -264,6 +265,7 @@ export class IdentityService implements IIdentityService {
 	 * @throws {MessageSendError}
 	 */
 	public async broadcastMessage(
+		context: Context,
 		identityId: AutoId,
 		message: Omit<Message, "recipient">,
 	): Promise<void> {
@@ -275,13 +277,13 @@ export class IdentityService implements IIdentityService {
 			);
 			const verifiedIdentifications = identifications.filter((i) => i.verified);
 			const sendMessages = verifiedIdentifications.reduce(
-				(messages, identification) => {
+				(messages, identityIdentification) => {
 					const identicator = this.#configuration.auth.identificators
 						.get(
-							identification.type,
+							identityIdentification.type,
 						);
 					if (identicator && identicator.sendMessage) {
-						messages.push(identicator.sendMessage(identification, message));
+						messages.push(identicator.sendMessage({ context, identityIdentification, message }));
 					}
 					return messages;
 				},
@@ -297,6 +299,7 @@ export class IdentityService implements IIdentityService {
 	 * @throws {MessageSendError}
 	 */
 	async sendMessage(
+		context: Context,
 		identityId: AutoId,
 		identificationType: string,
 		message: Omit<Message, "recipient">,
@@ -314,7 +317,7 @@ export class IdentityService implements IIdentityService {
 					identificationType,
 				);
 				if (identityIdentification) {
-					return identicator.sendMessage(identityIdentification, message);
+					return identicator.sendMessage({ context, identityIdentification, message });
 				}
 			}
 		} catch (_error) {

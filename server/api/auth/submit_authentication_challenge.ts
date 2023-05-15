@@ -19,6 +19,7 @@ export async function submitAuthenticationChallenge(
 	);
 	assertAuthenticationCeremonyStateIdentified(state);
 	const result = await context.auth.submitAuthenticationChallenge(
+		context,
 		state,
 		type,
 		challenge,

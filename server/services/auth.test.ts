@@ -18,6 +18,13 @@ import { setGlobalLogHandler } from "../../common/system/logger.ts";
 import { autoid } from "../../common/system/autoid.ts";
 import { TOTPLoggerAuthentificationChallenger } from "../../providers/auth-totp-logger/mod.ts";
 import { generateKey } from "../../common/system/otp.ts";
+import { Context } from "../../common/server/context.ts";
+import { LocalAssetProvider } from "../../providers/asset-local/mod.ts";
+import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
+import { AssetService } from "./asset.ts";
+import { CounterService } from "./counter.ts";
+import { SessionService } from "./session.ts";
+import { KVService } from "./kv.ts";
 
 Deno.test("AuthenticationService", async (t) => {
 	const email = h.email({ icon: "", label: {} });
@@ -48,44 +55,63 @@ Deno.test("AuthenticationService", async (t) => {
 				period: 60,
 				algorithm: "SHA-256",
 				digits: 6,
-			}, new LoggerMessageProvider()),
+			}),
 		);
 
 	const configuration = config.build();
-
+	const assetProvider = new LocalAssetProvider(import.meta.resolve("./public"));
 	const counterProvider = new MemoryCounterProvider();
 	const kvProvider = new MemoryKVProvider();
-	const identityProvider = new KVIdentityProvider(new MemoryKVProvider());
-	const identityService = new IdentityService(
-		configuration,
-		identityProvider,
-		counterProvider,
-	);
+	const identityKV = new MemoryKVProvider();
+	const identityProvider = new KVIdentityProvider(identityKV);
+	const sessionKV = new MemoryKVProvider();
+	const sessionProvider = new KVSessionProvider(sessionKV);
 	const authService = new AuthenticationService(
 		configuration,
 		identityProvider,
 		counterProvider,
 		kvProvider,
 	);
+	const identityService = new IdentityService(
+		configuration,
+		identityProvider,
+		counterProvider,
+	);
+	const context: Context = {
+		config: configuration,
+		asset: new AssetService(assetProvider),
+		auth: authService,
+		counter: new CounterService(counterProvider),
+		identity: identityService,
+		session: new SessionService(configuration, sessionProvider),
+		kv: new KVService(kvProvider),
+		remoteAddress: "127.0.0.1",
+		waitUntil() { }
+	}
 
-	const ident1 = await identityService.create({});
+	const john = await identityService.create({});
 	await identityService.createIdentification({
-		identityId: ident1.id,
+		identityId: john.id,
 		type: "email",
 		identification: "john@test.local",
-		verified: false,
+		verified: true,
 		meta: {},
 	});
+
 	await identityService.createChallenge(
-		ident1.id,
+		context,
+		john.id,
 		"password",
 		"123",
 	);
 	await identityService.createChallenge(
-		ident1.id,
+		context,
+		john.id,
 		"totp",
 		await generateKey(16),
 	);
+
+
 
 	await t.step("getAuthenticationCeremony", async () => {
 		assertEquals(
@@ -133,6 +159,7 @@ Deno.test("AuthenticationService", async (t) => {
 	await t.step("submitIdentification", async () => {
 		assertEquals(
 			await authService.submitAuthenticationIdentification(
+				context,
 				{ choices: [] },
 				"email",
 				"john@test.local",
@@ -143,11 +170,12 @@ Deno.test("AuthenticationService", async (t) => {
 				component: h.oneOf(password, totp),
 				first: false,
 				last: false,
-				state: { choices: ["email"], identity: ident1.id },
+				state: { choices: ["email"], identity: john.id },
 			},
 		);
 		await assertRejects(() =>
 			authService.submitAuthenticationIdentification(
+				context,
 				{ choices: [] },
 				"email",
 				"unknown@test.local",
@@ -159,16 +187,18 @@ Deno.test("AuthenticationService", async (t) => {
 	await t.step("submitChallenge", async () => {
 		assertEquals(
 			await authService.submitAuthenticationChallenge(
-				{ choices: ["email"], identity: ident1.id },
+				context,
+				{ choices: ["email"], identity: john.id },
 				"password",
 				"123",
 				"localhost",
 			),
-			{ done: true, identityId: ident1.id },
+			{ done: true, identityId: john.id },
 		);
 		await assertRejects(() =>
 			authService.submitAuthenticationChallenge(
-				{ choices: [], identity: ident1.id },
+				context,
+				{ choices: [], identity: john.id },
 				"password",
 				"123",
 				"localhost",
@@ -176,7 +206,8 @@ Deno.test("AuthenticationService", async (t) => {
 		);
 		await assertRejects(() =>
 			authService.submitAuthenticationChallenge(
-				{ choices: ["email"], identity: ident1.id },
+				context,
+				{ choices: ["email"], identity: john.id },
 				"password",
 				"abc",
 				"localhost",
@@ -190,44 +221,47 @@ Deno.test("AuthenticationService", async (t) => {
 		setGlobalLogHandler((ns, lvl, msg) => {
 			messages.push({ ns, lvl, message: JSON.parse(msg)! });
 		});
-		await authService.sendIdentificationValidationCode(ident1.id, "email");
+		await authService.sendIdentificationValidationCode(context, john.id, "email", "en");
 		verificationCode = messages.pop()?.message.text ?? "";
 		assertEquals(verificationCode.length, 6);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 	});
 
 	await t.step("confirmIdentificationValidationCode", async () => {
 		await assertRejects(() =>
 			authService.confirmIdentificationValidationCode(
-				ident1.id,
+				john.id,
 				"email",
 				"000000",
 			)
 		);
 		await authService.confirmIdentificationValidationCode(
-			ident1.id,
+			john.id,
 			"email",
 			verificationCode,
 		);
 	});
 
 	await t.step("sendIdentificationChallenge", async () => {
-		const messages: { ns: string; lvl: string; message: Message }[] = [];
+		const messages: { ns: string; lvl: string; message: string }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
-			messages.push({ ns, lvl, message: JSON.parse(msg)! });
+			if (ns === "auth-totp-logger") {
+				messages.push({ ns, lvl, message: msg });
+			}
 		});
-		await authService.sendIdentificationChallenge(ident1.id, "totp");
-		const challengeCode = messages.pop()?.message.text ?? "";
+		await authService.sendIdentificationChallenge(context, john.id, "totp", "en");
+		const challengeCode = messages.pop()?.message ?? "";
 		assertEquals(challengeCode.length, 6);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		assertEquals(
 			await authService.submitAuthenticationChallenge(
-				{ choices: ["email"], identity: ident1.id },
+				context,
+				{ choices: ["email"], identity: john.id },
 				"totp",
 				challengeCode,
 				"localhost",
 			),
-			{ done: true, identityId: ident1.id },
+			{ done: true, identityId: john.id },
 		);
 	});
 });

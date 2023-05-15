@@ -15,8 +15,6 @@ export class AuthenticationConfigurationBuilder {
 	#securityKeys?: AuthenticationKeys;
 	#securitySalt?: string;
 	#ceremony?: AuthenticationCeremonyComponent;
-	#identificators = new Map<string, AuthenticationIdenticator>();
-	#challengers = new Map<string, AuthenticationChallenger>();
 	#onCreateIdentityHandler?: AuthenticationHandler;
 	#onUpdateIdentityHandler?: AuthenticationHandler;
 	#onDeleteIdentityHandler?: AuthenticationHandler;
@@ -85,31 +83,6 @@ export class AuthenticationConfigurationBuilder {
 	}
 
 	/**
-	 * Defines a identificator
-	 * @param type The identification type
-	 * @param identicator The {@link AuthenticationIdenticator}
-	 * @returns The builder
-	 */
-	public addIdentificator(
-		type: string,
-		identicator: AuthenticationIdenticator,
-	) {
-		this.#identificators.set(type, identicator);
-		return this;
-	}
-
-	/**
-	 * Defines a challenger
-	 * @param type The challenger type
-	 * @param challenger The {@link AuthenticationChallenger}
-	 * @returns The builder
-	 */
-	public addChallenger(type: string, challenger: AuthenticationChallenger) {
-		this.#challengers.set(type, challenger);
-		return this;
-	}
-
-	/**
 	 * Defines a callback to be triggered when a new {@see Identity} is created
 	 * @param handler The callback
 	 * @returns The builder
@@ -169,8 +142,9 @@ export class AuthenticationConfigurationBuilder {
 				},
 			},
 			ceremony: this.#ceremony,
+			// TODO extract identificators and challengers from ceremony
 			identificators: new Map(this.#identificators),
-			chalengers: new Map(this.#challengers),
+			challengers: new Map(this.#challengers),
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,
@@ -178,5 +152,5 @@ export class AuthenticationConfigurationBuilder {
 	}
 }
 
-export class AuthenticationMissingIdentificatorError extends Error {}
-export class AuthenticationMissingChallengerError extends Error {}
+export class AuthenticationMissingIdentificatorError extends Error { }
+export class AuthenticationMissingChallengerError extends Error { }

@@ -29,13 +29,7 @@ import { Server } from "../server/server.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
 import { EmailAuthentificationIdenticator } from "../providers/auth-email/mod.ts";
 import { PasswordAuthentificationChallenger } from "../providers/auth-password/mod.ts";
-import {
-	email,
-	oneOf,
-	otp,
-	password,
-	sequence,
-} from "../common/auth/ceremony/component/helpers.ts";
+import { oneOf, sequence } from "../common/auth/ceremony/component/helpers.ts";
 import { assertAuthenticationCeremonyResponseState } from "../common/auth/ceremony/response/state.ts";
 import { assertAuthenticationCeremonyResponseEncryptedState } from "../common/auth/ceremony/response/encrypted_state.ts";
 import { assertAuthenticationCeremonyResponseDone } from "../common/auth/ceremony/response/done.ts";
@@ -52,15 +46,15 @@ import { KVService } from "../server/services/kv.ts";
 import { Context } from "../common/server/context.ts";
 
 Deno.test("Client Auth", async (t) => {
-	const mail = email();
-	const pass = password();
-	const totp = otp({ kind: "totp" });
+	const email = { kind: "email", prompt: "email" as const };
+	const password = { kind: "password", prompt: "password" as const };
+	const totp = { kind: "totp", prompt: "otp" as const };
 	const { publicKey, privateKey } = await generateKeyPair("PS512");
 	config.auth()
 		.setEnabled(true)
 		.setCeremony(oneOf(
-			sequence(mail, pass),
-			sequence(mail, totp),
+			sequence(email, password),
+			sequence(email, totp),
 		))
 		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
 		.setSecuritySalt("foobar")
@@ -182,7 +176,7 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseState(result);
 		assertEquals(result.first, true);
 		assertEquals(result.last, false);
-		assertEquals(result.component, mail);
+		assertEquals(result.component, email);
 		assertAuthenticationCeremonyResponseState(
 			await getAuthenticationCeremony(app, "invalid"),
 		);
@@ -197,7 +191,7 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseEncryptedState(result);
 		assertEquals(result.first, false);
 		assertEquals(result.last, false);
-		assertEquals(result.component, oneOf(pass, totp));
+		assertEquals(result.component, oneOf(password, totp));
 		await assertRejects(() =>
 			submitAuthenticationIdentification(app, "email", "unknown@test.local")
 		);

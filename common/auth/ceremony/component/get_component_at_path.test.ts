@@ -4,11 +4,11 @@ import { getComponentAtPath } from "./get_component_at_path.ts";
 import { flatten } from "./flatten.ts";
 
 Deno.test("getComponentAtPath", () => {
-	const email = h.email();
-	const password = h.password();
-	const otp = h.otp({ kind: "otp" });
-	const github = h.action({ kind: "github" });
-	const google = h.action({ kind: "google" });
+	const email = { kind: "email", prompt: "email" as const };
+	const password = { kind: "password", prompt: "password" as const };
+	const otp = { kind: "otp", prompt: "otp" as const };
+	const github = { kind: "github", prompt: "action" as const };
+	const google = { kind: "google", prompt: "action" as const };
 
 	assertEquals(
 		getComponentAtPath(flatten(h.sequence(email, password)), []),

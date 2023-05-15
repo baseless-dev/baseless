@@ -27,7 +27,7 @@ export type AuthenticationConfiguration = {
 	};
 	readonly ceremony: AuthenticationCeremonyComponent;
 	readonly identificators: Map<string, AuthenticationIdenticator>;
-	readonly chalengers: Map<string, AuthenticationChallenger>;
+	readonly challengers: Map<string, AuthenticationChallenger>;
 	readonly onCreateIdentity?: AuthenticationHandler;
 	readonly onUpdateIdentity?: AuthenticationHandler;
 	readonly onDeleteIdentity?: AuthenticationHandler;

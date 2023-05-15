@@ -16,7 +16,6 @@ import * as h from "../../common/auth/ceremony/component/helpers.ts";
 import { Message } from "../../common/message/message.ts";
 import { setGlobalLogHandler } from "../../common/system/logger.ts";
 import { autoid } from "../../common/system/autoid.ts";
-import { TOTPLoggerAuthentificationChallenger } from "../../providers/auth-totp-logger/mod.ts";
 import { generateKey } from "../../common/system/otp.ts";
 import { Context } from "../../common/server/context.ts";
 import { LocalAssetProvider } from "../../providers/asset-local/mod.ts";
@@ -25,12 +24,13 @@ import { AssetService } from "./asset.ts";
 import { CounterService } from "./counter.ts";
 import { SessionService } from "./session.ts";
 import { KVService } from "./kv.ts";
+import { TOTPLoggerAuthentificationChallenger } from "../../providers/auth-totp-logger/mod.ts";
 
 Deno.test("AuthenticationService", async (t) => {
-	const email = h.email();
-	const totp = h.otp({ kind: "totp" });
-	const password = h.password();
-	const github = h.action({ kind: "github" });
+	const email = { kind: "email", prompt: "email" as const };
+	const totp = { kind: "totp", prompt: "otp" as const };
+	const password = { kind: "password", prompt: "password" as const };
+	const github = { kind: "github", prompt: "action" as const };
 
 	const config = new ConfigurationBuilder();
 	const { publicKey, privateKey } = await generateKeyPair("PS512");

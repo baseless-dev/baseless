@@ -203,7 +203,7 @@ export class IdentityService implements IIdentityService {
 		challenge: string,
 		expiration?: number | Date,
 	): Promise<void> {
-		const challenger = this.#configuration.auth.chalengers.get(type);
+		const challenger = this.#configuration.auth.challengers.get(type);
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
 		}

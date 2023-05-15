@@ -176,7 +176,7 @@ export class AuthenticationService implements IAuthenticationService {
 			throw new AuthenticationInvalidStepError();
 		}
 
-		const challenger = this.#configuration.auth.chalengers.get(step.kind);
+		const challenger = this.#configuration.auth.challengers.get(step.kind);
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
 		}
@@ -307,7 +307,7 @@ export class AuthenticationService implements IAuthenticationService {
 		type: string,
 		locale: string,
 	): Promise<void> {
-		const challenger = this.#configuration.auth.chalengers.get(
+		const challenger = this.#configuration.auth.challengers.get(
 			type,
 		);
 		if (!challenger) {

@@ -27,10 +27,10 @@ import { SessionService } from "./session.ts";
 import { KVService } from "./kv.ts";
 
 Deno.test("AuthenticationService", async (t) => {
-	const email = h.email({ icon: "", label: {} });
-	const totp = h.otp({ type: "totp", icon: "", label: {} });
-	const password = h.password({ icon: "", label: {} });
-	const github = h.action({ type: "github", icon: "", label: {} });
+	const email = h.email();
+	const totp = h.otp({ kind: "totp" });
+	const password = h.password();
+	const github = h.action({ kind: "github" });
 
 	const config = new ConfigurationBuilder();
 	const { publicKey, privateKey } = await generateKeyPair("PS512");

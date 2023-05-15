@@ -1,5 +1,6 @@
 import type { IdentityChallenge } from "../identity/challenge.ts";
 import { Context } from "../server/context.ts";
+import { AuthenticationCeremonyComponentChallenge } from "./ceremony/component/challenge.ts";
 
 export type AuthenticationChallengerConfigureIdentityChallengeOptions = {
 	context: Context;
@@ -18,7 +19,9 @@ export type AuthenticationChallengerVerifyOptions = {
 	challenge: string;
 }
 
-export abstract class AuthenticationChallenger {
+export abstract class AuthenticationChallenger implements AuthenticationCeremonyComponentChallenge {
+	abstract kind: string;
+	abstract prompt: "password" | "otp";
 	configureIdentityChallenge?: (options: AuthenticationChallengerConfigureIdentityChallengeOptions) => Promise<IdentityChallenge["meta"]> = undefined;
 
 	sendChallenge?: (options: AuthenticationChallengerSendChallengeOptions) => Promise<void> = undefined;

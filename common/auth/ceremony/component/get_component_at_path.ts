@@ -4,7 +4,7 @@ import { oneOf } from "./helpers.ts";
 import { isAuthenticationCeremonyComponentSequence } from "./sequence.ts";
 import { simplify } from "./simplify.ts";
 
-export class AuthenticationCeremonyComponentAtPathError extends Error {}
+export class AuthenticationCeremonyComponentAtPathError extends Error { }
 
 export type GetComponentAtPathYieldResult = {
 	done: false;
@@ -24,7 +24,7 @@ export function getComponentAtPath(
 		const componentLength = component.components.length;
 		const pathLen = path.length;
 		for (; i < pathLen; ++i) {
-			if (component.components[i].type !== path[i]) {
+			if (component.components[i].kind !== path[i]) {
 				break;
 			}
 		}
@@ -63,7 +63,7 @@ export function getComponentAtPath(
 		}
 	} else if (path.length === 0) {
 		return { done: false, component };
-	} else if (component.type === path.at(0)!) {
+	} else if (component.kind === path.at(0)!) {
 		return { done: true };
 	}
 	throw new AuthenticationCeremonyComponentAtPathError();

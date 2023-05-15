@@ -4,6 +4,8 @@ import { IdentityChallenge } from "../../common/identity/challenge.ts";
 
 export class PasswordAuthentificationChallenger
 	extends AuthenticationChallenger {
+	kind = "password" as const;
+	prompt = "password" as const;
 	async #hash(password: string) {
 		return encode(
 			await crypto.subtle.digest("SHA-512", new TextEncoder().encode(password)),

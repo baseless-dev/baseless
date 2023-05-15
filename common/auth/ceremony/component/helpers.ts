@@ -3,57 +3,47 @@ import {
 	AuthenticationCeremonyComponent,
 } from "../ceremony.ts";
 import { AuthenticationCeremonyComponentChallenge } from "./challenge.ts";
+import { AuthenticationCeremonyComponentChoice } from "./choice.ts";
 import { AuthenticationCeremonyComponentConditional } from "./conditional.ts";
 import { AuthenticationCeremonyComponentIdentification } from "./identification.ts";
+import { AuthenticationCeremonyComponentSequence } from "./sequence.ts";
 
-export function sequence(...components: AuthenticationCeremonyComponent[]) {
+export function sequence(...components: AuthenticationCeremonyComponent[]): AuthenticationCeremonyComponentSequence {
 	for (const step of components) {
 		assertAuthenticationCeremonyComponent(step);
 	}
-	return { type: "sequence" as const, components };
+	return { kind: "sequence", components };
 }
 
-export function oneOf(...components: AuthenticationCeremonyComponent[]) {
+export function oneOf(...components: AuthenticationCeremonyComponent[]): AuthenticationCeremonyComponentChoice {
 	for (const step of components) {
 		assertAuthenticationCeremonyComponent(step);
 	}
-	return { type: "choice" as const, components };
+	return { kind: "choice", components };
 }
 
 export function iif(
 	condition: AuthenticationCeremonyComponentConditional["condition"],
-) {
-	return { type: "conditional" as const, condition };
+): AuthenticationCeremonyComponentConditional {
+	return { kind: "conditional", condition };
 }
 
-export function email(
-	{ icon, label }: { icon: string; label: Record<string, string> },
-): AuthenticationCeremonyComponentIdentification {
-	return { type: "email", icon, label, prompt: "email" };
+export function email(): AuthenticationCeremonyComponentIdentification {
+	return { kind: "email", prompt: "email" };
 }
 
-export function password(
-	{ icon, label }: { icon: string; label: Record<string, string> },
-): AuthenticationCeremonyComponentChallenge {
-	return { type: "password", icon, label, prompt: "password" };
+export function password(): AuthenticationCeremonyComponentChallenge {
+	return { kind: "password", prompt: "password" };
 }
 
 export function action(
-	{ type, icon, label }: {
-		type: string;
-		icon: string;
-		label: Record<string, string>;
-	},
+	{ kind }: { kind: string; },
 ): AuthenticationCeremonyComponentIdentification {
-	return { type, icon, label, prompt: "action" };
+	return { kind, prompt: "action" };
 }
 
 export function otp(
-	{ type, icon, label }: {
-		type: string;
-		icon: string;
-		label: Record<string, string>;
-	},
+	{ kind }: { kind: string; },
 ): AuthenticationCeremonyComponentChallenge {
-	return { type, icon, label, prompt: "otp" };
+	return { kind, prompt: "otp" };
 }

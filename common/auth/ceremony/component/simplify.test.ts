@@ -5,11 +5,11 @@ import type { AuthenticationCeremonyState } from "../state.ts";
 import type { Context } from "../../../server/context.ts";
 
 Deno.test("simplify", async (t) => {
-	const email = h.email({ icon: "", label: {} });
-	const password = h.password({ icon: "", label: {} });
-	const otp = h.otp({ type: "otp", icon: "", label: {} });
-	const github = h.action({ type: "github", icon: "", label: {} });
-	const google = h.action({ type: "google", icon: "", label: {} });
+	const email = h.email();
+	const password = h.password();
+	const otp = h.otp({ kind: "otp" });
+	const github = h.action({ kind: "github" });
+	const google = h.action({ kind: "google" });
 	const conditional = h.iif((_ctx, _state) => {
 		return h.sequence(email, password);
 	});

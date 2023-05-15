@@ -1,19 +1,15 @@
 import { InvalidAuthenticationCeremonyComponentChallengeError } from "../../errors.ts";
 
-export type AuthenticationCeremonyComponentChallenge = {
-	readonly type: string;
-	readonly icon: string;
-	readonly label: Record<string, string>;
+export interface AuthenticationCeremonyComponentChallenge {
+	readonly kind: string;
 	readonly prompt: "password" | "otp";
 };
 
 export function isAuthenticationCeremonyComponentChallenge(
 	value?: unknown,
 ): value is AuthenticationCeremonyComponentChallenge {
-	return !!value && typeof value === "object" && "type" in value &&
-		typeof value.type === "string" && "icon" in value &&
-		typeof value.icon === "string" && "label" in value &&
-		typeof value.label === "object" && "prompt" in value &&
+	return !!value && typeof value === "object" && "kind" in value &&
+		typeof value.kind === "string" && "prompt" in value &&
 		typeof value.prompt === "string" &&
 		["password", "otp"].includes(value.prompt);
 }

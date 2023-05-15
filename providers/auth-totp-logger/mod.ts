@@ -8,6 +8,8 @@ import {
 
 export class TOTPLoggerAuthentificationChallenger
 	extends AuthenticationChallenger {
+	kind = "totp" as const;
+	prompt = "otp" as const;
 	#options: Omit<TOTPOptions, "key">;
 	#logger = createLogger("auth-totp-logger");
 

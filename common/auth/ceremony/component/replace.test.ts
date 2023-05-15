@@ -3,8 +3,8 @@ import * as h from "./helpers.ts";
 import { replace } from "./replace.ts";
 
 Deno.test("replace", () => {
-	const email = h.email({ icon: "", label: {} });
-	const password = h.password({ icon: "", label: {} });
+	const email = h.email();
+	const password = h.password();
 
 	assertEquals(
 		replace(h.sequence(email, password), email, password),

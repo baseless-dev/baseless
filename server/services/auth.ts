@@ -77,7 +77,7 @@ export class AuthenticationService implements IAuthenticationService {
 		}
 		const last = isAuthenticationCeremonyComponentChoice(result.component)
 			? false
-			: getComponentAtPath(step, [...state.choices, result.component.type])
+			: getComponentAtPath(step, [...state.choices, result.component.kind])
 				.done;
 		const first = state.choices.length === 0;
 		return { done: false, component: result.component, first, last, state };
@@ -105,7 +105,7 @@ export class AuthenticationService implements IAuthenticationService {
 			throw new AuthenticationCeremonyDoneError();
 		}
 		const step = isAuthenticationCeremonyComponentChoice(result.component)
-			? result.component.components.find((s) => s.type === type)
+			? result.component.components.find((s) => s.kind === type)
 			: result.component;
 		if (!step) {
 			throw new AuthenticationInvalidStepError();
@@ -170,20 +170,20 @@ export class AuthenticationService implements IAuthenticationService {
 			throw new AuthenticationCeremonyDoneError();
 		}
 		const step = isAuthenticationCeremonyComponentChoice(result.component)
-			? result.component.components.find((s) => s.type === type)
+			? result.component.components.find((s) => s.kind === type)
 			: result.component;
 		if (!step) {
 			throw new AuthenticationInvalidStepError();
 		}
 
-		const challenger = this.#configuration.auth.chalengers.get(step.type);
+		const challenger = this.#configuration.auth.chalengers.get(step.kind);
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
 		}
 
 		const identityChallenge = await this.#identityProvider.getChallenge(
 			state.identity,
-			step.type,
+			step.kind,
 		);
 
 		if (!await challenger.verify({ context, identityChallenge, challenge })) {

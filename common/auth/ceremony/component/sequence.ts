@@ -5,15 +5,15 @@ import {
 } from "../ceremony.ts";
 
 export type AuthenticationCeremonyComponentSequence = {
-	readonly type: "sequence";
+	readonly kind: "sequence";
 	readonly components: ReadonlyArray<AuthenticationCeremonyComponent>;
 };
 
 export function isAuthenticationCeremonyComponentSequence(
 	value?: unknown,
 ): value is AuthenticationCeremonyComponentSequence {
-	return !!value && typeof value === "object" && "type" in value &&
-		typeof value.type === "string" && value.type === "sequence" &&
+	return !!value && typeof value === "object" && "kind" in value &&
+		typeof value.kind === "string" && value.kind === "sequence" &&
 		"components" in value && Array.isArray(value.components) &&
 		value.components.every((c) => isAuthenticationCeremonyComponent(c));
 }

@@ -52,16 +52,9 @@ import { KVService } from "../server/services/kv.ts";
 import { Context } from "../common/server/context.ts";
 
 Deno.test("Client Auth", async (t) => {
-	const mail = email({
-		icon: "",
-		label: {},
-	});
-	const pass = password({ icon: "", label: {} });
-	const totp = otp({
-		type: "totp",
-		icon: "",
-		label: {},
-	});
+	const mail = email();
+	const pass = password();
+	const totp = otp({ kind: "totp" });
 	const { publicKey, privateKey } = await generateKeyPair("PS512");
 	config.auth()
 		.setEnabled(true)

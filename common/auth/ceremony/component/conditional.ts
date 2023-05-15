@@ -4,7 +4,7 @@ import type { AuthenticationCeremonyComponent } from "../ceremony.ts";
 import type { Context } from "../../../server/context.ts";
 
 export type AuthenticationCeremonyComponentConditional = {
-	readonly type: "conditional";
+	readonly kind: "conditional";
 	readonly condition: (
 		context: Context,
 		state: AuthenticationCeremonyState,
@@ -16,8 +16,8 @@ export type AuthenticationCeremonyComponentConditional = {
 export function isAuthenticationCeremonyComponentConditional(
 	value?: unknown,
 ): value is AuthenticationCeremonyComponentConditional {
-	return !!value && typeof value === "object" && "type" in value &&
-		typeof value.type === "string" && value.type === "conditional" &&
+	return !!value && typeof value === "object" && "kind" in value &&
+		typeof value.kind === "string" && value.kind === "conditional" &&
 		"condition" in value && typeof value.condition === "function";
 }
 

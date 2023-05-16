@@ -1,5 +1,8 @@
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
-import { AuthenticationCeremonyComponent, assertAuthenticationCeremonyComponent } from "../../auth/ceremony/ceremony.ts";
+import {
+	assertAuthenticationCeremonyComponent,
+	AuthenticationCeremonyComponent,
+} from "../../auth/ceremony/ceremony.ts";
 import { AuthenticationChallenger } from "../../auth/challenger.ts";
 import { AuthenticationIdenticator } from "../../auth/identicator.ts";
 import { Identity } from "../../identity/identity.ts";

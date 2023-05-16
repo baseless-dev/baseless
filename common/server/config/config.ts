@@ -1,5 +1,8 @@
 import { AssetConfiguration, AssetConfigurationBuilder } from "./asset.ts";
-import { AuthenticationConfiguration, AuthenticationConfigurationBuilder } from "./auth.ts";
+import {
+	AuthenticationConfiguration,
+	AuthenticationConfigurationBuilder,
+} from "./auth.ts";
 import { Router, RouterBuilder } from "../../system/router.ts";
 import { IContext } from "../context.ts";
 

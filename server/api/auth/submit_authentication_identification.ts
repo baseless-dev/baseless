@@ -21,7 +21,6 @@ export async function submitAuthenticationIdentification(
 		? state.identity
 		: context.remoteAddress;
 	const result = await context.auth.submitAuthenticationIdentification(
-		context,
 		state,
 		type,
 		identification,

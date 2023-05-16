@@ -34,27 +34,22 @@ import {
 } from "../../common/identity/identification.ts";
 import { Identity } from "../../common/identity/identity.ts";
 import { assertMessage, Message } from "../../common/message/message.ts";
-import type { Configuration } from "../../common/server/config/config.ts";
 import { Context } from "../../common/server/context.ts";
 import { IIdentityService } from "../../common/server/services/identity.ts";
 import { assertAutoId, AutoId } from "../../common/system/autoid.ts";
-import { CounterProvider } from "../../providers/counter.ts";
 import { IdentityProvider } from "../../providers/identity.ts";
 import { AuthenticationMissingChallengerError } from "../auth/config.ts";
 
 export class IdentityService implements IIdentityService {
-	#configuration: Configuration;
 	#identityProvider: IdentityProvider;
-	#counterProvider: CounterProvider;
+	#context: Context;
 
 	constructor(
-		configuration: Configuration,
 		identityProvider: IdentityProvider,
-		counterProvider: CounterProvider,
+		context: Context,
 	) {
-		this.#configuration = configuration;
 		this.#identityProvider = identityProvider;
-		this.#counterProvider = counterProvider;
+		this.#context = context;
 	}
 
 	/**
@@ -132,7 +127,7 @@ export class IdentityService implements IIdentityService {
 	): Promise<void> {
 		const key =
 			`/auth/identification/${identityIdentification.type}:${identityIdentification.identification}`;
-		const result = await this.#counterProvider.increment(key, 1, 5 * 60 * 1000);
+		const result = await this.#context.counter.increment(key, 1, 5 * 60 * 1000);
 		if (result > 1) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -197,19 +192,20 @@ export class IdentityService implements IIdentityService {
 	 * @throws {IdentityChallengeCreateError}
 	 */
 	async createChallenge(
-		context: Context,
 		identityId: AutoId,
 		type: string,
 		challenge: string,
 		expiration?: number | Date,
 	): Promise<void> {
-		const challenger = this.#configuration.auth.challengers.get(type);
+		const challenger = this.#context.config.auth.challengers.get(type);
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
 		}
-		const meta =
-			await challenger.configureIdentityChallenge?.({ context, challenge }) ??
-				{};
+		const meta = await challenger.configureIdentityChallenge?.({
+			context: this.#context,
+			challenge,
+		}) ??
+			{};
 		// TODO life cycle hooks
 		return this.createChallengeWithMeta({
 			identityId,
@@ -267,7 +263,6 @@ export class IdentityService implements IIdentityService {
 	 * @throws {MessageSendError}
 	 */
 	public async broadcastMessage(
-		context: Context,
 		identityId: AutoId,
 		message: Omit<Message, "recipient">,
 	): Promise<void> {
@@ -280,14 +275,14 @@ export class IdentityService implements IIdentityService {
 			const verifiedIdentifications = identifications.filter((i) => i.verified);
 			const sendMessages = verifiedIdentifications.reduce(
 				(messages, identityIdentification) => {
-					const identicator = this.#configuration.auth.identificators
+					const identicator = this.#context.config.auth.identificators
 						.get(
 							identityIdentification.type,
 						);
 					if (identicator && identicator.sendMessage) {
 						messages.push(
 							identicator.sendMessage({
-								context,
+								context: this.#context,
 								identityIdentification,
 								message,
 							}),
@@ -307,7 +302,6 @@ export class IdentityService implements IIdentityService {
 	 * @throws {MessageSendError}
 	 */
 	async sendMessage(
-		context: Context,
 		identityId: AutoId,
 		identificationType: string,
 		message: Omit<Message, "recipient">,
@@ -315,7 +309,7 @@ export class IdentityService implements IIdentityService {
 		try {
 			assertAutoId(identityId);
 			assertMessage(message);
-			const identicator = this.#configuration.auth.identificators
+			const identicator = this.#context.config.auth.identificators
 				.get(
 					identificationType,
 				);
@@ -326,7 +320,7 @@ export class IdentityService implements IIdentityService {
 				);
 				if (identityIdentification) {
 					return identicator.sendMessage({
-						context,
+						context: this.#context,
 						identityIdentification,
 						message,
 					});

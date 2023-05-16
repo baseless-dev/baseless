@@ -8,12 +8,7 @@ import { IdentityProvider } from "../providers/identity.ts";
 import { KVProvider } from "../providers/kv.ts";
 import { SessionProvider } from "../providers/session.ts";
 import apiAuthRouter from "./api/auth.ts";
-import { AssetService } from "./services/asset.ts";
-import { AuthenticationService } from "./services/auth.ts";
-import { CounterService } from "./services/counter.ts";
-import { IdentityService } from "./services/identity.ts";
-import { KVService } from "./services/kv.ts";
-import { SessionService } from "./services/session.ts";
+import { ServerContext } from "./context.ts";
 
 export class Server {
 	#logger = createLogger("server");
@@ -73,39 +68,24 @@ export class Server {
 	): Promise<[Response, PromiseLike<unknown>[]]> {
 		this.#logger.log(`${request.method} ${remoteAddress} ${request.url}`);
 
-		const assetService = new AssetService(this.#assetProvider);
-		const counterService = new CounterService(this.#counterProvider);
-		const kvService = new KVService(this.#kvProvider);
-		const identityService = new IdentityService(
-			this.#configuration,
-			this.#identityProvider,
-			this.#counterProvider,
-		);
-		const sessionService = new SessionService(
-			this.#configuration,
-			this.#sessionProvider,
-		);
-		const authenticationService = new AuthenticationService(
-			this.#configuration,
-			this.#identityProvider,
-			this.#counterProvider,
-			this.#kvProvider,
-		);
+		const assetProvider = this.#assetProvider;
+		const configuration = this.#configuration;
+		const counterProvider = this.#counterProvider;
+		const kvProvider = this.#kvProvider;
+		const identityProvider = this.#identityProvider;
+		const sessionProvider = this.#sessionProvider;
 
 		const waitUntilCollection: PromiseLike<unknown>[] = [];
-		const context: Context = {
+		const context = new ServerContext(
+			waitUntilCollection,
 			remoteAddress,
-			config: this.#configuration,
-			asset: assetService,
-			counter: counterService,
-			kv: kvService,
-			identity: identityService,
-			session: sessionService,
-			auth: authenticationService,
-			waitUntil(promise) {
-				waitUntilCollection.push(promise);
-			},
-		};
+			configuration,
+			assetProvider,
+			counterProvider,
+			kvProvider,
+			identityProvider,
+			sessionProvider,
+		);
 
 		try {
 			const processRequest = this.#router.process(request, context);

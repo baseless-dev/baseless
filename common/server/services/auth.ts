@@ -1,16 +1,13 @@
 import type { AuthenticationCeremonyResponse } from "../../auth/ceremony/response.ts";
 import type { AuthenticationCeremonyState } from "../../auth/ceremony/state.ts";
 import type { AutoId } from "../../system/autoid.ts";
-import type { Context } from "../context.ts";
 
 export interface IAuthenticationService {
 	getAuthenticationCeremony(
 		state?: AuthenticationCeremonyState,
-		context?: Context,
 	): Promise<AuthenticationCeremonyResponse>;
 
 	submitAuthenticationIdentification(
-		context: Context,
 		state: AuthenticationCeremonyState,
 		type: string,
 		identification: string,
@@ -18,7 +15,6 @@ export interface IAuthenticationService {
 	): Promise<AuthenticationCeremonyResponse>;
 
 	submitAuthenticationChallenge(
-		context: Context,
 		state: AuthenticationCeremonyState,
 		type: string,
 		challenge: string,
@@ -26,7 +22,6 @@ export interface IAuthenticationService {
 	): Promise<AuthenticationCeremonyResponse>;
 
 	sendIdentificationValidationCode(
-		context: Context,
 		identityId: AutoId,
 		type: string,
 		locale: string,
@@ -39,7 +34,6 @@ export interface IAuthenticationService {
 	): Promise<void>;
 
 	sendIdentificationChallenge(
-		context: Context,
 		identityId: AutoId,
 		type: string,
 		locale: string,

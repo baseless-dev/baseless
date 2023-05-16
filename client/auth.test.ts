@@ -17,19 +17,18 @@ import {
 	submitAuthenticationChallenge,
 	submitAuthenticationIdentification,
 } from "./auth.ts";
-import { config } from "../server/config.ts";
+import { ConfigurationBuilder } from "../server/config.ts";
 import { LocalAssetProvider } from "../providers/asset-local/mod.ts";
 import { MemoryCounterProvider } from "../providers/counter-memory/mod.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
 import { KVIdentityProvider } from "../providers/identity-kv/mod.ts";
 import { KVSessionProvider } from "../providers/session-kv/mod.ts";
 import { LoggerMessageProvider } from "../providers/message-logger/mod.ts";
-import { IdentityService } from "../server/services/identity.ts";
 import { Server } from "../server/server.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
 import { EmailAuthentificationIdenticator } from "../providers/auth-email/mod.ts";
 import { PasswordAuthentificationChallenger } from "../providers/auth-password/mod.ts";
-import { oneOf, sequence } from "../common/auth/ceremony/component/helpers.ts";
+import { oneOf } from "../common/auth/ceremony/component/helpers.ts";
 import { assertAuthenticationCeremonyResponseState } from "../common/auth/ceremony/response/state.ts";
 import { assertAuthenticationCeremonyResponseEncryptedState } from "../common/auth/ceremony/response/encrypted_state.ts";
 import { assertAuthenticationCeremonyResponseDone } from "../common/auth/ceremony/response/done.ts";
@@ -38,12 +37,8 @@ import { setGlobalLogHandler } from "../common/system/logger.ts";
 import { TOTPLoggerAuthentificationChallenger } from "../providers/auth-totp-logger/mod.ts";
 import { generateKey } from "../common/system/otp.ts";
 import { assertSendIdentificationChallengeResponse } from "../common/auth/send_identification_challenge_response.ts";
-import { AuthenticationService } from "../server/services/auth.ts";
-import { AssetService } from "../server/services/asset.ts";
-import { CounterService } from "../server/services/counter.ts";
-import { SessionService } from "../server/services/session.ts";
-import { KVService } from "../server/services/kv.ts";
-import { Context } from "../common/server/context.ts";
+import { ServerContext } from "../server/context.ts";
+import * as h from "../common/auth/ceremony/component/helpers.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const email = new EmailAuthentificationIdenticator(
@@ -55,15 +50,19 @@ Deno.test("Client Auth", async (t) => {
 		algorithm: "SHA-256",
 		digits: 6,
 	});
+
+	const config = new ConfigurationBuilder();
 	const { publicKey, privateKey } = await generateKeyPair("PS512");
 	config.auth()
 		.setEnabled(true)
 		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
 		.setSecuritySalt("foobar")
-		.setCeremony(oneOf(
-			sequence(email, password),
-			sequence(email, totp),
-		));
+		.setCeremony(
+			h.oneOf(
+				h.sequence(email, password),
+				h.sequence(email, totp),
+			),
+		);
 
 	const configuration = config.build();
 	const assetProvider = new LocalAssetProvider(import.meta.resolve("./public"));
@@ -73,28 +72,18 @@ Deno.test("Client Auth", async (t) => {
 	const identityProvider = new KVIdentityProvider(identityKV);
 	const sessionKV = new MemoryKVProvider();
 	const sessionProvider = new KVSessionProvider(sessionKV);
-	const authService = new AuthenticationService(
+	const context = new ServerContext(
+		[],
+		"127.0.0.1",
 		configuration,
-		identityProvider,
+		assetProvider,
 		counterProvider,
 		kvProvider,
-	);
-	const identityService = new IdentityService(
-		configuration,
 		identityProvider,
-		counterProvider,
+		sessionProvider,
 	);
-	const context: Context = {
-		config: configuration,
-		asset: new AssetService(assetProvider),
-		auth: authService,
-		counter: new CounterService(counterProvider),
-		identity: identityService,
-		session: new SessionService(configuration, sessionProvider),
-		kv: new KVService(kvProvider),
-		remoteAddress: "127.0.0.1",
-		waitUntil() {},
-	};
+
+	const identityService = context.identity;
 
 	const john = await identityService.create({});
 	await identityService.createIdentification({
@@ -105,13 +94,11 @@ Deno.test("Client Auth", async (t) => {
 		meta: {},
 	});
 	await identityService.createChallenge(
-		context,
 		john.id,
 		"password",
 		"123",
 	);
 	await identityService.createChallenge(
-		context,
 		john.id,
 		"totp",
 		await generateKey(16),

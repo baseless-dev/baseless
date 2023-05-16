@@ -5,10 +5,8 @@ import {
 import { KVIdentityProvider } from "../../providers/identity-kv/mod.ts";
 import { MemoryCounterProvider } from "../../providers/counter-memory/mod.ts";
 import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";
-import { AuthenticationService } from "./auth.ts";
 import { ConfigurationBuilder } from "../config.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
-import { IdentityService } from "./identity.ts";
 import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
 import { EmailAuthentificationIdenticator } from "../../providers/auth-email/mod.ts";
 import { PasswordAuthentificationChallenger } from "../../providers/auth-password/mod.ts";
@@ -17,14 +15,10 @@ import { Message } from "../../common/message/message.ts";
 import { setGlobalLogHandler } from "../../common/system/logger.ts";
 import { autoid } from "../../common/system/autoid.ts";
 import { generateKey } from "../../common/system/otp.ts";
-import { Context } from "../../common/server/context.ts";
 import { LocalAssetProvider } from "../../providers/asset-local/mod.ts";
 import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
-import { AssetService } from "./asset.ts";
-import { CounterService } from "./counter.ts";
-import { SessionService } from "./session.ts";
-import { KVService } from "./kv.ts";
 import { TOTPLoggerAuthentificationChallenger } from "../../providers/auth-totp-logger/mod.ts";
+import { ServerContext } from "../context.ts";
 
 Deno.test("AuthenticationService", async (t) => {
 	const email = new EmailAuthentificationIdenticator(
@@ -60,28 +54,19 @@ Deno.test("AuthenticationService", async (t) => {
 	const identityProvider = new KVIdentityProvider(identityKV);
 	const sessionKV = new MemoryKVProvider();
 	const sessionProvider = new KVSessionProvider(sessionKV);
-	const authService = new AuthenticationService(
+	const context = new ServerContext(
+		[],
+		"127.0.0.1",
 		configuration,
-		identityProvider,
+		assetProvider,
 		counterProvider,
 		kvProvider,
-	);
-	const identityService = new IdentityService(
-		configuration,
 		identityProvider,
-		counterProvider,
+		sessionProvider,
 	);
-	const context: Context = {
-		config: configuration,
-		asset: new AssetService(assetProvider),
-		auth: authService,
-		counter: new CounterService(counterProvider),
-		identity: identityService,
-		session: new SessionService(configuration, sessionProvider),
-		kv: new KVService(kvProvider),
-		remoteAddress: "127.0.0.1",
-		waitUntil() {},
-	};
+
+	const identityService = context.identity;
+	const authService = context.auth;
 
 	const john = await identityService.create({});
 	await identityService.createIdentification({
@@ -93,13 +78,11 @@ Deno.test("AuthenticationService", async (t) => {
 	});
 
 	await identityService.createChallenge(
-		context,
 		john.id,
 		"password",
 		"123",
 	);
 	await identityService.createChallenge(
-		context,
 		john.id,
 		"totp",
 		await generateKey(16),
@@ -151,7 +134,6 @@ Deno.test("AuthenticationService", async (t) => {
 	await t.step("submitIdentification", async () => {
 		assertEquals(
 			await authService.submitAuthenticationIdentification(
-				context,
 				{ choices: [] },
 				"email",
 				"john@test.local",
@@ -167,7 +149,6 @@ Deno.test("AuthenticationService", async (t) => {
 		);
 		await assertRejects(() =>
 			authService.submitAuthenticationIdentification(
-				context,
 				{ choices: [] },
 				"email",
 				"unknown@test.local",
@@ -179,7 +160,6 @@ Deno.test("AuthenticationService", async (t) => {
 	await t.step("submitChallenge", async () => {
 		assertEquals(
 			await authService.submitAuthenticationChallenge(
-				context,
 				{ choices: ["email"], identity: john.id },
 				"password",
 				"123",
@@ -189,7 +169,6 @@ Deno.test("AuthenticationService", async (t) => {
 		);
 		await assertRejects(() =>
 			authService.submitAuthenticationChallenge(
-				context,
 				{ choices: [], identity: john.id },
 				"password",
 				"123",
@@ -198,7 +177,6 @@ Deno.test("AuthenticationService", async (t) => {
 		);
 		await assertRejects(() =>
 			authService.submitAuthenticationChallenge(
-				context,
 				{ choices: ["email"], identity: john.id },
 				"password",
 				"abc",
@@ -214,7 +192,6 @@ Deno.test("AuthenticationService", async (t) => {
 			messages.push({ ns, lvl, message: JSON.parse(msg)! });
 		});
 		await authService.sendIdentificationValidationCode(
-			context,
 			john.id,
 			"email",
 			"en",
@@ -247,7 +224,6 @@ Deno.test("AuthenticationService", async (t) => {
 			}
 		});
 		await authService.sendIdentificationChallenge(
-			context,
 			john.id,
 			"totp",
 			"en",
@@ -257,7 +233,6 @@ Deno.test("AuthenticationService", async (t) => {
 		setGlobalLogHandler(() => {});
 		assertEquals(
 			await authService.submitAuthenticationChallenge(
-				context,
 				{ choices: ["email"], identity: john.id },
 				"totp",
 				challengeCode,

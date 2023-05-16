@@ -9,7 +9,7 @@ import type { ISessionService } from "./services/session.ts";
 /**
  * Baseless's context
  */
-export type Context = {
+export interface Context {
 	readonly remoteAddress: string;
 	readonly config: Configuration;
 	readonly asset: IAssetService;
@@ -24,4 +24,4 @@ export type Context = {
 	 * @param promise The promise
 	 */
 	waitUntil(promise: PromiseLike<unknown>): void;
-};
+}

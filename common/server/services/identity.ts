@@ -31,7 +31,6 @@ import {
 // deno-lint-ignore no-unused-vars
 import type { MessageSendError } from "../../message/errors.ts";
 import { Message } from "../../message/message.ts";
-import { Context } from "../context.ts";
 
 export interface IIdentityService {
 	/**
@@ -114,7 +113,6 @@ export interface IIdentityService {
 	 * @throws {IdentityChallengeCreateError}
 	 */
 	createChallenge(
-		context: Context,
 		identityId: AutoId,
 		type: string,
 		challenge: string,
@@ -149,7 +147,6 @@ export interface IIdentityService {
 	 * @throws {MessageSendError}
 	 */
 	broadcastMessage(
-		context: Context,
 		identityId: AutoId,
 		message: Omit<Message, "recipient">,
 	): Promise<void>;
@@ -158,7 +155,6 @@ export interface IIdentityService {
 	 * @throws {MessageSendError}
 	 */
 	sendMessage(
-		context: Context,
 		identityId: AutoId,
 		identificationType: string,
 		message: Omit<Message, "recipient">,

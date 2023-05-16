@@ -17,56 +17,37 @@ import {
 import { isAuthenticationCeremonyComponentChoice } from "../../common/auth/ceremony/component/choice.ts";
 import { flatten } from "../../common/auth/ceremony/component/flatten.ts";
 import { getComponentAtPath } from "../../common/auth/ceremony/component/get_component_at_path.ts";
-import {
-	simplify,
-	simplifyWithContext,
-} from "../../common/auth/ceremony/component/simplify.ts";
+import { simplifyWithContext } from "../../common/auth/ceremony/component/simplify.ts";
 import { AutoId } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import { otp } from "../../common/system/otp.ts";
-import { CounterProvider } from "../../providers/counter.ts";
-import { IdentityProvider } from "../../providers/identity.ts";
-import { KVProvider } from "../../providers/kv.ts";
 import {
 	AuthenticationMissingChallengerError,
 	AuthenticationMissingIdentificatorError,
 } from "../auth/config.ts";
-import type { Configuration } from "../../common/server/config/config.ts";
 import type { Context } from "../../common/server/context.ts";
 import type { IAuthenticationService } from "../../common/server/services/auth.ts";
 
 export class AuthenticationService implements IAuthenticationService {
 	#logger = createLogger("auth-service");
-	#configuration: Configuration;
-	#identityProvider: IdentityProvider;
-	#counterProvider: CounterProvider;
-	#kvProvider: KVProvider;
+	#context: Context;
 
 	constructor(
-		configuration: Configuration,
-		identityProvider: IdentityProvider,
-		counterProvider: CounterProvider,
-		kvProvider: KVProvider,
+		context: Context,
 	) {
-		this.#configuration = configuration;
-		this.#identityProvider = identityProvider;
-		this.#counterProvider = counterProvider;
-		this.#kvProvider = kvProvider;
+		this.#context = context;
 	}
 
 	async getAuthenticationCeremony(
 		state?: AuthenticationCeremonyState,
-		context?: Context,
 	): Promise<AuthenticationCeremonyResponse> {
 		state ??= { choices: [] };
 		const step = flatten(
-			context
-				? await simplifyWithContext(
-					this.#configuration.auth.ceremony,
-					context,
-					state,
-				)
-				: simplify(this.#configuration.auth.ceremony),
+			await simplifyWithContext(
+				this.#context.config.auth.ceremony,
+				this.#context,
+				state,
+			),
 		);
 		const result = getComponentAtPath(step, state.choices);
 		if (result.done) {
@@ -84,19 +65,19 @@ export class AuthenticationService implements IAuthenticationService {
 	}
 
 	async submitAuthenticationIdentification(
-		context: Context,
 		state: AuthenticationCeremonyState,
 		type: string,
 		identification: string,
 		subject: string,
 	): Promise<AuthenticationCeremonyResponse> {
 		const counterInterval =
-			this.#configuration.auth.security.rateLimit.identificationInterval * 1000;
+			this.#context.config.auth.security.rateLimit.identificationInterval *
+			1000;
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
-			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-				this.#configuration.auth.security.rateLimit.identificationCount
+			await this.#context.counter.increment(counterKey, 1, counterInterval) >
+				this.#context.config.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -111,18 +92,18 @@ export class AuthenticationService implements IAuthenticationService {
 			throw new AuthenticationInvalidStepError();
 		}
 
-		const identificator = this.#configuration.auth.identificators.get(
+		const identificator = this.#context.config.auth.identificators.get(
 			type,
 		);
 		if (!identificator) {
 			throw new AuthenticationMissingIdentificatorError();
 		}
 
-		const identityIdentification = await this.#identityProvider
+		const identityIdentification = await this.#context.identity
 			.matchIdentification(type, identification);
 
 		const identifyResult = await identificator.identify({
-			context,
+			context: this.#context,
 			identityIdentification,
 			identification,
 		});
@@ -142,7 +123,6 @@ export class AuthenticationService implements IAuthenticationService {
 	 * @throws {AuthenticationInvalidStepError}
 	 */
 	async submitAuthenticationChallenge(
-		context: Context,
 		state: AuthenticationCeremonyState,
 		type: string,
 		challenge: string,
@@ -151,12 +131,12 @@ export class AuthenticationService implements IAuthenticationService {
 		assertAuthenticationCeremonyStateIdentified(state);
 
 		const counterInterval =
-			this.#configuration.auth.security.rateLimit.identificationInterval;
+			this.#context.config.auth.security.rateLimit.identificationInterval;
 		const counterLimit =
-			this.#configuration.auth.security.rateLimit.identificationCount;
+			this.#context.config.auth.security.rateLimit.identificationCount;
 		const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
-		const counter = await this.#counterProvider.increment(
+		const counter = await this.#context.counter.increment(
 			counterKey,
 			1,
 			counterInterval,
@@ -176,17 +156,23 @@ export class AuthenticationService implements IAuthenticationService {
 			throw new AuthenticationInvalidStepError();
 		}
 
-		const challenger = this.#configuration.auth.challengers.get(step.kind);
+		const challenger = this.#context.config.auth.challengers.get(step.kind);
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
 		}
 
-		const identityChallenge = await this.#identityProvider.getChallenge(
+		const identityChallenge = await this.#context.identity.getChallenge(
 			state.identity,
 			step.kind,
 		);
 
-		if (!await challenger.verify({ context, identityChallenge, challenge })) {
+		if (
+			!await challenger.verify({
+				context: this.#context,
+				identityChallenge,
+				challenge,
+			})
+		) {
 			throw new AuthenticationCeremonyComponentChallengeFailedError();
 		}
 
@@ -203,12 +189,11 @@ export class AuthenticationService implements IAuthenticationService {
 	 * @throws {AuthenticationSendValidationCodeError}
 	 */
 	async sendIdentificationValidationCode(
-		context: Context,
 		identityId: AutoId,
 		type: string,
 		_locale: string,
 	): Promise<void> {
-		const identificator = this.#configuration.auth.identificators.get(
+		const identificator = this.#context.config.auth.identificators.get(
 			type,
 		);
 		if (!identificator) {
@@ -221,7 +206,7 @@ export class AuthenticationService implements IAuthenticationService {
 				const slidingWindow = Math.round(Date.now() / interval * 1000);
 				const counterKey =
 					`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
-				const counter = await this.#counterProvider.increment(
+				const counter = await this.#context.counter.increment(
 					counterKey,
 					1,
 					interval,
@@ -231,13 +216,13 @@ export class AuthenticationService implements IAuthenticationService {
 				}
 			}
 			const code = otp({ digits: 6 });
-			await this.#kvProvider.put(
+			await this.#context.kv.put(
 				`/auth/validationcode/${identityId}/${type}`,
 				code,
 				{ expiration: 1000 * 60 * 5 },
 			);
 
-			const identityIdentifications = await this.#identityProvider
+			const identityIdentifications = await this.#context.identity
 				.listIdentification(identityId);
 			const identityIdentification = identityIdentifications.find((ii) =>
 				ii.type === type
@@ -245,7 +230,7 @@ export class AuthenticationService implements IAuthenticationService {
 			if (identityIdentification) {
 				// TODO actual message from locale
 				await identificator.sendMessage({
-					context,
+					context: this.#context,
 					identityIdentification,
 					message: { text: code },
 				});
@@ -263,14 +248,14 @@ export class AuthenticationService implements IAuthenticationService {
 		code: string,
 	): Promise<void> {
 		try {
-			const counterInterval = this.#configuration.auth.security.rateLimit
+			const counterInterval = this.#context.config.auth.security.rateLimit
 				.confirmVerificationCodeInterval;
-			const counterLimit = this.#configuration.auth.security.rateLimit
+			const counterLimit = this.#context.config.auth.security.rateLimit
 				.confirmVerificationCodeCount;
 			const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
 			const counterKey =
 				`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
-			const counter = await this.#counterProvider.increment(
+			const counter = await this.#context.counter.increment(
 				counterKey,
 				1,
 				counterInterval,
@@ -279,7 +264,7 @@ export class AuthenticationService implements IAuthenticationService {
 				throw new AuthenticationRateLimitedError();
 			}
 
-			const identityIdentifications = await this.#identityProvider
+			const identityIdentifications = await this.#context.identity
 				.listIdentification(identityId);
 			const identityIdentification = identityIdentifications.find((ii) =>
 				ii.type === type
@@ -288,11 +273,11 @@ export class AuthenticationService implements IAuthenticationService {
 				throw new AuthenticationConfirmValidationCodeError();
 			}
 
-			const savedCode = await this.#kvProvider.get(
+			const savedCode = await this.#context.kv.get(
 				`/auth/validationcode/${identityId}/${type}`,
 			).catch((_) => undefined);
 			if (savedCode?.value === code) {
-				await this.#identityProvider.updateIdentification({
+				await this.#context.identity.updateIdentification({
 					...identityIdentification,
 					verified: true,
 				});
@@ -307,19 +292,18 @@ export class AuthenticationService implements IAuthenticationService {
 	}
 
 	async sendIdentificationChallenge(
-		context: Context,
 		identityId: AutoId,
 		type: string,
 		locale: string,
 	): Promise<void> {
-		const challenger = this.#configuration.auth.challengers.get(
+		const challenger = this.#context.config.auth.challengers.get(
 			type,
 		);
 		if (!challenger) {
 			throw new AuthenticationSendIdentificationChallengeError();
 		}
 
-		const identityChallenge = await this.#identityProvider.getChallenge(
+		const identityChallenge = await this.#context.identity.getChallenge(
 			identityId,
 			type,
 		);
@@ -333,7 +317,7 @@ export class AuthenticationService implements IAuthenticationService {
 				const slidingWindow = Math.round(Date.now() / interval * 1000);
 				const counterKey =
 					`/auth/sendchallenge/${identityId}/${type}/${slidingWindow}`;
-				const counter = await this.#counterProvider.increment(
+				const counter = await this.#context.counter.increment(
 					counterKey,
 					1,
 					interval,
@@ -342,7 +326,11 @@ export class AuthenticationService implements IAuthenticationService {
 					throw new AuthenticationRateLimitedError();
 				}
 			}
-			await challenger.sendChallenge({ identityChallenge, context, locale });
+			await challenger.sendChallenge({
+				identityChallenge,
+				context: this.#context,
+				locale,
+			});
 		}
 	}
 }

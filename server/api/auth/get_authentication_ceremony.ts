@@ -14,7 +14,7 @@ export async function getAuthenticationCeremony(
 			encryptedState,
 			context.config.auth.security.keys.publicKey,
 		);
-		return context.auth.getAuthenticationCeremony(state, context);
+		return context.auth.getAuthenticationCeremony(state);
 	}
 	return context.auth.getAuthenticationCeremony();
 }

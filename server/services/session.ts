@@ -1,4 +1,4 @@
-import { Configuration } from "../../common/server/config/config.ts";
+import { Context } from "../../common/server/context.ts";
 import { ISessionService } from "../../common/server/services/session.ts";
 import { SessionData } from "../../common/session/data.ts";
 import {
@@ -13,15 +13,15 @@ import { AutoId } from "../../common/system/autoid.ts";
 import { SessionProvider } from "../../providers/session.ts";
 
 export class SessionService implements ISessionService {
-	#configuration: Configuration;
 	#sessionProvider: SessionProvider;
+	#context: Context;
 
 	constructor(
-		configuration: Configuration,
 		sessionProvider: SessionProvider,
+		context: Context,
 	) {
-		this.#configuration = configuration;
 		this.#sessionProvider = sessionProvider;
+		this.#context = context;
 	}
 
 	/**

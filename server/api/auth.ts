@@ -1,6 +1,6 @@
 import { RouterBuilder } from "../../common/system/router.ts";
 import { ApiResponse } from "../../common/api/response.ts";
-import { Context } from "../../common/server/context.ts";
+import { IContext } from "../../common/server/context.ts";
 import { confirmIdentificationValidationCode } from "./auth/confirm_identification_validation_code.ts";
 import { getAuthenticationCeremony } from "./auth/get_authentication_ceremony.ts";
 import { sendIdentificationChallenge } from "./auth/send_identification_challenge.ts";
@@ -13,13 +13,13 @@ function json<Params, Result>(
 	handler: (
 		request: Request,
 		params: Params,
-		context: Context,
+		context: IContext,
 	) => Result | Promise<Result>,
 	headers = new Headers(),
 ) {
 	headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
 	headers.set("Content-Type", "application/json");
-	return async (request: Request, params: Params, context: Context) => {
+	return async (request: Request, params: Params, context: IContext) => {
 		let result: ApiResponse;
 		try {
 			result = {
@@ -38,7 +38,7 @@ function json<Params, Result>(
 	};
 }
 
-const authRouter = new RouterBuilder<[context: Context]>();
+const authRouter = new RouterBuilder<[context: IContext]>();
 
 authRouter.get("/getAuthenticationCeremony", json(getAuthenticationCeremony));
 authRouter.post("/getAuthenticationCeremony", json(getAuthenticationCeremony));

@@ -4,7 +4,7 @@ import { isAuthenticationCeremonyComponentChoice } from "./choice.ts";
 import { isAuthenticationCeremonyComponentConditional } from "./conditional.ts";
 import { oneOf, sequence } from "./helpers.ts";
 import { isAuthenticationCeremonyComponentSequence } from "./sequence.ts";
-import type { Context } from "../../../server/context.ts";
+import type { IContext } from "../../../server/context.ts";
 
 export function simplify(
 	component: AuthenticationCeremonyComponent,
@@ -40,7 +40,7 @@ export function simplify(
 
 export async function simplifyWithContext(
 	component: AuthenticationCeremonyComponent,
-	context: Context,
+	context: IContext,
 	state: AuthenticationCeremonyState,
 ): Promise<AuthenticationCeremonyComponent> {
 	if (isAuthenticationCeremonyComponentSequence(component)) {

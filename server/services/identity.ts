@@ -34,7 +34,7 @@ import {
 } from "../../common/identity/identification.ts";
 import { Identity } from "../../common/identity/identity.ts";
 import { assertMessage, Message } from "../../common/message/message.ts";
-import { Context } from "../../common/server/context.ts";
+import { IContext } from "../../common/server/context.ts";
 import { IIdentityService } from "../../common/server/services/identity.ts";
 import { assertAutoId, AutoId } from "../../common/system/autoid.ts";
 import { IdentityProvider } from "../../providers/identity.ts";
@@ -42,11 +42,11 @@ import { AuthenticationMissingChallengerError } from "../auth/config.ts";
 
 export class IdentityService implements IIdentityService {
 	#identityProvider: IdentityProvider;
-	#context: Context;
+	#context: IContext;
 
 	constructor(
 		identityProvider: IdentityProvider,
-		context: Context,
+		context: IContext,
 	) {
 		this.#identityProvider = identityProvider;
 		this.#context = context;

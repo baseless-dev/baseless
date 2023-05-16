@@ -37,7 +37,7 @@ import { setGlobalLogHandler } from "../common/system/logger.ts";
 import { TOTPLoggerAuthentificationChallenger } from "../providers/auth-totp-logger/mod.ts";
 import { generateKey } from "../common/system/otp.ts";
 import { assertSendIdentificationChallengeResponse } from "../common/auth/send_identification_challenge_response.ts";
-import { ServerContext } from "../server/context.ts";
+import { Context } from "../server/context.ts";
 import * as h from "../common/auth/ceremony/component/helpers.ts";
 
 Deno.test("Client Auth", async (t) => {
@@ -72,7 +72,7 @@ Deno.test("Client Auth", async (t) => {
 	const identityProvider = new KVIdentityProvider(identityKV);
 	const sessionKV = new MemoryKVProvider();
 	const sessionProvider = new KVSessionProvider(sessionKV);
-	const context = new ServerContext(
+	const context = new Context(
 		[],
 		"127.0.0.1",
 		configuration,
@@ -213,7 +213,7 @@ Deno.test("Client Auth", async (t) => {
 		assertSendIdentificationChallengeResponse(result2);
 		const challengeCode = messages.pop()?.message ?? "";
 		assertEquals(challengeCode.length, 6);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		const result3 = await submitAuthenticationChallenge(
 			app,
 			"totp",
@@ -235,7 +235,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		assertEquals(result.sent, true);
 		assertEquals(messages[0]?.message.text.length, 6);
 	});
@@ -252,7 +252,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		assertEquals(sendResult.sent, true);
 		const validationCode = messages[0]?.message.text;
 		const confirmResult = await confirmIdentificationValidationCode(

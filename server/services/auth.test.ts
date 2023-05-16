@@ -18,7 +18,7 @@ import { generateKey } from "../../common/system/otp.ts";
 import { LocalAssetProvider } from "../../providers/asset-local/mod.ts";
 import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
 import { TOTPLoggerAuthentificationChallenger } from "../../providers/auth-totp-logger/mod.ts";
-import { ServerContext } from "../context.ts";
+import { Context } from "../context.ts";
 
 Deno.test("AuthenticationService", async (t) => {
 	const email = new EmailAuthentificationIdenticator(
@@ -54,7 +54,7 @@ Deno.test("AuthenticationService", async (t) => {
 	const identityProvider = new KVIdentityProvider(identityKV);
 	const sessionKV = new MemoryKVProvider();
 	const sessionProvider = new KVSessionProvider(sessionKV);
-	const context = new ServerContext(
+	const context = new Context(
 		[],
 		"127.0.0.1",
 		configuration,
@@ -198,7 +198,7 @@ Deno.test("AuthenticationService", async (t) => {
 		);
 		verificationCode = messages.pop()?.message.text ?? "";
 		assertEquals(verificationCode.length, 6);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 	});
 
 	await t.step("confirmIdentificationValidationCode", async () => {
@@ -230,7 +230,7 @@ Deno.test("AuthenticationService", async (t) => {
 		);
 		const challengeCode = messages.pop()?.message ?? "";
 		assertEquals(challengeCode.length, 6);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		assertEquals(
 			await authService.submitAuthenticationChallenge(
 				{ choices: ["email"], identity: john.id },

@@ -1,5 +1,5 @@
 import { Configuration } from "../common/server/config/config.ts";
-import { Context } from "../common/server/context.ts";
+import { IContext } from "../common/server/context.ts";
 import { RouterBuilder } from "../common/system/router.ts";
 import { AssetConfigurationBuilder } from "./asset/config.ts";
 import { AuthenticationConfigurationBuilder } from "./auth/config.ts";
@@ -7,7 +7,7 @@ import { AuthenticationConfigurationBuilder } from "./auth/config.ts";
 export class ConfigurationBuilder {
 	#asset = new AssetConfigurationBuilder();
 	#auth = new AuthenticationConfigurationBuilder();
-	#functions = new RouterBuilder<[context: Context]>();
+	#functions = new RouterBuilder<[context: IContext]>();
 
 	/**
 	 * Access the underlying {@see AssetConfigurationBuilder}

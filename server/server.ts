@@ -1,5 +1,5 @@
 import { Configuration } from "../common/server/config/config.ts";
-import { Context } from "../common/server/context.ts";
+import { IContext } from "../common/server/context.ts";
 import { createLogger } from "../common/system/logger.ts";
 import { Router, RouterBuilder } from "../common/system/router.ts";
 import { AssetProvider } from "../providers/asset.ts";
@@ -8,7 +8,7 @@ import { IdentityProvider } from "../providers/identity.ts";
 import { KVProvider } from "../providers/kv.ts";
 import { SessionProvider } from "../providers/session.ts";
 import apiAuthRouter from "./api/auth.ts";
-import { ServerContext } from "./context.ts";
+import { Context } from "./context.ts";
 
 export class Server {
 	#logger = createLogger("server");
@@ -19,7 +19,7 @@ export class Server {
 	#identityProvider: IdentityProvider;
 	#sessionProvider: SessionProvider;
 
-	#router: Router<[context: Context]>;
+	#router: Router<[context: IContext]>;
 
 	public constructor(
 		options: {
@@ -38,7 +38,7 @@ export class Server {
 		this.#identityProvider = options.identityProvider;
 		this.#sessionProvider = options.sessionProvider;
 
-		const routerBuilder = new RouterBuilder<[context: Context]>();
+		const routerBuilder = new RouterBuilder<[context: IContext]>();
 
 		if (this.#configuration.auth.enabled) {
 			routerBuilder.route("/api/auth", apiAuthRouter);
@@ -76,7 +76,7 @@ export class Server {
 		const sessionProvider = this.#sessionProvider;
 
 		const waitUntilCollection: PromiseLike<unknown>[] = [];
-		const context = new ServerContext(
+		const context = new Context(
 			waitUntilCollection,
 			remoteAddress,
 			configuration,

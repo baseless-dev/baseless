@@ -1,5 +1,5 @@
 import { Configuration } from "../common/server/config/config.ts";
-import { Context } from "../common/server/context.ts";
+import { IContext } from "../common/server/context.ts";
 import { IAssetService } from "../common/server/services/asset.ts";
 import { IAuthenticationService } from "../common/server/services/auth.ts";
 import { ICounterService } from "../common/server/services/counter.ts";
@@ -21,7 +21,7 @@ import { SessionService } from "./services/session.ts";
 /**
  * Baseless's context
  */
-export class ServerContext implements Context {
+export class Context implements IContext {
 	#waitUntil: PromiseLike<unknown>[];
 	#remoteAddress: string;
 	#configuration: Configuration;

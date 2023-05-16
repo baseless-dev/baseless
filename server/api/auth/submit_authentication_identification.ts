@@ -1,13 +1,13 @@
 import { AuthenticationCeremonyResponse } from "../../../common/auth/ceremony/response.ts";
 import { isAuthenticationCeremonyStateIdentified } from "../../../common/auth/ceremony/state.ts";
-import { Context } from "../../../common/server/context.ts";
+import { IContext } from "../../../common/server/context.ts";
 import { decryptEncryptedAuthenticationCeremonyState } from "./decrypt_encrypted_authentication_ceremony_state.ts";
 import { encryptAuthenticationCeremonyState } from "./encrypt_authentication_ceremony_state.ts";
 
 export async function submitAuthenticationIdentification(
 	request: Request,
 	_params: Record<never, never>,
-	context: Context,
+	context: IContext,
 ): Promise<AuthenticationCeremonyResponse> {
 	const formData = await request.formData();
 	const type = formData.get("type")?.toString() ?? "";

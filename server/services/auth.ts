@@ -25,15 +25,15 @@ import {
 	AuthenticationMissingChallengerError,
 	AuthenticationMissingIdentificatorError,
 } from "../auth/config.ts";
-import type { Context } from "../../common/server/context.ts";
+import type { IContext } from "../../common/server/context.ts";
 import type { IAuthenticationService } from "../../common/server/services/auth.ts";
 
 export class AuthenticationService implements IAuthenticationService {
 	#logger = createLogger("auth-service");
-	#context: Context;
+	#context: IContext;
 
 	constructor(
-		context: Context,
+		context: IContext,
 	) {
 		this.#context = context;
 	}
@@ -77,7 +77,7 @@ export class AuthenticationService implements IAuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#context.counter.increment(counterKey, 1, counterInterval) >
-				this.#context.config.auth.security.rateLimit.identificationCount
+			this.#context.config.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}

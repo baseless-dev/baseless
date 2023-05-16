@@ -9,7 +9,7 @@ import type { ISessionService } from "./services/session.ts";
 /**
  * Baseless's context
  */
-export interface Context {
+export interface IContext {
 	readonly remoteAddress: string;
 	readonly config: Configuration;
 	readonly asset: IAssetService;

@@ -1,12 +1,12 @@
 import { InvalidAuthenticationCeremonyComponentConditionalError } from "../../errors.ts";
 import type { AuthenticationCeremonyState } from "../state.ts";
 import type { AuthenticationCeremonyComponent } from "../ceremony.ts";
-import type { Context } from "../../../server/context.ts";
+import type { IContext } from "../../../server/context.ts";
 
 export type AuthenticationCeremonyComponentConditional = {
 	readonly kind: "conditional";
 	readonly condition: (
-		context: Context,
+		context: IContext,
 		state: AuthenticationCeremonyState,
 	) =>
 		| AuthenticationCeremonyComponent

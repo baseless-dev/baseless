@@ -1,16 +1,16 @@
 import type { IdentityIdentification } from "../identity/identification.ts";
 import { Message } from "../message/message.ts";
-import { Context } from "../server/context.ts";
+import { IContext } from "../server/context.ts";
 import { AuthenticationCeremonyComponentIdentification } from "./ceremony/component/identification.ts";
 
 export type AuthenticationIdenticatorIdentifyOptions = {
-	context: Context;
+	context: IContext;
 	identityIdentification: IdentityIdentification;
 	identification: string;
 };
 
 export type AuthenticationIdenticatorSendMessageOptions = {
-	context: Context;
+	context: IContext;
 	identityIdentification: IdentityIdentification;
 	message: Omit<Message, "recipient">;
 };

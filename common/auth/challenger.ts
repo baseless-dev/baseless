@@ -1,20 +1,20 @@
 import type { IdentityChallenge } from "../identity/challenge.ts";
-import { Context } from "../server/context.ts";
+import { IContext } from "../server/context.ts";
 import { AuthenticationCeremonyComponentChallenge } from "./ceremony/component/challenge.ts";
 
 export type AuthenticationChallengerConfigureIdentityChallengeOptions = {
-	context: Context;
+	context: IContext;
 	challenge: string;
 };
 
 export type AuthenticationChallengerSendChallengeOptions = {
-	context: Context;
+	context: IContext;
 	locale: string;
 	identityChallenge: IdentityChallenge;
 };
 
 export type AuthenticationChallengerVerifyOptions = {
-	context: Context;
+	context: IContext;
 	identityChallenge: IdentityChallenge;
 	challenge: string;
 };

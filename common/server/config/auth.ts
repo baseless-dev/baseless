@@ -3,7 +3,7 @@ import { AuthenticationCeremonyComponent } from "../../auth/ceremony/ceremony.ts
 import { AuthenticationChallenger } from "../../auth/challenger.ts";
 import { AuthenticationIdenticator } from "../../auth/identicator.ts";
 import { Identity } from "../../identity/identity.ts";
-import { Context } from "../context.ts";
+import { IContext } from "../context.ts";
 
 export type AuthenticationKeys = {
 	readonly algo: string;
@@ -34,13 +34,13 @@ export type AuthenticationConfiguration = {
 };
 
 export type AuthenticationHandler = (
-	context: Context,
+	context: IContext,
 	request: Request,
 	identity: Identity,
 ) => void | Promise<void>;
 export type AuthenticationViewPrompParams = {
 	request: Request;
-	context: Context;
+	context: IContext;
 	step: AuthenticationCeremonyComponent;
 	isFirstStep: boolean;
 	isLastStep: boolean;

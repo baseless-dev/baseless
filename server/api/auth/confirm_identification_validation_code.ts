@@ -1,10 +1,10 @@
 import { ConfirmIdentificationValidationCodeResponse } from "../../../common/auth/confirm_identification_validation_code_response.ts";
-import { Context } from "../../../common/server/context.ts";
+import { IContext } from "../../../common/server/context.ts";
 
 export async function confirmIdentificationValidationCode(
 	request: Request,
 	_params: Record<never, never>,
-	context: Context,
+	context: IContext,
 ): Promise<ConfirmIdentificationValidationCodeResponse> {
 	try {
 		const formData = await request.formData();

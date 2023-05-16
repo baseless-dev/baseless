@@ -1,5 +1,4 @@
-import { config } from "../../server/config.ts";
-import { sequence, oneOf, email, password, action, otp } from "../../server/auth/flow.ts";
+import { config } from "../../common/config/config.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
 import { EmailAuthentificationIdenticator } from "../../providers/auth-email/mod.ts";
 import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";

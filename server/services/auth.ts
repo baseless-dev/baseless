@@ -3,6 +3,8 @@ import {
 	AuthenticationCeremonyDoneError,
 	AuthenticationConfirmValidationCodeError,
 	AuthenticationInvalidStepError,
+	AuthenticationMissingChallengerError,
+	AuthenticationMissingIdentificatorError,
 	AuthenticationRateLimitedError,
 	AuthenticationSendIdentificationChallengeError,
 	AuthenticationSendValidationCodeError,
@@ -21,10 +23,6 @@ import { simplifyWithContext } from "../../common/auth/ceremony/component/simpli
 import { AutoId } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import { otp } from "../../common/system/otp.ts";
-import {
-	AuthenticationMissingChallengerError,
-	AuthenticationMissingIdentificatorError,
-} from "../auth/config.ts";
 import type { IContext } from "../../common/server/context.ts";
 import type { IAuthenticationService } from "../../common/server/services/auth.ts";
 

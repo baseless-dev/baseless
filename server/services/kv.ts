@@ -1,5 +1,6 @@
 // deno-lint-ignore no-unused-vars
 import type { KVKeyNotFoundError, KVPutError } from "../../common/kv/errors.ts";
+import type { IKVService } from "../../common/server/services/kv.ts";
 import {
 	KVGetOptions,
 	KVKey,
@@ -9,7 +10,7 @@ import {
 	KVPutOptions,
 } from "../../providers/kv.ts";
 
-export class KVService {
+export class KVService implements IKVService {
 	#kvProvider: KVProvider;
 
 	constructor(kvProvider: KVProvider) {

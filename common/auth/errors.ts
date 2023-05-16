@@ -89,3 +89,10 @@ export class AuthenticationSendIdentificationChallengeError extends Error {
 export class InvalidSendIdentificationChallengeResponseError extends Error {
 	name = "InvalidSendIdentificationChallengeResponseError" as const;
 }
+
+export class AuthenticationMissingIdentificatorError extends Error {
+	name = "AuthenticationMissingIdentificatorError" as const;
+}
+export class AuthenticationMissingChallengerError extends Error {
+	name = "AuthenticationMissingChallengerError" as const;
+}

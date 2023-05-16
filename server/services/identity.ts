@@ -1,5 +1,8 @@
 import { MessageSendError } from "../../client/errors.ts";
-import { AuthenticationRateLimitedError } from "../../common/auth/errors.ts";
+import {
+	AuthenticationMissingChallengerError,
+	AuthenticationRateLimitedError,
+} from "../../common/auth/errors.ts";
 import {
 	assertIdentityChallenge,
 	IdentityChallenge,
@@ -38,7 +41,6 @@ import { IContext } from "../../common/server/context.ts";
 import { IIdentityService } from "../../common/server/services/identity.ts";
 import { assertAutoId, AutoId } from "../../common/system/autoid.ts";
 import { IdentityProvider } from "../../providers/identity.ts";
-import { AuthenticationMissingChallengerError } from "../auth/config.ts";
 
 export class IdentityService implements IIdentityService {
 	#identityProvider: IdentityProvider;

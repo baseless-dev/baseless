@@ -17,7 +17,6 @@ import {
 	submitAuthenticationChallenge,
 	submitAuthenticationIdentification,
 } from "./auth.ts";
-import { ConfigurationBuilder } from "../server/config.ts";
 import { LocalAssetProvider } from "../providers/asset-local/mod.ts";
 import { MemoryCounterProvider } from "../providers/counter-memory/mod.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
@@ -39,6 +38,7 @@ import { generateKey } from "../common/system/otp.ts";
 import { assertSendIdentificationChallengeResponse } from "../common/auth/send_identification_challenge_response.ts";
 import { Context } from "../server/context.ts";
 import * as h from "../common/auth/ceremony/component/helpers.ts";
+import { ConfigurationBuilder } from "../common/server/config/config.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const email = new EmailAuthentificationIdenticator(
@@ -213,7 +213,7 @@ Deno.test("Client Auth", async (t) => {
 		assertSendIdentificationChallengeResponse(result2);
 		const challengeCode = messages.pop()?.message ?? "";
 		assertEquals(challengeCode.length, 6);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		const result3 = await submitAuthenticationChallenge(
 			app,
 			"totp",
@@ -235,7 +235,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		assertEquals(result.sent, true);
 		assertEquals(messages[0]?.message.text.length, 6);
 	});
@@ -252,7 +252,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		assertEquals(sendResult.sent, true);
 		const validationCode = messages[0]?.message.text;
 		const confirmResult = await confirmIdentificationValidationCode(

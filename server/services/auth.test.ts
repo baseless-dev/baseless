@@ -27,7 +27,9 @@ import { KVService } from "./kv.ts";
 import { TOTPLoggerAuthentificationChallenger } from "../../providers/auth-totp-logger/mod.ts";
 
 Deno.test("AuthenticationService", async (t) => {
-	const email = new EmailAuthentificationIdenticator(new LoggerMessageProvider());
+	const email = new EmailAuthentificationIdenticator(
+		new LoggerMessageProvider(),
+	);
 	const password = new PasswordAuthentificationChallenger();
 	const totp = new TOTPLoggerAuthentificationChallenger({
 		period: 60,
@@ -78,8 +80,8 @@ Deno.test("AuthenticationService", async (t) => {
 		session: new SessionService(configuration, sessionProvider),
 		kv: new KVService(kvProvider),
 		remoteAddress: "127.0.0.1",
-		waitUntil() { }
-	}
+		waitUntil() {},
+	};
 
 	const john = await identityService.create({});
 	await identityService.createIdentification({
@@ -102,8 +104,6 @@ Deno.test("AuthenticationService", async (t) => {
 		"totp",
 		await generateKey(16),
 	);
-
-
 
 	await t.step("getAuthenticationCeremony", async () => {
 		assertEquals(
@@ -213,10 +213,15 @@ Deno.test("AuthenticationService", async (t) => {
 		setGlobalLogHandler((ns, lvl, msg) => {
 			messages.push({ ns, lvl, message: JSON.parse(msg)! });
 		});
-		await authService.sendIdentificationValidationCode(context, john.id, "email", "en");
+		await authService.sendIdentificationValidationCode(
+			context,
+			john.id,
+			"email",
+			"en",
+		);
 		verificationCode = messages.pop()?.message.text ?? "";
 		assertEquals(verificationCode.length, 6);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 	});
 
 	await t.step("confirmIdentificationValidationCode", async () => {
@@ -241,10 +246,15 @@ Deno.test("AuthenticationService", async (t) => {
 				messages.push({ ns, lvl, message: msg });
 			}
 		});
-		await authService.sendIdentificationChallenge(context, john.id, "totp", "en");
+		await authService.sendIdentificationChallenge(
+			context,
+			john.id,
+			"totp",
+			"en",
+		);
 		const challengeCode = messages.pop()?.message ?? "";
 		assertEquals(challengeCode.length, 6);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 		assertEquals(
 			await authService.submitAuthenticationChallenge(
 				context,

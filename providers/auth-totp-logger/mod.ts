@@ -1,5 +1,15 @@
-import { AuthenticationChallenger, AuthenticationChallengerConfigureIdentityChallengeOptions, AuthenticationChallengerSendChallengeOptions, AuthenticationChallengerVerifyOptions } from "../../common/auth/challenger.ts";
-import { createLogger, Logger, LogLevel, LogLevelMethod } from "../../common/system/logger.ts";
+import {
+	AuthenticationChallenger,
+	AuthenticationChallengerConfigureIdentityChallengeOptions,
+	AuthenticationChallengerSendChallengeOptions,
+	AuthenticationChallengerVerifyOptions,
+} from "../../common/auth/challenger.ts";
+import {
+	createLogger,
+	Logger,
+	LogLevel,
+	LogLevelMethod,
+} from "../../common/system/logger.ts";
 import {
 	assertTOTPOptions,
 	totp,
@@ -16,7 +26,7 @@ export class TOTPLoggerAuthentificationChallenger
 	#logMethod: keyof Logger;
 	constructor(
 		options: Omit<TOTPOptions, "key">,
-		logLevel = LogLevel.INFO
+		logLevel = LogLevel.INFO,
 	) {
 		super();
 		assertTOTPOptions({ ...options, key: "" });
@@ -25,11 +35,13 @@ export class TOTPLoggerAuthentificationChallenger
 	}
 
 	// deno-lint-ignore require-await
-	configureIdentityChallenge = async ({ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions) => {
+	configureIdentityChallenge = async (
+		{ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions,
+	) => {
 		return {
 			key: challenge,
 		};
-	}
+	};
 
 	sendChallenge = async (
 		{ identityChallenge }: AuthenticationChallengerSendChallengeOptions,
@@ -49,7 +61,7 @@ export class TOTPLoggerAuthentificationChallenger
 	};
 
 	async verify(
-		{ challenge, identityChallenge }: AuthenticationChallengerVerifyOptions
+		{ challenge, identityChallenge }: AuthenticationChallengerVerifyOptions,
 	): Promise<boolean> {
 		if (
 			"key" in identityChallenge.meta &&

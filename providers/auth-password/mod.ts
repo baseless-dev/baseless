@@ -1,6 +1,9 @@
 import { encode } from "https://deno.land/std@0.179.0/encoding/base64.ts";
-import { AuthenticationChallenger, AuthenticationChallengerConfigureIdentityChallengeOptions, AuthenticationChallengerVerifyOptions } from "../../common/auth/challenger.ts";
-import { IdentityChallenge } from "../../common/identity/challenge.ts";
+import {
+	AuthenticationChallenger,
+	AuthenticationChallengerConfigureIdentityChallengeOptions,
+	AuthenticationChallengerVerifyOptions,
+} from "../../common/auth/challenger.ts";
 
 export class PasswordAuthentificationChallenger
 	extends AuthenticationChallenger {
@@ -12,13 +15,15 @@ export class PasswordAuthentificationChallenger
 		);
 	}
 
-	configureIdentityChallenge = async ({ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions) => {
+	configureIdentityChallenge = async (
+		{ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions,
+	) => {
 		const hash = await this.#hash(challenge);
 		return { hash };
-	}
+	};
 
 	async verify(
-		{ challenge, identityChallenge }: AuthenticationChallengerVerifyOptions
+		{ challenge, identityChallenge }: AuthenticationChallengerVerifyOptions,
 	): Promise<boolean> {
 		const hash = await this.#hash(challenge);
 		return "hash" in identityChallenge.meta &&

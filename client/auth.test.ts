@@ -46,7 +46,9 @@ import { KVService } from "../server/services/kv.ts";
 import { Context } from "../common/server/context.ts";
 
 Deno.test("Client Auth", async (t) => {
-	const email = new EmailAuthentificationIdenticator(new LoggerMessageProvider());
+	const email = new EmailAuthentificationIdenticator(
+		new LoggerMessageProvider(),
+	);
 	const password = new PasswordAuthentificationChallenger();
 	const totp = new TOTPLoggerAuthentificationChallenger({
 		period: 60,
@@ -91,9 +93,8 @@ Deno.test("Client Auth", async (t) => {
 		session: new SessionService(configuration, sessionProvider),
 		kv: new KVService(kvProvider),
 		remoteAddress: "127.0.0.1",
-		waitUntil() { }
-	}
-
+		waitUntil() {},
+	};
 
 	const john = await identityService.create({});
 	await identityService.createIdentification({
@@ -225,7 +226,7 @@ Deno.test("Client Auth", async (t) => {
 		assertSendIdentificationChallengeResponse(result2);
 		const challengeCode = messages.pop()?.message ?? "";
 		assertEquals(challengeCode.length, 6);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 		const result3 = await submitAuthenticationChallenge(
 			app,
 			"totp",
@@ -247,7 +248,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
 		assertEquals(messages[0]?.message.text.length, 6);
 	});
@@ -264,7 +265,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 		assertEquals(sendResult.sent, true);
 		const validationCode = messages[0]?.message.text;
 		const confirmResult = await confirmIdentificationValidationCode(

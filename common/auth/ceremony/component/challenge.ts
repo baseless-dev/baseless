@@ -3,7 +3,7 @@ import { InvalidAuthenticationCeremonyComponentChallengeError } from "../../erro
 export interface AuthenticationCeremonyComponentChallenge {
 	readonly kind: string;
 	readonly prompt: "password" | "otp";
-};
+}
 
 export function isAuthenticationCeremonyComponentChallenge(
 	value?: unknown,

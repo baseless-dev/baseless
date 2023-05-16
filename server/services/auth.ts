@@ -96,7 +96,7 @@ export class AuthenticationService implements IAuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#counterProvider.increment(counterKey, 1, counterInterval) >
-			this.#configuration.auth.security.rateLimit.identificationCount
+				this.#configuration.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -206,7 +206,7 @@ export class AuthenticationService implements IAuthenticationService {
 		context: Context,
 		identityId: AutoId,
 		type: string,
-		locale: string,
+		_locale: string,
 	): Promise<void> {
 		const identificator = this.#configuration.auth.identificators.get(
 			type,
@@ -243,7 +243,12 @@ export class AuthenticationService implements IAuthenticationService {
 				ii.type === type
 			);
 			if (identityIdentification) {
-				await identificator.sendMessage({ context, identityIdentification, message: { text: code } });
+				// TODO actual message from locale
+				await identificator.sendMessage({
+					context,
+					identityIdentification,
+					message: { text: code },
+				});
 			}
 		}
 	}

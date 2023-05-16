@@ -1,8 +1,9 @@
-import type {
-	KeyLike,
-} from "https://deno.land/x/jose@v4.13.1/types.d.ts";
+import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.13.1/jwt/verify.ts";
-import { AuthenticationCeremonyState, assertAuthenticationCeremonyState } from "../../../common/auth/ceremony/state.ts";
+import {
+	assertAuthenticationCeremonyState,
+	AuthenticationCeremonyState,
+} from "../../../common/auth/ceremony/state.ts";
 
 export async function decryptEncryptedAuthenticationCeremonyState(
 	data: string,

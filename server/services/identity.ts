@@ -207,7 +207,9 @@ export class IdentityService implements IIdentityService {
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
 		}
-		const meta = await challenger.configureIdentityChallenge?.({ context, challenge }) ?? {};
+		const meta =
+			await challenger.configureIdentityChallenge?.({ context, challenge }) ??
+				{};
 		// TODO life cycle hooks
 		return this.createChallengeWithMeta({
 			identityId,
@@ -283,7 +285,13 @@ export class IdentityService implements IIdentityService {
 							identityIdentification.type,
 						);
 					if (identicator && identicator.sendMessage) {
-						messages.push(identicator.sendMessage({ context, identityIdentification, message }));
+						messages.push(
+							identicator.sendMessage({
+								context,
+								identityIdentification,
+								message,
+							}),
+						);
 					}
 					return messages;
 				},
@@ -317,7 +325,11 @@ export class IdentityService implements IIdentityService {
 					identificationType,
 				);
 				if (identityIdentification) {
-					return identicator.sendMessage({ context, identityIdentification, message });
+					return identicator.sendMessage({
+						context,
+						identityIdentification,
+						message,
+					});
 				}
 			}
 		} catch (_error) {

@@ -5,9 +5,10 @@ import type {
 	KVListResult,
 	KVPutOptions,
 } from "../../../providers/kv.ts";
-// deno-lint-ignore no-unused-vars
 import type {
+	// deno-lint-ignore no-unused-vars
 	KVKeyNotFoundError,
+	// deno-lint-ignore no-unused-vars
 	KVPutError,
 } from "../../../common/kv/errors.ts";
 

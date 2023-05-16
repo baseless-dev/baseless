@@ -4,7 +4,7 @@ import { oneOf } from "./helpers.ts";
 import { isAuthenticationCeremonyComponentSequence } from "./sequence.ts";
 import { simplify } from "./simplify.ts";
 
-export class AuthenticationCeremonyComponentAtPathError extends Error { }
+export class AuthenticationCeremonyComponentAtPathError extends Error {}
 
 export type GetComponentAtPathYieldResult = {
 	done: false;

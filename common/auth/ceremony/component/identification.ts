@@ -3,7 +3,7 @@ import { InvalidAuthenticationCeremonyComponentIdentificationError } from "../..
 export interface AuthenticationCeremonyComponentIdentification {
 	readonly kind: string;
 	readonly prompt: "email" | "action";
-};
+}
 
 export function isAuthenticationCeremonyComponentIdentification(
 	value?: unknown,

@@ -7,15 +7,16 @@ export type AuthenticationIdenticatorIdentifyOptions = {
 	context: Context;
 	identityIdentification: IdentityIdentification;
 	identification: string;
-}
+};
 
 export type AuthenticationIdenticatorSendMessageOptions = {
 	context: Context;
 	identityIdentification: IdentityIdentification;
 	message: Omit<Message, "recipient">;
-}
+};
 
-export abstract class AuthenticationIdenticator implements AuthenticationCeremonyComponentIdentification {
+export abstract class AuthenticationIdenticator
+	implements AuthenticationCeremonyComponentIdentification {
 	abstract kind: string;
 	abstract prompt: "email" | "action";
 	toJSON() {
@@ -24,9 +25,13 @@ export abstract class AuthenticationIdenticator implements AuthenticationCeremon
 			prompt: this.prompt,
 		};
 	}
-	abstract identify(options: AuthenticationIdenticatorIdentifyOptions): Promise<boolean | URL>;
+	abstract identify(
+		options: AuthenticationIdenticatorIdentifyOptions,
+	): Promise<boolean | URL>;
 
-	sendMessage?: (options: AuthenticationIdenticatorSendMessageOptions) => Promise<void> = undefined;
+	sendMessage?: (
+		options: AuthenticationIdenticatorSendMessageOptions,
+	) => Promise<void> = undefined;
 
 	rateLimit: { interval: number; count: number } = { interval: 0, count: 0 };
 }

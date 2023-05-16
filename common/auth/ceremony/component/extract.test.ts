@@ -17,7 +17,12 @@ Deno.test("extract", () => {
 		[email, password, github, google],
 	);
 	assertEquals(
-		extract(h.oneOf(h.sequence(email, password, github), h.sequence(email, password, google))),
+		extract(
+			h.oneOf(
+				h.sequence(email, password, github),
+				h.sequence(email, password, google),
+			),
+		),
 		[email, password, github, google],
 	);
 });

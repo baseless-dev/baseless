@@ -141,8 +141,16 @@ export class AuthenticationConfigurationBuilder {
 		}
 		const ceremonyComponents = extract(this.#ceremony);
 		ceremonyComponents.push(...this.#components);
-		const identificatorCompoenents = ceremonyComponents.filter((component): component is AuthenticationIdenticator => component instanceof AuthenticationIdenticator);
-		const challengerComponents = ceremonyComponents.filter((component): component is AuthenticationChallenger => component instanceof AuthenticationChallenger);
+		const identificatorCompoenents = ceremonyComponents.filter((
+			component,
+		): component is AuthenticationIdenticator =>
+			component instanceof AuthenticationIdenticator
+		);
+		const challengerComponents = ceremonyComponents.filter((
+			component,
+		): component is AuthenticationChallenger =>
+			component instanceof AuthenticationChallenger
+		);
 		return {
 			enabled: this.#enabled,
 			security: {
@@ -159,8 +167,8 @@ export class AuthenticationConfigurationBuilder {
 				},
 			},
 			ceremony: this.#ceremony,
-			identificators: new Map(identificatorCompoenents.map(c => [c.kind, c])),
-			challengers: new Map(challengerComponents.map(c => [c.kind, c])),
+			identificators: new Map(identificatorCompoenents.map((c) => [c.kind, c])),
+			challengers: new Map(challengerComponents.map((c) => [c.kind, c])),
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,
@@ -168,5 +176,5 @@ export class AuthenticationConfigurationBuilder {
 	}
 }
 
-export class AuthenticationMissingIdentificatorError extends Error { }
-export class AuthenticationMissingChallengerError extends Error { }
+export class AuthenticationMissingIdentificatorError extends Error {}
+export class AuthenticationMissingChallengerError extends Error {}

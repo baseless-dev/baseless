@@ -159,4 +159,22 @@ export interface IIdentityService {
 		identificationType: string,
 		message: Omit<Message, "recipient">,
 	): Promise<void>;
+
+	sendIdentificationValidationCode(
+		identityId: AutoId,
+		type: string,
+		locale: string,
+	): Promise<void>;
+
+	confirmIdentificationValidationCode(
+		identityId: AutoId,
+		type: string,
+		code: string,
+	): Promise<void>;
+
+	sendIdentificationChallenge(
+		identityId: AutoId,
+		type: string,
+		locale: string,
+	): Promise<void>;
 }

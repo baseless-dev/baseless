@@ -1,7 +1,10 @@
 import { MessageSendError } from "../../client/errors.ts";
 import {
+	AuthenticationConfirmValidationCodeError,
 	AuthenticationMissingChallengerError,
 	AuthenticationRateLimitedError,
+	AuthenticationSendIdentificationChallengeError,
+	AuthenticationSendValidationCodeError,
 } from "../../common/auth/errors.ts";
 import {
 	assertIdentityChallenge,
@@ -40,9 +43,12 @@ import { assertMessage, Message } from "../../common/message/message.ts";
 import { IContext } from "../../common/server/context.ts";
 import { IIdentityService } from "../../common/server/services/identity.ts";
 import { assertAutoId, AutoId } from "../../common/system/autoid.ts";
+import { createLogger } from "../../common/system/logger.ts";
+import { otp } from "../../common/system/otp.ts";
 import { IdentityProvider } from "../../providers/identity.ts";
 
 export class IdentityService implements IIdentityService {
+	#logger = createLogger("identity-service");
 	#identityProvider: IdentityProvider;
 	#context: IContext;
 
@@ -332,5 +338,155 @@ export class IdentityService implements IIdentityService {
 			// skip
 		}
 		throw new MessageSendError();
+	}
+
+	/**
+	 * @throws {AuthenticationRateLimitedError}
+	 * @throws {AuthenticationSendValidationCodeError}
+	 */
+	async sendIdentificationValidationCode(
+		identityId: AutoId,
+		type: string,
+		_locale: string,
+	): Promise<void> {
+		const identificator = this.#context.config.auth.identificators.get(
+			type,
+		);
+		if (!identificator) {
+			throw new AuthenticationSendValidationCodeError();
+		}
+
+		if (identificator.sendMessage) {
+			if (identificator.rateLimit.interval) {
+				const { interval, count } = identificator.rateLimit;
+				const slidingWindow = Math.round(Date.now() / interval * 1000);
+				const counterKey =
+					`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
+				const counter = await this.#context.counter.increment(
+					counterKey,
+					1,
+					interval,
+				);
+				if (counter > count) {
+					throw new AuthenticationRateLimitedError();
+				}
+			}
+			const code = otp({ digits: 6 });
+			await this.#context.kv.put(
+				`/auth/validationcode/${identityId}/${type}`,
+				code,
+				{ expiration: 1000 * 60 * 5 },
+			);
+
+			const identityIdentifications = await this.#context.identity
+				.listIdentification(identityId);
+			const identityIdentification = identityIdentifications.find((ii) =>
+				ii.type === type
+			);
+			if (identityIdentification) {
+				// TODO actual message from locale
+				await identificator.sendMessage({
+					context: this.#context,
+					identityIdentification,
+					message: { text: code },
+				});
+			}
+		}
+	}
+
+	/**
+	 * @throws {AuthenticationRateLimitedError}
+	 * @throws {AuthenticationConfirmValidationCodeError}
+	 */
+	async confirmIdentificationValidationCode(
+		identityId: AutoId,
+		type: string,
+		code: string,
+	): Promise<void> {
+		try {
+			const counterInterval = this.#context.config.auth.security.rateLimit
+				.confirmVerificationCodeInterval;
+			const counterLimit = this.#context.config.auth.security.rateLimit
+				.confirmVerificationCodeCount;
+			const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
+			const counterKey =
+				`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
+			const counter = await this.#context.counter.increment(
+				counterKey,
+				1,
+				counterInterval,
+			);
+			if (counter > counterLimit) {
+				throw new AuthenticationRateLimitedError();
+			}
+
+			const identityIdentifications = await this.#context.identity
+				.listIdentification(identityId);
+			const identityIdentification = identityIdentifications.find((ii) =>
+				ii.type === type
+			);
+			if (!identityIdentification) {
+				throw new AuthenticationConfirmValidationCodeError();
+			}
+
+			const savedCode = await this.#context.kv.get(
+				`/auth/validationcode/${identityId}/${type}`,
+			).catch((_) => undefined);
+			if (savedCode?.value === code) {
+				await this.#context.identity.updateIdentification({
+					...identityIdentification,
+					verified: true,
+				});
+				return;
+			}
+		} catch (inner) {
+			this.#logger.error(
+				`Failed to confirm identification validation code, got ${inner}`,
+			);
+		}
+		throw new AuthenticationConfirmValidationCodeError();
+	}
+
+	async sendIdentificationChallenge(
+		identityId: AutoId,
+		type: string,
+		locale: string,
+	): Promise<void> {
+		const challenger = this.#context.config.auth.challengers.get(
+			type,
+		);
+		if (!challenger) {
+			throw new AuthenticationSendIdentificationChallengeError();
+		}
+
+		const identityChallenge = await this.#context.identity.getChallenge(
+			identityId,
+			type,
+		);
+		if (!identityChallenge) {
+			throw new AuthenticationSendIdentificationChallengeError();
+		}
+
+		if (challenger.sendChallenge) {
+			if (challenger.rateLimit.interval) {
+				const { interval, count } = challenger.rateLimit;
+				const slidingWindow = Math.round(Date.now() / interval * 1000);
+				const counterKey =
+					`/auth/sendchallenge/${identityId}/${type}/${slidingWindow}`;
+				const counter = await this.#context.counter.increment(
+					counterKey,
+					1,
+					interval,
+				);
+				if (counter > count) {
+					throw new AuthenticationRateLimitedError();
+				}
+			}
+			await challenger.sendChallenge({
+				identityChallenge,
+				context: this.#context,
+				locale,
+			});
+		}
 	}
 }

@@ -20,22 +20,4 @@ export interface IAuthenticationService {
 		challenge: string,
 		subject: string,
 	): Promise<AuthenticationCeremonyResponse>;
-
-	sendIdentificationValidationCode(
-		identityId: AutoId,
-		type: string,
-		locale: string,
-	): Promise<void>;
-
-	confirmIdentificationValidationCode(
-		identityId: AutoId,
-		type: string,
-		code: string,
-	): Promise<void>;
-
-	sendIdentificationChallenge(
-		identityId: AutoId,
-		type: string,
-		locale: string,
-	): Promise<void>;
 }

@@ -15,7 +15,7 @@ export async function confirmIdentificationValidationCode(
 			type,
 			identification,
 		);
-		await context.auth.confirmIdentificationValidationCode(
+		await context.identity.confirmIdentificationValidationCode(
 			identityIdentification.identityId,
 			type,
 			code,

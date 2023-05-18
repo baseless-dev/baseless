@@ -16,7 +16,7 @@ export async function sendIdentificationValidationCode(
 			type,
 			identification,
 		);
-		await context.auth.sendIdentificationValidationCode(
+		await context.identity.sendIdentificationValidationCode(
 			identityIdentification.identityId,
 			type,
 			locale,

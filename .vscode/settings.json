@@ -14,9 +14,9 @@
 	"explorer.fileNesting.expand": false,
 	"explorer.fileNesting.patterns": {
 		"deno.json": "deno.lock, import-map.json, .gitignore, .prettierrc",
+		"*.mjs": "${capture}.mjs.map, ${capture}.d.ts, ${capture}.ts",
 		"*.ts": "${capture}.test.ts",
 		"*.tsx": "${capture}.test.tsx",
-		"*.js": "${capture}.js.map, ${capture}.d.ts",
 		"*.css": "${capture}.css.map"
 	},
 	"editor.insertSpaces": false,

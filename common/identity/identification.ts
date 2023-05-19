@@ -1,5 +1,6 @@
 import { AutoId, isAutoId } from "../system/autoid.ts";
 import { InvalidIdentityIdentificationError } from "./errors.ts";
+import { IDENTITY_AUTOID_PREFIX } from "./identity.ts";
 
 export interface IdentityIdentification<Meta = Record<string, unknown>> {
 	readonly identityId: AutoId;
@@ -14,7 +15,7 @@ export function isIdentityIdentification(
 ): value is IdentityIdentification {
 	return !!value && typeof value === "object" && "identityId" in value &&
 		"type" in value && "identification" in value && "verified" in value &&
-		"meta" in value && isAutoId(value.identityId) &&
+		"meta" in value && isAutoId(value.identityId, IDENTITY_AUTOID_PREFIX) &&
 		typeof value.verified === "boolean" && typeof value.meta === "object";
 }
 

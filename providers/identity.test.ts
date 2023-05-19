@@ -3,7 +3,10 @@ import {
 	assertRejects,
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import type { IdentityProvider } from "./identity.ts";
-import { assertIdentity } from "../common/identity/identity.ts";
+import {
+	assertIdentity,
+	IDENTITY_AUTOID_PREFIX,
+} from "../common/identity/identity.ts";
 import { autoid } from "../common/system/autoid.ts";
 import type { IdentityIdentification } from "../common/identity/identification.ts";
 import type { IdentityChallenge } from "../common/identity/challenge.ts";
@@ -31,7 +34,9 @@ export default async function testIdentityProvider(
 		const ident1 = await ip.get(identityId);
 		assertIdentity(ident1);
 		assertEquals(ident1.meta, { foo: "foo" });
-		await assertRejects(() => ip.update({ id: autoid(), meta: {} }));
+		await assertRejects(() =>
+			ip.update({ id: autoid(IDENTITY_AUTOID_PREFIX), meta: {} })
+		);
 	});
 
 	await t.step("delete", async () => {

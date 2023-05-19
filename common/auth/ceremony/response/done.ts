@@ -1,3 +1,4 @@
+import { IDENTITY_AUTOID_PREFIX } from "../../../identity/identity.ts";
 import { AutoId, isAutoId } from "../../../system/autoid.ts";
 import { InvalidAuthenticationCeremonyResponseDoneError } from "../../errors.ts";
 
@@ -10,7 +11,8 @@ export function isAuthenticationCeremonyResponseDone(
 	value?: unknown,
 ): value is AuthenticationCeremonyResponseDone {
 	return !!value && typeof value === "object" && "done" in value &&
-		value.done === true && "identityId" in value && isAutoId(value.identityId);
+		value.done === true && "identityId" in value &&
+		isAutoId(value.identityId, IDENTITY_AUTOID_PREFIX);
 }
 
 export function assertAuthenticationCeremonyResponseDone(

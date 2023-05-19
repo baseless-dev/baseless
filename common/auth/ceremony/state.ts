@@ -1,3 +1,4 @@
+import { IDENTITY_AUTOID_PREFIX } from "../../identity/identity.ts";
 import { AutoId, isAutoId } from "../../system/autoid.ts";
 import {
 	InvalidAuthenticationCeremonyState,
@@ -38,7 +39,7 @@ export function isAuthenticationCeremonyStateIdentified(
 	value?: unknown,
 ): value is AuthenticationCeremonyStateIdentified {
 	return isAuthenticationCeremonyStateAnonymous(value) && "identity" in value &&
-		isAutoId(value.identity);
+		isAutoId(value.identity, IDENTITY_AUTOID_PREFIX);
 }
 
 export function assertAuthenticationCeremonyStateIdentified(

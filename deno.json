@@ -24,7 +24,8 @@
 		"cache": "DENO_DIR=.deno deno cache",
 		"info": "DENO_DIR=.deno deno info",
 		"bench": "DENO_DIR=.deno deno bench -A --unstable",
-		"test": "DENO_DIR=.deno deno test -A --unstable --parallel --fail-fast --coverage=coverage",
+		"test": "DENO_DIR=.deno deno test -A --unstable --coverage=coverage",
+		"test:fast": "DENO_DIR=.deno deno test -A --unstable --parallel --fail-fast",
 		"coverage": "DENO_DIR=.deno deno coverage coverage"
 	},
 	"lint": {

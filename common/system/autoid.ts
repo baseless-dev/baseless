@@ -8,11 +8,11 @@ const AutoIdRegExp = new RegExp(`^[${AutoIdChars}]{${AutoIdSize}}$`);
 
 /**
  * Generate an AutoId
- * @param seed The seed for the AutoId
+ * @param prefix The prefix for the AutoId
  * @returns An AutoId
  */
-export function autoid(): AutoId {
-	let result = "";
+export function autoid(prefix = ""): AutoId {
+	let result = prefix;
 	const buffer = new Uint8Array(AutoIdSize);
 	crypto.getRandomValues(buffer);
 	for (let i = 0; i < AutoIdSize; ++i) {
@@ -22,6 +22,7 @@ export function autoid(): AutoId {
 }
 
 export class AutoIdGenerator {
+	#prefix: string;
 	#hash: [number, number, number, number] = [
 		1779033703,
 		3144134277,
@@ -29,12 +30,16 @@ export class AutoIdGenerator {
 		2773480762,
 	];
 
+	constructor(prefix = "") {
+		this.#prefix = prefix;
+	}
+
 	write(chunk: ArrayLike<number>) {
 		this.#hash = cyrb128(chunk, ...this.#hash);
 	}
 
 	read(): AutoId {
-		let autoid = "";
+		let autoid = this.#prefix;
 		const buffer = new Uint8Array(AutoIdSize);
 		const rand = sfc32(
 			this.#hash[0],
@@ -54,13 +59,13 @@ export class AutoIdGenerator {
 
 export class AutoIdStream extends WritableStream<ArrayLike<number>> {
 	#gen: AutoIdGenerator;
-	public constructor() {
+	public constructor(prefix = "") {
 		super({
 			write: (chunk) => {
 				this.#gen.write(chunk);
 			},
 		});
-		this.#gen = new AutoIdGenerator();
+		this.#gen = new AutoIdGenerator(prefix);
 	}
 
 	read(): AutoId {
@@ -128,17 +133,23 @@ function sfc32(a: number, b: number, c: number, d: number) {
 	};
 }
 
-export function isAutoId(value?: unknown): value is AutoId {
-	return !!value && typeof value === "string" && AutoIdRegExp.test(value);
+export function isAutoId(value?: unknown, prefix = ""): value is AutoId {
+	const pl = prefix.length;
+	return !!value && typeof value === "string" &&
+		value.substring(0, pl) === prefix && AutoIdRegExp.test(value.substring(pl));
 }
 
 /**
  * Test if value is an AutoId
  * @param value The value to test
+ * @param prefix The prefix for the AutoId
  * @returns If value is an AutoId
  */
-export function assertAutoId(value?: unknown): asserts value is AutoId {
-	if (!(isAutoId(value))) {
+export function assertAutoId(
+	value?: unknown,
+	prefix = "",
+): asserts value is AutoId {
+	if (!(isAutoId(value, prefix))) {
 		throw new InvalidAutoIdError();
 	}
 }

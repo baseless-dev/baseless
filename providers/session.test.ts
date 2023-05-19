@@ -5,13 +5,14 @@ import {
 import { SessionProvider } from "./session.ts";
 import { autoid } from "../common/system/autoid.ts";
 import { assertSessionData, SessionData } from "../common/session/data.ts";
+import { IDENTITY_AUTOID_PREFIX } from "../common/identity/identity.ts";
 
 export default async function testSessionProvider(
 	session: SessionProvider,
 	t: Deno.TestContext,
 ) {
-	const identityId1 = autoid();
-	const identityId2 = autoid();
+	const identityId1 = autoid(IDENTITY_AUTOID_PREFIX);
+	const identityId2 = autoid(IDENTITY_AUTOID_PREFIX);
 	let sessionData1: SessionData | undefined;
 	let sessionData2: SessionData | undefined;
 
@@ -28,7 +29,10 @@ export default async function testSessionProvider(
 	});
 
 	await t.step("update", async () => {
-		const sessionData = await session.create(autoid(), {});
+		const sessionData = await session.create(
+			autoid(IDENTITY_AUTOID_PREFIX),
+			{},
+		);
 		await session.update({ ...sessionData!, meta: { foo: "bar" } });
 		const sessionDataA = await session.get(sessionData!.id);
 		assertSessionData(sessionDataA);

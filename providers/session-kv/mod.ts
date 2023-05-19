@@ -1,6 +1,8 @@
+import { IDENTITY_AUTOID_PREFIX } from "../../common/identity/identity.ts";
 import {
 	assertSessionData,
 	isSessionData,
+	SESSION_AUTOID_PREFIX,
 	SessionData,
 } from "../../common/session/data.ts";
 import {
@@ -34,7 +36,7 @@ export class KVSessionProvider implements SessionProvider {
 		sessionId: AutoId,
 	): Promise<SessionData<Meta>> {
 		try {
-			assertAutoId(sessionId);
+			assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
 			const result = await this.#kvProvider.get(`/byId/${sessionId}`);
 			const sessionData = JSON.parse(result.value);
 			assertSessionData(sessionData);
@@ -54,8 +56,8 @@ export class KVSessionProvider implements SessionProvider {
 		expiration?: number | Date,
 	): Promise<SessionData> {
 		try {
-			assertAutoId(identityId);
-			const id = autoid();
+			assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
+			const id = autoid(SESSION_AUTOID_PREFIX);
 			const sessionData: SessionData = {
 				id,
 				identityId,
@@ -110,7 +112,7 @@ export class KVSessionProvider implements SessionProvider {
 	 */
 	async destroy(sessionId: AutoId): Promise<void> {
 		try {
-			assertAutoId(sessionId);
+			assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
 			const sessionData = await this.get(sessionId);
 			await Promise.all([
 				this.#kvProvider.delete(`/byId/${sessionData.id}`),
@@ -129,7 +131,7 @@ export class KVSessionProvider implements SessionProvider {
 
 	async list(identityId: AutoId): Promise<SessionData[]> {
 		try {
-			assertAutoId(identityId);
+			assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
 			const result = await this.#kvProvider.list({
 				prefix: `/byIdentity/${identityId}`,
 			});

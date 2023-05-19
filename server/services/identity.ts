@@ -38,7 +38,10 @@ import {
 	assertIdentityIdentification,
 	IdentityIdentification,
 } from "../../common/identity/identification.ts";
-import { Identity } from "../../common/identity/identity.ts";
+import {
+	Identity,
+	IDENTITY_AUTOID_PREFIX,
+} from "../../common/identity/identity.ts";
 import { assertMessage, Message } from "../../common/message/message.ts";
 import { IContext } from "../../common/server/context.ts";
 import { IIdentityService } from "../../common/server/services/identity.ts";
@@ -275,7 +278,7 @@ export class IdentityService implements IIdentityService {
 		message: Omit<Message, "recipient">,
 	): Promise<void> {
 		try {
-			assertAutoId(identityId);
+			assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
 			assertMessage(message);
 			const identifications = await this.#identityProvider.listIdentification(
 				identityId,
@@ -315,7 +318,7 @@ export class IdentityService implements IIdentityService {
 		message: Omit<Message, "recipient">,
 	): Promise<void> {
 		try {
-			assertAutoId(identityId);
+			assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
 			assertMessage(message);
 			const identicator = this.#context.config.auth.identificators
 				.get(

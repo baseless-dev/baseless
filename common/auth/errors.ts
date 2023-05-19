@@ -99,3 +99,6 @@ export class AuthenticationMissingIdentificatorError extends Error {
 export class AuthenticationMissingChallengerError extends Error {
 	name = "AuthenticationMissingChallengerError" as const;
 }
+export class InvalidAuthenticationTokensError extends Error {
+	name = "InvalidAuthenticationTokensError" as const;
+}

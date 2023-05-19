@@ -1,5 +1,6 @@
 import { ConfirmIdentificationValidationCodeResponse } from "../../../common/auth/confirm_identification_validation_code_response.ts";
 import { IContext } from "../../../common/server/context.ts";
+import { getJsonData } from "../get_json_data.ts";
 
 export async function confirmIdentificationValidationCode(
 	request: Request,
@@ -7,10 +8,10 @@ export async function confirmIdentificationValidationCode(
 	context: IContext,
 ): Promise<ConfirmIdentificationValidationCodeResponse> {
 	try {
-		const formData = await request.formData();
-		const type = formData.get("type")?.toString() ?? "";
-		const identification = formData.get("identification")?.toString() ?? "";
-		const code = formData.get("code")?.toString() ?? "";
+		const data = await getJsonData(request);
+		const type = data.type?.toString() ?? "";
+		const identification = data.identification?.toString() ?? "";
+		const code = data.code?.toString() ?? "";
 		const identityIdentification = await context.identity.matchIdentification(
 			type,
 			identification,

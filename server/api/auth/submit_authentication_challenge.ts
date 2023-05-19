@@ -2,6 +2,7 @@ import { AuthenticationCeremonyResponse } from "../../../common/auth/ceremony/re
 import { isAuthenticationCeremonyResponseDone } from "../../../common/auth/ceremony/response/done.ts";
 import { assertAuthenticationCeremonyStateIdentified } from "../../../common/auth/ceremony/state.ts";
 import { IContext } from "../../../common/server/context.ts";
+import { getJsonData } from "../get_json_data.ts";
 import { createTokens } from "./create_tokens.ts";
 import { decryptEncryptedAuthenticationCeremonyState } from "./decrypt_encrypted_authentication_ceremony_state.ts";
 import { encryptAuthenticationCeremonyState } from "./encrypt_authentication_ceremony_state.ts";
@@ -11,10 +12,10 @@ export async function submitAuthenticationChallenge(
 	_params: Record<never, never>,
 	context: IContext,
 ): Promise<AuthenticationCeremonyResponse> {
-	const formData = await request.formData();
-	const type = formData.get("type")?.toString() ?? "";
-	const challenge = formData.get("challenge")?.toString() ?? "";
-	const encryptedState = formData.get("state")?.toString() ?? "";
+	const data = await getJsonData(request);
+	const type = data?.type?.toString() ?? "";
+	const challenge = data?.challenge?.toString() ?? "";
+	const encryptedState = data?.state?.toString() ?? "";
 	const state = await decryptEncryptedAuthenticationCeremonyState(
 		encryptedState,
 		context.config.auth.security.keys.publicKey,

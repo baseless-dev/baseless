@@ -1,5 +1,6 @@
 import { AuthenticationCeremonyResponse } from "../../../common/auth/ceremony/response.ts";
 import { IContext } from "../../../common/server/context.ts";
+import { getJsonData } from "../get_json_data.ts";
 import { decryptEncryptedAuthenticationCeremonyState } from "./decrypt_encrypted_authentication_ceremony_state.ts";
 
 export async function getAuthenticationCeremony(
@@ -8,8 +9,8 @@ export async function getAuthenticationCeremony(
 	context: IContext,
 ): Promise<AuthenticationCeremonyResponse> {
 	if (request.method === "POST") {
-		const formData = await request.formData();
-		const encryptedState = formData.get("state")?.toString() ?? "";
+		const data = await getJsonData(request);
+		const encryptedState = data?.state?.toString() ?? "";
 		const state = await decryptEncryptedAuthenticationCeremonyState(
 			encryptedState,
 			context.config.auth.security.keys.publicKey,

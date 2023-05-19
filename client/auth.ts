@@ -17,13 +17,12 @@ import {
 	assertSendIdentificationChallengeResponse,
 	SendIdentificationChallengeResponse,
 } from "../common/auth/send_identification_challenge_response.ts";
-
-// TODO move to server
-export type Tokens = {
-	id_token: string;
-	access_token: string;
-	refresh_token?: string;
-};
+import { isAuthenticationCeremonyResponseTokens } from "../common/auth/ceremony/response/tokens.ts";
+import {
+	assertAuthenticationTokens,
+	AuthenticationTokens,
+	isAuthenticationTokens,
+} from "../common/auth/tokens.ts";
 
 export type Persistence = "local" | "session";
 
@@ -37,9 +36,9 @@ export function assertPersistence(
 		throw new InvalidPersistenceError();
 	}
 }
-export class InvalidPersistenceError extends Error {}
+export class InvalidPersistenceError extends Error { }
 
-const tokenMap = new Map<string, Tokens | undefined>();
+const tokenMap = new Map<string, AuthenticationTokens | undefined>();
 const onAuthStateChangeMap = new Map<string, EventEmitter<never>>();
 const storageMap = new Map<string, Storage>();
 
@@ -49,16 +48,48 @@ function assertInitializedAuth(app: App): asserts app is App {
 	}
 }
 
-function getAuthData(app: App) {
+function getTokens(app: App) {
 	assertApp(app);
 	assertInitializedAuth(app);
-	const tokens = tokenMap.get(app.clientId)!;
-	const onAuthStateChange = onAuthStateChangeMap.get(app.clientId)!;
-	const storage = storageMap.get(app.clientId)!;
-	return { storage, tokens, onAuthStateChange };
+	return tokenMap.get(app.clientId);
 }
 
-export class AuthNotInitializedError extends Error {}
+function setTokens(
+	app: App,
+	tokens: AuthenticationTokens | undefined,
+	delayed = false,
+) {
+	assertApp(app);
+	assertInitializedAuth(app);
+	if (isAuthenticationTokens(tokens)) {
+		const { access_token, id_token, refresh_token } = tokens;
+		tokens = { access_token, id_token, refresh_token };
+	}
+	tokenMap.set(app.clientId, tokens);
+	getStorage(app).setItem(
+		`baseless_${app.clientId}_tokens`,
+		JSON.stringify(tokens),
+	);
+	// TODO save identity from id_token
+	if (delayed) {
+		setTimeout(() => onAuthStateChangeMap.get(app.clientId)!.emit(), 1);
+	}
+	onAuthStateChangeMap.get(app.clientId)!.emit();
+}
+
+function getOnAuthStateChange(app: App) {
+	assertApp(app);
+	assertInitializedAuth(app);
+	return onAuthStateChangeMap.get(app.clientId)!;
+}
+
+function getStorage(app: App) {
+	assertApp(app);
+	assertInitializedAuth(app);
+	return storageMap.get(app.clientId)!;
+}
+
+export class AuthNotInitializedError extends Error { }
 
 export function initializeAuth(app: App): App {
 	assertApp(app);
@@ -67,26 +98,34 @@ export function initializeAuth(app: App): App {
 	}
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
-	storageMap.set(
-		app.clientId,
-		persistence === "local"
-			? globalThis.localStorage
-			: globalThis.sessionStorage,
-	);
+		"local";
+	const storage = persistence === "local"
+		? globalThis.localStorage
+		: globalThis.sessionStorage;
 	const onTokenChange = new EventEmitter<never>();
-	onAuthStateChangeMap.set(app.clientId, onTokenChange);
 
+	storageMap.set(app.clientId, storage);
+	onAuthStateChangeMap.set(app.clientId, onTokenChange);
 	tokenMap.set(app.clientId, undefined);
-	// TODO load tokens from storage
-	// tokenMap.set(app.clientId, { ... });
-	// TODO emit change in setTimeout to allow listeners to be added
-	// setTimeout(() => onTokenChange.emit(), 0);
+
+	const tokensString = storage.getItem(`baseless_${app.clientId}_tokens`);
+	if (tokensString) {
+		try {
+			const tokens = JSON.parse(tokensString);
+			assertAuthenticationTokens(tokens);
+			setTokens(app, tokens, true);
+		} catch (error) {
+			console.error(
+				`[baseless] failed to parse tokens from storage, got ${error}.`,
+			);
+			storage.removeItem(`baseless_${app.clientId}_tokens`);
+		}
+	}
 	return {
 		...app,
 		fetch(input: URL | Request | string, init?: RequestInit) {
 			const headers = new Headers(init?.headers);
-			const tokens = tokenMap.get(app.clientId);
+			const tokens = getTokens(app);
 			if (tokens?.access_token) {
 				headers.set("Authorization", `Bearer ${tokens.access_token}`);
 			}
@@ -100,7 +139,7 @@ export function getPersistence(app: App): Persistence {
 	assertInitializedAuth(app);
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	assertPersistence(persistence);
 	return persistence;
 }
@@ -113,17 +152,22 @@ export function setPersistence(app: App, persistence: Persistence) {
 		`baseless_${app.clientId}_persistence`,
 		persistence,
 	);
+	const oldStorage = getStorage(app);
 	const newStorage = persistence === "local"
 		? globalThis.localStorage
 		: globalThis.sessionStorage;
-	// TODO copy tokens from old storage to newStorage?
+	const tokens = oldStorage?.getItem(`baseless_${app.clientId}_tokens`);
+	if (tokens) {
+		newStorage.setItem(`baseless_${app.clientId}_tokens`, tokens);
+		oldStorage.removeItem(`baseless_${app.clientId}_tokens`);
+	}
 	storageMap.set(app.clientId, newStorage);
 }
 
 export function onAuthStateChange(app: App, listener: () => void) {
 	assertApp(app);
 	assertInitializedAuth(app);
-	const { onAuthStateChange } = getAuthData(app);
+	const onAuthStateChange = getOnAuthStateChange(app);
 	return onAuthStateChange.listen(listener);
 }
 
@@ -134,11 +178,12 @@ export async function getAuthenticationCeremony(
 	assertApp(app);
 	assertInitializedAuth(app);
 	let method = "GET";
-	let body: FormData | undefined;
+	let body: string | undefined;
+	const headers = new Headers();
 	if (typeof state === "string") {
 		method = "POST";
-		body = new FormData();
-		body.set("state", state);
+		headers.set("Content-Type", "application/json");
+		body = JSON.stringify({ state });
 	}
 	const resp = await app.fetch(
 		`${app.apiEndpoint}/auth/getAuthenticationCeremony`,
@@ -161,19 +206,21 @@ export async function submitAuthenticationIdentification(
 ): Promise<AuthenticationCeremonyResponse> {
 	assertApp(app);
 	assertInitializedAuth(app);
-	const body = new FormData();
-	body.set("type", type);
-	body.set("identification", identification);
-	if (state) {
-		body.set("state", state);
-	}
+	const body = JSON.stringify({
+		type,
+		identification,
+		...(state ? { state } : undefined),
+	});
 	const resp = await app.fetch(
 		`${app.apiEndpoint}/auth/submitAuthenticationIdentification`,
-		{ body, method: "POST" },
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
 	assertAuthenticationCeremonyResponse(result.data);
+	if (isAuthenticationCeremonyResponseTokens(result.data)) {
+		setTokens(app, result.data);
+	}
 	return result.data;
 }
 
@@ -185,17 +232,17 @@ export async function submitAuthenticationChallenge(
 ): Promise<AuthenticationCeremonyResponse> {
 	assertApp(app);
 	assertInitializedAuth(app);
-	const body = new FormData();
-	body.set("type", type);
-	body.set("challenge", challenge);
-	body.set("state", state);
+	const body = JSON.stringify({ type, challenge, state });
 	const resp = await app.fetch(
 		`${app.apiEndpoint}/auth/submitAuthenticationChallenge`,
-		{ body, method: "POST" },
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
 	assertAuthenticationCeremonyResponse(result.data);
+	if (isAuthenticationCeremonyResponseTokens(result.data)) {
+		setTokens(app, result.data);
+	}
 	return result.data;
 }
 
@@ -206,12 +253,10 @@ export async function sendIdentificationChallenge(
 ): Promise<SendIdentificationChallengeResponse> {
 	assertApp(app);
 	assertInitializedAuth(app);
-	const body = new FormData();
-	body.set("type", type);
-	body.set("state", state);
+	const body = JSON.stringify({ type, state });
 	const resp = await app.fetch(
 		`${app.apiEndpoint}/auth/sendIdentificationChallenge`,
-		{ body, method: "POST" },
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
@@ -226,12 +271,10 @@ export async function sendIdentificationValidationCode(
 ): Promise<SendIdentificationValidationCodeResponse> {
 	assertApp(app);
 	assertInitializedAuth(app);
-	const body = new FormData();
-	body.set("type", type);
-	body.set("identification", identification);
+	const body = JSON.stringify({ type, identification });
 	const resp = await app.fetch(
 		`${app.apiEndpoint}/auth/sendIdentificationValidationCode`,
-		{ body, method: "POST" },
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
@@ -247,16 +290,25 @@ export async function confirmIdentificationValidationCode(
 ): Promise<ConfirmIdentificationValidationCodeResponse> {
 	assertApp(app);
 	assertInitializedAuth(app);
-	const body = new FormData();
-	body.set("type", type);
-	body.set("identification", identification);
-	body.set("code", code);
+	const body = JSON.stringify({ type, identification, code });
 	const resp = await app.fetch(
 		`${app.apiEndpoint}/auth/confirmIdentificationValidationCode`,
-		{ body, method: "POST" },
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
 	assertConfirmIdentificationValidationCodeResponse(result.data);
 	return result.data;
+}
+
+export async function signOut(app: App): Promise<void> {
+	assertApp(app);
+	assertInitializedAuth(app);
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/signOut`,
+		{ method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+	setTokens(app, undefined);
 }

@@ -1,13 +1,10 @@
 import {
 	AuthenticationCeremonyComponentChallengeFailedError,
 	AuthenticationCeremonyDoneError,
-	AuthenticationConfirmValidationCodeError,
 	AuthenticationInvalidStepError,
 	AuthenticationMissingChallengerError,
 	AuthenticationMissingIdentificatorError,
 	AuthenticationRateLimitedError,
-	AuthenticationSendIdentificationChallengeError,
-	AuthenticationSendValidationCodeError,
 } from "../../common/auth/errors.ts";
 import { AuthenticationCeremonyResponse } from "../../common/auth/ceremony/response.ts";
 import { isAuthenticationCeremonyResponseState } from "../../common/auth/ceremony/response/state.ts";
@@ -20,9 +17,7 @@ import { isAuthenticationCeremonyComponentChoice } from "../../common/auth/cerem
 import { flatten } from "../../common/auth/ceremony/component/flatten.ts";
 import { getComponentAtPath } from "../../common/auth/ceremony/component/get_component_at_path.ts";
 import { simplifyWithContext } from "../../common/auth/ceremony/component/simplify.ts";
-import { AutoId } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { otp } from "../../common/system/otp.ts";
 import type { IContext } from "../../common/server/context.ts";
 import type { IAuthenticationService } from "../../common/server/services/auth.ts";
 

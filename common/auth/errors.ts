@@ -31,6 +31,9 @@ export class InvalidAuthenticationCeremonyComponentSequenceError extends Error {
 export class InvalidAuthenticationCeremonyResponseDoneError extends Error {
 	name = "InvalidAuthenticationCeremonyResponseDoneError" as const;
 }
+export class InvalidAuthenticationCeremonyResponseTokensError extends Error {
+	name = "InvalidAuthenticationCeremonyResponseTokensError" as const;
+}
 export class InvalidAuthenticationCeremonyResponseErrorError extends Error {
 	name = "InvalidAuthenticationCeremonyResponseErrorError" as const;
 }

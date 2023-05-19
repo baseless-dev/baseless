@@ -19,9 +19,14 @@ import {
 	AuthenticationCeremonyResponseState,
 	isAuthenticationCeremonyResponseState,
 } from "./response/state.ts";
+import {
+	AuthenticationCeremonyResponseTokens,
+	isAuthenticationCeremonyResponseTokens,
+} from "./response/tokens.ts";
 
 export type AuthenticationCeremonyResponse =
 	| AuthenticationCeremonyResponseDone
+	| AuthenticationCeremonyResponseTokens
 	| AuthenticationCeremonyResponseError
 	| AuthenticationCeremonyResponseRedirect
 	| AuthenticationCeremonyResponseState
@@ -31,6 +36,7 @@ export function isAuthenticationCeremonyResponse(
 	value?: unknown,
 ): value is AuthenticationCeremonyResponse {
 	return isAuthenticationCeremonyResponseDone(value) ||
+		isAuthenticationCeremonyResponseTokens(value) ||
 		isAuthenticationCeremonyResponseError(value) ||
 		isAuthenticationCeremonyResponseRedirect(value) ||
 		isAuthenticationCeremonyResponseState(value) ||

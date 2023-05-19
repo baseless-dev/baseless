@@ -1,6 +1,5 @@
 import type { AuthenticationCeremonyResponse } from "../../auth/ceremony/response.ts";
 import type { AuthenticationCeremonyState } from "../../auth/ceremony/state.ts";
-import type { AutoId } from "../../system/autoid.ts";
 
 export interface IAuthenticationService {
 	getAuthenticationCeremony(

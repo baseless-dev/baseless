@@ -30,7 +30,6 @@ import { PasswordAuthentificationChallenger } from "../providers/auth-password/m
 import { oneOf } from "../common/auth/ceremony/component/helpers.ts";
 import { assertAuthenticationCeremonyResponseState } from "../common/auth/ceremony/response/state.ts";
 import { assertAuthenticationCeremonyResponseEncryptedState } from "../common/auth/ceremony/response/encrypted_state.ts";
-import { assertAuthenticationCeremonyResponseDone } from "../common/auth/ceremony/response/done.ts";
 import { Message } from "../common/message/message.ts";
 import { setGlobalLogHandler } from "../common/system/logger.ts";
 import { TOTPLoggerAuthentificationChallenger } from "../providers/auth-totp-logger/mod.ts";
@@ -39,6 +38,7 @@ import { assertSendIdentificationChallengeResponse } from "../common/auth/send_i
 import { Context } from "../server/context.ts";
 import * as h from "../common/auth/ceremony/component/helpers.ts";
 import { ConfigurationBuilder } from "../common/server/config/config.ts";
+import { assertAuthenticationCeremonyResponseTokens } from "../common/auth/ceremony/response/tokens.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const email = new EmailAuthentificationIdenticator(
@@ -189,7 +189,7 @@ Deno.test("Client Auth", async (t) => {
 			"123",
 			result1.encryptedState,
 		);
-		assertAuthenticationCeremonyResponseDone(result2);
+		assertAuthenticationCeremonyResponseTokens(result2);
 	});
 
 	await t.step("sendIdentificationChallenge", async () => {
@@ -220,7 +220,7 @@ Deno.test("Client Auth", async (t) => {
 			challengeCode,
 			result1.encryptedState,
 		);
-		assertAuthenticationCeremonyResponseDone(result3);
+		assertAuthenticationCeremonyResponseTokens(result3);
 	});
 
 	await t.step("sendIdentificationValidationCode", async () => {

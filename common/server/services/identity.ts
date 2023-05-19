@@ -172,7 +172,7 @@ export interface IIdentityService {
 		code: string,
 	): Promise<void>;
 
-	sendIdentificationChallenge(
+	sendChallenge(
 		identityId: AutoId,
 		type: string,
 		locale: string,

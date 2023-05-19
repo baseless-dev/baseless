@@ -447,7 +447,7 @@ export class IdentityService implements IIdentityService {
 		throw new AuthenticationConfirmValidationCodeError();
 	}
 
-	async sendIdentificationChallenge(
+	async sendChallenge(
 		identityId: AutoId,
 		type: string,
 		locale: string,

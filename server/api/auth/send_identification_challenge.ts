@@ -19,7 +19,7 @@ export async function sendIdentificationChallenge(
 			context.config.auth.security.keys.publicKey,
 		);
 		assertAuthenticationCeremonyStateIdentified(state);
-		await context.identity.sendIdentificationChallenge(
+		await context.identity.sendChallenge(
 			state.identity,
 			type,
 			locale,

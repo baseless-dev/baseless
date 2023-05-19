@@ -1,5 +1,7 @@
 import { Configuration } from "../common/server/config/config.ts";
 import { IContext } from "../common/server/context.ts";
+import { SESSION_AUTOID_PREFIX, SessionData } from "../common/session/data.ts";
+import { isAutoId } from "../common/system/autoid.ts";
 import { createLogger } from "../common/system/logger.ts";
 import { Router, RouterBuilder } from "../common/system/router.ts";
 import { AssetProvider } from "../providers/asset.ts";
@@ -9,6 +11,7 @@ import { KVProvider } from "../providers/kv.ts";
 import { SessionProvider } from "../providers/session.ts";
 import apiAuthRouter from "./api/auth.ts";
 import { Context } from "./context.ts";
+import { jwtVerify } from "https://deno.land/x/jose@v4.13.1/jwt/verify.ts";
 
 export class Server {
 	#logger = createLogger("server");
@@ -74,11 +77,47 @@ export class Server {
 		const kvProvider = this.#kvProvider;
 		const identityProvider = this.#identityProvider;
 		const sessionProvider = this.#sessionProvider;
+		let sessionData: SessionData | undefined = undefined;
+		if (request.headers.has("Authorization")) {
+			const authorization = request.headers.get("Authorization") ?? "";
+			const [, scheme, parameters] =
+				authorization.match(/(?<scheme>[^ ]+) (?<params>.+)/) ?? [];
+			if (scheme === "Bearer") {
+				try {
+					const { payload } = await jwtVerify(
+						parameters,
+						configuration.auth.security.keys.publicKey,
+					);
+					if (isAutoId(payload.sub, SESSION_AUTOID_PREFIX)) {
+						const session = await sessionProvider.get(payload.sub).catch((_) =>
+							undefined
+						);
+						if (session) {
+							sessionData = session;
+						}
+					} else {
+						this.#logger.warn(
+							`Expected authorization JWT.sub to be an identity ID, got ${payload.sub}.`,
+						);
+					}
+				} catch (error) {
+					this.#logger.warn(
+						`Could not parse authorization header, got error : ${error}`,
+					);
+				}
+			} else {
+				this.#logger.warn(`Unknown authorization scheme ${scheme}.`);
+			}
+			if (!sessionData) {
+				return [new Response(null, { status: 403 }), []];
+			}
+		}
 
 		const waitUntilCollection: PromiseLike<unknown>[] = [];
 		const context = new Context(
 			waitUntilCollection,
 			remoteAddress,
+			sessionData,
 			configuration,
 			assetProvider,
 			counterProvider,

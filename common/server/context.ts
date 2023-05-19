@@ -1,3 +1,4 @@
+import { SessionData } from "../session/data.ts";
 import type { Configuration } from "./config/config.ts";
 import type { IAssetService } from "./services/asset.ts";
 import type { IAuthenticationService } from "./services/auth.ts";
@@ -11,6 +12,7 @@ import type { ISessionService } from "./services/session.ts";
  */
 export interface IContext {
 	readonly remoteAddress: string;
+	readonly sessionData: SessionData | undefined;
 	readonly config: Configuration;
 	readonly asset: IAssetService;
 	readonly counter: ICounterService;

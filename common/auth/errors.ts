@@ -102,3 +102,6 @@ export class AuthenticationMissingChallengerError extends Error {
 export class InvalidAuthenticationTokensError extends Error {
 	name = "InvalidAuthenticationTokensError" as const;
 }
+export class UnauthorizedError extends Error {
+	name = "UnauthorizedError" as const;
+}

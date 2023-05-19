@@ -76,6 +76,7 @@ Deno.test("Client Auth", async (t) => {
 	const context = new Context(
 		[],
 		"127.0.0.1",
+		undefined,
 		configuration,
 		assetProvider,
 		counterProvider,
@@ -264,6 +265,24 @@ Deno.test("Client Auth", async (t) => {
 			validationCode,
 		);
 		assertEquals(confirmResult.confirmed, true);
+	});
+
+	await t.step("signOut", async () => {
+		const result1 = await submitAuthenticationIdentification(
+			authApp,
+			"email",
+			"john@test.local",
+		);
+		assertAuthenticationCeremonyResponseEncryptedState(result1);
+		const result2 = await submitAuthenticationChallenge(
+			authApp,
+			"password",
+			"123",
+			result1.encryptedState,
+		);
+		assertAuthenticationCeremonyResponseTokens(result2);
+		await signOut(authApp);
+		await assertRejects(() => signOut(authApp));
 	});
 
 	await t.step("onAuthStateChange", async () => {

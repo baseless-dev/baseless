@@ -3,15 +3,28 @@ import {
 	globToRegExp,
 	join,
 	relative,
+	dirname,
 } from "https://deno.land/std@0.179.0/path/mod.ts";
 import { walk } from "https://deno.land/std@0.179.0/fs/walk.ts";
 import * as colors from "https://deno.land/std@0.165.0/fmt/colors.ts";
-import { emit } from "https://deno.land/x/emit@0.6.0/mod.ts";
-import { ModuleKind, Project, ScriptTarget, Node, ts } from "https://deno.land/x/ts_morph@18.0.0/mod.ts";
-import { decode } from "https://deno.land/std@0.179.0/encoding/base64.ts";
-import { basename, dirname, extname } from "https://deno.land/std@0.179.0/path/win32.ts";
+import { ModuleKind, Project, ScriptTarget, ts } from "https://deno.land/x/ts_morph@18.0.0/mod.ts";
 
 const __dirname = fromFileUrl(new URL(".", import.meta.url));
+
+const importMap: Record<string, { browser: string; node: string; }> = {
+	"https://deno.land/x/jose@v4.13.1/jwt/verify.ts": {
+		browser: "https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/jwt/verify.js",
+		node: "jose",
+	},
+	"https://deno.land/x/jose@v4.13.1/jwt/sign.ts": {
+		browser: "https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/jwt/sign.js",
+		node: "jose",
+	},
+	"https://deno.land/x/jose@v4.13.1/types.d.ts": {
+		browser: "https://deno.land/x/jose@v4.13.1/types.d.ts",
+		node: "jose",
+	},
+}
 
 await Deno.remove(join(__dirname, "./npm"), { recursive: true }).catch(
 	(_) => { },
@@ -80,8 +93,23 @@ for await (const entryPoint of entryPoints) {
 const browserResult = await browserProject.emitToMemory({
 	customTransformers: {
 		before: [
-			context => sourceFile => visitSourceFile(sourceFile, context, remoteImportClauseToBrowser),
-			context => sourceFile => visitSourceFile(sourceFile, context, importClauseToBrowser)
+			context => sourceFile => visitSourceFile(sourceFile, context, visitImportExportDeclaration((node, moduleSpecifier) => {
+				if (moduleSpecifier.match(/^https?:\/\//) && !(ts.isImportDeclaration(node) && node.importClause?.isTypeOnly)) {
+					const mapTo = importMap[moduleSpecifier];
+					if ("bundle" in mapTo) {
+						console.log(`Browser bundling ${moduleSpecifier}...`);
+					} else {
+						moduleSpecifier = mapTo.browser;
+					}
+				} else {
+					moduleSpecifier = moduleSpecifier.replace(/\.tsx?$/, ".mjs");
+				}
+				if (ts.isImportDeclaration(node)) {
+					return context.factory.createImportDeclaration(node.modifiers, node.importClause, context.factory.createStringLiteral(moduleSpecifier), node.assertClause);
+				} else {
+					return context.factory.createExportDeclaration(node.modifiers, node.isTypeOnly, node.exportClause, context.factory.createStringLiteral(moduleSpecifier), node.assertClause);
+				}
+			}))
 		]
 	}
 });
@@ -90,8 +118,23 @@ const browserDiagnostics = browserResult.getDiagnostics();
 const nodeResult = await nodeProject.emitToMemory({
 	customTransformers: {
 		before: [
-			context => sourceFile => visitSourceFile(sourceFile, context, remoteImportClauseToNode),
-			context => sourceFile => visitSourceFile(sourceFile, context, importClauseToNode),
+			context => sourceFile => visitSourceFile(sourceFile, context, visitImportExportDeclaration((node, moduleSpecifier) => {
+				if (moduleSpecifier.match(/^https?:\/\//)) {
+					const mapTo = importMap[moduleSpecifier];
+					if ("bundle" in mapTo) {
+						console.log(`Node bundling ${moduleSpecifier}...`);
+					} else {
+						moduleSpecifier = mapTo.node;
+					}
+				} else {
+					moduleSpecifier = moduleSpecifier.replace(/\.tsx?$/, "");
+				}
+				if (ts.isImportDeclaration(node)) {
+					return context.factory.createImportDeclaration(node.modifiers, node.importClause, context.factory.createStringLiteral(moduleSpecifier.replace(/\.tsx?$/, "")), node.assertClause);
+				} else {
+					return context.factory.createExportDeclaration(node.modifiers, node.isTypeOnly, node.exportClause, context.factory.createStringLiteral(moduleSpecifier.replace(/\.tsx?$/, "")), node.assertClause);
+				}
+			}))
 		]
 	}
 });
@@ -136,7 +179,7 @@ await Deno.writeTextFile(
 				entryPoints.map(
 					(entryPath) => {
 						const key = "./" + relative(__dirname, entryPath);
-						return [key.replace(/\.tsx?$/, ""), {
+						return [key.replace(/\.tsx?$/, "").replace(/\/mod$/, ""), {
 							node: key.replace(/\.tsx?$/, ".js"),
 							browser: key.replace(/\.tsx?$/, ".mjs"),
 							deno: key,
@@ -145,6 +188,9 @@ await Deno.writeTextFile(
 					},
 				),
 			),
+			dependencies: {
+				jose: "4.13.1"
+			}
 		},
 		undefined,
 		"  ",
@@ -161,86 +207,24 @@ console.log(
 
 Deno.exit(0);
 
-
-function remoteImportClauseToBrowser(node: ts.Node, context: ts.TransformationContext) {
-	if (
-		(ts.isImportDeclaration(node)) &&
-		node.moduleSpecifier &&
-		ts.isStringLiteral(node.moduleSpecifier) &&
-		!node.importClause?.isTypeOnly &&
-		node.moduleSpecifier.text.match(/^https?:\/\//)
-	) {
-		console.log('Browser:', node.moduleSpecifier.text);
-		// return context.factory.createImportDeclaration(node.modifiers, undefined, context.factory.createStringLiteral(node.moduleSpecifier.text.replace(/\.tsx?$/, ".mjs")), node.assertClause);
+function visitImportExportDeclaration(visitNode: (node: ts.ImportDeclaration | ts.ExportDeclaration, moduleSpecifier: string) => ts.Node) {
+	return (node: ts.Node, _context: ts.TransformationContext) => {
+		if (
+			ts.isImportDeclaration(node) &&
+			node.moduleSpecifier &&
+			ts.isStringLiteral(node.moduleSpecifier)
+		) {
+			return visitNode(node, node.moduleSpecifier.text);
+		}
+		if (
+			ts.isExportDeclaration(node) &&
+			node.moduleSpecifier &&
+			ts.isStringLiteral(node.moduleSpecifier)
+		) {
+			return visitNode(node, node.moduleSpecifier.text);
+		}
+		return node;
 	}
-	if (
-		(ts.isExportDeclaration(node)) &&
-		node.moduleSpecifier &&
-		ts.isStringLiteral(node.moduleSpecifier) &&
-		node.moduleSpecifier.text.match(/^https?:\/\//)
-	) {
-		console.log('Browser:', node.moduleSpecifier.text);
-		// return context.factory.createExportDeclaration(node.modifiers, node.isTypeOnly, node.exportClause, context.factory.createStringLiteral(node.moduleSpecifier.text.replace(/\.tsx?$/, ".mjs")), node.assertClause);
-	}
-	return node;
-}
-
-function remoteImportClauseToNode(node: ts.Node, context: ts.TransformationContext) {
-	if (
-		(ts.isImportDeclaration(node)) &&
-		node.moduleSpecifier &&
-		ts.isStringLiteral(node.moduleSpecifier) &&
-		node.moduleSpecifier.text.match(/^https?:\/\//)
-	) {
-		console.log('Node:', node.moduleSpecifier.text, node.importClause?.isTypeOnly);
-		// return context.factory.createImportDeclaration(node.modifiers, undefined, context.factory.createStringLiteral(node.moduleSpecifier.text.replace(/\.tsx?$/, ".mjs")), node.assertClause);
-	}
-	if (
-		(ts.isExportDeclaration(node)) &&
-		node.moduleSpecifier &&
-		ts.isStringLiteral(node.moduleSpecifier) &&
-		node.moduleSpecifier.text.match(/^https?:\/\//)
-	) {
-		console.log('Node:', node.moduleSpecifier.text);
-		// return context.factory.createExportDeclaration(node.modifiers, node.isTypeOnly, node.exportClause, context.factory.createStringLiteral(node.moduleSpecifier.text.replace(/\.tsx?$/, ".mjs")), node.assertClause);
-	}
-	return node;
-}
-
-function importClauseToBrowser(node: ts.Node, context: ts.TransformationContext) {
-	if (
-		ts.isImportDeclaration(node) &&
-		node.moduleSpecifier &&
-		ts.isStringLiteral(node.moduleSpecifier)
-	) {
-		return context.factory.createImportDeclaration(node.modifiers, node.importClause, context.factory.createStringLiteral(node.moduleSpecifier.text.replace(/\.tsx?$/, ".mjs")), node.assertClause);
-	}
-	if (
-		ts.isExportDeclaration(node) &&
-		node.moduleSpecifier &&
-		ts.isStringLiteral(node.moduleSpecifier)
-	) {
-		return context.factory.createExportDeclaration(node.modifiers, node.isTypeOnly, node.exportClause, context.factory.createStringLiteral(node.moduleSpecifier.text.replace(/\.tsx?$/, ".mjs")), node.assertClause);
-	}
-	return node;
-}
-
-function importClauseToNode(node: ts.Node, context: ts.TransformationContext) {
-	if (
-		ts.isImportDeclaration(node) &&
-		node.moduleSpecifier &&
-		ts.isStringLiteral(node.moduleSpecifier)
-	) {
-		return context.factory.createImportDeclaration(node.modifiers, node.importClause, context.factory.createStringLiteral(node.moduleSpecifier.text.replace(/\.tsx?$/, "")), node.assertClause);
-	}
-	if (
-		ts.isExportDeclaration(node) &&
-		node.moduleSpecifier &&
-		ts.isStringLiteral(node.moduleSpecifier)
-	) {
-		return context.factory.createExportDeclaration(node.modifiers, node.isTypeOnly, node.exportClause, context.factory.createStringLiteral(node.moduleSpecifier.text.replace(/\.tsx?$/, "")), node.assertClause);
-	}
-	return node;
 }
 
 function visitSourceFile(

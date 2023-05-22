@@ -1,4 +1,4 @@
-import * as b32 from "https://deno.land/std@0.179.0/encoding/base32.ts";
+import { encode, decode } from "../encoding/base32.ts";
 
 export type OTPAlgorithm = "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
 
@@ -123,7 +123,7 @@ export async function hotp(
 	} else if (typeof key === "string") {
 		cryptoKey = await crypto.subtle.importKey(
 			"raw",
-			Uint8Array.from(b32.decode(key)),
+			Uint8Array.from(decode(key)),
 			{ name: "HMAC", hash: algorithm },
 			false,
 			["sign"],
@@ -179,7 +179,7 @@ export function otp({ digits = 6 }: { digits?: number } = {}) {
 export function generateKey(length = 16) {
 	const buffer = new Uint8Array(length);
 	crypto.getRandomValues(buffer);
-	return b32.encode(buffer).slice(0, length);
+	return encode(buffer).slice(0, length);
 }
 
 export type OTPAuthURIOptions =

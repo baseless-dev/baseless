@@ -28,6 +28,7 @@ export async function submitAuthenticationChallenge(
 		state.identity,
 	);
 	if (isAuthenticationCeremonyResponseDone(result)) {
+		// TODO session expiration
 		const sessionData = await context.session.create(result.identityId, {});
 		const { access_token, id_token, refresh_token } = await createTokens(
 			sessionData,

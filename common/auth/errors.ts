@@ -105,3 +105,6 @@ export class InvalidAuthenticationTokensError extends Error {
 export class UnauthorizedError extends Error {
 	name = "UnauthorizedError" as const;
 }
+export class AnonymousIdentityNotAllowedError extends Error {
+	name = "AnonymousIdentityNotAllowedError" as const;
+}

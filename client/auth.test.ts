@@ -8,6 +8,7 @@ import { App, assertApp, initializeApp } from "./app.ts";
 import {
 	assertPersistence,
 	confirmIdentificationValidationCode,
+	createAnonymousIdentity,
 	getAuthenticationCeremony,
 	getIdToken,
 	getPersistence,
@@ -58,6 +59,7 @@ Deno.test("Client Auth", async (t) => {
 	const { publicKey, privateKey } = await generateKeyPair("PS512");
 	config.auth()
 		.setEnabled(true)
+		.setAllowAnonymousIdentity(true)
 		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
 		.setSecuritySalt("foobar")
 		.setCeremony(
@@ -223,7 +225,7 @@ Deno.test("Client Auth", async (t) => {
 		assertSendIdentificationChallengeResponse(result2);
 		const challengeCode = messages.pop()?.message ?? "";
 		assertEquals(challengeCode.length, 6);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 		const result3 = await submitAuthenticationChallenge(
 			authApp,
 			"totp",
@@ -245,7 +247,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
 		assertEquals(messages[0]?.message.text.length, 6);
 	});
@@ -262,7 +264,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 		assertEquals(sendResult.sent, true);
 		const validationCode = messages[0]?.message.text;
 		const confirmResult = await confirmIdentificationValidationCode(
@@ -331,5 +333,10 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseTokens(result2);
 		const idToken = await getIdToken(authApp);
 		assert(idToken?.length ?? 0 > 0);
+	});
+
+	await t.step("createAnonymousIdentity", async () => {
+		const result1 = await createAnonymousIdentity(authApp);
+		assertAuthenticationCeremonyResponseTokens(result1);
 	});
 });

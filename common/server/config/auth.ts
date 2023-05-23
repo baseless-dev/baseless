@@ -29,6 +29,7 @@ export type AuthenticationConfiguration = {
 			readonly confirmVerificationCodeInterval: number;
 		};
 	};
+	readonly allowAnonymousIdentity: boolean;
 	readonly ceremony: AuthenticationCeremonyComponent;
 	readonly identificators: Map<string, AuthenticationIdenticator>;
 	readonly challengers: Map<string, AuthenticationChallenger>;
@@ -54,6 +55,7 @@ export class AuthenticationConfigurationBuilder {
 	#enabled = false;
 	#securityKeys?: AuthenticationKeys;
 	#securitySalt?: string;
+	#allowAnonymousIdentity?: boolean;
 	#ceremony?: AuthenticationCeremonyComponent;
 	#components = new Set<AuthenticationCeremonyComponent>();
 	#onCreateIdentityHandler?: AuthenticationHandler;
@@ -109,6 +111,11 @@ export class AuthenticationConfigurationBuilder {
 			confirmVerificationCodeCount: limits.confirmVerificationCodeCount,
 			confirmVerificationCodeInterval: limits.confirmVerificationCodeInterval,
 		};
+		return this;
+	}
+
+	public setAllowAnonymousIdentity(allow: boolean): this {
+		this.#allowAnonymousIdentity = !!allow;
 		return this;
 	}
 
@@ -207,6 +214,7 @@ export class AuthenticationConfigurationBuilder {
 					...this.#rateLimit,
 				},
 			},
+			allowAnonymousIdentity: this.#allowAnonymousIdentity ?? false,
 			ceremony: this.#ceremony,
 			identificators: new Map(identificatorCompoenents.map((c) => [c.kind, c])),
 			challengers: new Map(challengerComponents.map((c) => [c.kind, c])),

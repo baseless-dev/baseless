@@ -278,13 +278,13 @@ await Deno.writeTextFile(
 			dependencies: {
 				jose: "4.13.1",
 			},
-			devDependencies: {
-				"@typescript-eslint/eslint-plugin": "^5.59.7",
-				"@typescript-eslint/parser": "^5.59.7",
-				"eslint": "^8.41.0",
-				"eslint-plugin-jsdoc": "^44.2.4",
-				"typescript": "^5.0.4",
-			},
+			// devDependencies: {
+			// 	"@typescript-eslint/eslint-plugin": "^5.59.7",
+			// 	"@typescript-eslint/parser": "^5.59.7",
+			// 	"eslint": "^8.41.0",
+			// 	"eslint-plugin-jsdoc": "^44.2.4",
+			// 	"typescript": "^5.0.4",
+			// },
 			exports: Object.fromEntries(
 				entryPoints.map(
 					(entryPath) => {

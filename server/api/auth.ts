@@ -1,6 +1,6 @@
-import { RouterBuilder } from "../../common/system/router.ts";
-import { ApiResponse } from "../../common/api/response.ts";
-import { IContext } from "../../common/server/context.ts";
+import { RouteHandler, RouterBuilder } from "../../common/system/router.ts";
+import type { ApiResponse } from "../../common/api/response.ts";
+import type { IContext } from "../../common/server/context.ts";
 import { confirmIdentificationValidationCode } from "./auth/confirm_identification_validation_code.ts";
 import { getAuthenticationCeremony } from "./auth/get_authentication_ceremony.ts";
 import { sendIdentificationChallenge } from "./auth/send_identification_challenge.ts";
@@ -9,14 +9,14 @@ import { signOut } from "./auth/sign_out.ts";
 import { submitAuthenticationChallenge } from "./auth/submit_authentication_challenge.ts";
 import { submitAuthenticationIdentification } from "./auth/submit_authentication_identification.ts";
 
-function json<Params, Result>(
+function json<Params extends Record<string, string | undefined>, Result>(
 	handler: (
 		request: Request,
 		params: Params,
 		context: IContext,
 	) => Result | Promise<Result>,
 	headers = new Headers(),
-) {
+): RouteHandler<Params, [context: IContext]> {
 	headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
 	headers.set("Content-Type", "application/json");
 	return async (request: Request, params: Params, context: IContext) => {

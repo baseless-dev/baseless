@@ -3,7 +3,7 @@ import type {
 	KeyLike,
 } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 import { SignJWT } from "https://deno.land/x/jose@v4.13.1/jwt/sign.ts";
-import { AuthenticationCeremonyState } from "../../../common/auth/ceremony/state.ts";
+import type { AuthenticationCeremonyState } from "../../../common/auth/ceremony/state.ts";
 
 export async function encryptAuthenticationCeremonyState(
 	state: AuthenticationCeremonyState,

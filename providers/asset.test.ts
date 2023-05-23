@@ -4,7 +4,7 @@ import { AssetProvider } from "./asset.ts";
 export default async function testAssetProvider(
 	ap: AssetProvider,
 	t: Deno.TestContext,
-) {
+): Promise<void> {
 	await t.step("fetch", async () => {
 		const resp1 = await ap.fetch(new Request("http://test.local/"));
 		assertEquals(resp1.status, 200);

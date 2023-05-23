@@ -30,7 +30,7 @@ import {
 } from "../../identity/errors.ts";
 // deno-lint-ignore no-unused-vars
 import type { MessageSendError } from "../../message/errors.ts";
-import { Message } from "../../message/message.ts";
+import type { Message } from "../../message/message.ts";
 
 export interface IIdentityService {
 	/**

@@ -1,6 +1,6 @@
-import { IContext } from "../../common/server/context.ts";
-import { ISessionService } from "../../common/server/services/session.ts";
-import { SessionData } from "../../common/session/data.ts";
+import type { IContext } from "../../common/server/context.ts";
+import type { ISessionService } from "../../common/server/services/session.ts";
+import type { SessionData } from "../../common/session/data.ts";
 import {
 	// deno-lint-ignore no-unused-vars
 	SessionCreateError,
@@ -9,8 +9,8 @@ import {
 	// deno-lint-ignore no-unused-vars
 	SessionIDNotFoundError,
 } from "../../common/session/errors.ts";
-import { AutoId } from "../../common/system/autoid.ts";
-import { SessionProvider } from "../../providers/session.ts";
+import type { AutoId } from "../../common/system/autoid.ts";
+import type { SessionProvider } from "../../providers/session.ts";
 
 export class SessionService implements ISessionService {
 	#sessionProvider: SessionProvider;

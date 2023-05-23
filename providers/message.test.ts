@@ -6,7 +6,7 @@ export default async function testMessageProvider(
 	mp: MessageProvider,
 	t: Deno.TestContext,
 	getLastMessage: () => Promise<Message>,
-) {
+): Promise<void> {
 	await t.step("send", async () => {
 		const msg1: Message = {
 			recipient: "to@acme.local",

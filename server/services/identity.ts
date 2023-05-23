@@ -8,7 +8,7 @@ import {
 } from "../../common/auth/errors.ts";
 import {
 	assertIdentityChallenge,
-	IdentityChallenge,
+	type IdentityChallenge,
 } from "../../common/identity/challenge.ts";
 import {
 	IdentityChallengeCreateError,
@@ -36,19 +36,19 @@ import {
 } from "../../common/identity/errors.ts";
 import {
 	assertIdentityIdentification,
-	IdentityIdentification,
+	type IdentityIdentification,
 } from "../../common/identity/identification.ts";
 import {
-	Identity,
+	type Identity,
 	IDENTITY_AUTOID_PREFIX,
 } from "../../common/identity/identity.ts";
-import { assertMessage, Message } from "../../common/message/message.ts";
-import { IContext } from "../../common/server/context.ts";
-import { IIdentityService } from "../../common/server/services/identity.ts";
-import { assertAutoId, AutoId } from "../../common/system/autoid.ts";
+import { assertMessage, type Message } from "../../common/message/message.ts";
+import { type IContext } from "../../common/server/context.ts";
+import { type IIdentityService } from "../../common/server/services/identity.ts";
+import { assertAutoId, type AutoId } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import { otp } from "../../common/system/otp.ts";
-import { IdentityProvider } from "../../providers/identity.ts";
+import { type IdentityProvider } from "../../providers/identity.ts";
 
 export class IdentityService implements IIdentityService {
 	#logger = createLogger("identity-service");

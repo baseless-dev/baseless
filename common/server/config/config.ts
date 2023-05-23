@@ -1,10 +1,10 @@
-import { AssetConfiguration, AssetConfigurationBuilder } from "./asset.ts";
+import { type AssetConfiguration, AssetConfigurationBuilder } from "./asset.ts";
 import {
-	AuthenticationConfiguration,
+	type AuthenticationConfiguration,
 	AuthenticationConfigurationBuilder,
 } from "./auth.ts";
-import { Router, RouterBuilder } from "../../system/router.ts";
-import { IContext } from "../context.ts";
+import { type Router, RouterBuilder } from "../../system/router.ts";
+import type { IContext } from "../context.ts";
 
 export interface Configuration {
 	readonly asset: AssetConfiguration;
@@ -21,7 +21,7 @@ export class ConfigurationBuilder {
 	 * Access the underlying {@see AssetConfigurationBuilder}
 	 * @returns The {@see AssetConfigurationBuilder}
 	 */
-	public asset() {
+	public asset(): AssetConfigurationBuilder {
 		return this.#asset;
 	}
 
@@ -29,7 +29,7 @@ export class ConfigurationBuilder {
 	 * Access the underlying {@see AuthenticationConfigurationBuilder}
 	 * @returns The {@see AuthenticationConfigurationBuilder}
 	 */
-	public auth() {
+	public auth(): AuthenticationConfigurationBuilder {
 		return this.#auth;
 	}
 
@@ -37,7 +37,7 @@ export class ConfigurationBuilder {
 	 * Access the underlying {@see RouterBuilder}
 	 * @returns The {@see RouterBuilder}
 	 */
-	public functions() {
+	public functions(): RouterBuilder<[context: IContext]> {
 		return this.#functions;
 	}
 

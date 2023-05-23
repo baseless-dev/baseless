@@ -106,7 +106,7 @@ let globalLogHandler: LogHandler = voidLogHandler;
  * Set global logger handler
  * @param logHandler The log handler
  */
-export function setGlobalLogHandler(logHandler?: LogHandler) {
+export function setGlobalLogHandler(logHandler?: LogHandler): void {
 	globalLogHandler = logHandler ?? voidLogHandler;
 }
 

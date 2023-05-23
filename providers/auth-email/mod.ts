@@ -1,9 +1,9 @@
 import {
 	AuthenticationIdenticator,
-	AuthenticationIdenticatorIdentifyOptions,
-	AuthenticationIdenticatorSendMessageOptions,
+	type AuthenticationIdenticatorIdentifyOptions,
+	type AuthenticationIdenticatorSendMessageOptions,
 } from "../../common/auth/identicator.ts";
-import { MessageProvider } from "../message.ts";
+import type { MessageProvider } from "../message.ts";
 
 export class EmailAuthentificationIdenticator
 	extends AuthenticationIdenticator {

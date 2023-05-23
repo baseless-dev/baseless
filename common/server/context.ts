@@ -1,4 +1,4 @@
-import { SessionData } from "../session/data.ts";
+import type { SessionData } from "../session/data.ts";
 import type { Configuration } from "./config/config.ts";
 import type { IAssetService } from "./services/asset.ts";
 import type { IAuthenticationService } from "./services/auth.ts";

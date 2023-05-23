@@ -1,6 +1,6 @@
 import {
 	assertIdentityChallenge,
-	IdentityChallenge,
+	type IdentityChallenge,
 } from "../../common/identity/challenge.ts";
 import {
 	IdentityChallengeCreateError,
@@ -21,17 +21,21 @@ import {
 } from "../../common/identity/errors.ts";
 import {
 	assertIdentityIdentification,
-	IdentityIdentification,
+	type IdentityIdentification,
 } from "../../common/identity/identification.ts";
 import {
 	assertIdentity,
-	Identity,
+	type Identity,
 	IDENTITY_AUTOID_PREFIX,
 } from "../../common/identity/identity.ts";
-import { assertAutoId, AutoId, autoid } from "../../common/system/autoid.ts";
+import {
+	assertAutoId,
+	type AutoId,
+	autoid,
+} from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { IdentityProvider } from "../identity.ts";
-import { KVProvider } from "../kv.ts";
+import type { IdentityProvider } from "../identity.ts";
+import type { KVProvider } from "../kv.ts";
 
 export class KVIdentityProvider implements IdentityProvider {
 	#logger = createLogger("baseless-identity-kv");

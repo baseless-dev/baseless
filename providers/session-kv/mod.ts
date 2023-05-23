@@ -3,7 +3,7 @@ import {
 	assertSessionData,
 	isSessionData,
 	SESSION_AUTOID_PREFIX,
-	SessionData,
+	type SessionData,
 } from "../../common/session/data.ts";
 import {
 	SessionCreateError,
@@ -11,10 +11,14 @@ import {
 	SessionIDNotFoundError,
 	SessionUpdateError,
 } from "../../common/session/errors.ts";
-import { assertAutoId, AutoId, autoid } from "../../common/system/autoid.ts";
+import {
+	assertAutoId,
+	type AutoId,
+	autoid,
+} from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { KVProvider } from "../kv.ts";
-import { SessionProvider } from "../session.ts";
+import type { KVProvider } from "../kv.ts";
+import type { SessionProvider } from "../session.ts";
 
 export class KVSessionProvider implements SessionProvider {
 	#logger = createLogger("session-kv");

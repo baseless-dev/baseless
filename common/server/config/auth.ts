@@ -1,12 +1,12 @@
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 import {
 	assertAuthenticationCeremonyComponent,
-	AuthenticationCeremonyComponent,
+	type AuthenticationCeremonyComponent,
 } from "../../auth/ceremony/ceremony.ts";
 import { AuthenticationChallenger } from "../../auth/challenger.ts";
 import { AuthenticationIdenticator } from "../../auth/identicator.ts";
-import { Identity } from "../../identity/identity.ts";
-import { IContext } from "../context.ts";
+import type { Identity } from "../../identity/identity.ts";
+import type { IContext } from "../context.ts";
 import { extract } from "../../auth/ceremony/component/extract.ts";
 
 export type AuthenticationKeys = {
@@ -68,7 +68,7 @@ export class AuthenticationConfigurationBuilder {
 		confirmVerificationCodeInterval: number;
 	};
 
-	public setEnabled(enabled: boolean) {
+	public setEnabled(enabled: boolean): this {
 		this.#enabled = enabled;
 		return this;
 	}
@@ -78,7 +78,7 @@ export class AuthenticationConfigurationBuilder {
 	 * @param keys The keys
 	 * @returns The builder
 	 */
-	public setSecurityKeys(keys: AuthenticationKeys) {
+	public setSecurityKeys(keys: AuthenticationKeys): this {
 		this.#securityKeys = keys;
 		return this;
 	}
@@ -88,7 +88,7 @@ export class AuthenticationConfigurationBuilder {
 	 * @param keys The salt
 	 * @returns The builder
 	 */
-	public setSecuritySalt(salt: string) {
+	public setSecuritySalt(salt: string): this {
 		this.#securitySalt = salt;
 		return this;
 	}
@@ -100,7 +100,7 @@ export class AuthenticationConfigurationBuilder {
 		challengeInterval: number;
 		confirmVerificationCodeCount: number;
 		confirmVerificationCodeInterval: number;
-	}) {
+	}): this {
 		this.#rateLimit = {
 			identificationCount: limits.identificationCount,
 			identificationInterval: limits.identificationInterval,
@@ -117,7 +117,7 @@ export class AuthenticationConfigurationBuilder {
 	 * @param component The allowed authentication methods
 	 * @returns The builder
 	 */
-	public setCeremony(component: AuthenticationCeremonyComponent) {
+	public setCeremony(component: AuthenticationCeremonyComponent): this {
 		assertAuthenticationCeremonyComponent(component);
 		this.#ceremony = component;
 		return this;
@@ -128,7 +128,9 @@ export class AuthenticationConfigurationBuilder {
 	 * @param component The authentication ceremony component
 	 * @returns The builder
 	 */
-	public addCeremonyComponent(component: AuthenticationCeremonyComponent) {
+	public addCeremonyComponent(
+		component: AuthenticationCeremonyComponent,
+	): this {
 		assertAuthenticationCeremonyComponent(component);
 		this.#components.add(component);
 		return this;
@@ -139,7 +141,7 @@ export class AuthenticationConfigurationBuilder {
 	 * @param handler The callback
 	 * @returns The builder
 	 */
-	public onCreateIdentity(handler: AuthenticationHandler) {
+	public onCreateIdentity(handler: AuthenticationHandler): this {
 		this.#onCreateIdentityHandler = handler;
 		return this;
 	}
@@ -149,7 +151,7 @@ export class AuthenticationConfigurationBuilder {
 	 * @param handler The callback
 	 * @returns The builder
 	 */
-	public onUpdateIdentity(handler: AuthenticationHandler) {
+	public onUpdateIdentity(handler: AuthenticationHandler): this {
 		this.#onUpdateIdentityHandler = handler;
 		return this;
 	}
@@ -159,7 +161,7 @@ export class AuthenticationConfigurationBuilder {
 	 * @param handler The callback
 	 * @returns The builder
 	 */
-	public onDeleteIdentity(handler: AuthenticationHandler) {
+	public onDeleteIdentity(handler: AuthenticationHandler): this {
 		this.#onDeleteIdentityHandler = handler;
 		return this;
 	}

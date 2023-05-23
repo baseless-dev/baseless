@@ -85,7 +85,7 @@ export class RouterBuilder<Args extends unknown[]> {
 		methods: Method | Method[],
 		pathname: Path,
 		handler: RouteHandler<ExtractParams<Path>, Args>,
-	) {
+	): this {
 		let endpoint = this.#routes.get(pathname);
 		if (!(endpoint instanceof Set)) {
 			endpoint = new Set();
@@ -110,7 +110,7 @@ export class RouterBuilder<Args extends unknown[]> {
 	route<Path extends string>(
 		pathname: AbsolutePath<Path>,
 		router: Router<Args> | RouterBuilder<Args>,
-	) {
+	): this {
 		this.#routes.set(pathname, router);
 		return this;
 	}
@@ -124,7 +124,7 @@ export class RouterBuilder<Args extends unknown[]> {
 	any<Path extends string>(
 		pathname: Path,
 		handler: RouteHandler<ExtractParams<Path>, Args>,
-	) {
+	): this {
 		for (
 			const method of [
 				"GET",
@@ -152,7 +152,7 @@ export class RouterBuilder<Args extends unknown[]> {
 	get<Path extends string>(
 		pathname: Path,
 		handler: RouteHandler<ExtractParams<Path>, Args>,
-	) {
+	): this {
 		return this.add("GET", pathname, handler);
 	}
 
@@ -165,7 +165,7 @@ export class RouterBuilder<Args extends unknown[]> {
 	head<Path extends string>(
 		pathname: Path,
 		handler: RouteHandler<ExtractParams<Path>, Args>,
-	) {
+	): this {
 		return this.add("HEAD", pathname, handler);
 	}
 
@@ -178,7 +178,7 @@ export class RouterBuilder<Args extends unknown[]> {
 	post<Path extends string>(
 		pathname: Path,
 		handler: RouteHandler<ExtractParams<Path>, Args>,
-	) {
+	): this {
 		return this.add("POST", pathname, handler);
 	}
 
@@ -191,7 +191,7 @@ export class RouterBuilder<Args extends unknown[]> {
 	put<Path extends string>(
 		pathname: Path,
 		handler: RouteHandler<ExtractParams<Path>, Args>,
-	) {
+	): this {
 		return this.add("PUT", pathname, handler);
 	}
 
@@ -204,7 +204,7 @@ export class RouterBuilder<Args extends unknown[]> {
 	delete<Path extends string>(
 		pathname: Path,
 		handler: RouteHandler<ExtractParams<Path>, Args>,
-	) {
+	): this {
 		return this.add("DELETE", pathname, handler);
 	}
 
@@ -217,7 +217,7 @@ export class RouterBuilder<Args extends unknown[]> {
 	connect<Path extends string>(
 		pathname: Path,
 		handler: RouteHandler<ExtractParams<Path>, Args>,
-	) {
+	): this {
 		return this.add("CONNECT", pathname, handler);
 	}
 
@@ -230,7 +230,7 @@ export class RouterBuilder<Args extends unknown[]> {
 	options<Path extends string>(
 		pathname: Path,
 		handler: RouteHandler<ExtractParams<Path>, Args>,
-	) {
+	): this {
 		return this.add("OPTIONS", pathname, handler);
 	}
 
@@ -243,7 +243,7 @@ export class RouterBuilder<Args extends unknown[]> {
 	trace<Path extends string>(
 		pathname: Path,
 		handler: RouteHandler<ExtractParams<Path>, Args>,
-	) {
+	): this {
 		return this.add("TRACE", pathname, handler);
 	}
 
@@ -256,7 +256,7 @@ export class RouterBuilder<Args extends unknown[]> {
 	patch<Path extends string>(
 		pathname: Path,
 		handler: RouteHandler<ExtractParams<Path>, Args>,
-	) {
+	): this {
 		return this.add("PATCH", pathname, handler);
 	}
 }
@@ -303,7 +303,7 @@ export class Router<Args extends unknown[]> {
 					>,
 				]
 			>,
-		) {
+		): void {
 			for (const [pathname, router_or_endpoints] of routeDefinitions) {
 				if (router_or_endpoints instanceof RouterBuilder) {
 					walkRoutes(prefix + pathname, target, router_or_endpoints.routes);

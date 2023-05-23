@@ -1,6 +1,6 @@
 import { assertAuthenticationCeremonyStateIdentified } from "../../../common/auth/ceremony/state.ts";
-import { SendIdentificationChallengeResponse } from "../../../common/auth/send_identification_challenge_response.ts";
-import { IContext } from "../../../common/server/context.ts";
+import type { SendIdentificationChallengeResponse } from "../../../common/auth/send_identification_challenge_response.ts";
+import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 import { decryptEncryptedAuthenticationCeremonyState } from "./decrypt_encrypted_authentication_ceremony_state.ts";
 

@@ -6,11 +6,11 @@ import {
 	AuthenticationMissingIdentificatorError,
 	AuthenticationRateLimitedError,
 } from "../../common/auth/errors.ts";
-import { AuthenticationCeremonyResponse } from "../../common/auth/ceremony/response.ts";
+import type { AuthenticationCeremonyResponse } from "../../common/auth/ceremony/response.ts";
 import { isAuthenticationCeremonyResponseState } from "../../common/auth/ceremony/response/state.ts";
 import {
 	assertAuthenticationCeremonyStateIdentified,
-	AuthenticationCeremonyState,
+	type AuthenticationCeremonyState,
 	isAuthenticationCeremonyStateIdentified,
 } from "../../common/auth/ceremony/state.ts";
 import { isAuthenticationCeremonyComponentChoice } from "../../common/auth/ceremony/component/choice.ts";

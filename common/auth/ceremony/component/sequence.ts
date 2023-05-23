@@ -1,6 +1,6 @@
 import { InvalidAuthenticationCeremonyComponentSequenceError } from "../../errors.ts";
 import {
-	AuthenticationCeremonyComponent,
+	type AuthenticationCeremonyComponent,
 	isAuthenticationCeremonyComponent,
 } from "../ceremony.ts";
 

@@ -1,4 +1,4 @@
-import { AutoId, isAutoId } from "../system/autoid.ts";
+import { type AutoId, isAutoId } from "../system/autoid.ts";
 import { InvalidIdentityError } from "./errors.ts";
 
 export const IDENTITY_AUTOID_PREFIX = "id-";

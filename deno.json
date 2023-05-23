@@ -29,7 +29,17 @@
 		"coverage": "DENO_DIR=.deno deno coverage coverage"
 	},
 	"lint": {
-		"exclude": ["examples/", ".deno/", "npm/", "coverage/"]
+		"exclude": [
+			"examples/",
+			".deno/",
+			"npm/",
+			"coverage/",
+			"auth/"
+		],
+		"rules": {
+			"tags": ["recommended"],
+			"include": ["explicit-function-return-type"]
+		}
 	},
 	"fmt": {
 		"exclude": ["examples/", ".deno/", "npm/", "coverage/"],

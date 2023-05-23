@@ -24,31 +24,39 @@ export class CacheMap<K, V> {
 		this.#map.set(key, { value, expiration });
 	}
 
-	delete(key: K) {
+	delete(key: K): void {
 		this.#map.delete(key);
 	}
 
-	entries() {
-		return this.#map.entries();
+	*entries(): IterableIterator<[K, V]> {
+		for (const [key, data] of this.#map.entries()) {
+			if (!data.expiration || data.expiration > Date.now()) {
+				yield [key, data.value];
+			}
+		}
 	}
 
-	keys() {
+	keys(): IterableIterator<K> {
 		return this.#map.keys();
 	}
 
-	values() {
-		return this.#map.values();
+	*values(): IterableIterator<V> {
+		for (const data of this.#map.values()) {
+			if (!data.expiration || data.expiration > Date.now()) {
+				yield data.value;
+			}
+		}
 	}
 
-	[Symbol.iterator]() {
+	[Symbol.iterator](): IterableIterator<[K, V]> {
 		return this.entries();
 	}
 
-	clearAll() {
+	clearAll(): void {
 		this.#map.clear();
 	}
 
-	clearExpired() {
+	clearExpired(): void {
 		const now = Date.now();
 		for (const [key, data] of this.#map) {
 			if (data.expiration && data.expiration <= now) {

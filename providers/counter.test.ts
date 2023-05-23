@@ -4,7 +4,7 @@ import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 export default async function testCounterProvider(
 	cp: CounterProvider,
 	t: Deno.TestContext,
-) {
+): Promise<void> {
 	await t.step("increment without expiration", async () => {
 		assertEquals(await cp.increment("insc", 0), 0);
 		assertEquals(await cp.increment("insc", 1), 1);

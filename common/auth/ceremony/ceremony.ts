@@ -1,22 +1,22 @@
 import { InvalidAuthenticationCeremonyComponentError } from "../errors.ts";
 import {
-	AuthenticationCeremonyComponentChallenge,
+	type AuthenticationCeremonyComponentChallenge,
 	isAuthenticationCeremonyComponentChallenge,
 } from "./component/challenge.ts";
 import {
-	AuthenticationCeremonyComponentChoice,
+	type AuthenticationCeremonyComponentChoice,
 	isAuthenticationCeremonyComponentChoice,
 } from "./component/choice.ts";
 import {
-	AuthenticationCeremonyComponentConditional,
+	type AuthenticationCeremonyComponentConditional,
 	isAuthenticationCeremonyComponentConditional,
 } from "./component/conditional.ts";
 import {
-	AuthenticationCeremonyComponentIdentification,
+	type AuthenticationCeremonyComponentIdentification,
 	isAuthenticationCeremonyComponentIdentification,
 } from "./component/identification.ts";
 import {
-	AuthenticationCeremonyComponentSequence,
+	type AuthenticationCeremonyComponentSequence,
 	isAuthenticationCeremonyComponentSequence,
 } from "./component/sequence.ts";
 

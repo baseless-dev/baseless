@@ -1,6 +1,6 @@
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 import { SignJWT } from "https://deno.land/x/jose@v4.13.1/jwt/sign.ts";
-import { SessionData } from "../../../common/session/data.ts";
+import type { SessionData } from "../../../common/session/data.ts";
 
 export async function createTokens(
 	sessionData: SessionData,

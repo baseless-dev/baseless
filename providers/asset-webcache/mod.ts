@@ -1,5 +1,5 @@
 import { createLogger } from "../../common/system/logger.ts";
-import { AssetProvider } from "../asset.ts";
+import type { AssetProvider } from "../asset.ts";
 
 export class WebCacheAssetProvider implements AssetProvider {
 	#logger = createLogger("asset-local");

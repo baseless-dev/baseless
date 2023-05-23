@@ -1,5 +1,5 @@
-import { AuthenticationCeremonyResponse } from "../../../common/auth/ceremony/response.ts";
-import { IContext } from "../../../common/server/context.ts";
+import type { AuthenticationCeremonyResponse } from "../../../common/auth/ceremony/response.ts";
+import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 import { decryptEncryptedAuthenticationCeremonyState } from "./decrypt_encrypted_authentication_ceremony_state.ts";
 

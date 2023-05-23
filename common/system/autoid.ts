@@ -34,7 +34,7 @@ export class AutoIdGenerator {
 		this.#prefix = prefix;
 	}
 
-	write(chunk: ArrayLike<number>) {
+	write(chunk: ArrayLike<number>): void {
 		this.#hash = cyrb128(chunk, ...this.#hash);
 	}
 
@@ -116,8 +116,8 @@ function cyrb128(
  * @param d
  * @returns
  */
-function sfc32(a: number, b: number, c: number, d: number) {
-	return function () {
+function sfc32(a: number, b: number, c: number, d: number): () => number {
+	return function (): number {
 		a >>>= 0;
 		b >>>= 0;
 		c >>>= 0;

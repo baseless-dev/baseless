@@ -1,26 +1,26 @@
 import { InvalidAuthenticationCeremonyResponseError } from "../errors.ts";
 import {
-	AuthenticationCeremonyResponseDone,
+	type AuthenticationCeremonyResponseDone,
 	isAuthenticationCeremonyResponseDone,
 } from "./response/done.ts";
 import {
-	AuthenticationCeremonyResponseEncryptedState,
+	type AuthenticationCeremonyResponseEncryptedState,
 	isAuthenticationCeremonyResponseEncryptedState,
 } from "./response/encrypted_state.ts";
 import {
-	AuthenticationCeremonyResponseError,
+	type AuthenticationCeremonyResponseError,
 	isAuthenticationCeremonyResponseError,
 } from "./response/error.ts";
 import {
-	AuthenticationCeremonyResponseRedirect,
+	type AuthenticationCeremonyResponseRedirect,
 	isAuthenticationCeremonyResponseRedirect,
 } from "./response/redirect.ts";
 import {
-	AuthenticationCeremonyResponseState,
+	type AuthenticationCeremonyResponseState,
 	isAuthenticationCeremonyResponseState,
 } from "./response/state.ts";
 import {
-	AuthenticationCeremonyResponseTokens,
+	type AuthenticationCeremonyResponseTokens,
 	isAuthenticationCeremonyResponseTokens,
 } from "./response/tokens.ts";
 

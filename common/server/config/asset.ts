@@ -5,8 +5,9 @@ export type AssetConfiguration = {
 export class AssetConfigurationBuilder {
 	#enabled = false;
 
-	setEnabled(enabled: boolean) {
+	setEnabled(enabled: boolean): this {
 		this.#enabled = !!enabled;
+		return this;
 	}
 
 	/**

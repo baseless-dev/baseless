@@ -1,10 +1,10 @@
 import {
 	assertAuthenticationCeremonyComponent,
-	AuthenticationCeremonyComponent,
+	type AuthenticationCeremonyComponent,
 } from "../ceremony.ts";
-import { AuthenticationCeremonyComponentChoice } from "./choice.ts";
-import { AuthenticationCeremonyComponentConditional } from "./conditional.ts";
-import { AuthenticationCeremonyComponentSequence } from "./sequence.ts";
+import type { AuthenticationCeremonyComponentChoice } from "./choice.ts";
+import type { AuthenticationCeremonyComponentConditional } from "./conditional.ts";
+import type { AuthenticationCeremonyComponentSequence } from "./sequence.ts";
 
 export function sequence(
 	...components: AuthenticationCeremonyComponent[]

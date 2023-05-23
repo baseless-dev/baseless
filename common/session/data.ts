@@ -1,5 +1,5 @@
 import { IDENTITY_AUTOID_PREFIX } from "../identity/identity.ts";
-import { AutoId, isAutoId } from "../system/autoid.ts";
+import { type AutoId, isAutoId } from "../system/autoid.ts";
 import { InvalidSessionDataError } from "./errors.ts";
 
 export const SESSION_AUTOID_PREFIX = "ses-";

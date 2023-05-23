@@ -1,7 +1,7 @@
 import type { IdentityIdentification } from "../identity/identification.ts";
-import { Message } from "../message/message.ts";
-import { IContext } from "../server/context.ts";
-import { AuthenticationCeremonyComponentIdentification } from "./ceremony/component/identification.ts";
+import type { Message } from "../message/message.ts";
+import type { IContext } from "../server/context.ts";
+import type { AuthenticationCeremonyComponentIdentification } from "./ceremony/component/identification.ts";
 
 export type AuthenticationIdenticatorIdentifyOptions = {
 	context: IContext;
@@ -19,7 +19,7 @@ export abstract class AuthenticationIdenticator
 	implements AuthenticationCeremonyComponentIdentification {
 	abstract kind: string;
 	abstract prompt: "email" | "action";
-	toJSON() {
+	toJSON(): Record<string, unknown> {
 		return {
 			kind: this.kind,
 			prompt: this.prompt,

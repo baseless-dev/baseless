@@ -117,7 +117,7 @@ Deno.test("Client Auth", async (t) => {
 	const app = initializeApp({
 		clientId: "test",
 		apiEndpoint: "http://test.local/api",
-		async fetch(input, init) {
+		async fetch(input, init): Promise<Response> {
 			const request = new Request(input, init);
 			const [response] = await server.handleRequest(request, "127.0.0.1");
 			return response;
@@ -158,7 +158,8 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseState(result);
 		assertEquals(result.first, true);
 		assertEquals(result.last, false);
-		assertEquals(result.component, email.toJSON());
+		// deno-lint-ignore no-explicit-any
+		assertEquals(result.component, email.toJSON() as any);
 		assertAuthenticationCeremonyResponseState(
 			await getAuthenticationCeremony(authApp, "invalid"),
 		);
@@ -173,7 +174,11 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseEncryptedState(result);
 		assertEquals(result.first, false);
 		assertEquals(result.last, false);
-		assertEquals(result.component, oneOf(password.toJSON(), totp.toJSON()));
+		assertEquals(
+			result.component,
+			// deno-lint-ignore no-explicit-any
+			oneOf(password.toJSON() as any, totp.toJSON() as any),
+		);
 		await assertRejects(() =>
 			submitAuthenticationIdentification(authApp, "email", "unknown@test.local")
 		);

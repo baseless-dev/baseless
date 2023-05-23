@@ -1,4 +1,4 @@
-import { encode, decode } from "../encoding/base32.ts";
+import { decode, encode } from "../encoding/base32.ts";
 
 export type OTPAlgorithm = "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
 
@@ -80,7 +80,7 @@ export class InvalidTOTPOptionsError extends Error {
  * @param {number} counter - The counter value to convert.
  * @returns {Uint8Array} - A Uint8Array representing the counter value padded to 128 bits.
  */
-function padCounter(counter: number) {
+function padCounter(counter: number): Uint8Array {
 	const pairs = counter.toString(16).padStart(16, "0").match(/..?/g)!;
 	const array = pairs.map((v) => parseInt(v, 16));
 	return Uint8Array.from(array);
@@ -91,7 +91,7 @@ function padCounter(counter: number) {
  * @param {Uint8Array} hmac - The HMAC value to truncate.
  * @returns {number} - The truncated value extracted from the HMAC.
  */
-function truncate(hmac: Uint8Array) {
+function truncate(hmac: Uint8Array): number {
 	const offset = hmac[19] & 0b1111;
 	return ((hmac[offset] & 0x7f) << 24) | (hmac[offset + 1] << 16) |
 		(hmac[offset + 2] << 8) | hmac[offset + 3];
@@ -112,7 +112,7 @@ export async function hotp(
 	{ key, counter, algorithm = "SHA-1", digits = 6 }: HOTPOptions & {
 		counter: number;
 	},
-) {
+): Promise<string> {
 	assertOTPAlgorithm(algorithm);
 	let cryptoKey: CryptoKey;
 	if (key instanceof CryptoKey) {
@@ -154,7 +154,7 @@ export function totp(
 	{ key, time = Date.now() / 1000, period = 60, algorithm, digits }:
 		& TOTPOptions
 		& { time: number },
-) {
+): Promise<string> {
 	return hotp({ key, counter: Math.floor(time / period), algorithm, digits });
 }
 
@@ -164,7 +164,7 @@ export function totp(
  * @param {number} [options.digits=6] - The number of digits to include in the generated OTP. Defaults to 6.
  * @returns {string} - The generated OTP as a string.
  */
-export function otp({ digits = 6 }: { digits?: number } = {}) {
+export function otp({ digits = 6 }: { digits?: number } = {}): string {
 	const hmac = new Uint8Array(digits);
 	crypto.getRandomValues(hmac);
 	const num = truncate(hmac);
@@ -176,7 +176,7 @@ export function otp({ digits = 6 }: { digits?: number } = {}) {
  * @param {number} [length=16] - The length of the key to generate, in bytes. Defaults to 16.
  * @returns {string} - The generated random key encoded as a base32 string.
  */
-export function generateKey(length = 16) {
+export function generateKey(length = 16): string {
 	const buffer = new Uint8Array(length);
 	crypto.getRandomValues(buffer);
 	return encode(buffer).slice(0, length);
@@ -206,7 +206,7 @@ export type OTPAuthURIOptions =
  * @returns {string} - The generated OTPAuth URI.
  * @throws {Error} - Throws an error if the provided options are invalid.
  */
-export function toURI(options: OTPAuthURIOptions) {
+export function toURI(options: OTPAuthURIOptions): string {
 	options.digits ??= 6;
 	options.algorithm ??= "SHA-1";
 	if (options.type === "hotp") {

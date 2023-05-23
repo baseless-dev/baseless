@@ -1,5 +1,5 @@
-import { SendIdentificationValidationCodeResponse } from "../../../common/auth/send_identification_validation_code_response.ts";
-import { IContext } from "../../../common/server/context.ts";
+import type { SendIdentificationValidationCodeResponse } from "../../../common/auth/send_identification_validation_code_response.ts";
+import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 
 export async function sendIdentificationValidationCode(

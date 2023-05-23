@@ -1,7 +1,7 @@
-import { AuthenticationCeremonyResponse } from "../../../common/auth/ceremony/response.ts";
+import type { AuthenticationCeremonyResponse } from "../../../common/auth/ceremony/response.ts";
 import { isAuthenticationCeremonyResponseDone } from "../../../common/auth/ceremony/response/done.ts";
 import { isAuthenticationCeremonyStateIdentified } from "../../../common/auth/ceremony/state.ts";
-import { IContext } from "../../../common/server/context.ts";
+import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 import { createTokens } from "./create_tokens.ts";
 import { decryptEncryptedAuthenticationCeremonyState } from "./decrypt_encrypted_authentication_ceremony_state.ts";

@@ -1,15 +1,21 @@
-import * as log from "../../server/logger.ts";
-import { config } from "../../server/config.ts";
+import * as log from "../../common/system/logger.ts";
 import { Server } from "../../server/server.ts";
 import { MemoryCounterProvider } from "../../providers/counter-memory/mod.ts";
 import { WebStorageKVProvider } from "../../providers/kv-webstorage/mod.ts";
 import { KVIdentityProvider } from "../../providers/identity-kv/mod.ts";
 import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";
-import "./app.ts";
 import { LocalAssetProvider } from "../../providers/asset-local/mod.ts";
 import { WebCacheAssetProvider } from "../../providers/asset-webcache/mod.ts";
 import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
 import { IdentityService } from "../../server/services/identity.ts";
+import { EmailAuthentificationIdenticator } from "../../providers/auth-email/mod.ts";
+import { PasswordAuthentificationChallenger } from "../../providers/auth-password/mod.ts";
+import { TOTPLoggerAuthentificationChallenger } from "../../providers/auth-totp-logger/mod.ts";
+import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
+import { Context } from "../../server/context.ts";
+import { generateKey } from "../../common/system/otp.ts";
+import { config } from "../../common/server/config/config.ts";
+import "./app.ts";
 
 Deno.permissions.request({ name: "read", path: import.meta.url });
 Deno.permissions.request({ name: "write", path: import.meta.url });
@@ -20,18 +26,37 @@ log.setGlobalLogHandler(log.createConsoleLogHandler(log.LogLevel.LOG));
 
 const configuration = config.build();
 
-// await caches.delete("baseless-hello-world-public");
-// const assetProvider = new WebCacheAssetProvider(await caches.open("baseless-hello-world-public"), new LocalAssetProvider(import.meta.resolve("./public")));
+const email = new EmailAuthentificationIdenticator(
+	new LoggerMessageProvider(),
+);
+const password = new PasswordAuthentificationChallenger();
+const totp = new TOTPLoggerAuthentificationChallenger({
+	period: 60,
+	algorithm: "SHA-256",
+	digits: 6,
+});
+
 const assetProvider = new LocalAssetProvider(import.meta.resolve("./public"));
 const counterProvider = new MemoryCounterProvider();
-const kvProvider = new WebStorageKVProvider(sessionStorage, "hello-world-kv/");
-const identityKV = new WebStorageKVProvider(sessionStorage, "hello-world-idp/");
+const kvProvider = new MemoryKVProvider();
+const identityKV = new MemoryKVProvider();
 const identityProvider = new KVIdentityProvider(identityKV);
-const sessionKV = new WebStorageKVProvider(sessionStorage, "hello-world-session/");
+const sessionKV = new MemoryKVProvider();
 const sessionProvider = new KVSessionProvider(sessionKV);
-const messageProvider = new LoggerMessageProvider();
+const context = new Context(
+	[],
+	"127.0.0.1",
+	undefined,
+	configuration,
+	assetProvider,
+	counterProvider,
+	kvProvider,
+	identityProvider,
+	sessionProvider,
+);
 
-const identityService = new IdentityService(configuration, identityProvider, counterProvider);
+const identityService = context.identity;
+
 const john = await identityService.create({});
 await identityService.createIdentification({
 	identityId: john.id,
@@ -44,6 +69,11 @@ await identityService.createChallenge(
 	john.id,
 	"password",
 	"123",
+);
+await identityService.createChallenge(
+	john.id,
+	"totp",
+	await generateKey(16),
 );
 
 const server = new Server({ configuration, assetProvider, counterProvider, identityProvider, sessionProvider, kvProvider });

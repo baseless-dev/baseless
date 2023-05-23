@@ -1,4 +1,4 @@
-import { AuthenticationCeremonyComponent } from "../ceremony.ts";
+import type { AuthenticationCeremonyComponent } from "../ceremony.ts";
 import { isAuthenticationCeremonyComponentChoice } from "./choice.ts";
 import { isAuthenticationCeremonyComponentSequence } from "./sequence.ts";
 

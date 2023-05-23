@@ -8,7 +8,7 @@ import {
 export default async function testKVProvider(
 	kv: KVProvider,
 	t: Deno.TestContext,
-) {
+): Promise<void> {
 	await t.step("put", async () => {
 		await kv.put("/posts/a", "Title A");
 	});

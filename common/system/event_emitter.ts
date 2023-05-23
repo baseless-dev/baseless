@@ -12,7 +12,7 @@ export class EventEmitter<T extends unknown[] = []> {
 	/**
 	 * Add `handler` to the listeners set and returns a disposable delegate
 	 */
-	public listen(handler: (...args: T) => void) {
+	public listen(handler: (...args: T) => void): () => void {
 		this.handlers.add(handler);
 		return () => {
 			this.handlers.delete(handler);
@@ -22,7 +22,7 @@ export class EventEmitter<T extends unknown[] = []> {
 	/**
 	 * Emit a new event to the listeners
 	 */
-	public emit(...args: T) {
+	public emit(...args: T): void {
 		for (const handler of this.handlers) {
 			handler(...args);
 		}
@@ -31,7 +31,7 @@ export class EventEmitter<T extends unknown[] = []> {
 	/**
 	 * Clear the listeners set
 	 */
-	public clear() {
+	public clear(): void {
 		this.handlers.clear();
 	}
 }

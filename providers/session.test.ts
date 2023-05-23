@@ -10,7 +10,7 @@ import { IDENTITY_AUTOID_PREFIX } from "../common/identity/identity.ts";
 export default async function testSessionProvider(
 	session: SessionProvider,
 	t: Deno.TestContext,
-) {
+): Promise<void> {
 	const identityId1 = autoid(IDENTITY_AUTOID_PREFIX);
 	const identityId2 = autoid(IDENTITY_AUTOID_PREFIX);
 	let sessionData1: SessionData | undefined;

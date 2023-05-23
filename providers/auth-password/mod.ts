@@ -1,15 +1,16 @@
 import { encode } from "../../common/encoding/base64.ts";
 import {
 	AuthenticationChallenger,
-	AuthenticationChallengerConfigureIdentityChallengeOptions,
-	AuthenticationChallengerVerifyOptions,
+	type AuthenticationChallengerConfigureIdentityChallengeOptions,
+	type AuthenticationChallengerVerifyOptions,
 } from "../../common/auth/challenger.ts";
 
 export class PasswordAuthentificationChallenger
 	extends AuthenticationChallenger {
 	kind = "password" as const;
 	prompt = "password" as const;
-	async #hash(password: string) {
+
+	async #hash(password: string): Promise<string> {
 		return encode(
 			await crypto.subtle.digest("SHA-512", new TextEncoder().encode(password)),
 		);

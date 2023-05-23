@@ -1,5 +1,5 @@
 import { CacheMap } from "../../common/collections/cachemap.ts";
-import { CounterProvider } from "../counter.ts";
+import type { CounterProvider } from "../counter.ts";
 
 export class MemoryCounterProvider implements CounterProvider {
 	#keys: CacheMap<string, number>;

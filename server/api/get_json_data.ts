@@ -1,4 +1,4 @@
-import { assertJsonObject, JsonObject } from "../../common/system/json.ts";
+import { assertJsonObject, type JsonObject } from "../../common/system/json.ts";
 
 export async function getJsonData(request: Request): Promise<JsonObject> {
 	if (request.headers.get("content-type") === "application/json") {

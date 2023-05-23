@@ -14,7 +14,7 @@ import type { IdentityChallenge } from "../common/identity/challenge.ts";
 export default async function testIdentityProvider(
 	ip: IdentityProvider,
 	t: Deno.TestContext,
-) {
+): Promise<void> {
 	let identityId = "";
 	await t.step("create", async () => {
 		const id1 = await ip.create({ foo: "bar" });

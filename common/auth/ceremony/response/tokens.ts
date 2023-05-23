@@ -1,5 +1,8 @@
 import { InvalidAuthenticationCeremonyResponseTokensError } from "../../errors.ts";
-import { AuthenticationTokens, isAuthenticationTokens } from "../../tokens.ts";
+import {
+	type AuthenticationTokens,
+	isAuthenticationTokens,
+} from "../../tokens.ts";
 
 export type AuthenticationCeremonyResponseTokens = {
 	done: true;

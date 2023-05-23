@@ -1,4 +1,4 @@
-import { AutoId, isAutoId } from "../system/autoid.ts";
+import { type AutoId, isAutoId } from "../system/autoid.ts";
 import { InvalidIdentityIdentificationError } from "./errors.ts";
 import { IDENTITY_AUTOID_PREFIX } from "./identity.ts";
 

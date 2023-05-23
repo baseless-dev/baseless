@@ -1,10 +1,10 @@
 import { InvalidAuthenticationCeremonyResponseStateError } from "../../errors.ts";
 import {
-	AuthenticationCeremonyState,
+	type AuthenticationCeremonyState,
 	isAuthenticationCeremonyState,
 } from "../state.ts";
 import {
-	AuthenticationCeremonyComponent,
+	type AuthenticationCeremonyComponent,
 	isAuthenticationCeremonyComponent,
 } from "../ceremony.ts";
 

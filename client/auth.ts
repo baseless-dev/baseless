@@ -1,26 +1,26 @@
 import {
 	assertAuthenticationCeremonyResponse,
-	AuthenticationCeremonyResponse,
+	type AuthenticationCeremonyResponse,
 } from "../common/auth/ceremony/response.ts";
 import { EventEmitter } from "../common/system/event_emitter.ts";
-import { App, assertApp } from "./app.ts";
+import { type App, assertApp } from "./app.ts";
 import { throwIfApiError } from "./errors.ts";
 import {
 	assertSendIdentificationValidationCodeResponse,
-	SendIdentificationValidationCodeResponse,
+	type SendIdentificationValidationCodeResponse,
 } from "../common/auth/send_identification_validation_code_response.ts";
 import {
 	assertConfirmIdentificationValidationCodeResponse,
-	ConfirmIdentificationValidationCodeResponse,
+	type ConfirmIdentificationValidationCodeResponse,
 } from "../common/auth/confirm_identification_validation_code_response.ts";
 import {
 	assertSendIdentificationChallengeResponse,
-	SendIdentificationChallengeResponse,
+	type SendIdentificationChallengeResponse,
 } from "../common/auth/send_identification_challenge_response.ts";
 import { isAuthenticationCeremonyResponseTokens } from "../common/auth/ceremony/response/tokens.ts";
 import {
 	assertAuthenticationTokens,
-	AuthenticationTokens,
+	type AuthenticationTokens,
 	isAuthenticationTokens,
 } from "../common/auth/tokens.ts";
 
@@ -48,7 +48,7 @@ function assertInitializedAuth(app: App): asserts app is App {
 	}
 }
 
-function getTokens(app: App) {
+function getTokens(app: App): AuthenticationTokens | undefined {
 	assertApp(app);
 	assertInitializedAuth(app);
 	return tokenMap.get(app.clientId);
@@ -58,7 +58,7 @@ function setTokens(
 	app: App,
 	tokens: AuthenticationTokens | undefined,
 	delayed = false,
-) {
+): void {
 	assertApp(app);
 	assertInitializedAuth(app);
 	if (isAuthenticationTokens(tokens)) {
@@ -77,13 +77,13 @@ function setTokens(
 	onAuthStateChangeMap.get(app.clientId)!.emit();
 }
 
-function getOnAuthStateChange(app: App) {
+function getOnAuthStateChange(app: App): EventEmitter<never> {
 	assertApp(app);
 	assertInitializedAuth(app);
 	return onAuthStateChangeMap.get(app.clientId)!;
 }
 
-function getStorage(app: App) {
+function getStorage(app: App): Storage {
 	assertApp(app);
 	assertInitializedAuth(app);
 	return storageMap.get(app.clientId)!;
@@ -123,7 +123,10 @@ export function initializeAuth(app: App): App {
 	}
 	return {
 		...app,
-		fetch(input: URL | Request | string, init?: RequestInit) {
+		fetch(
+			input: URL | Request | string,
+			init?: RequestInit,
+		): Promise<Response> {
 			const headers = new Headers(init?.headers);
 			const tokens = getTokens(app);
 			if (tokens?.access_token) {
@@ -144,7 +147,7 @@ export function getPersistence(app: App): Persistence {
 	return persistence;
 }
 
-export function setPersistence(app: App, persistence: Persistence) {
+export function setPersistence(app: App, persistence: Persistence): void {
 	assertApp(app);
 	assertInitializedAuth(app);
 	assertPersistence(persistence);
@@ -164,7 +167,7 @@ export function setPersistence(app: App, persistence: Persistence) {
 	storageMap.set(app.clientId, newStorage);
 }
 
-export function onAuthStateChange(app: App, listener: () => void) {
+export function onAuthStateChange(app: App, listener: () => void): () => void {
 	assertApp(app);
 	assertInitializedAuth(app);
 	const onAuthStateChange = getOnAuthStateChange(app);

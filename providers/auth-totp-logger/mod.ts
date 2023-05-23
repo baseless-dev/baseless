@@ -1,19 +1,19 @@
 import {
 	AuthenticationChallenger,
-	AuthenticationChallengerConfigureIdentityChallengeOptions,
-	AuthenticationChallengerSendChallengeOptions,
-	AuthenticationChallengerVerifyOptions,
+	type AuthenticationChallengerConfigureIdentityChallengeOptions,
+	type AuthenticationChallengerSendChallengeOptions,
+	type AuthenticationChallengerVerifyOptions,
 } from "../../common/auth/challenger.ts";
 import {
 	createLogger,
-	Logger,
+	type Logger,
 	LogLevel,
 	LogLevelMethod,
 } from "../../common/system/logger.ts";
 import {
 	assertTOTPOptions,
 	totp,
-	TOTPOptions,
+	type TOTPOptions,
 } from "../../common/system/otp.ts";
 
 export class TOTPLoggerAuthentificationChallenger

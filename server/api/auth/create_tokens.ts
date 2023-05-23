@@ -15,6 +15,7 @@ export async function createTokens(
 		.setExpirationTime(accessExpiration)
 		.setProtectedHeader({ alg })
 		.sign(privateKey);
+	// TODO identity meta
 	const id_token = await new SignJWT({})
 		.setSubject(sessionData.identityId)
 		.setIssuedAt()

@@ -36,7 +36,7 @@ export function assertPersistence(
 		throw new InvalidPersistenceError();
 	}
 }
-export class InvalidPersistenceError extends Error {}
+export class InvalidPersistenceError extends Error { }
 
 const tokenMap = new Map<string, AuthenticationTokens | undefined>();
 const onAuthStateChangeMap = new Map<string, EventEmitter<never>>();
@@ -89,7 +89,7 @@ function getStorage(app: App): Storage {
 	return storageMap.get(app.clientId)!;
 }
 
-export class AuthNotInitializedError extends Error {}
+export class AuthNotInitializedError extends Error { }
 
 export function initializeAuth(app: App): App {
 	assertApp(app);
@@ -98,7 +98,7 @@ export function initializeAuth(app: App): App {
 	}
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	const storage = persistence === "local"
 		? globalThis.localStorage
 		: globalThis.sessionStorage;
@@ -142,7 +142,7 @@ export function getPersistence(app: App): Persistence {
 	assertInitializedAuth(app);
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	assertPersistence(persistence);
 	return persistence;
 }
@@ -314,4 +314,11 @@ export async function signOut(app: App): Promise<void> {
 	const result = await resp.json();
 	throwIfApiError(result);
 	setTokens(app, undefined);
+}
+
+export function getIdToken(app: App): string | undefined {
+	assertApp(app);
+	assertInitializedAuth(app);
+	const tokens = getTokens(app);
+	return tokens?.id_token;
 }

@@ -1,4 +1,5 @@
 import {
+	assert,
 	assertEquals,
 	assertRejects,
 	assertThrows,
@@ -8,6 +9,7 @@ import {
 	assertPersistence,
 	confirmIdentificationValidationCode,
 	getAuthenticationCeremony,
+	getIdToken,
 	getPersistence,
 	initializeAuth,
 	onAuthStateChange,
@@ -221,7 +223,7 @@ Deno.test("Client Auth", async (t) => {
 		assertSendIdentificationChallengeResponse(result2);
 		const challengeCode = messages.pop()?.message ?? "";
 		assertEquals(challengeCode.length, 6);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		const result3 = await submitAuthenticationChallenge(
 			authApp,
 			"totp",
@@ -243,7 +245,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		assertEquals(result.sent, true);
 		assertEquals(messages[0]?.message.text.length, 6);
 	});
@@ -260,7 +262,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		assertEquals(sendResult.sent, true);
 		const validationCode = messages[0]?.message.text;
 		const confirmResult = await confirmIdentificationValidationCode(
@@ -311,5 +313,23 @@ Deno.test("Client Auth", async (t) => {
 		assertEquals(changes, [1]);
 		await signOut(authApp);
 		assertEquals(changes, [1, 1]);
+	});
+
+	await t.step("getIdToken", async () => {
+		const result1 = await submitAuthenticationIdentification(
+			authApp,
+			"email",
+			"john@test.local",
+		);
+		assertAuthenticationCeremonyResponseEncryptedState(result1);
+		const result2 = await submitAuthenticationChallenge(
+			authApp,
+			"password",
+			"123",
+			result1.encryptedState,
+		);
+		assertAuthenticationCeremonyResponseTokens(result2);
+		const idToken = await getIdToken(authApp);
+		assert(idToken?.length ?? 0 > 0);
 	});
 });

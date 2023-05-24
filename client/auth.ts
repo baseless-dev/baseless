@@ -363,3 +363,45 @@ export async function createIdentity(
 	const result = await resp.json();
 	throwIfApiError(result);
 }
+
+export async function addIdentification(
+	app: App,
+	identificationType: string,
+	identification: string,
+	locale: string,
+): Promise<void> {
+	assertApp(app);
+	assertInitializedAuth(app);
+	const body = JSON.stringify({
+		identificationType,
+		identification,
+		locale,
+	});
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/addIdentification`,
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+}
+
+export async function addChallenge(
+	app: App,
+	challengeType: string,
+	challenge: string,
+	locale: string,
+): Promise<void> {
+	assertApp(app);
+	assertInitializedAuth(app);
+	const body = JSON.stringify({
+		challengeType,
+		challenge,
+		locale,
+	});
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/addChallenge`,
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+}

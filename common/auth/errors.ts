@@ -108,6 +108,3 @@ export class UnauthorizedError extends Error {
 export class AnonymousIdentityNotAllowedError extends Error {
 	name = "AnonymousIdentityNotAllowedError" as const;
 }
-export class CreateIdentityError extends Error {
-	name = "CreateIdentityError" as const;
-}

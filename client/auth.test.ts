@@ -6,6 +6,8 @@ import {
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { App, assertApp, initializeApp } from "./app.ts";
 import {
+	addChallenge,
+	addIdentification,
 	assertPersistence,
 	confirmIdentificationValidationCode,
 	createAnonymousIdentity,
@@ -384,5 +386,17 @@ Deno.test("Client Auth", async (t) => {
 				"en",
 			)
 		);
+	});
+
+	await t.step("addIdentification", async () => {
+		await addIdentification(authApp, "email", "nobody@test.local", "en");
+		await assertRejects(() =>
+			addIdentification(authApp, "email", "john@test.local", "en")
+		);
+	});
+
+	await t.step("addChallenge", async () => {
+		await addChallenge(authApp, "password", "blep", "en");
+		await assertRejects(() => addChallenge(authApp, "password", "blep", "en"));
 	});
 });

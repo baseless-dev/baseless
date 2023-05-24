@@ -1,4 +1,4 @@
-import { CreateIdentityError } from "../../../common/auth/errors.ts";
+import { IdentityCreateError } from "../../../common/identity/errors.ts";
 import type { IContext } from "../../../common/server/context.ts";
 import { AutoId } from "../../../common/system/autoid.ts";
 import { getJsonData } from "../get_json_data.ts";
@@ -15,7 +15,7 @@ export async function createIdentity(
 	const locale = data?.locale?.toString() ?? "en";
 
 	if (!identification) {
-		throw new CreateIdentityError();
+		throw new IdentityCreateError();
 	}
 
 	let identityId: AutoId | undefined;
@@ -28,7 +28,7 @@ export async function createIdentity(
 			if (identifications.length === 0) {
 				identityId = context.sessionData.identityId;
 			} else {
-				throw new CreateIdentityError();
+				throw new IdentityCreateError();
 			}
 		} else {
 			const identity = await context.identity.create({});
@@ -57,6 +57,6 @@ export async function createIdentity(
 				await context.identity.delete(identityId).catch((_) => {});
 			}
 		}
-		throw new CreateIdentityError();
+		throw new IdentityCreateError();
 	}
 }

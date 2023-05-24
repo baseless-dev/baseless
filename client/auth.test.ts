@@ -44,6 +44,7 @@ import { Context } from "../server/context.ts";
 import * as h from "../common/auth/ceremony/component/helpers.ts";
 import { ConfigurationBuilder } from "../common/server/config/config.ts";
 import { assertAuthenticationCeremonyResponseTokens } from "../common/auth/ceremony/response/tokens.ts";
+import { decode } from "../common/encoding/base64.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const email = new EmailAuthentificationIdenticator(
@@ -337,21 +338,51 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("createAnonymousIdentity", async () => {
+		await signOut(authApp);
 		const result1 = await createAnonymousIdentity(authApp);
 		assertAuthenticationCeremonyResponseTokens(result1);
 	});
 
 	await t.step("createIdentity", async () => {
+		await signOut(authApp);
 		await createIdentity(
 			authApp,
 			"email",
 			"jane@test.local",
 			"en",
 		);
-		const identity = await identityProvider.matchIdentification(
+		const identity1 = await identityProvider.matchIdentification(
 			"email",
 			"jane@test.local",
 		);
-		assertEquals(identity.verified, false);
+		assertEquals(identity1.verified, false);
+	});
+
+	await t.step("createIdentity claims anonymous identity", async () => {
+		await signOut(authApp).catch((_) => {});
+		const result1 = await createAnonymousIdentity(authApp);
+		assertAuthenticationCeremonyResponseTokens(result1);
+		const idTokenPayload = decode(result1.id_token.split(".")[1]);
+		const idToken = JSON.parse(new TextDecoder().decode(idTokenPayload));
+		const anonymousIdentityId = `${idToken.sub}`;
+		await createIdentity(
+			authApp,
+			"email",
+			"bob@test.local",
+			"en",
+		);
+		const identity1 = await identityProvider.matchIdentification(
+			"email",
+			"bob@test.local",
+		);
+		assertEquals(identity1.identityId, anonymousIdentityId);
+		await assertRejects(() =>
+			createIdentity(
+				authApp,
+				"email",
+				"foo@test.local",
+				"en",
+			)
+		);
 	});
 });

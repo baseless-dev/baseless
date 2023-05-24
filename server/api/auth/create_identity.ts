@@ -1,6 +1,6 @@
 import { CreateIdentityError } from "../../../common/auth/errors.ts";
-import type { Identity } from "../../../common/identity/identity.ts";
 import type { IContext } from "../../../common/server/context.ts";
+import { AutoId } from "../../../common/system/autoid.ts";
 import { getJsonData } from "../get_json_data.ts";
 
 export async function createIdentity(
@@ -18,31 +18,44 @@ export async function createIdentity(
 		throw new CreateIdentityError();
 	}
 
-	let identity: Identity | undefined;
+	let identityId: AutoId | undefined;
 	try {
-		identity = await context.identity.create({});
+		// Claim anonymous identity or create new one
+		if (context.sessionData) {
+			const identifications = await context.identity.listIdentification(
+				context.sessionData.identityId,
+			);
+			if (identifications.length === 0) {
+				identityId = context.sessionData.identityId;
+			} else {
+				throw new CreateIdentityError();
+			}
+		} else {
+			const identity = await context.identity.create({});
+			identityId = identity.id;
+		}
 		await context.identity.createIdentification({
-			identityId: identity.id,
+			identityId,
 			type: identificationType,
 			identification,
 			meta: {},
 			verified: false,
 		});
 		await context.identity.sendIdentificationValidationCode(
-			identity.id,
+			identityId,
 			identificationType,
 			locale,
 		);
 	} catch (_error) {
-		if (identity) {
-			await Promise.allSettled([
-				context.identity.deleteIdentification(
-					identity.id,
-					identificationType,
-					identification,
-				),
-				context.identity.delete(identity.id),
-			]);
+		if (identityId) {
+			await context.identity.deleteIdentification(
+				identityId,
+				identificationType,
+				identification,
+			).catch((_) => {});
+			if (!context.sessionData) {
+				await context.identity.delete(identityId).catch((_) => {});
+			}
 		}
 		throw new CreateIdentityError();
 	}

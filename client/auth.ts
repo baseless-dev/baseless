@@ -40,7 +40,7 @@ export function assertPersistence(
 		throw new InvalidPersistenceError();
 	}
 }
-export class InvalidPersistenceError extends Error {}
+export class InvalidPersistenceError extends Error { }
 
 const tokenMap = new Map<string, AuthenticationTokens | undefined>();
 const onAuthStateChangeMap = new Map<string, EventEmitter<never>>();
@@ -93,7 +93,7 @@ function getStorage(app: App): Storage {
 	return storageMap.get(app.clientId)!;
 }
 
-export class AuthNotInitializedError extends Error {}
+export class AuthNotInitializedError extends Error { }
 
 export function initializeAuth(app: App): App {
 	assertApp(app);
@@ -102,7 +102,7 @@ export function initializeAuth(app: App): App {
 	}
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	const storage = persistence === "local"
 		? globalThis.localStorage
 		: globalThis.sessionStorage;
@@ -146,7 +146,7 @@ export function getPersistence(app: App): Persistence {
 	assertInitializedAuth(app);
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	assertPersistence(persistence);
 	return persistence;
 }
@@ -341,4 +341,25 @@ export async function createAnonymousIdentity(
 	assertAuthenticationCeremonyResponseTokens(result.data);
 	setTokens(app, result.data);
 	return result.data;
+}
+
+export async function createIdentity(
+	app: App,
+	identificationType: string,
+	identification: string,
+	locale: string,
+): Promise<void> {
+	assertApp(app);
+	assertInitializedAuth(app);
+	const body = JSON.stringify({
+		identificationType,
+		identification,
+		locale,
+	});
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/createIdentity`,
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
 }

@@ -9,6 +9,7 @@ import { signOut } from "./auth/sign_out.ts";
 import { submitAuthenticationChallenge } from "./auth/submit_authentication_challenge.ts";
 import { submitAuthenticationIdentification } from "./auth/submit_authentication_identification.ts";
 import { createAnonymousIdentity } from "./auth/create_anonymous_identity.ts";
+import { createIdentity } from "./auth/create_identity.ts";
 
 function json<Params extends Record<string, string | undefined>, Result>(
 	handler: (
@@ -65,5 +66,6 @@ authRouter.post(
 );
 authRouter.post("/signOut", json(signOut));
 authRouter.post("/createAnonymousIdentity", json(createAnonymousIdentity));
+authRouter.post("/createIdentity", json(createIdentity));
 
 export default authRouter;

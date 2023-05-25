@@ -172,9 +172,15 @@ export interface IIdentityService {
 		code: string,
 	): Promise<void>;
 
-	sendChallenge(
+	sendChallengeValidationCode(
 		identityId: AutoId,
 		type: string,
 		locale: string,
+	): Promise<void>;
+
+	confirmChallengeValidationCode(
+		identityId: AutoId,
+		type: string,
+		answer: string,
 	): Promise<void>;
 }

@@ -5,6 +5,7 @@ import { IDENTITY_AUTOID_PREFIX } from "./identity.ts";
 export interface IdentityChallenge<Meta = Record<string, unknown>> {
 	readonly identityId: AutoId;
 	readonly type: string;
+	readonly confirmed: boolean;
 	readonly meta: Meta;
 }
 
@@ -12,9 +13,9 @@ export function isIdentityChallenge(
 	value?: unknown,
 ): value is IdentityChallenge {
 	return !!value && typeof value === "object" && "identityId" in value &&
-		"type" in value && "meta" in value &&
+		"type" in value && "confirmed" in value && "meta" in value &&
 		isAutoId(value.identityId, IDENTITY_AUTOID_PREFIX) &&
-		typeof value.meta === "object";
+		typeof value.confirmed === "boolean" && typeof value.meta === "object";
 }
 
 export function assertIdentityChallenge(

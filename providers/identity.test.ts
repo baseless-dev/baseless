@@ -52,7 +52,7 @@ export default async function testIdentityProvider(
 		identityId,
 		identification: "test",
 		meta: {},
-		verified: false,
+		confirmed: false,
 	};
 	await t.step("createIdentification", async () => {
 		await ip.createIdentification(ident1);
@@ -77,7 +77,7 @@ export default async function testIdentityProvider(
 	await t.step("updateIdentification", async () => {
 		const ident2: IdentityIdentification = {
 			...ident1,
-			verified: true,
+			confirmed: true,
 		};
 		await ip.updateIdentification(ident2);
 		const ident3 = await ip.matchIdentification("username", "test");
@@ -109,36 +109,37 @@ export default async function testIdentityProvider(
 		);
 	});
 
-	const challeng1: IdentityChallenge = {
+	const challenge1: IdentityChallenge = {
 		type: "password",
 		identityId,
 		meta: { hash: "foo" },
+		confirmed: false,
 	};
 	await t.step("createChallenge", async () => {
-		await ip.createChallenge(challeng1);
-		await assertRejects(() => ip.createChallenge(challeng1));
+		await ip.createChallenge(challenge1);
+		await assertRejects(() => ip.createChallenge(challenge1));
 	});
 
 	await t.step("getChallenge", async () => {
 		const challeng2 = await ip.getChallenge(identityId, "password");
-		assertEquals(challeng2, challeng1);
+		assertEquals(challeng2, challenge1);
 	});
 
 	await t.step("listChallenge", async () => {
 		const challengs = await ip.listChallenge(identityId);
-		assertEquals(challengs, [challeng1]);
+		assertEquals(challengs, [challenge1]);
 	});
 
 	await t.step("updateIdentification", async () => {
 		const challeng2: IdentityChallenge = {
-			...challeng1,
+			...challenge1,
 			meta: { foo: "bar" },
 		};
 		await ip.updateChallenge(challeng2);
 		const challeng3 = await ip.getChallenge(identityId, "password");
 		assertEquals(challeng2, challeng3);
 		const challeng4: IdentityChallenge = {
-			...challeng1,
+			...challenge1,
 			type: "foo",
 		};
 		await assertRejects(() => ip.updateChallenge(challeng4));
@@ -146,7 +147,7 @@ export default async function testIdentityProvider(
 
 	await t.step("deleteIdentification", async () => {
 		const challeng2: IdentityChallenge = {
-			...challeng1,
+			...challenge1,
 			type: "password2",
 		};
 		await ip.createChallenge(challeng2);

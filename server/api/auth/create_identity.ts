@@ -39,7 +39,7 @@ export async function createIdentity(
 			type: identificationType,
 			identification,
 			meta: {},
-			verified: false,
+			confirmed: false,
 		});
 		await context.identity.sendIdentificationValidationCode(
 			identityId,

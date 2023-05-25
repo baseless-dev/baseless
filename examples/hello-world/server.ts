@@ -62,7 +62,7 @@ await identityService.createIdentification({
 	identityId: john.id,
 	type: "email",
 	identification: "john@test.local",
-	verified: true,
+	confirmed: true,
 	meta: {},
 });
 await identityService.createChallenge(

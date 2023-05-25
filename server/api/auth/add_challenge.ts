@@ -34,7 +34,11 @@ export async function addChallenge(
 			challengeType,
 			challenge,
 		);
-		await context.identity.sendChallenge(identityId, challengeType, locale);
+		await context.identity.sendChallengeValidationCode(
+			identityId,
+			challengeType,
+			locale,
+		);
 	} catch (_error) {
 		throw new IdentityChallengeCreateError();
 	}

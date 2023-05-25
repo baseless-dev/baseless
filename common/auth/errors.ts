@@ -108,3 +108,9 @@ export class UnauthorizedError extends Error {
 export class AnonymousIdentityNotAllowedError extends Error {
 	name = "AnonymousIdentityNotAllowedError" as const;
 }
+export class InvalidSendChallengeValidationCodeResponseError extends Error {
+	name = "InvalidSendChallengeValidationCodeResponseError" as const;
+}
+export class InvalidConfirmChallengeValidationCodeResponseError extends Error {
+	name = "InvalidConfirmChallengeValidationCodeResponseError" as const;
+}

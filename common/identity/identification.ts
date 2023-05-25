@@ -6,7 +6,7 @@ export interface IdentityIdentification<Meta = Record<string, unknown>> {
 	readonly identityId: AutoId;
 	readonly type: string;
 	readonly identification: string;
-	readonly verified: boolean;
+	readonly confirmed: boolean;
 	readonly meta: Meta;
 }
 
@@ -14,9 +14,9 @@ export function isIdentityIdentification(
 	value?: unknown,
 ): value is IdentityIdentification {
 	return !!value && typeof value === "object" && "identityId" in value &&
-		"type" in value && "identification" in value && "verified" in value &&
+		"type" in value && "identification" in value && "confirmed" in value &&
 		"meta" in value && isAutoId(value.identityId, IDENTITY_AUTOID_PREFIX) &&
-		typeof value.verified === "boolean" && typeof value.meta === "object";
+		typeof value.confirmed === "boolean" && typeof value.meta === "object";
 }
 
 export function assertIdentityIdentification(

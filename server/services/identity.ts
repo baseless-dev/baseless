@@ -222,6 +222,7 @@ export class IdentityService implements IIdentityService {
 			identityId,
 			type,
 			meta,
+			confirmed: false,
 		}, expiration);
 	}
 
@@ -283,8 +284,10 @@ export class IdentityService implements IIdentityService {
 			const identifications = await this.#identityProvider.listIdentification(
 				identityId,
 			);
-			const verifiedIdentifications = identifications.filter((i) => i.verified);
-			const sendMessages = verifiedIdentifications.reduce(
+			const confirmedIdentifications = identifications.filter((i) =>
+				i.confirmed
+			);
+			const sendMessages = confirmedIdentifications.reduce(
 				(messages, identityIdentification) => {
 					const identicator = this.#context.config.auth.identificators
 						.get(
@@ -438,7 +441,7 @@ export class IdentityService implements IIdentityService {
 			if (savedCode?.value === code) {
 				await this.#context.identity.updateIdentification({
 					...identityIdentification,
-					verified: true,
+					confirmed: true,
 				});
 				return;
 			}
@@ -450,7 +453,7 @@ export class IdentityService implements IIdentityService {
 		throw new AuthenticationConfirmValidationCodeError();
 	}
 
-	async sendChallenge(
+	async sendChallengeValidationCode(
 		identityId: AutoId,
 		type: string,
 		locale: string,
@@ -491,5 +494,40 @@ export class IdentityService implements IIdentityService {
 				locale,
 			});
 		}
+	}
+
+	async confirmChallengeValidationCode(
+		identityId: AutoId,
+		type: string,
+		answer: string,
+	): Promise<void> {
+		const challenger = this.#context.config.auth.challengers.get(
+			type,
+		);
+		if (!challenger) {
+			throw new AuthenticationConfirmValidationCodeError();
+		}
+
+		const identityChallenge = await this.#context.identity.getChallenge(
+			identityId,
+			type,
+		);
+		if (!identityChallenge) {
+			throw new AuthenticationConfirmValidationCodeError();
+		}
+
+		const result = await challenger.verify({
+			identityChallenge,
+			context: this.#context,
+			challenge: answer,
+		});
+		if (result) {
+			await this.#context.identity.updateChallenge({
+				...identityChallenge,
+				confirmed: true,
+			});
+			return;
+		}
+		throw new AuthenticationConfirmValidationCodeError();
 	}
 }

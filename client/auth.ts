@@ -27,6 +27,14 @@ import {
 	type AuthenticationTokens,
 	isAuthenticationTokens,
 } from "../common/auth/tokens.ts";
+import {
+	assertConfirmChallengeValidationCodeResponse,
+	type ConfirmChallengeValidationCodeResponse,
+} from "../common/auth/confirm_challenge_validation_code_response.ts";
+import {
+	assertSendChallengeValidationCodeResponse,
+	type SendChallengeValidationCodeResponse,
+} from "../common/auth/send_challenge_validation_code_response.ts";
 
 export type Persistence = "local" | "session";
 
@@ -404,4 +412,42 @@ export async function addChallenge(
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
+}
+
+export async function sendChallengeValidationCode(
+	app: App,
+	type: string,
+): Promise<SendChallengeValidationCodeResponse> {
+	assertApp(app);
+	assertInitializedAuth(app);
+	const body = JSON.stringify({ type });
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/sendChallengeValidationCode`,
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+	assertSendChallengeValidationCodeResponse(result.data);
+	return result.data;
+}
+
+export async function confirmChallengeValidationCode(
+	app: App,
+	type: string,
+	answer: string,
+): Promise<ConfirmChallengeValidationCodeResponse> {
+	assertApp(app);
+	assertInitializedAuth(app);
+	const body = JSON.stringify({
+		type,
+		answer,
+	});
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/confirmChallengeValidationCode`,
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+	assertConfirmChallengeValidationCodeResponse(result.data);
+	return result.data;
 }

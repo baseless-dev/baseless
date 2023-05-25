@@ -110,8 +110,14 @@ Deno.test("Client Auth", async (t) => {
 		"password",
 		"123",
 	);
-	const identityChallenge = await identityService.getChallenge(john.id, "password");
-	await identityService.updateChallenge({ ...identityChallenge, confirmed: true });
+	const identityChallenge = await identityService.getChallenge(
+		john.id,
+		"password",
+	);
+	await identityService.updateChallenge({
+		...identityChallenge,
+		confirmed: true,
+	});
 	await identityService.createChallenge(
 		john.id,
 		"totp",
@@ -189,7 +195,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
 		assertEquals(messages[0]?.message.text.length, 6);
 	});
@@ -206,7 +212,7 @@ Deno.test("Client Auth", async (t) => {
 			"email",
 			"john@test.local",
 		);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 		assertEquals(sendResult.sent, true);
 		const validationCode = messages[0]?.message.text;
 		const confirmResult = await confirmIdentificationValidationCode(
@@ -254,7 +260,7 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("sendChallengeValidationCode", async () => {
-		await signOut(authApp).catch((_) => { });
+		await signOut(authApp).catch((_) => {});
 		const result1 = await submitAuthenticationIdentification(
 			authApp,
 			"email",
@@ -277,13 +283,13 @@ Deno.test("Client Auth", async (t) => {
 			authApp,
 			"totp",
 		);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
 		assertEquals(messages[0]?.message.length, 6);
 	});
 
 	await t.step("confirmChallengeValidationCode", async () => {
-		await signOut(authApp).catch((_) => { });
+		await signOut(authApp).catch((_) => {});
 		const result1 = await submitAuthenticationIdentification(
 			authApp,
 			"email",
@@ -306,7 +312,7 @@ Deno.test("Client Auth", async (t) => {
 			authApp,
 			"totp",
 		);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
 		const validationCode = messages[0]?.message;
 		const confirmResult = await confirmChallengeValidationCode(
@@ -338,7 +344,7 @@ Deno.test("Client Auth", async (t) => {
 		assertSendIdentificationChallengeResponse(result2);
 		const challengeCode = messages.pop()?.message ?? "";
 		assertEquals(challengeCode.length, 6);
-		setGlobalLogHandler(() => { });
+		setGlobalLogHandler(() => {});
 		const result3 = await submitAuthenticationChallenge(
 			authApp,
 			"totp",
@@ -416,7 +422,7 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("createIdentity claims anonymous identity", async () => {
-		await signOut(authApp).catch((_) => { });
+		await signOut(authApp).catch((_) => {});
 		const result1 = await createAnonymousIdentity(authApp);
 		assertAuthenticationCeremonyResponseTokens(result1);
 		const idTokenPayload = decode(result1.id_token.split(".")[1]);

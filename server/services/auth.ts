@@ -72,7 +72,7 @@ export class AuthenticationService implements IAuthenticationService {
 		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
 		if (
 			await this.#context.counter.increment(counterKey, 1, counterInterval) >
-			this.#context.config.auth.security.rateLimit.identificationCount
+				this.#context.config.auth.security.rateLimit.identificationCount
 		) {
 			throw new AuthenticationRateLimitedError();
 		}

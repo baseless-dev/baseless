@@ -114,3 +114,9 @@ export class InvalidSendChallengeValidationCodeResponseError extends Error {
 export class InvalidConfirmChallengeValidationCodeResponseError extends Error {
 	name = "InvalidConfirmChallengeValidationCodeResponseError" as const;
 }
+export class AuthenticationIdentityIdentificationNotConfirmedError extends Error {
+	name = "AuthenticationIdentityIdentificationNotConfirmedError" as const;
+}
+export class AuthenticationIdentityChallengeNotConfirmedError extends Error {
+	name = "AuthenticationIdentityChallengeNotConfirmedError" as const;
+}

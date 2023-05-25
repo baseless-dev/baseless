@@ -110,6 +110,8 @@ Deno.test("Client Auth", async (t) => {
 		"password",
 		"123",
 	);
+	const identityChallenge = await identityService.getChallenge(john.id, "password");
+	await identityService.updateChallenge({ ...identityChallenge, confirmed: true });
 	await identityService.createChallenge(
 		john.id,
 		"totp",
@@ -175,6 +177,47 @@ Deno.test("Client Auth", async (t) => {
 		);
 	});
 
+	await t.step("sendIdentificationValidationCode", async () => {
+		const messages: { ns: string; lvl: string; message: Message }[] = [];
+		setGlobalLogHandler((ns, lvl, msg) => {
+			if (ns === "message-logger") {
+				messages.push({ ns, lvl, message: JSON.parse(msg)! });
+			}
+		});
+		const result = await sendIdentificationValidationCode(
+			authApp,
+			"email",
+			"john@test.local",
+		);
+		setGlobalLogHandler(() => { });
+		assertEquals(result.sent, true);
+		assertEquals(messages[0]?.message.text.length, 6);
+	});
+
+	await t.step("confirmIdentificationValidationCode", async () => {
+		const messages: { ns: string; lvl: string; message: Message }[] = [];
+		setGlobalLogHandler((ns, lvl, msg) => {
+			if (ns === "message-logger") {
+				messages.push({ ns, lvl, message: JSON.parse(msg)! });
+			}
+		});
+		const sendResult = await sendIdentificationValidationCode(
+			authApp,
+			"email",
+			"john@test.local",
+		);
+		setGlobalLogHandler(() => { });
+		assertEquals(sendResult.sent, true);
+		const validationCode = messages[0]?.message.text;
+		const confirmResult = await confirmIdentificationValidationCode(
+			authApp,
+			"email",
+			"john@test.local",
+			validationCode,
+		);
+		assertEquals(confirmResult.confirmed, true);
+	});
+
 	await t.step("submitAuthenticationIdentification", async () => {
 		const result = await submitAuthenticationIdentification(
 			authApp,
@@ -210,6 +253,70 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseTokens(result2);
 	});
 
+	await t.step("sendChallengeValidationCode", async () => {
+		await signOut(authApp).catch((_) => { });
+		const result1 = await submitAuthenticationIdentification(
+			authApp,
+			"email",
+			"john@test.local",
+		);
+		assertAuthenticationCeremonyResponseEncryptedState(result1);
+		await submitAuthenticationChallenge(
+			authApp,
+			"password",
+			"123",
+			result1.encryptedState,
+		);
+		const messages: { ns: string; lvl: string; message: string }[] = [];
+		setGlobalLogHandler((ns, lvl, msg) => {
+			if (ns === "auth-totp-logger") {
+				messages.push({ ns, lvl, message: msg });
+			}
+		});
+		const result = await sendChallengeValidationCode(
+			authApp,
+			"totp",
+		);
+		setGlobalLogHandler(() => { });
+		assertEquals(result.sent, true);
+		assertEquals(messages[0]?.message.length, 6);
+	});
+
+	await t.step("confirmChallengeValidationCode", async () => {
+		await signOut(authApp).catch((_) => { });
+		const result1 = await submitAuthenticationIdentification(
+			authApp,
+			"email",
+			"john@test.local",
+		);
+		assertAuthenticationCeremonyResponseEncryptedState(result1);
+		await submitAuthenticationChallenge(
+			authApp,
+			"password",
+			"123",
+			result1.encryptedState,
+		);
+		const messages: { ns: string; lvl: string; message: string }[] = [];
+		setGlobalLogHandler((ns, lvl, msg) => {
+			if (ns === "auth-totp-logger") {
+				messages.push({ ns, lvl, message: msg });
+			}
+		});
+		const result = await sendChallengeValidationCode(
+			authApp,
+			"totp",
+		);
+		setGlobalLogHandler(() => { });
+		assertEquals(result.sent, true);
+		const validationCode = messages[0]?.message;
+		const confirmResult = await confirmChallengeValidationCode(
+			authApp,
+			"totp",
+			validationCode,
+		);
+		assertEquals(confirmResult.confirmed, true);
+	});
+
 	await t.step("sendIdentificationChallenge", async () => {
 		const result1 = await submitAuthenticationIdentification(
 			authApp,
@@ -231,7 +338,7 @@ Deno.test("Client Auth", async (t) => {
 		assertSendIdentificationChallengeResponse(result2);
 		const challengeCode = messages.pop()?.message ?? "";
 		assertEquals(challengeCode.length, 6);
-		setGlobalLogHandler(() => {});
+		setGlobalLogHandler(() => { });
 		const result3 = await submitAuthenticationChallenge(
 			authApp,
 			"totp",
@@ -242,19 +349,6 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("signOut", async () => {
-		const result1 = await submitAuthenticationIdentification(
-			authApp,
-			"email",
-			"john@test.local",
-		);
-		assertAuthenticationCeremonyResponseEncryptedState(result1);
-		const result2 = await submitAuthenticationChallenge(
-			authApp,
-			"password",
-			"123",
-			result1.encryptedState,
-		);
-		assertAuthenticationCeremonyResponseTokens(result2);
 		await signOut(authApp);
 		await assertRejects(() => signOut(authApp));
 	});
@@ -322,7 +416,7 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("createIdentity claims anonymous identity", async () => {
-		await signOut(authApp).catch((_) => {});
+		await signOut(authApp).catch((_) => { });
 		const result1 = await createAnonymousIdentity(authApp);
 		assertAuthenticationCeremonyResponseTokens(result1);
 		const idTokenPayload = decode(result1.id_token.split(".")[1]);
@@ -359,110 +453,5 @@ Deno.test("Client Auth", async (t) => {
 	await t.step("addChallenge", async () => {
 		await addChallenge(authApp, "password", "blep", "en");
 		await assertRejects(() => addChallenge(authApp, "password", "blep", "en"));
-	});
-
-	await t.step("sendIdentificationValidationCode", async () => {
-		const messages: { ns: string; lvl: string; message: Message }[] = [];
-		setGlobalLogHandler((ns, lvl, msg) => {
-			if (ns === "message-logger") {
-				messages.push({ ns, lvl, message: JSON.parse(msg)! });
-			}
-		});
-		const result = await sendIdentificationValidationCode(
-			authApp,
-			"email",
-			"john@test.local",
-		);
-		setGlobalLogHandler(() => {});
-		assertEquals(result.sent, true);
-		assertEquals(messages[0]?.message.text.length, 6);
-	});
-
-	await t.step("confirmIdentificationValidationCode", async () => {
-		const messages: { ns: string; lvl: string; message: Message }[] = [];
-		setGlobalLogHandler((ns, lvl, msg) => {
-			if (ns === "message-logger") {
-				messages.push({ ns, lvl, message: JSON.parse(msg)! });
-			}
-		});
-		const sendResult = await sendIdentificationValidationCode(
-			authApp,
-			"email",
-			"john@test.local",
-		);
-		setGlobalLogHandler(() => {});
-		assertEquals(sendResult.sent, true);
-		const validationCode = messages[0]?.message.text;
-		const confirmResult = await confirmIdentificationValidationCode(
-			authApp,
-			"email",
-			"john@test.local",
-			validationCode,
-		);
-		assertEquals(confirmResult.confirmed, true);
-	});
-
-	await t.step("sendChallengeValidationCode", async () => {
-		await signOut(authApp).catch((_) => {});
-		const result1 = await submitAuthenticationIdentification(
-			authApp,
-			"email",
-			"john@test.local",
-		);
-		assertAuthenticationCeremonyResponseEncryptedState(result1);
-		await submitAuthenticationChallenge(
-			authApp,
-			"password",
-			"123",
-			result1.encryptedState,
-		);
-		const messages: { ns: string; lvl: string; message: string }[] = [];
-		setGlobalLogHandler((ns, lvl, msg) => {
-			if (ns === "auth-totp-logger") {
-				messages.push({ ns, lvl, message: msg });
-			}
-		});
-		const result = await sendChallengeValidationCode(
-			authApp,
-			"totp",
-		);
-		setGlobalLogHandler(() => {});
-		assertEquals(result.sent, true);
-		assertEquals(messages[0]?.message.length, 6);
-	});
-
-	await t.step("confirmChallengeValidationCode", async () => {
-		await signOut(authApp).catch((_) => {});
-		const result1 = await submitAuthenticationIdentification(
-			authApp,
-			"email",
-			"john@test.local",
-		);
-		assertAuthenticationCeremonyResponseEncryptedState(result1);
-		await submitAuthenticationChallenge(
-			authApp,
-			"password",
-			"123",
-			result1.encryptedState,
-		);
-		const messages: { ns: string; lvl: string; message: string }[] = [];
-		setGlobalLogHandler((ns, lvl, msg) => {
-			if (ns === "auth-totp-logger") {
-				messages.push({ ns, lvl, message: msg });
-			}
-		});
-		const result = await sendChallengeValidationCode(
-			authApp,
-			"totp",
-		);
-		setGlobalLogHandler(() => {});
-		assertEquals(result.sent, true);
-		const validationCode = messages[0]?.message;
-		const confirmResult = await confirmChallengeValidationCode(
-			authApp,
-			"totp",
-			validationCode,
-		);
-		assertEquals(confirmResult.confirmed, true);
 	});
 });

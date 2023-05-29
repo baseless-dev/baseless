@@ -32,7 +32,7 @@ const importMap: Record<string, { browser: string; node: string }> = {
 };
 
 await Deno.remove(join(__dirname, "./npm"), { recursive: true }).catch(
-	(_) => {},
+	(_) => { },
 );
 
 const entryPoints = new Array<string>();
@@ -62,8 +62,7 @@ for await (
 
 const timeStart = performance.now();
 console.log(
-	`${colors.green(colors.bold(`PetiteVITE`) + ` v0.0.0`)} ${
-		colors.blue("building for production...")
+	`${colors.green(colors.bold(`PetiteVITE`) + ` v0.0.0`)} ${colors.blue("building for production...")
 	}`,
 );
 
@@ -236,9 +235,9 @@ const diagnostics = [
 if (diagnostics.length) {
 	console.log(
 		colors.red("×") +
-			colors.dim(
-				` Error while transforming project.`,
-			),
+		colors.dim(
+			` Error while transforming project.`,
+		),
 	);
 	for (const diagnostic of diagnostics) {
 		console.log(diagnostic.getMessageText());
@@ -267,9 +266,9 @@ await Deno.writeTextFile(
 	join(__dirname, "npm/package.json"),
 	JSON.stringify(
 		{
-			name: "@baseless/web",
+			name: "@baseless/core",
 			version: "0.0.0",
-			description: "Baseless JS web",
+			description: "Baseless Core",
 			repository: {
 				type: "git",
 				url: "git+https://github.com/baseless-dev/baseless",
@@ -368,11 +367,10 @@ await Deno.writeTextFile(
 
 console.log(
 	colors.green("✓") +
-		colors.dim(
-			` ${entryPoints.length} modules transformed in ${
-				(performance.now() - timeStart).toFixed(0)
-			}ms.`,
-		),
+	colors.dim(
+		` ${entryPoints.length} modules transformed in ${(performance.now() - timeStart).toFixed(0)
+		}ms.`,
+	),
 );
 
 const npmInstall = new Deno.Command(`npm`, { cwd: "./npm", args: ["i"] })

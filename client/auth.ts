@@ -19,7 +19,7 @@ import {
 } from "../common/auth/send_identification_challenge_response.ts";
 import {
 	assertAuthenticationCeremonyResponseTokens,
-	AuthenticationCeremonyResponseTokens,
+	type AuthenticationCeremonyResponseTokens,
 	isAuthenticationCeremonyResponseTokens,
 } from "../common/auth/ceremony/response/tokens.ts";
 import {
@@ -35,7 +35,7 @@ import {
 	assertSendChallengeValidationCodeResponse,
 	type SendChallengeValidationCodeResponse,
 } from "../common/auth/send_challenge_validation_code_response.ts";
-import { assertIdentity, Identity } from "../common/identity/identity.ts";
+import { assertIdentity, type Identity } from "../common/identity/identity.ts";
 
 export type Persistence = "local" | "session";
 
@@ -49,7 +49,7 @@ export function assertPersistence(
 		throw new InvalidPersistenceError();
 	}
 }
-export class InvalidPersistenceError extends Error {}
+export class InvalidPersistenceError extends Error { }
 
 const tokenMap = new Map<string, AuthenticationTokens | undefined>();
 const onAuthStateChangeMap = new Map<
@@ -110,7 +110,7 @@ function getStorage(app: App): Storage {
 	return storageMap.get(app.clientId)!;
 }
 
-export class AuthNotInitializedError extends Error {}
+export class AuthNotInitializedError extends Error { }
 
 export function initializeAuth(app: App): App {
 	assertApp(app);
@@ -119,7 +119,7 @@ export function initializeAuth(app: App): App {
 	}
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	const storage = persistence === "local"
 		? globalThis.localStorage
 		: globalThis.sessionStorage;
@@ -163,7 +163,7 @@ export function getPersistence(app: App): Persistence {
 	assertInitializedAuth(app);
 	const persistence =
 		globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-			"local";
+		"local";
 	assertPersistence(persistence);
 	return persistence;
 }

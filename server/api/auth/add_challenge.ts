@@ -9,10 +9,11 @@ export async function addChallenge(
 	_params: Record<never, never>,
 	context: IContext,
 ): Promise<void> {
-	if (!context.sessionData) {
+	if (!context.currentSessionData) {
 		throw new UnauthorizedError();
 	}
-	const identityId = context.sessionData.identityId;
+	// TODO need session iat to be "recent"
+	const identityId = context.currentSessionData.identityId;
 	const data = await getJsonData(request);
 	const challengeType = data?.challengeType?.toString() ?? "";
 	const challenge = data?.challenge?.toString();

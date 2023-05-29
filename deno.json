@@ -20,31 +20,22 @@
 		"fmt": "DENO_DIR=.deno deno fmt",
 		"lint": "DENO_DIR=.deno deno lint",
 		"cache": "DENO_DIR=.deno deno cache",
+		"check": "DENO_DIR=.deno deno check client/**/*.ts",
 		"info": "DENO_DIR=.deno deno info",
 		"bench": "DENO_DIR=.deno deno bench -A --unstable",
 		"test": "DENO_DIR=.deno deno test -A --unstable --coverage=coverage",
 		"test:fast": "DENO_DIR=.deno deno test -A --unstable --parallel --fail-fast",
 		"coverage": "DENO_DIR=.deno deno coverage coverage"
 	},
+	"exclude": ["examples/", ".deno/", "npm/", "coverage/"],
 	"lint": {
-		"exclude": [
-			"examples/",
-			".deno/",
-			"npm/",
-			"coverage/",
-			"auth/"
-		],
 		"rules": {
 			"tags": ["recommended"],
 			"include": ["explicit-function-return-type"]
 		}
 	},
 	"fmt": {
-		"exclude": ["examples/", ".deno/", "npm/", "coverage/"],
 		"useTabs": true,
 		"lineWidth": 80
-	},
-	"test": {
-		"exclude": ["examples/", ".deno/", "npm/", "coverage/"]
 	}
 }

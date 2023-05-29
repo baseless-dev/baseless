@@ -56,7 +56,7 @@ export class Context implements IContext {
 	get remoteAddress(): string {
 		return this.#remoteAddress;
 	}
-	get sessionData(): SessionData | undefined {
+	get currentSessionData(): SessionData | undefined {
 		return this.#sessionData;
 	}
 	get config(): Configuration {

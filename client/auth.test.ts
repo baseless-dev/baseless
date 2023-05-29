@@ -49,6 +49,7 @@ import * as h from "../common/auth/ceremony/component/helpers.ts";
 import { ConfigurationBuilder } from "../common/server/config/config.ts";
 import { assertAuthenticationCeremonyResponseTokens } from "../common/auth/ceremony/response/tokens.ts";
 import { decode } from "../common/encoding/base64.ts";
+import type { Identity } from "../common/identity/identity.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const email = new EmailAuthentificationIdenticator(
@@ -160,15 +161,6 @@ Deno.test("Client Auth", async (t) => {
 		assertEquals(getPersistence(authApp), "local");
 		setPersistence(authApp, "session");
 		assertEquals(getPersistence(authApp), "session");
-	});
-
-	await t.step("onAuthStateChange", () => {
-		const stateChange = new Array<number>();
-		const disposer = onAuthStateChange(authApp, () => {
-			stateChange.push(1);
-		});
-		assertEquals(typeof disposer, "function");
-		assertEquals(stateChange, []);
 	});
 
 	await t.step("getAuthenticationCeremony", async () => {
@@ -360,9 +352,9 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("onAuthStateChange", async () => {
-		const changes: number[] = [];
-		onAuthStateChange(authApp, () => {
-			changes.push(1);
+		const changes: (Identity | undefined)[] = [];
+		const unsubscribe = onAuthStateChange(authApp, (identity) => {
+			changes.push(identity);
 		});
 		const result1 = await submitAuthenticationIdentification(
 			authApp,
@@ -377,9 +369,10 @@ Deno.test("Client Auth", async (t) => {
 			result1.encryptedState,
 		);
 		assertAuthenticationCeremonyResponseTokens(result2);
-		assertEquals(changes, [1]);
+		assertEquals(changes, [john]);
 		await signOut(authApp);
-		assertEquals(changes, [1, 1]);
+		unsubscribe();
+		assertEquals(changes, [john, undefined]);
 	});
 
 	await t.step("getIdToken", async () => {

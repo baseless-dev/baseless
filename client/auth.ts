@@ -35,6 +35,7 @@ import {
 	assertSendChallengeValidationCodeResponse,
 	type SendChallengeValidationCodeResponse,
 } from "../common/auth/send_challenge_validation_code_response.ts";
+import { assertIdentity, Identity } from "../common/identity/identity.ts";
 
 export type Persistence = "local" | "session";
 
@@ -51,7 +52,10 @@ export function assertPersistence(
 export class InvalidPersistenceError extends Error {}
 
 const tokenMap = new Map<string, AuthenticationTokens | undefined>();
-const onAuthStateChangeMap = new Map<string, EventEmitter<never>>();
+const onAuthStateChangeMap = new Map<
+	string,
+	EventEmitter<[Identity | undefined]>
+>();
 const storageMap = new Map<string, Storage>();
 
 function assertInitializedAuth(app: App): asserts app is App {
@@ -73,9 +77,14 @@ function setTokens(
 ): void {
 	assertApp(app);
 	assertInitializedAuth(app);
+	let identity: Identity | undefined;
 	if (isAuthenticationTokens(tokens)) {
 		const { access_token, id_token, refresh_token } = tokens;
 		tokens = { access_token, id_token, refresh_token };
+		const [, payload] = id_token.split(".");
+		const { sub, meta } = JSON.parse(atob(payload));
+		identity = { id: sub, meta };
+		assertIdentity(identity);
 	}
 	tokenMap.set(app.clientId, tokens);
 	getStorage(app).setItem(
@@ -84,12 +93,12 @@ function setTokens(
 	);
 	// TODO save identity from id_token
 	if (delayed) {
-		setTimeout(() => onAuthStateChangeMap.get(app.clientId)!.emit(), 1);
+		setTimeout(() => onAuthStateChangeMap.get(app.clientId)!.emit(identity), 1);
 	}
-	onAuthStateChangeMap.get(app.clientId)!.emit();
+	onAuthStateChangeMap.get(app.clientId)!.emit(identity);
 }
 
-function getOnAuthStateChange(app: App): EventEmitter<never> {
+function getOnAuthStateChange(app: App): EventEmitter<[Identity | undefined]> {
 	assertApp(app);
 	assertInitializedAuth(app);
 	return onAuthStateChangeMap.get(app.clientId)!;
@@ -114,7 +123,7 @@ export function initializeAuth(app: App): App {
 	const storage = persistence === "local"
 		? globalThis.localStorage
 		: globalThis.sessionStorage;
-	const onTokenChange = new EventEmitter<never>();
+	const onTokenChange = new EventEmitter<[Identity | undefined]>();
 
 	storageMap.set(app.clientId, storage);
 	onAuthStateChangeMap.set(app.clientId, onTokenChange);
@@ -179,7 +188,10 @@ export function setPersistence(app: App, persistence: Persistence): void {
 	storageMap.set(app.clientId, newStorage);
 }
 
-export function onAuthStateChange(app: App, listener: () => void): () => void {
+export function onAuthStateChange(
+	app: App,
+	listener: (identity: Identity | undefined) => void,
+): () => void {
 	assertApp(app);
 	assertInitializedAuth(app);
 	const onAuthStateChange = getOnAuthStateChange(app);

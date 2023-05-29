@@ -12,7 +12,7 @@ import type { ISessionService } from "./services/session.ts";
  */
 export interface IContext {
 	readonly remoteAddress: string;
-	readonly sessionData: SessionData | undefined;
+	readonly currentSessionData: SessionData | undefined;
 	readonly config: Configuration;
 	readonly asset: IAssetService;
 	readonly counter: ICounterService;

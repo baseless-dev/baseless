@@ -16,6 +16,7 @@ export async function createAnonymousIdentity(
 	const sessionData = await context.session.create(identity.id, {});
 	// TODO longer tokens expiration?
 	const { access_token, id_token, refresh_token } = await createTokens(
+		identity,
 		sessionData,
 		context.config.auth.security.keys.algo,
 		context.config.auth.security.keys.privateKey,

@@ -30,9 +30,11 @@ export async function submitAuthenticationIdentification(
 		subject,
 	);
 	if (isAuthenticationCeremonyResponseDone(result)) {
+		const identity = await context.identity.get(result.identityId);
 		// TODO session expiration
 		const sessionData = await context.session.create(result.identityId, {});
 		const { access_token, id_token, refresh_token } = await createTokens(
+			identity,
 			sessionData,
 			context.config.auth.security.keys.algo,
 			context.config.auth.security.keys.privateKey,

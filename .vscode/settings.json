@@ -9,6 +9,8 @@
 	"deno.codeLens.references": true,
 	"deno.codeLens.implementations": true,
 	"editor.formatOnSave": true,
+	"editor.insertSpaces": false,
+	"editor.detectIndentation": false,
 	"editor.defaultFormatter": "denoland.vscode-deno",
 	"explorer.fileNesting.enabled": true,
 	"explorer.fileNesting.expand": false,
@@ -18,7 +20,5 @@
 		"*.ts": "${capture}.test.ts",
 		"*.tsx": "${capture}.test.tsx",
 		"*.css": "${capture}.css.map"
-	},
-	"editor.insertSpaces": false,
-	"editor.detectIndentation": false
+	}
 }

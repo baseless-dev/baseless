@@ -1,8 +1,10 @@
 import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
 import { SignJWT } from "https://deno.land/x/jose@v4.13.1/jwt/sign.ts";
 import type { SessionData } from "../../../common/session/data.ts";
+import type { Identity } from "../../../common/identity/identity.ts";
 
 export async function createTokens(
+	identity: Identity,
 	sessionData: SessionData,
 	alg: string,
 	privateKey: KeyLike,
@@ -15,9 +17,8 @@ export async function createTokens(
 		.setExpirationTime(accessExpiration)
 		.setProtectedHeader({ alg })
 		.sign(privateKey);
-	// TODO identity meta
-	const id_token = await new SignJWT({})
-		.setSubject(sessionData.identityId)
+	const id_token = await new SignJWT({ meta: identity.meta })
+		.setSubject(identity.id)
 		.setIssuedAt()
 		.setProtectedHeader({ alg })
 		.sign(privateKey);

@@ -49,16 +49,16 @@ export default async function MemoryServer(emailIdentification?: string, passCha
 	const sessionProvider = new KVSessionProvider(sessionKV);
 
 	if (emailIdentification && passChallenge) {
-		const john = await identityProvider.create({});
+		const ident = await identityProvider.create({});
 		await identityProvider.createIdentification({
-			identityId: john.id,
+			identityId: ident.id,
 			type: "email",
 			identification: emailIdentification,
 			confirmed: true,
 			meta: {},
 		});
 		await identityProvider.createChallenge({
-			identityId: john.id,
+			identityId: ident.id,
 			type: "password",
 			confirmed: true,
 			meta: await password.configureIdentityChallenge({ challenge: passChallenge } as any)

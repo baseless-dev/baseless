@@ -16,20 +16,24 @@ import {
 
 const __dirname = fromFileUrl(new URL(".", import.meta.url));
 
-const importMap: Record<string, { browser: string; node: string }> = {
-	"https://deno.land/x/jose@v4.13.1/jwt/verify.ts": {
+const importMap: Map<string, { browser: string; node: string }> = new Map([
+	["https://deno.land/x/jose@v4.13.1/jwt/verify.ts", {
 		browser: "https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/jwt/verify.js",
 		node: "jose",
-	},
-	"https://deno.land/x/jose@v4.13.1/jwt/sign.ts": {
+	}],
+	["https://deno.land/x/jose@v4.13.1/jwt/sign.ts", {
 		browser: "https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/jwt/sign.js",
 		node: "jose",
-	},
-	"https://deno.land/x/jose@v4.13.1/types.d.ts": {
+	}],
+	["https://deno.land/x/jose@v4.13.1/runtime/generate.ts", {
+		browser: "https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/runtime/generate.js",
+		node: "jose"
+	}],
+	["https://deno.land/x/jose@v4.13.1/types.d.ts", {
 		browser: "https://deno.land/x/jose@v4.13.1/types.d.ts",
 		node: "jose",
-	},
-};
+	}],
+]);
 
 await Deno.remove(join(__dirname, "./npm"), { recursive: true }).catch(
 	(_) => { },
@@ -121,8 +125,8 @@ const browserResult = await browserProject.emitToMemory({
 						if (ts.isImportDeclaration(node) && node.importClause?.isTypeOnly) {
 							return context.factory.createNotEmittedStatement(node);
 						}
-						if (moduleSpecifier.match(/^https?:\/\//)) {
-							const mapTo = importMap[moduleSpecifier];
+						if (importMap.has(moduleSpecifier)) {
+							const mapTo = importMap.get(moduleSpecifier)!;
 							if ("bundle" in mapTo) {
 								console.log(`Browser bundling ${moduleSpecifier}...`);
 							} else {
@@ -176,8 +180,8 @@ const nodeResult = await nodeProject.emitToMemory({
 						if (ts.isImportDeclaration(node) && node.importClause?.isTypeOnly) {
 							return context.factory.createNotEmittedStatement(node);
 						}
-						if (moduleSpecifier.match(/^https?:\/\//)) {
-							const mapTo = importMap[moduleSpecifier];
+						if (importMap.has(moduleSpecifier)) {
+							const mapTo = importMap.get(moduleSpecifier)!;
 							if ("bundle" in mapTo) {
 								console.log(`Node bundling ${moduleSpecifier}...`);
 							} else {

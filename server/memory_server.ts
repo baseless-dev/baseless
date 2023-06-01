@@ -13,8 +13,14 @@ import { Server } from "./server.ts";
 import * as h from "../common/auth/ceremony/component/helpers.ts";
 
 export default async function MemoryServer(): Promise<Server>;
-export default async function MemoryServer(emailIdentification: string, passChallenge: string): Promise<Server>;
-export default async function MemoryServer(emailIdentification?: string, passChallenge?: string): Promise<Server> {
+export default async function MemoryServer(
+	emailIdentification: string,
+	passChallenge: string,
+): Promise<Server>;
+export default async function MemoryServer(
+	emailIdentification?: string,
+	passChallenge?: string,
+): Promise<Server> {
 	const email = new EmailAuthentificationIdenticator(
 		new LoggerMessageProvider(),
 	);
@@ -61,7 +67,10 @@ export default async function MemoryServer(emailIdentification?: string, passCha
 			identityId: ident.id,
 			type: "password",
 			confirmed: true,
-			meta: await password.configureIdentityChallenge({ challenge: passChallenge } as any)
+			meta: await password.configureIdentityChallenge(
+				// deno-lint-ignore no-explicit-any
+				{ challenge: passChallenge } as any,
+			),
 		});
 	}
 

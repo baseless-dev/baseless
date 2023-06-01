@@ -2,7 +2,13 @@ import type { AssetProvider } from "../asset.ts";
 import { createLogger } from "../../common/system/logger.ts";
 
 export interface MemoryAssetEntry {
-	body: ReadableStream | Blob | BufferSource | FormData | URLSearchParams | string;
+	body:
+		| ReadableStream
+		| Blob
+		| BufferSource
+		| FormData
+		| URLSearchParams
+		| string;
 	contentType?: string;
 }
 
@@ -17,7 +23,9 @@ export class MemoryAssetProvider implements AssetProvider {
 	// deno-lint-ignore require-await
 	async fetch(request: Request): Promise<Response> {
 		const url = new URL(request.url);
-		url.pathname = url.pathname.at(-1) === "/" ? url.pathname + "index.html" : url.pathname;
+		url.pathname = url.pathname.at(-1) === "/"
+			? url.pathname + "index.html"
+			: url.pathname;
 		if (this.#entries.has(url.pathname)) {
 			const { body, contentType } = this.#entries.get(url.pathname)!;
 			const headers = new Headers();

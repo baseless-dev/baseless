@@ -112,8 +112,8 @@ export class AuthApp {
 			const { sub, meta } = JSON.parse(atob(payload));
 			const identity = { id: sub, meta };
 			assertIdentity(identity);
-			this.#onAuthStateChange.emit(identity);
 			this.#tokens = tokens;
+			this.#onAuthStateChange.emit(identity);
 		} else {
 			this.#tokens = undefined;
 			this.#onAuthStateChange.emit(undefined);

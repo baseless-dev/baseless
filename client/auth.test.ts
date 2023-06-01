@@ -4,11 +4,13 @@ import {
 	assertRejects,
 	assertThrows,
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { App, assertApp, initializeApp } from "./app.ts";
+import { initializeApp } from "./app.ts";
 import {
 	addChallenge,
 	addIdentification,
+	assertAuthApp,
 	assertPersistence,
+	AuthApp,
 	confirmChallengeValidationCode,
 	confirmIdentificationValidationCode,
 	createAnonymousIdentity,
@@ -50,6 +52,7 @@ import { ConfigurationBuilder } from "../common/server/config/config.ts";
 import { assertAuthenticationCeremonyResponseTokens } from "../common/auth/ceremony/response/tokens.ts";
 import { decode } from "../common/encoding/base64.ts";
 import type { Identity } from "../common/identity/identity.ts";
+import { autoid } from "../common/system/autoid.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const email = new EmailAuthentificationIdenticator(
@@ -134,7 +137,7 @@ Deno.test("Client Auth", async (t) => {
 		kvProvider,
 	});
 	const app = initializeApp({
-		clientId: "test",
+		clientId: autoid(),
 		apiEndpoint: "http://test.local/api",
 		async fetch(input, init): Promise<Response> {
 			const request = new Request(input, init);
@@ -142,11 +145,11 @@ Deno.test("Client Auth", async (t) => {
 			return response;
 		},
 	});
-	let authApp: App;
+	let authApp: AuthApp;
 
 	await t.step("initializeAuth", () => {
 		authApp = initializeAuth(app);
-		assertApp(authApp);
+		assertAuthApp(authApp);
 	});
 
 	await t.step("getPersistence", () => {

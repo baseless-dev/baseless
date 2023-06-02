@@ -308,6 +308,24 @@ await Deno.writeTextFile(
 		"  ",
 	),
 );
+
+const npmInstall = new Deno.Command(`npm`, { cwd: "./npm", args: ["i"] })
+	.spawn();
+await npmInstall.status;
+
+const npmLink = new Deno.Command(`npm`, { cwd: "./npm", args: ["link"] })
+	.spawn();
+await npmLink.status;
+
+console.log(
+	colors.green("✓") +
+		colors.dim(
+			` ${entryPoints.length} modules transformed in ${
+				(performance.now() - timeStart).toFixed(0)
+			}ms.`,
+		),
+);
+
 // await Deno.writeTextFile(
 // 	join(__dirname, "npm/.eslintrc.json"),
 // 	JSON.stringify({
@@ -370,19 +388,6 @@ await Deno.writeTextFile(
 // 	join(__dirname, "npm/.npmignore"),
 // 	`tsconfig.json\n.eslintrc.json\n.eslintignore#`
 // );
-
-console.log(
-	colors.green("✓") +
-		colors.dim(
-			` ${entryPoints.length} modules transformed in ${
-				(performance.now() - timeStart).toFixed(0)
-			}ms.`,
-		),
-);
-
-const npmInstall = new Deno.Command(`npm`, { cwd: "./npm", args: ["i"] })
-	.spawn();
-await npmInstall.status;
 
 // const eslint = new Deno.Command(`npx`, { cwd: "./npm", args: ["eslint", "."] }).spawn();
 // await eslint.status;

@@ -328,6 +328,18 @@ export function getIdToken(app: AuthApp): string | undefined {
 	return app.tokens?.id_token;
 }
 
+export function getIdentity(app: AuthApp): Identity | undefined {
+	const id_token = getIdToken(app);
+	if (!id_token) {
+		return undefined;
+	}
+	const [, payload] = id_token.split(".");
+	const { sub, meta } = JSON.parse(atob(payload));
+	const identity = { id: sub, meta };
+	assertIdentity(identity);
+	return identity;
+}
+
 export async function createAnonymousIdentity(
 	app: AuthApp,
 ): Promise<AuthenticationCeremonyResponseTokens> {

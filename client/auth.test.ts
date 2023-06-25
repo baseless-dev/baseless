@@ -16,6 +16,7 @@ import {
 	createAnonymousIdentity,
 	createIdentity,
 	getAuthenticationCeremony,
+	getIdentity,
 	getIdToken,
 	getPersistence,
 	initializeAuth,
@@ -394,6 +395,11 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseTokens(result2);
 		const idToken = await getIdToken(authApp);
 		assert(idToken?.length ?? 0 > 0);
+	});
+
+	await t.step("getIdentity", async () => {
+		const identity = await getIdentity(authApp);
+		assertEquals(identity, john);
 	});
 
 	await t.step("createAnonymousIdentity", async () => {

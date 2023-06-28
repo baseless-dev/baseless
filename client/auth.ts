@@ -39,6 +39,7 @@ import { assertIdentity, type Identity } from "../common/identity/identity.ts";
 export class AuthApp {
 	#app: App;
 	#tokens: AuthenticationTokens | undefined;
+	#expireTimeout: number | undefined;
 	#persistence: Persistence;
 	#onAuthStateChange: EventEmitter<[Identity | undefined]>;
 	#storage: Storage;
@@ -104,16 +105,30 @@ export class AuthApp {
 	}
 
 	set tokens(tokens: Readonly<AuthenticationTokens> | undefined) {
+		clearTimeout(this.#expireTimeout);
+		this.#expireTimeout = undefined;
 		if (tokens) {
 			assertAuthenticationTokens(tokens);
 			const { access_token, id_token, refresh_token } = tokens;
 			tokens = { access_token, id_token, refresh_token };
-			const [, payload] = id_token.split(".");
-			const { sub, meta } = JSON.parse(atob(payload));
-			const identity = { id: sub, meta };
-			assertIdentity(identity);
 			this.#tokens = tokens;
-			this.#onAuthStateChange.emit(identity);
+			{
+				const [, payload] = id_token.split(".");
+				const { sub, meta } = JSON.parse(atob(payload));
+				const identity = { id: sub, meta };
+				assertIdentity(identity);
+				this.#onAuthStateChange.emit(identity);
+			}
+			{
+				const [, payload] = (refresh_token ?? access_token).split(".");
+				const { exp } = JSON.parse(atob(payload));
+				if (exp && typeof exp === "number") {
+					this.#expireTimeout = setTimeout(
+						() => this.tokens = undefined,
+						exp * 1000 - Date.now(),
+					);
+				}
+			}
 		} else {
 			this.#tokens = undefined;
 			this.#onAuthStateChange.emit(undefined);

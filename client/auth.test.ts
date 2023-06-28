@@ -4,7 +4,7 @@ import {
 	assertRejects,
 	assertThrows,
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { initializeApp } from "./app.ts";
+import { App, initializeApp } from "./app.ts";
 import {
 	addChallenge,
 	addIdentification,
@@ -29,136 +29,123 @@ import {
 	submitAuthenticationChallenge,
 	submitAuthenticationIdentification,
 } from "./auth.ts";
-import { LocalAssetProvider } from "../providers/asset-local/mod.ts";
-import { MemoryCounterProvider } from "../providers/counter-memory/mod.ts";
-import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
-import { KVIdentityProvider } from "../providers/identity-kv/mod.ts";
-import { KVSessionProvider } from "../providers/session-kv/mod.ts";
-import { LoggerMessageProvider } from "../providers/message-logger/mod.ts";
-import { Server } from "../server/server.ts";
-import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
-import { EmailAuthentificationIdenticator } from "../providers/auth-email/mod.ts";
-import { PasswordAuthentificationChallenger } from "../providers/auth-password/mod.ts";
 import { oneOf } from "../common/auth/ceremony/component/helpers.ts";
 import { assertAuthenticationCeremonyResponseState } from "../common/auth/ceremony/response/state.ts";
 import { assertAuthenticationCeremonyResponseEncryptedState } from "../common/auth/ceremony/response/encrypted_state.ts";
 import { Message } from "../common/message/message.ts";
 import { setGlobalLogHandler } from "../common/system/logger.ts";
-import { TOTPLoggerAuthentificationChallenger } from "../providers/auth-totp-logger/mod.ts";
 import { generateKey } from "../common/system/otp.ts";
 import { assertSendIdentificationChallengeResponse } from "../common/auth/send_identification_challenge_response.ts";
-import { Context } from "../server/context.ts";
-import * as h from "../common/auth/ceremony/component/helpers.ts";
-import { ConfigurationBuilder } from "../common/server/config/config.ts";
 import { assertAuthenticationCeremonyResponseTokens } from "../common/auth/ceremony/response/tokens.ts";
 import { decode } from "../common/encoding/base64.ts";
 import type { Identity } from "../common/identity/identity.ts";
 import { autoid } from "../common/system/autoid.ts";
+import makeDummyServer, {
+	type DummyServerResult,
+} from "../server/make_dummy_server.ts";
 
 Deno.test("Client Auth", async (t) => {
-	const email = new EmailAuthentificationIdenticator(
-		new LoggerMessageProvider(),
-	);
-	const password = new PasswordAuthentificationChallenger();
-	const totp = new TOTPLoggerAuthentificationChallenger({
-		period: 60,
-		algorithm: "SHA-256",
-		digits: 6,
-	});
-
-	const config = new ConfigurationBuilder();
-	const { publicKey, privateKey } = await generateKeyPair("PS512");
-	config.auth()
-		.setEnabled(true)
-		.setAllowAnonymousIdentity(true)
-		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
-		.setSecuritySalt("foobar")
-		.setCeremony(
-			h.oneOf(
-				h.sequence(email, password),
-				h.sequence(email, totp),
-			),
+	const initializeDummyServerApp = async (): Promise<
+		{
+			identity: Identity;
+			app: App;
+			signIn: (authApp: AuthApp) => Promise<void>;
+		} & DummyServerResult
+	> => {
+		let john: Identity;
+		const result = await makeDummyServer(
+			async (
+				{
+					config,
+					oneOf,
+					sequence,
+					email,
+					password,
+					totp,
+					createIdentity,
+					createIdentification,
+					createChallenge,
+				},
+			) => {
+				config.auth().setEnabled(true).setAllowAnonymousIdentity(true)
+					.setCeremony(oneOf(sequence(email, password), sequence(email, totp)));
+				john = await createIdentity({});
+				await createIdentification({
+					identityId: john.id,
+					type: "email",
+					identification: "john@test.local",
+					confirmed: true,
+					meta: {},
+				});
+				await createChallenge({
+					identityId: john.id,
+					type: "password",
+					meta: await password.configureIdentityChallenge(
+						{ challenge: "123" } as any,
+					),
+					confirmed: true,
+				});
+				await createChallenge({
+					identityId: john.id,
+					type: "totp",
+					meta: await totp.configureIdentityChallenge(
+						{ challenge: await generateKey(16) } as any,
+					),
+					confirmed: true,
+				});
+			},
 		);
 
-	const configuration = config.build();
-	const assetProvider = new LocalAssetProvider(import.meta.resolve("./public"));
-	const counterProvider = new MemoryCounterProvider();
-	const kvProvider = new MemoryKVProvider();
-	const identityKV = new MemoryKVProvider();
-	const identityProvider = new KVIdentityProvider(identityKV);
-	const sessionKV = new MemoryKVProvider();
-	const sessionProvider = new KVSessionProvider(sessionKV);
-	const context = new Context(
-		[],
-		"127.0.0.1",
-		undefined,
-		configuration,
-		assetProvider,
-		counterProvider,
-		kvProvider,
-		identityProvider,
-		sessionProvider,
-	);
+		const app = initializeApp({
+			clientId: autoid(),
+			apiEndpoint: "http://test.local/api",
+			async fetch(input, init): Promise<Response> {
+				const request = new Request(input, init);
+				const [response] = await result.server.handleRequest(
+					request,
+					"127.0.0.1",
+				);
+				return response;
+			},
+		});
 
-	const identityService = context.identity;
+		return {
+			...result,
+			identity: john!,
+			app,
+			signIn: async (authApp) => {
+				const result = await submitAuthenticationIdentification(
+					authApp,
+					"email",
+					"john@test.local",
+				);
+				assertAuthenticationCeremonyResponseEncryptedState(result);
+				await submitAuthenticationChallenge(
+					authApp,
+					"password",
+					"123",
+					result.encryptedState,
+				);
+			},
+		};
+	};
 
-	const john = await identityService.create({});
-	await identityService.createIdentification({
-		identityId: john.id,
-		type: "email",
-		identification: "john@test.local",
-		confirmed: true,
-		meta: {},
-	});
-	await identityService.createChallenge(
-		john.id,
-		"password",
-		"123",
-	);
-	const identityChallenge = await identityService.getChallenge(
-		john.id,
-		"password",
-	);
-	await identityService.updateChallenge({
-		...identityChallenge,
-		confirmed: true,
-	});
-	await identityService.createChallenge(
-		john.id,
-		"totp",
-		await generateKey(16),
-	);
-
-	const server = new Server({
-		configuration,
-		assetProvider,
-		counterProvider,
-		identityProvider,
-		sessionProvider,
-		kvProvider,
-	});
-	const app = initializeApp({
-		clientId: autoid(),
-		apiEndpoint: "http://test.local/api",
-		async fetch(input, init): Promise<Response> {
-			const request = new Request(input, init);
-			const [response] = await server.handleRequest(request, "127.0.0.1");
-			return response;
-		},
-	});
-	let authApp: AuthApp;
-
-	await t.step("initializeAuth", () => {
-		authApp = initializeAuth(app);
+	await t.step("initializeAuth", async () => {
+		const { app } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		assertAuthApp(authApp);
 	});
 
-	await t.step("getPersistence", () => {
+	await t.step("getPersistence", async () => {
+		const { app } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		const persistence = getPersistence(authApp);
 		assertPersistence(persistence);
 	});
 
-	await t.step("setPersistence", () => {
+	await t.step("setPersistence", async () => {
+		const { app } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		// deno-lint-ignore no-explicit-any
 		assertThrows(() => setPersistence(authApp, "invalid" as any));
 		setPersistence(authApp, "local");
@@ -168,6 +155,8 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("getAuthenticationCeremony", async () => {
+		const { app, email } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		const result = await getAuthenticationCeremony(authApp);
 		assertAuthenticationCeremonyResponseState(result);
 		assertEquals(result.first, true);
@@ -180,6 +169,8 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("sendIdentificationValidationCode", async () => {
+		const { app } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		const messages: { ns: string; lvl: string; message: Message }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
 			if (ns === "message-logger") {
@@ -197,6 +188,8 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("confirmIdentificationValidationCode", async () => {
+		const { app } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		const messages: { ns: string; lvl: string; message: Message }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
 			if (ns === "message-logger") {
@@ -221,6 +214,8 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("submitAuthenticationIdentification", async () => {
+		const { app, password, totp } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		const result = await submitAuthenticationIdentification(
 			authApp,
 			"email",
@@ -240,6 +235,8 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("submitAuthenticationChallenge", async () => {
+		const { app } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		const result1 = await submitAuthenticationIdentification(
 			authApp,
 			"email",
@@ -253,22 +250,21 @@ Deno.test("Client Auth", async (t) => {
 			result1.encryptedState,
 		);
 		assertAuthenticationCeremonyResponseTokens(result2);
+		await signOut(authApp);
+	});
+
+	await t.step("signOut", async () => {
+		const { app, signIn } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
+		await signIn(authApp);
+		await signOut(authApp);
+		await assertRejects(() => signOut(authApp));
 	});
 
 	await t.step("sendChallengeValidationCode", async () => {
-		await signOut(authApp).catch((_) => {});
-		const result1 = await submitAuthenticationIdentification(
-			authApp,
-			"email",
-			"john@test.local",
-		);
-		assertAuthenticationCeremonyResponseEncryptedState(result1);
-		await submitAuthenticationChallenge(
-			authApp,
-			"password",
-			"123",
-			result1.encryptedState,
-		);
+		const { app, signIn } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
+		await signIn(authApp);
 		const messages: { ns: string; lvl: string; message: string }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
 			if (ns === "auth-totp-logger") {
@@ -282,22 +278,13 @@ Deno.test("Client Auth", async (t) => {
 		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
 		assertEquals(messages[0]?.message.length, 6);
+		await signOut(authApp);
 	});
 
 	await t.step("confirmChallengeValidationCode", async () => {
-		await signOut(authApp).catch((_) => {});
-		const result1 = await submitAuthenticationIdentification(
-			authApp,
-			"email",
-			"john@test.local",
-		);
-		assertAuthenticationCeremonyResponseEncryptedState(result1);
-		await submitAuthenticationChallenge(
-			authApp,
-			"password",
-			"123",
-			result1.encryptedState,
-		);
+		const { app, signIn } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
+		await signIn(authApp);
 		const messages: { ns: string; lvl: string; message: string }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
 			if (ns === "auth-totp-logger") {
@@ -317,9 +304,12 @@ Deno.test("Client Auth", async (t) => {
 			validationCode,
 		);
 		assertEquals(confirmResult.confirmed, true);
+		await signOut(authApp);
 	});
 
 	await t.step("sendIdentificationChallenge", async () => {
+		const { app } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		const result1 = await submitAuthenticationIdentification(
 			authApp,
 			"email",
@@ -348,31 +338,17 @@ Deno.test("Client Auth", async (t) => {
 			result1.encryptedState,
 		);
 		assertAuthenticationCeremonyResponseTokens(result3);
-	});
-
-	await t.step("signOut", async () => {
 		await signOut(authApp);
-		await assertRejects(() => signOut(authApp));
 	});
 
 	await t.step("onAuthStateChange", async () => {
+		const { app, identity: john, signIn } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		const changes: (Identity | undefined)[] = [];
 		const unsubscribe = onAuthStateChange(authApp, (identity) => {
 			changes.push(identity);
 		});
-		const result1 = await submitAuthenticationIdentification(
-			authApp,
-			"email",
-			"john@test.local",
-		);
-		assertAuthenticationCeremonyResponseEncryptedState(result1);
-		const result2 = await submitAuthenticationChallenge(
-			authApp,
-			"password",
-			"123",
-			result1.encryptedState,
-		);
-		assertAuthenticationCeremonyResponseTokens(result2);
+		await signIn(authApp);
 		assertEquals(changes, [john]);
 		await signOut(authApp);
 		unsubscribe();
@@ -380,36 +356,34 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("getIdToken", async () => {
-		const result1 = await submitAuthenticationIdentification(
-			authApp,
-			"email",
-			"john@test.local",
-		);
-		assertAuthenticationCeremonyResponseEncryptedState(result1);
-		const result2 = await submitAuthenticationChallenge(
-			authApp,
-			"password",
-			"123",
-			result1.encryptedState,
-		);
-		assertAuthenticationCeremonyResponseTokens(result2);
+		const { app, signIn } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
+		await signIn(authApp);
 		const idToken = await getIdToken(authApp);
 		assert(idToken?.length ?? 0 > 0);
+		await signOut(authApp);
 	});
 
 	await t.step("getIdentity", async () => {
+		const { app, identity: john, signIn } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
+		await signIn(authApp);
 		const identity = await getIdentity(authApp);
 		assertEquals(identity, john);
+		await signOut(authApp);
 	});
 
 	await t.step("createAnonymousIdentity", async () => {
-		await signOut(authApp);
+		const { app } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		const result1 = await createAnonymousIdentity(authApp);
 		assertAuthenticationCeremonyResponseTokens(result1);
+		await signOut(authApp);
 	});
 
 	await t.step("createIdentity", async () => {
-		await signOut(authApp);
+		const { app, identityProvider } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		await createIdentity(
 			authApp,
 			"email",
@@ -424,7 +398,8 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("createIdentity claims anonymous identity", async () => {
-		await signOut(authApp).catch((_) => {});
+		const { app, identityProvider } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
 		const result1 = await createAnonymousIdentity(authApp);
 		assertAuthenticationCeremonyResponseTokens(result1);
 		const idTokenPayload = decode(result1.id_token.split(".")[1]);
@@ -449,17 +424,38 @@ Deno.test("Client Auth", async (t) => {
 				"en",
 			)
 		);
+		await signOut(authApp);
 	});
 
 	await t.step("addIdentification", async () => {
+		const { app } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
+		await createAnonymousIdentity(authApp);
+		await createIdentity(
+			authApp,
+			"email",
+			"bob@test.local",
+			"en",
+		);
 		await addIdentification(authApp, "email", "nobody@test.local", "en");
 		await assertRejects(() =>
 			addIdentification(authApp, "email", "john@test.local", "en")
 		);
+		await signOut(authApp);
 	});
 
 	await t.step("addChallenge", async () => {
+		const { app, signIn } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
+		await createAnonymousIdentity(authApp);
+		await createIdentity(
+			authApp,
+			"email",
+			"bob@test.local",
+			"en",
+		);
 		await addChallenge(authApp, "password", "blep", "en");
 		await assertRejects(() => addChallenge(authApp, "password", "blep", "en"));
+		await signOut(authApp);
 	});
 });

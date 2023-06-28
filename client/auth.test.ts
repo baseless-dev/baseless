@@ -445,7 +445,7 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("addChallenge", async () => {
-		const { app, signIn } = await initializeDummyServerApp();
+		const { app } = await initializeDummyServerApp();
 		const authApp = initializeAuth(app);
 		await createAnonymousIdentity(authApp);
 		await createIdentity(

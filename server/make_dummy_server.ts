@@ -37,6 +37,8 @@ export type DummyServerResult = {
 	sessionProvider: SessionProvider;
 };
 
+let cachedKeys: Awaited<ReturnType<typeof generateKeyPair>> | undefined;
+
 export default async function makeDummyServer(): Promise<DummyServerResult>;
 export default async function makeDummyServer(
 	configurator: (helpers: DummyServerHelpers) => void | Promise<void>,
@@ -45,7 +47,10 @@ export default async function makeDummyServer(
 	configurator?: (helpers: DummyServerHelpers) => void | Promise<void>,
 ): Promise<DummyServerResult> {
 	const config = new ConfigurationBuilder();
-	const { publicKey, privateKey } = await generateKeyPair("PS512");
+	if (!cachedKeys) {
+		cachedKeys = await generateKeyPair("PS512");
+	}
+	const { publicKey, privateKey } = cachedKeys;
 	config.auth()
 		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
 		.setSecuritySalt("foobar");

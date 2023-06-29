@@ -12,14 +12,19 @@ export async function createAnonymousIdentity(
 		throw new AnonymousIdentityNotAllowedError();
 	}
 	const identity = await context.identity.create({});
-	// TODO session expiration
-	const sessionData = await context.session.create(identity.id, {});
 	// TODO longer tokens expiration?
+	const sessionData = await context.session.create(
+		identity.id,
+		{},
+		context.config.auth.expirations.refreshToken,
+	);
 	const { access_token, id_token, refresh_token } = await createTokens(
 		identity,
 		sessionData,
 		context.config.auth.security.keys.algo,
 		context.config.auth.security.keys.privateKey,
+		context.config.auth.expirations.accessToken,
+		context.config.auth.expirations.refreshToken,
 	);
 	return {
 		done: true,

@@ -38,6 +38,8 @@ export async function submitAuthenticationIdentification(
 			sessionData,
 			context.config.auth.security.keys.algo,
 			context.config.auth.security.keys.privateKey,
+			context.config.auth.expirations.accessToken,
+			context.config.auth.expirations.refreshToken,
 		);
 		return {
 			done: true,

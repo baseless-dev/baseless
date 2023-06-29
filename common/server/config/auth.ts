@@ -29,6 +29,10 @@ export type AuthenticationConfiguration = {
 			readonly confirmVerificationCodeInterval: number;
 		};
 	};
+	readonly expirations: {
+		readonly accessToken: number;
+		readonly refreshToken: number;
+	};
 	readonly allowAnonymousIdentity: boolean;
 	readonly ceremony: AuthenticationCeremonyComponent;
 	readonly identificators: Map<string, AuthenticationIdenticator>;
@@ -68,6 +72,10 @@ export class AuthenticationConfigurationBuilder {
 		challengeInterval: number;
 		confirmVerificationCodeCount: number;
 		confirmVerificationCodeInterval: number;
+	};
+	#expirations?: {
+		accessToken: number;
+		refreshToken: number;
 	};
 
 	public setEnabled(enabled: boolean): this {
@@ -110,6 +118,17 @@ export class AuthenticationConfigurationBuilder {
 			challengeInterval: limits.challengeInterval,
 			confirmVerificationCodeCount: limits.confirmVerificationCodeCount,
 			confirmVerificationCodeInterval: limits.confirmVerificationCodeInterval,
+		};
+		return this;
+	}
+
+	public setExpirations(expirations: {
+		accessToken: number;
+		refreshToken: number;
+	}): this {
+		this.#expirations = {
+			accessToken: expirations.accessToken,
+			refreshToken: expirations.refreshToken,
 		};
 		return this;
 	}
@@ -213,6 +232,11 @@ export class AuthenticationConfigurationBuilder {
 					confirmVerificationCodeInterval: 60,
 					...this.#rateLimit,
 				},
+			},
+			expirations: {
+				accessToken: this.#expirations?.accessToken ?? 1000 * 60 * 10,
+				refreshToken: this.#expirations?.refreshToken ??
+					1000 * 60 * 60 * 24 * 7,
 			},
 			allowAnonymousIdentity: this.#allowAnonymousIdentity ?? false,
 			ceremony: this.#ceremony,

@@ -67,8 +67,11 @@ Deno.test("Client Auth", async (t) => {
 					createChallenge,
 				},
 			) => {
-				config.auth().setEnabled(true).setAllowAnonymousIdentity(true)
-					.setCeremony(oneOf(sequence(email, password), sequence(email, totp)));
+				config.auth()
+					.setEnabled(true)
+					.setAllowAnonymousIdentity(true)
+					.setCeremony(oneOf(sequence(email, password), sequence(email, totp)))
+					.setExpirations({ accessToken: 200, refreshToken: 800 });
 				john = await createIdentity({});
 				await createIdentification({
 					identityId: john.id,
@@ -351,8 +354,12 @@ Deno.test("Client Auth", async (t) => {
 		await signIn(authApp);
 		assertEquals(changes, [john]);
 		await signOut(authApp);
-		unsubscribe();
 		assertEquals(changes, [john, undefined]);
+		await signIn(authApp);
+		assertEquals(changes, [john, undefined, john]);
+		await new Promise((r) => setTimeout(r, 1000));
+		assertEquals(changes, [john, undefined, john, undefined]);
+		unsubscribe();
 	});
 
 	await t.step("getIdToken", async () => {

@@ -7,6 +7,8 @@ import {
 	SessionDestroyError,
 	// deno-lint-ignore no-unused-vars
 	SessionIDNotFoundError,
+	// deno-lint-ignore no-unused-vars
+	SessionUpdateError,
 } from "../../session/errors.ts";
 
 export interface ISessionService {
@@ -25,6 +27,14 @@ export interface ISessionService {
 		meta: Record<string, unknown>,
 		expiration?: number | Date,
 	): Promise<SessionData>;
+
+	/**
+	 * @throws {SessionUpdateError}
+	 */
+	update(
+		sessionData: SessionData,
+		expiration?: number | Date,
+	): Promise<void>;
 
 	/**
 	 * @throws {SessionDestroyError}

@@ -89,6 +89,7 @@ export class KVSessionProvider implements SessionProvider {
 	 */
 	async update(
 		sessionData: SessionData,
+		expiration?: number | Date,
 	): Promise<void> {
 		try {
 			assertSessionData(sessionData);
@@ -96,10 +97,12 @@ export class KVSessionProvider implements SessionProvider {
 				this.#kvProvider.put(
 					`/byId/${sessionData.id}`,
 					JSON.stringify(sessionData),
+					{ expiration },
 				),
 				this.#kvProvider.put(
 					`/byIdentity/${sessionData.identityId}/${sessionData.id}`,
 					JSON.stringify(sessionData),
+					{ expiration },
 				),
 			]);
 			return;

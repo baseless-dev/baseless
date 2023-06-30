@@ -31,7 +31,7 @@ export interface SessionProvider {
 	/**
 	 * @throws {SessionUpdateError}
 	 */
-	update(sessionData: SessionData): Promise<void>;
+	update(sessionData: SessionData, expiration?: number | Date): Promise<void>;
 
 	/**
 	 * @throws {SessionDestroyError}

@@ -1,6 +1,7 @@
 import {
 	assert,
 	assertEquals,
+	assertNotEquals,
 	assertRejects,
 	assertThrows,
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
@@ -44,6 +45,8 @@ import makeDummyServer, {
 	type DummyServerResult,
 } from "../server/make_dummy_server.ts";
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 Deno.test("Client Auth", async (t) => {
 	const initializeDummyServerApp = async (): Promise<
 		{
@@ -71,7 +74,7 @@ Deno.test("Client Auth", async (t) => {
 					.setEnabled(true)
 					.setAllowAnonymousIdentity(true)
 					.setCeremony(oneOf(sequence(email, password), sequence(email, totp)))
-					.setExpirations({ accessToken: 200, refreshToken: 800 });
+					.setExpirations({ accessToken: 1_000, refreshToken: 4_000 });
 				john = await createIdentity({});
 				await createIdentification({
 					identityId: john.id,
@@ -357,7 +360,7 @@ Deno.test("Client Auth", async (t) => {
 		assertEquals(changes, [john, undefined]);
 		await signIn(authApp);
 		assertEquals(changes, [john, undefined, john]);
-		await new Promise((r) => setTimeout(r, 1000));
+		await sleep(4200);
 		assertEquals(changes, [john, undefined, john, undefined]);
 		unsubscribe();
 	});
@@ -463,6 +466,20 @@ Deno.test("Client Auth", async (t) => {
 		);
 		await addChallenge(authApp, "password", "blep", "en");
 		await assertRejects(() => addChallenge(authApp, "password", "blep", "en"));
+		await signOut(authApp);
+	});
+
+	await t.step("refreshToken when needed", async () => {
+		const { app, signIn } = await initializeDummyServerApp();
+		const authApp = initializeAuth(app);
+		await signIn(authApp);
+		const idToken1 = await getIdToken(authApp);
+		assert(idToken1);
+		await sleep(1200);
+		await getAuthenticationCeremony(authApp);
+		const idToken2 = await getIdToken(authApp);
+		assert(idToken2);
+		assertNotEquals(idToken1, idToken2);
 		await signOut(authApp);
 	});
 });

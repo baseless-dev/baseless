@@ -8,6 +8,8 @@ import {
 	SessionDestroyError,
 	// deno-lint-ignore no-unused-vars
 	SessionIDNotFoundError,
+	// deno-lint-ignore no-unused-vars
+	SessionUpdateError,
 } from "../../common/session/errors.ts";
 import type { AutoId } from "../../common/system/autoid.ts";
 import type { SessionProvider } from "../../providers/session.ts";
@@ -42,8 +44,18 @@ export class SessionService implements ISessionService {
 		expiration?: number | Date,
 	): Promise<SessionData> {
 		// TODO rate limit
-		// TODO expiration ??= this.#configuration.auth.session.expiration;
 		return this.#sessionProvider.create(identityId, meta, expiration);
+	}
+
+	/**
+	 * @throws {SessionUpdateError}
+	 */
+	update(
+		sessionData: SessionData,
+		expiration?: number | Date,
+	): Promise<void> {
+		// TODO rate limit
+		return this.#sessionProvider.update(sessionData, expiration);
 	}
 
 	/**

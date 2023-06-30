@@ -14,6 +14,7 @@ import { addIdentification } from "./auth/add_identification.ts";
 import { addChallenge } from "./auth/add_challenge.ts";
 import { confirmChallengeValidationCode } from "./auth/confirm_challenge_validation_code.ts";
 import { sendChallengeValidationCode } from "./auth/send_challenge_validation_code.ts";
+import { refreshTokens } from "./auth/refresh_tokens.ts";
 
 function json<Params extends Record<string, string | undefined>, Result>(
 	handler: (
@@ -80,6 +81,10 @@ authRouter.post(
 authRouter.post(
 	"/confirmChallengeValidationCode",
 	json(confirmChallengeValidationCode),
+);
+authRouter.post(
+	"/refreshTokens",
+	json(refreshTokens),
 );
 
 export default authRouter;

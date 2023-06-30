@@ -39,6 +39,8 @@ import { assertIdentity, type Identity } from "../common/identity/identity.ts";
 export class AuthApp {
 	#app: App;
 	#tokens: AuthenticationTokens | undefined;
+	#accessTokenExpiration: number | undefined;
+	#pendingRefreshTokenRequest: Promise<void> | undefined;
 	#expireTimeout: number | undefined;
 	#persistence: Persistence;
 	#onAuthStateChange: EventEmitter<[Identity | undefined]>;
@@ -81,11 +83,29 @@ export class AuthApp {
 		return this.#app.apiEndpoint;
 	}
 
-	fetch(
+	async fetch(
 		input: URL | Request | string,
 		init?: RequestInit,
 	): Promise<Response> {
 		const headers = new Headers(init?.headers);
+		const now = Date.now() / 1000 >> 0;
+		if (
+			this.#tokens?.access_token && this.#tokens.refresh_token &&
+			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
+		) {
+			const resp = await this.#app.fetch(
+				`${this.apiEndpoint}/auth/refreshTokens`,
+				{
+					method: "POST",
+					headers: { "X-Refresh-Token": this.#tokens.refresh_token },
+				},
+			);
+			const result = await resp.json();
+			throwIfApiError(result);
+			assertAuthenticationTokens(result.data);
+			this.#tokens = result.data;
+		}
+
 		if (this.#tokens?.access_token) {
 			headers.set("Authorization", `Bearer ${this.#tokens.access_token}`);
 		}
@@ -111,26 +131,28 @@ export class AuthApp {
 			assertAuthenticationTokens(tokens);
 			const { access_token, id_token, refresh_token } = tokens;
 			tokens = { access_token, id_token, refresh_token };
+			const { sub: identityId, meta } = JSON.parse(
+				atob(id_token.split(".").at(1)!),
+			);
+			const identity = { id: identityId, meta };
+			assertIdentity(identity);
+			const { exp: accessTokenExp = Number.MAX_VALUE } = JSON.parse(
+				atob(access_token.split(".").at(1)!),
+			);
+			const { exp: refreshTokenExp = undefined } = refresh_token
+				? JSON.parse(atob(refresh_token.split(".").at(1)!))
+				: {};
+			const expiration = parseInt(refreshTokenExp ?? accessTokenExp, 10);
 			this.#tokens = tokens;
-			{
-				const [, payload] = id_token.split(".");
-				const { sub, meta } = JSON.parse(atob(payload));
-				const identity = { id: sub, meta };
-				assertIdentity(identity);
-				this.#onAuthStateChange.emit(identity);
-			}
-			{
-				const [, payload] = (refresh_token ?? access_token).split(".");
-				const { exp } = JSON.parse(atob(payload));
-				if (exp && typeof exp === "number") {
-					this.#expireTimeout = setTimeout(
-						() => this.tokens = undefined,
-						exp * 1000 - Date.now(),
-					);
-				}
-			}
+			this.#accessTokenExpiration = parseInt(accessTokenExp, 10);
+			this.#onAuthStateChange.emit(identity);
+			this.#expireTimeout = setTimeout(
+				() => this.tokens = undefined,
+				expiration * 1000 - Date.now(),
+			);
 		} else {
 			this.#tokens = undefined;
+			this.#accessTokenExpiration = undefined;
 			this.#onAuthStateChange.emit(undefined);
 		}
 	}
@@ -223,6 +245,8 @@ export async function getAuthenticationCeremony(
 			method,
 		},
 	);
+	// const text = await resp.text();
+	// const result = JSON.parse(text);
 	const result = await resp.json();
 	throwIfApiError(result);
 	assertAuthenticationCeremonyResponse(result.data);

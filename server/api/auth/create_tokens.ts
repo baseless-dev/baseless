@@ -10,12 +10,13 @@ export async function createTokens(
 	privateKey: KeyLike,
 	accessExpiration: number,
 	refreshExpiration: number,
+	scope = "*",
 ): Promise<{ access_token: string; id_token: string; refresh_token?: string }> {
 	const now = Date.now();
-	const access_token = await new SignJWT({})
+	const access_token = await new SignJWT({ scope })
 		.setSubject(sessionData.id)
 		.setIssuedAt()
-		.setExpirationTime((now + accessExpiration) / 1000)
+		.setExpirationTime((now + accessExpiration) / 1000 >> 0)
 		.setProtectedHeader({ alg })
 		.sign(privateKey);
 	const id_token = await new SignJWT({ meta: identity.meta })
@@ -23,10 +24,10 @@ export async function createTokens(
 		.setIssuedAt()
 		.setProtectedHeader({ alg })
 		.sign(privateKey);
-	const refresh_token = await new SignJWT({ scope: "*" })
-		.setSubject(sessionData.identityId)
+	const refresh_token = await new SignJWT({ scope })
+		.setSubject(sessionData.id)
 		.setIssuedAt()
-		.setExpirationTime((now + refreshExpiration) / 1000)
+		.setExpirationTime((now + refreshExpiration) / 1000 >> 0)
 		.setProtectedHeader({ alg })
 		.sign(privateKey);
 	return { access_token, id_token, refresh_token };

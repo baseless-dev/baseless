@@ -1,6 +1,6 @@
 import { IdentityCreateError } from "../../../common/identity/errors.ts";
 import type { IContext } from "../../../common/server/context.ts";
-import { AutoId } from "../../../common/system/autoid.ts";
+import type { AutoId } from "../../../common/system/autoid.ts";
 import { getJsonData } from "../get_json_data.ts";
 
 export async function createIdentity(

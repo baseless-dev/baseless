@@ -87,19 +87,30 @@ export class AuthApp {
 		input: URL | Request | string,
 		init?: RequestInit,
 	): Promise<Response> {
+		if (this.#pendingRefreshTokenRequest) {
+			await this.#pendingRefreshTokenRequest;
+		}
 		const headers = new Headers(init?.headers);
 		const now = Date.now() / 1000 >> 0;
 		if (
 			this.#tokens?.access_token && this.#tokens.refresh_token &&
 			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
 		) {
-			const resp = await this.#app.fetch(
+			const refreshPromise = this.#app.fetch(
 				`${this.apiEndpoint}/auth/refreshTokens`,
 				{
 					method: "POST",
 					headers: { "X-Refresh-Token": this.#tokens.refresh_token },
 				},
 			);
+			this.#pendingRefreshTokenRequest = refreshPromise
+				.catch(() => {})
+				.then(
+					() => {
+						this.#pendingRefreshTokenRequest = undefined;
+					},
+				);
+			const resp = await refreshPromise;
 			const result = await resp.json();
 			throwIfApiError(result);
 			assertAuthenticationTokens(result.data);

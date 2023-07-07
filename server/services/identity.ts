@@ -202,12 +202,10 @@ export class IdentityService implements IIdentityService {
 	/**
 	 * @throws {IdentityChallengeCreateError}
 	 */
-	async createChallenge(
-		identityId: AutoId,
+	async getChallengeMeta(
 		type: string,
 		challenge: string,
-		expiration?: number | Date,
-	): Promise<void> {
+	): Promise<IdentityChallenge["meta"]> {
 		const challenger = this.#context.config.auth.challengers.get(type);
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
@@ -215,21 +213,14 @@ export class IdentityService implements IIdentityService {
 		const meta = await challenger.configureIdentityChallenge?.({
 			context: this.#context,
 			challenge,
-		}) ??
-			{};
-		// TODO life cycle hooks
-		return this.createChallengeWithMeta({
-			identityId,
-			type,
-			meta,
-			confirmed: false,
-		}, expiration);
+		});
+		return meta ?? {};
 	}
 
 	/**
 	 * @throws {IdentityChallengeCreateError}
 	 */
-	createChallengeWithMeta(
+	createChallenge(
 		identityChallenge: IdentityChallenge,
 		expiration?: number | Date,
 	): Promise<void> {
@@ -247,17 +238,23 @@ export class IdentityService implements IIdentityService {
 	}
 
 	/**
-	 * @throws {IdentityChallengeUpdateError}
+	 * @throws {IdentityChallengeCreateError}
 	 */
-	updateChallenge(
+	async updateChallenge(
 		identityChallenge: IdentityChallenge,
 		expiration?: number | Date,
 	): Promise<void> {
-		// TODO life cycle hooks
-		return this.#identityProvider.updateChallenge(
-			identityChallenge,
-			expiration,
-		);
+		try {
+			assertIdentityChallenge(identityChallenge);
+			// TODO life cycle hooks
+			return this.#identityProvider.updateChallenge(
+				identityChallenge,
+				expiration,
+			);
+		} catch (_error) {
+			// skip
+		}
+		throw new IdentityChallengeCreateError();
 	}
 
 	/**

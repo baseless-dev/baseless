@@ -2,11 +2,11 @@ import {
 	HighRiskActionTimeWindowExpiredError,
 	UnauthorizedError,
 } from "../../../common/auth/errors.ts";
-import { IdentityIdentificationCreateError } from "../../../common/identity/errors.ts";
+import { IdentityIdentificationUpdateError } from "../../../common/identity/errors.ts";
 import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 
-export async function addIdentification(
+export async function updateIdentification(
 	request: Request,
 	_params: Record<never, never>,
 	context: IContext,
@@ -22,7 +22,7 @@ export async function addIdentification(
 	// TODO default locale
 	const locale = data?.locale?.toString() ?? "en";
 	if (!identification) {
-		throw new IdentityIdentificationCreateError();
+		throw new IdentityIdentificationUpdateError();
 	}
 	if (
 		context.tokenData.lastAuthorizationTime >=
@@ -31,11 +31,17 @@ export async function addIdentification(
 		throw new HighRiskActionTimeWindowExpiredError();
 	}
 	try {
-		await context.identity.createIdentification({
-			identityId,
+		const existingIdentification = await context.identity.getIdentification(
+			identification,
+			identificationType,
+		);
+		if (existingIdentification.identityId !== identityId) {
+			throw new IdentityIdentificationUpdateError();
+		}
+		await context.identity.updateIdentification({
+			...existingIdentification,
 			type: identificationType,
 			identification,
-			meta: {},
 			confirmed: false,
 		});
 		await context.identity.sendIdentificationValidationCode(
@@ -44,6 +50,6 @@ export async function addIdentification(
 			locale,
 		);
 	} catch (_error) {
-		throw new IdentityIdentificationCreateError();
+		throw new IdentityIdentificationUpdateError();
 	}
 }

@@ -68,6 +68,14 @@ export interface IIdentityService {
 	/**
 	 * @throws {IdentityIdentificationNotFoundError}
 	 */
+	getIdentification<Meta extends Record<string, unknown>>(
+		id: AutoId,
+		type: string,
+	): Promise<IdentityIdentification<Meta>>;
+
+	/**
+	 * @throws {IdentityIdentificationNotFoundError}
+	 */
 	matchIdentification<Meta extends Record<string, unknown>>(
 		type: string,
 		identification: string,
@@ -112,17 +120,15 @@ export interface IIdentityService {
 	/**
 	 * @throws {IdentityChallengeCreateError}
 	 */
-	createChallenge(
-		identityId: AutoId,
+	getChallengeMeta(
 		type: string,
 		challenge: string,
-		expiration?: number | Date,
-	): Promise<void>;
+	): Promise<IdentityChallenge["meta"]>;
 
 	/**
 	 * @throws {IdentityChallengeCreateError}
 	 */
-	createChallengeWithMeta(
+	createChallenge(
 		identityChallenge: IdentityChallenge,
 		expiration?: number | Date,
 	): Promise<void>;

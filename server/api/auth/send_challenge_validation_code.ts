@@ -8,11 +8,11 @@ export async function sendChallengeValidationCode(
 	_params: Record<never, never>,
 	context: IContext,
 ): Promise<SendChallengeValidationCodeResponse> {
-	if (!context.currentSessionData) {
+	if (!context.tokenData) {
 		throw new UnauthorizedError();
 	}
 	try {
-		const identityId = context.currentSessionData.identityId;
+		const identityId = context.tokenData.sessionData.identityId;
 		const data = await getJsonData(request);
 		const type = data.type?.toString() ?? "";
 		// TODO default locale

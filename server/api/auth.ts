@@ -15,6 +15,8 @@ import { addChallenge } from "./auth/add_challenge.ts";
 import { confirmChallengeValidationCode } from "./auth/confirm_challenge_validation_code.ts";
 import { sendChallengeValidationCode } from "./auth/send_challenge_validation_code.ts";
 import { refreshTokens } from "./auth/refresh_tokens.ts";
+import { updateIdentification } from "./auth/update_identification.ts";
+import { updateChallenge } from "./auth/update_challenge.ts";
 
 function json<Params extends Record<string, string | undefined>, Result>(
 	handler: (
@@ -81,6 +83,14 @@ authRouter.post(
 authRouter.post(
 	"/confirmChallengeValidationCode",
 	json(confirmChallengeValidationCode),
+);
+authRouter.post(
+	"/updateIdentification",
+	json(updateIdentification),
+);
+authRouter.post(
+	"/updateChallenge",
+	json(updateChallenge),
 );
 authRouter.post(
 	"/refreshTokens",

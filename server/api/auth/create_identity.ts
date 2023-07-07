@@ -21,12 +21,12 @@ export async function createIdentity(
 	let identityId: AutoId | undefined;
 	try {
 		// Claim anonymous identity or create new one
-		if (context.currentSessionData) {
+		if (context.tokenData) {
 			const identifications = await context.identity.listIdentification(
-				context.currentSessionData.identityId,
+				context.tokenData.sessionData.identityId,
 			);
 			if (identifications.length === 0) {
-				identityId = context.currentSessionData.identityId;
+				identityId = context.tokenData.sessionData.identityId;
 			} else {
 				throw new IdentityCreateError();
 			}
@@ -53,7 +53,7 @@ export async function createIdentity(
 				identificationType,
 				identification,
 			).catch((_) => {});
-			if (!context.currentSessionData) {
+			if (!context.tokenData) {
 				await context.identity.delete(identityId).catch((_) => {});
 			}
 		}

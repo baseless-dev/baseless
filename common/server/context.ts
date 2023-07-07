@@ -1,4 +1,3 @@
-import type { SessionData } from "../session/data.ts";
 import type { Configuration } from "./config/config.ts";
 import type { IAssetService } from "./services/asset.ts";
 import type { IAuthenticationService } from "./services/auth.ts";
@@ -6,13 +5,14 @@ import type { ICounterService } from "./services/counter.ts";
 import type { IIdentityService } from "./services/identity.ts";
 import type { IKVService } from "./services/kv.ts";
 import type { ISessionService } from "./services/session.ts";
+import type { TokenData } from "./token_data.ts";
 
 /**
  * Baseless's context
  */
 export interface IContext {
 	readonly remoteAddress: string;
-	readonly currentSessionData: SessionData | undefined;
+	readonly tokenData: TokenData | undefined;
 	readonly config: Configuration;
 	readonly asset: IAssetService;
 	readonly counter: ICounterService;

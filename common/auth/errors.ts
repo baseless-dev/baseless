@@ -121,3 +121,6 @@ export class AuthenticationIdentityIdentificationNotConfirmedError
 export class AuthenticationIdentityChallengeNotConfirmedError extends Error {
 	name = "AuthenticationIdentityChallengeNotConfirmedError" as const;
 }
+export class HighRiskActionTimeWindowExpiredError extends Error {
+	name = "HighRiskActionTimeWindowExpiredError" as const;
+}

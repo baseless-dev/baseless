@@ -489,3 +489,43 @@ export async function confirmChallengeValidationCode(
 	assertConfirmChallengeValidationCodeResponse(result.data);
 	return result.data;
 }
+
+export async function updateIdentification(
+	app: AuthApp,
+	identificationType: string,
+	identification: string,
+	locale: string,
+): Promise<void> {
+	assertAuthApp(app);
+	const body = JSON.stringify({
+		identificationType,
+		identification,
+		locale,
+	});
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/updateIdentification`,
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+}
+
+export async function updateChallenge(
+	app: AuthApp,
+	challengeType: string,
+	challenge: string,
+	locale: string,
+): Promise<void> {
+	assertAuthApp(app);
+	const body = JSON.stringify({
+		challengeType,
+		challenge,
+		locale,
+	});
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/updateChallenge`,
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+}

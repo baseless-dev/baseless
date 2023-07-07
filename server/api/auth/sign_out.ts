@@ -7,9 +7,9 @@ export async function signOut(
 	context: IContext,
 	// deno-lint-ignore ban-types
 ): Promise<{}> {
-	if (context.currentSessionData) {
+	if (context.tokenData) {
 		try {
-			await context.session.destroy(context.currentSessionData.id);
+			await context.session.destroy(context.tokenData.sessionData.id);
 			return {};
 		} catch (_error) {
 			// skip

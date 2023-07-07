@@ -6,7 +6,7 @@ import type { ICounterService } from "../common/server/services/counter.ts";
 import type { IIdentityService } from "../common/server/services/identity.ts";
 import type { IKVService } from "../common/server/services/kv.ts";
 import type { ISessionService } from "../common/server/services/session.ts";
-import type { SessionData } from "../common/session/data.ts";
+import type { TokenData } from "../common/server/token_data.ts";
 import type { AssetProvider } from "../providers/asset.ts";
 import type { CounterProvider } from "../providers/counter.ts";
 import type { IdentityProvider } from "../providers/identity.ts";
@@ -25,7 +25,7 @@ import { SessionService } from "./services/session.ts";
 export class Context implements IContext {
 	#waitUntil: PromiseLike<unknown>[];
 	#remoteAddress: string;
-	#sessionData: SessionData | undefined;
+	#tokenData: TokenData | undefined;
 	#configuration: Configuration;
 	#assetProvider: AssetProvider;
 	#counterProvider: CounterProvider;
@@ -35,7 +35,7 @@ export class Context implements IContext {
 	constructor(
 		waitUntil: PromiseLike<unknown>[],
 		remoteAddress: string,
-		sessionData: SessionData | undefined,
+		tokenData: TokenData | undefined,
 		configuration: Configuration,
 		assetProvider: AssetProvider,
 		counterProvider: CounterProvider,
@@ -45,7 +45,7 @@ export class Context implements IContext {
 	) {
 		this.#waitUntil = waitUntil;
 		this.#remoteAddress = remoteAddress;
-		this.#sessionData = sessionData;
+		this.#tokenData = tokenData;
 		this.#configuration = configuration;
 		this.#assetProvider = assetProvider;
 		this.#counterProvider = counterProvider;
@@ -56,8 +56,8 @@ export class Context implements IContext {
 	get remoteAddress(): string {
 		return this.#remoteAddress;
 	}
-	get currentSessionData(): SessionData | undefined {
-		return this.#sessionData;
+	get tokenData(): TokenData | undefined {
+		return this.#tokenData;
 	}
 	get config(): Configuration {
 		return this.#configuration;

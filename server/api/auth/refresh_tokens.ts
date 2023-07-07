@@ -24,7 +24,7 @@ export async function refreshTokens(
 				sessionData,
 				context.config.auth.expirations.refreshToken,
 			);
-			const { access_token, id_token, refresh_token } = await createTokens(
+			const { access_token, id_token } = await createTokens(
 				identity,
 				sessionData,
 				context.config.auth.security.keys.algo,
@@ -36,7 +36,7 @@ export async function refreshTokens(
 			return {
 				access_token,
 				id_token,
-				refresh_token,
+				refresh_token: refreshToken,
 			};
 		}
 	}

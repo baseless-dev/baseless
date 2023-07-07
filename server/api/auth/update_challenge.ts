@@ -1,13 +1,10 @@
-import { IdentityChallengeExistsError } from "../../../client/errors.ts";
-import {
-	HighRiskActionTimeWindowExpiredError,
-	UnauthorizedError,
-} from "../../../common/auth/errors.ts";
-import { IdentityChallengeCreateError } from "../../../common/identity/errors.ts";
+import { HighRiskActionTimeWindowExpiredError } from "../../../client/errors.ts";
+import { UnauthorizedError } from "../../../common/auth/errors.ts";
+import { IdentityChallengeUpdateError } from "../../../common/identity/errors.ts";
 import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 
-export async function addChallenge(
+export async function updateChallenge(
 	request: Request,
 	_params: Record<never, never>,
 	context: IContext,
@@ -23,14 +20,7 @@ export async function addChallenge(
 	// TODO default locale
 	const locale = data?.locale?.toString() ?? "en";
 	if (!challenge) {
-		throw new IdentityChallengeCreateError();
-	}
-	const identityChallenge = await context.identity.getChallenge(
-		identityId,
-		challengeType,
-	).catch((_) => undefined);
-	if (identityChallenge) {
-		throw new IdentityChallengeExistsError();
+		throw new IdentityChallengeUpdateError();
 	}
 	if (
 		context.tokenData.lastAuthorizationTime >=
@@ -39,15 +29,24 @@ export async function addChallenge(
 		throw new HighRiskActionTimeWindowExpiredError();
 	}
 	try {
+		const existingChallenge = await context.identity.getChallenge(
+			identityId,
+			challengeType,
+		);
+		if (existingChallenge.identityId !== identityId) {
+			throw new IdentityChallengeUpdateError();
+		}
 		const meta = await context.identity.getChallengeMeta(
 			challengeType,
 			challenge,
 		);
-		await context.identity.createChallenge({
-			identityId,
-			type: challengeType,
+		await context.identity.updateChallenge({
+			...existingChallenge,
+			meta: {
+				...existingChallenge.meta,
+				meta,
+			},
 			confirmed: false,
-			meta,
 		});
 		await context.identity.sendChallengeValidationCode(
 			identityId,
@@ -55,6 +54,6 @@ export async function addChallenge(
 			locale,
 		);
 	} catch (_error) {
-		throw new IdentityChallengeCreateError();
+		throw new IdentityChallengeUpdateError();
 	}
 }

@@ -1,9 +1,7 @@
 import type { Configuration } from "../common/server/config/config.ts";
 import type { IContext } from "../common/server/context.ts";
-import {
-	SESSION_AUTOID_PREFIX,
-	type SessionData,
-} from "../common/session/data.ts";
+import type { TokenData } from "../common/server/token_data.ts";
+import { SESSION_AUTOID_PREFIX } from "../common/session/data.ts";
 import { isAutoId } from "../common/system/autoid.ts";
 import { createLogger } from "../common/system/logger.ts";
 import { type Router, RouterBuilder } from "../common/system/router.ts";
@@ -80,23 +78,28 @@ export class Server {
 		const kvProvider = this.#kvProvider;
 		const identityProvider = this.#identityProvider;
 		const sessionProvider = this.#sessionProvider;
-		let sessionData: SessionData | undefined = undefined;
+		let tokenData: TokenData | undefined = undefined;
 		if (request.headers.has("Authorization")) {
 			const authorization = request.headers.get("Authorization") ?? "";
-			const [, scheme, parameters] =
+			const [, scheme, accessToken] =
 				authorization.match(/(?<scheme>[^ ]+) (?<params>.+)/) ?? [];
 			if (scheme === "Bearer") {
 				try {
 					const { payload } = await jwtVerify(
-						parameters,
+						accessToken,
 						configuration.auth.security.keys.publicKey,
 					);
 					if (isAutoId(payload.sub, SESSION_AUTOID_PREFIX)) {
-						const session = await sessionProvider.get(payload.sub).catch((_) =>
-							undefined
-						);
-						if (session) {
-							sessionData = session;
+						const sessionData = await sessionProvider.get(payload.sub).catch((
+							_,
+						) => undefined);
+						if (sessionData) {
+							const { scope, aat } = { ...payload, scope: "", aat: 0 };
+							tokenData = {
+								lastAuthorizationTime: aat,
+								scope: scope.split(/ +/),
+								sessionData,
+							};
 						}
 					} else {
 						this.#logger.warn(
@@ -111,7 +114,7 @@ export class Server {
 			} else {
 				this.#logger.warn(`Unknown authorization scheme ${scheme}.`);
 			}
-			if (!sessionData) {
+			if (!tokenData) {
 				return [new Response(null, { status: 403 }), []];
 			}
 		}
@@ -120,7 +123,7 @@ export class Server {
 		const context = new Context(
 			waitUntilCollection,
 			remoteAddress,
-			sessionData,
+			tokenData,
 			configuration,
 			assetProvider,
 			counterProvider,

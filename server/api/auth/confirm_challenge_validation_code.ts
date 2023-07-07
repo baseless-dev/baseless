@@ -8,11 +8,11 @@ export async function confirmChallengeValidationCode(
 	_params: Record<never, never>,
 	context: IContext,
 ): Promise<ConfirmChallengeValidationCodeResponse> {
-	if (!context.currentSessionData) {
+	if (!context.tokenData) {
 		throw new UnauthorizedError();
 	}
 	try {
-		const identityId = context.currentSessionData.identityId;
+		const identityId = context.tokenData.sessionData.identityId;
 		const data = await getJsonData(request);
 		const type = data.type?.toString() ?? "";
 		const answer = data.answer?.toString() ?? "";

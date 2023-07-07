@@ -37,6 +37,7 @@ export type AuthenticationConfiguration = {
 	readonly ceremony: AuthenticationCeremonyComponent;
 	readonly identificators: Map<string, AuthenticationIdenticator>;
 	readonly challengers: Map<string, AuthenticationChallenger>;
+	readonly highRiskActionTimeWindow: number;
 	readonly onCreateIdentity?: AuthenticationHandler;
 	readonly onUpdateIdentity?: AuthenticationHandler;
 	readonly onDeleteIdentity?: AuthenticationHandler;
@@ -65,6 +66,7 @@ export class AuthenticationConfigurationBuilder {
 	#onCreateIdentityHandler?: AuthenticationHandler;
 	#onUpdateIdentityHandler?: AuthenticationHandler;
 	#onDeleteIdentityHandler?: AuthenticationHandler;
+	#highRiskActionTimeWindow?: number;
 	#rateLimit?: {
 		identificationCount: number;
 		identificationInterval: number;
@@ -163,6 +165,16 @@ export class AuthenticationConfigurationBuilder {
 	}
 
 	/**
+	 * Defines the high-risk action time window
+	 * @param timeWindow The time window in seconds
+	 * @returns The builder
+	 */
+	public setHighRiskActionTimeWindow(timeWindow: number): this {
+		this.#highRiskActionTimeWindow = timeWindow;
+		return this;
+	}
+
+	/**
 	 * Defines a callback to be triggered when a new {@see Identity} is created
 	 * @param handler The callback
 	 * @returns The builder
@@ -239,6 +251,7 @@ export class AuthenticationConfigurationBuilder {
 					1000 * 60 * 60 * 24 * 7,
 			},
 			allowAnonymousIdentity: this.#allowAnonymousIdentity ?? false,
+			highRiskActionTimeWindow: this.#highRiskActionTimeWindow ?? 60 * 5,
 			ceremony: this.#ceremony,
 			identificators: new Map(identificatorCompoenents.map((c) => [c.kind, c])),
 			challengers: new Map(challengerComponents.map((c) => [c.kind, c])),

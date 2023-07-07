@@ -17,6 +17,8 @@ import { sendChallengeValidationCode } from "./auth/send_challenge_validation_co
 import { refreshTokens } from "./auth/refresh_tokens.ts";
 import { updateIdentification } from "./auth/update_identification.ts";
 import { updateChallenge } from "./auth/update_challenge.ts";
+import { deleteChallenge } from "./auth/delete_challenge.ts";
+import { deleteIdentification } from "./auth/delete_identification.ts";
 
 function json<Params extends Record<string, string | undefined>, Result>(
 	handler: (
@@ -84,17 +86,10 @@ authRouter.post(
 	"/confirmChallengeValidationCode",
 	json(confirmChallengeValidationCode),
 );
-authRouter.post(
-	"/updateIdentification",
-	json(updateIdentification),
-);
-authRouter.post(
-	"/updateChallenge",
-	json(updateChallenge),
-);
-authRouter.post(
-	"/refreshTokens",
-	json(refreshTokens),
-);
+authRouter.post("/updateIdentification", json(updateIdentification));
+authRouter.post("/updateChallenge", json(updateChallenge));
+authRouter.post("/deleteIdentification", json(deleteIdentification));
+authRouter.post("/deleteChallenge", json(deleteChallenge));
+authRouter.post("/refreshTokens", json(refreshTokens));
 
 export default authRouter;

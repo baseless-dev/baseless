@@ -12,7 +12,6 @@ export async function updateChallenge(
 	if (!context.tokenData) {
 		throw new UnauthorizedError();
 	}
-	// TODO need session iat to be "recent"
 	const identityId = context.tokenData.sessionData.identityId;
 	const data = await getJsonData(request);
 	const challengeType = data?.challengeType?.toString() ?? "";

@@ -540,3 +540,41 @@ export async function updateChallenge(
 	const result = await resp.json();
 	throwIfApiError(result);
 }
+
+export async function deleteIdentification(
+	app: AuthApp,
+	identificationType: string,
+	identification: string,
+	locale: string,
+): Promise<void> {
+	assertAuthApp(app);
+	const body = JSON.stringify({
+		identificationType,
+		identification,
+		locale,
+	});
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/deleteIdentification`,
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+}
+
+export async function deleteChallenge(
+	app: AuthApp,
+	challengeType: string,
+	locale: string,
+): Promise<void> {
+	assertAuthApp(app);
+	const body = JSON.stringify({
+		challengeType,
+		locale,
+	});
+	const resp = await app.fetch(
+		`${app.apiEndpoint}/auth/deleteChallenge`,
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+}

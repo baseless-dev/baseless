@@ -1,4 +1,7 @@
-import { RouteHandler, RouterBuilder } from "../../common/system/router.ts";
+import {
+	type RouteHandler,
+	RouterBuilder,
+} from "../../common/system/router.ts";
 import type { ApiResponse } from "../../common/api/response.ts";
 import type { IContext } from "../../common/server/context.ts";
 import { confirmIdentificationValidationCode } from "./auth/confirm_identification_validation_code.ts";

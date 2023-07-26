@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { AssetProvider } from "./asset.ts";
+import { type AssetProvider } from "./asset.ts";
 
 export default async function testAssetProvider(
 	ap: AssetProvider,

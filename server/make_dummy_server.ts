@@ -11,10 +11,10 @@ import { LoggerMessageProvider } from "../providers/message-logger/mod.ts";
 import { KVSessionProvider } from "../providers/session-kv/mod.ts";
 import { Server } from "./server.ts";
 import * as h from "../common/auth/ceremony/component/helpers.ts";
-import { AssetProvider } from "../providers/asset.ts";
-import { CounterProvider } from "../providers/counter.ts";
-import { IdentityProvider } from "../providers/identity.ts";
-import { SessionProvider } from "../providers/session.ts";
+import type { AssetProvider } from "../providers/asset.ts";
+import type { CounterProvider } from "../providers/counter.ts";
+import type { IdentityProvider } from "../providers/identity.ts";
+import type { SessionProvider } from "../providers/session.ts";
 
 export type DummyServerHelpers = {
 	config: ConfigurationBuilder;

@@ -161,10 +161,15 @@ export class AuthApp {
 				() => this.tokens = undefined,
 				expiration * 1000 - Date.now(),
 			);
+			this.#storage.setItem(
+				`baseless_${this.clientId}_tokens`,
+				JSON.stringify(tokens),
+			);
 		} else {
 			this.#tokens = undefined;
 			this.#accessTokenExpiration = undefined;
 			this.#onAuthStateChange.emit(undefined);
+			this.#storage.removeItem(`baseless_${this.clientId}_tokens`);
 		}
 	}
 

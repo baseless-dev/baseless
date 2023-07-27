@@ -1,158 +1,228 @@
-import type { Infer, Schema } from "./types.ts";
-import type { Validator } from "./validator.ts";
+import {
+	globalSchemaRegistry,
+	type Infer,
+	type Schema,
+	type Validator,
+} from "./types.ts";
 
-export function nill(
-	msg?: string,
-): Schema<null> {
-	return {
-		kind: "nill",
-		msg,
-		validate(value): value is null {
-			return value === null;
-		},
-	};
+export function nill(): Schema<null> {
+	// Phantom type is only required at compile time
+	// deno-lint-ignore no-explicit-any
+	return { kind: "nill" } as any;
 }
+globalSchemaRegistry.registerSchema<ReturnType<typeof nill>>("nill", {
+	validate(_schema, value): value is null {
+		return value === null;
+	},
+});
 
-export function undef(
-	msg?: string,
-): Schema<undefined> {
-	return {
-		kind: "undef",
-		msg,
-		validate(value): value is undefined {
-			return value === undefined;
-		},
-	};
+export function undef(): Schema<undefined> {
+	// Phantom type is only required at compile time
+	// deno-lint-ignore no-explicit-any
+	return { kind: "undef" } as any;
 }
+globalSchemaRegistry.registerSchema<ReturnType<typeof undef>>("undef", {
+	validate(_schema, value): value is undefined {
+		return value === undefined;
+	},
+});
 
 export function string(
 	validators: Validator[] = [],
-	msg?: string,
 ): Schema<string> {
-	return {
-		kind: "string",
-		msg,
-		validate(value): value is string {
-			return typeof value === "string" &&
-				validators.every((validator) => validator.validate(value));
-		},
-	};
+	// Phantom type is only required at compile time
+	// deno-lint-ignore no-explicit-any
+	return { kind: "string", validators } as any;
 }
+globalSchemaRegistry.registerSchema<ReturnType<typeof string>>("string", {
+	validate(_schema, value): value is string {
+		return typeof value === "string";
+	},
+});
 
 export function number(
 	validators: Validator[] = [],
-	msg?: string,
 ): Schema<number> {
-	return {
-		kind: "number",
-		msg,
-		validate(value): value is number {
-			return typeof value === "number" &&
-				validators.every((validator) => validator.validate(value));
-		},
-	};
+	// Phantom type is only required at compile time
+	// deno-lint-ignore no-explicit-any
+	return { kind: "number", validators } as any;
 }
+globalSchemaRegistry.registerSchema<ReturnType<typeof number>>("number", {
+	validate(_schema, value): value is number {
+		return typeof value === "number";
+	},
+});
 
 export function boolean(
 	validators: Validator[] = [],
-	msg?: string,
 ): Schema<boolean> {
-	return {
-		kind: "boolean",
-		msg,
-		validate(value): value is boolean {
-			return typeof value === "boolean" &&
-				validators.every((validator) => validator.validate(value));
-		},
-	};
+	// Phantom type is only required at compile time
+	// deno-lint-ignore no-explicit-any
+	return { kind: "boolean", validators } as any;
 }
+globalSchemaRegistry.registerSchema<ReturnType<typeof boolean>>("boolean", {
+	validate(_schema, value): value is boolean {
+		return typeof value === "boolean";
+	},
+});
 
 export function date(
 	validators: Validator[] = [],
-	msg?: string,
 ): Schema<Date> {
-	return {
-		kind: "date",
-		msg,
-		validate(value): value is Date {
-			return !!value && value instanceof Date &&
-				validators.every((validator) => validator.validate(value));
-		},
-	};
+	// Phantom type is only required at compile time
+	// deno-lint-ignore no-explicit-any
+	return { kind: "date", validators } as any;
 }
+globalSchemaRegistry.registerSchema<ReturnType<typeof date>>("date", {
+	validate(_schema, value): value is Date {
+		return !!value && value instanceof Date;
+	},
+});
 
 export function array<TItem extends Schema<unknown> = never>(
 	item: TItem,
 	validators: Validator[] = [],
-	msg?: string,
-): Schema<NonNullable<Infer<TItem>>> {
-	return {
-		kind: "array",
-		item,
-		msg,
-		validate(value): value is NonNullable<Infer<TItem>> {
-			return !!value && Array.isArray(value) &&
-				validators.every((validator) => validator.validate(value));
-		},
-		*children(
-			value,
-		): Generator<[key: string, value: unknown, schema: Schema<unknown>]> {
-			if (!!value && Array.isArray(value)) {
-				for (const [key, val] of value.entries()) {
-					yield [`[${key}]`, val, item];
-				}
-			}
-		},
-	};
+): Schema<Array<Infer<TItem>>> & { readonly item: TItem } {
+	// Phantom type is only required at compile time
+	// deno-lint-ignore no-explicit-any
+	return { kind: "array", item, validators } as any;
 }
+globalSchemaRegistry.registerSchema<ReturnType<typeof array>>("array", {
+	// deno-lint-ignore ban-types
+	validate(_schema, value): value is Array<{}> {
+		return !!value && Array.isArray(value);
+	},
+	*walk(
+		schema,
+		value,
+	): Generator<[key: string, value: unknown, schema: Schema<unknown>]> {
+		if (!!value && Array.isArray(value)) {
+			for (const [key, val] of value.entries()) {
+				yield [`[${key}]`, val, schema.item];
+			}
+		}
+	},
+});
 
 export function record<TItem extends Schema<unknown> = never>(
 	item: TItem,
 	validators: Validator[] = [],
-	msg?: string,
-): Schema<Record<string, Infer<TItem>>> {
-	return {
-		kind: "record",
-		item,
-		msg,
-		validate(value): value is Record<string, Infer<TItem>> {
-			return !!value && typeof value === "object" &&
-				validators.every((validator) => validator.validate(value));
-		},
-		*children(
-			value,
-		): Generator<[key: string, value: unknown, schema: Schema<unknown>]> {
-			if (!!value && typeof value === "object") {
-				for (const [key, val] of Object.entries(value)) {
-					yield [`[${key}]`, val, item];
-				}
-			}
-		},
-	};
+): Schema<Record<string, Infer<TItem>>> & { readonly item: TItem } {
+	// Phantom type is only required at compile time
+	// deno-lint-ignore no-explicit-any
+	return { kind: "record", item, validators } as any;
 }
+globalSchemaRegistry.registerSchema<ReturnType<typeof record>>("record", {
+	// deno-lint-ignore ban-types
+	validate(_schema, value): value is Record<string, {}> {
+		return !!value && typeof value === "object";
+	},
+	*walk(
+		schema,
+		value,
+	): Generator<[key: string, value: unknown, schema: Schema<unknown>]> {
+		if (!!value && typeof value === "object") {
+			for (const [key, val] of Object.entries(value)) {
+				yield [`.${key}`, val, schema.item];
+			}
+		}
+	},
+});
 
-export function object<TObject extends Record<string, Schema<unknown>> = never>(
+export function object<
+	TObject extends Record<string, Schema<unknown>> = never,
+>(
 	object: TObject,
 	validators: Validator[] = [],
-	msg?: string,
-): Schema<{ [K in keyof TObject]: Infer<TObject[K]> }> {
-	return {
-		kind: "object",
-		object,
-		msg,
-		validate(value): value is { [K in keyof TObject]: Infer<TObject[K]> } {
-			return !!value && typeof value === "object" &&
-				validators.every((validator) => validator.validate(value));
-		},
-		*children(
-			value,
-		): Generator<[key: string, value: unknown, schema: Schema<unknown>]> {
-			// if (!!value && typeof value === "object") {
-			// 	for (const [key, val] of Object.entries(value)) {
-			// 		if (key in object) {
-			// 		yield [`[${key}]`, val, item];
-			// 	}
-			// }
-		},
-	};
+): Schema<{ [K in keyof TObject]: Infer<TObject[K]> }> & {
+	readonly object: TObject;
+} {
+	// Phantom type is only required at compile time
+	// deno-lint-ignore no-explicit-any
+	return { kind: "object", object, validators } as any;
 }
+globalSchemaRegistry.registerSchema<ReturnType<typeof object>>("object", {
+	// deno-lint-ignore ban-types
+	validate(schema, value): value is { [x: string]: {} } {
+		if (!value || typeof value !== "object") {
+			return false;
+		}
+		const [requiredKeys, optionalKeys] = Object.entries(schema.object).reduce(
+			(pair, [key, inner]) => {
+				if (inner.kind === "optional") {
+					pair[1].push(key);
+				} else {
+					pair[0].push(key);
+				}
+				return pair;
+			},
+			[[], []] as [required: string[], optional: string[]],
+		);
+		const keysValue = Object.keys(value);
+		if (!requiredKeys.every((key) => keysValue.includes(key))) {
+			return false;
+		}
+		const missingKeys = keysValue.filter((key) => !requiredKeys.includes(key));
+		return missingKeys.every((key) => optionalKeys.includes(key));
+	},
+	*walk(
+		schema,
+		value,
+	): Generator<[key: string, value: unknown, schema: Schema<unknown>]> {
+		if (!!value && typeof value === "object") {
+			for (const [key, inner] of Object.entries(schema.object)) {
+				yield [`.${key}`, value[key as keyof typeof value], inner];
+			}
+		}
+	},
+});
+
+export function optional<TItem extends Schema<unknown> = never>(
+	item: TItem,
+): Schema<Infer<TItem> | undefined> & { readonly item: TItem } {
+	// Phantom type is only required at compile time
+	// deno-lint-ignore no-explicit-any
+	return { kind: "optional", item } as any;
+}
+globalSchemaRegistry.registerSchema<ReturnType<typeof optional>>("optional", {
+	// deno-lint-ignore ban-types
+	validate(_schema, _value): _value is {} {
+		return true;
+	},
+	*walk(
+		schema,
+		value,
+	): Generator<[key: string, value: unknown, schema: Schema<unknown>]> {
+		if (value) {
+			yield ["", value, schema.item];
+		}
+	},
+});
+
+export function literal<const TLiteral extends string | number | boolean>(
+	literal: TLiteral,
+): Schema<TLiteral> & { readonly literal: TLiteral } {
+	// Phantom type is only required at compile time
+	// deno-lint-ignore no-explicit-any
+	return { kind: "literal", literal } as any;
+}
+globalSchemaRegistry.registerSchema<ReturnType<typeof literal>>("literal", {
+	validate(schema, value): value is string | number | boolean {
+		return schema.literal === value;
+	},
+});
+
+export function choice<
+	const TChoices extends readonly string[],
+>(
+	choices: TChoices,
+): Schema<TChoices[number]> & { readonly choices: TChoices } {
+	// Phantom type is only required at compile time
+	// deno-lint-ignore no-explicit-any
+	return { kind: "choice", choices } as any;
+}
+globalSchemaRegistry.registerSchema<ReturnType<typeof choice>>("choice", {
+	validate(schema, value): value is string {
+		return typeof value === "string" && schema.choices.includes(value);
+	},
+});

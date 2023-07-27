@@ -1,28 +1,34 @@
-export type Schema<T> = {
-	readonly kind: string;
-	readonly validators?: Validator[];
-	readonly _phantom: T;
+export type PhantomData<T> = {
+	data: T;
 };
 
+// deno-lint-ignore ban-types
+export type Schema<T, Props = {}> = {
+	kind: string;
+	validations?: Validator[];
+	phantom?: PhantomData<T>;
+} & Props;
+
 export type SchemaImpl<TSchema extends Schema<unknown>> = {
-	readonly validate: (
+	typeCheck: (
 		schema: TSchema,
 		value: unknown,
-	) => value is TSchema["_phantom"];
-	readonly walk?: (
+		registry: SchemaRegistry,
+	) => boolean;
+	walk?: (
 		schema: TSchema,
 		value: unknown,
 	) => Generator<[key: string, value: unknown, schema: Schema<unknown>]>;
 };
 
-export type Validator = {
-	readonly kind: string;
-	readonly msg?: string;
-	readonly [key: string]: unknown;
-};
+// deno-lint-ignore ban-types
+export type Validator<Props = {}> = {
+	kind: string;
+	msg?: string;
+} & Props;
 
 export type ValidatorImpl<TValidator extends Validator> = {
-	readonly validate: (
+	validate: (
 		validator: TValidator,
 		value: unknown,
 	) => boolean;
@@ -57,7 +63,9 @@ export class SchemaRegistry {
 
 export const globalSchemaRegistry = new SchemaRegistry();
 
-export type Infer<TSchema extends Schema<unknown>> = TSchema["_phantom"];
+export type Infer<TSchema extends Schema<unknown>> = NonNullable<
+	TSchema["phantom"]
+>["data"];
 
 export class SchemaAssertationError extends Error {
 	constructor(
@@ -98,12 +106,12 @@ export function assertSchema<TSchema extends Schema<unknown>>(
 	if (!schemaImpl) {
 		throw new UnknownSchemaKindError(schema.kind);
 	}
-	if (!schemaImpl.validate(schema, value)) {
+	if (!schemaImpl.typeCheck(schema, value, globalSchemaRegistry)) {
 		throw new SchemaAssertationError(path, "");
 	}
 	const causes: SchemaAssertationError[] = [];
-	if (schema.validators) {
-		for (const validator of schema.validators) {
+	if (schema.validations) {
+		for (const validator of schema.validations) {
 			const validatorImpl = globalSchemaRegistry.validators.get(validator.kind);
 			if (!validatorImpl) {
 				throw new UnknownSchemaKindError(validator.kind);

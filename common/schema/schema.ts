@@ -28,16 +28,6 @@ export function lazy<TSchema extends Schema<unknown>>(
 	}) as any as TSchema;
 }
 
-// deno-lint-ignore no-explicit-any
-export function any(): Schema<any> {
-	return { kind: "any" };
-}
-globalSchemaRegistry.registerSchema<ReturnType<typeof any>>("any", {
-	typeCheck(): boolean {
-		return true;
-	},
-});
-
 export function nill(): Schema<null> {
 	return { kind: "nill" };
 }
@@ -53,6 +43,15 @@ export function undef(): Schema<undefined> {
 globalSchemaRegistry.registerSchema<ReturnType<typeof undef>>("undef", {
 	typeCheck(_schema, value): boolean {
 		return value === undefined;
+	},
+});
+
+export function unknown(): Schema<unknown> {
+	return { kind: "unknown" };
+}
+globalSchemaRegistry.registerSchema<ReturnType<typeof unknown>>("unknown", {
+	typeCheck(): boolean {
+		return true;
 	},
 });
 

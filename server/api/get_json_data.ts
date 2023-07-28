@@ -1,10 +1,10 @@
-import { assertJsonObject, type JsonObject } from "../../common/system/json.ts";
+import { assertJsonRecord, type JsonRecord } from "../../common/system/json.ts";
 
-export async function getJsonData(request: Request): Promise<JsonObject> {
+export async function getJsonData(request: Request): Promise<JsonRecord> {
 	if (request.headers.get("content-type") === "application/json") {
 		const body = await request.text();
 		const data = JSON.parse(body);
-		assertJsonObject(data);
+		assertJsonRecord(data);
 		return data;
 	}
 	return {};

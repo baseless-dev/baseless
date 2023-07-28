@@ -16,7 +16,7 @@ export function neq(
 	value: string | number | Date,
 	msg?: string,
 ): Validator<{ value: string | number | Date }> {
-	return { kind: "neq", value, msg };
+	return { kind: "neq", value, ...(msg ? { msg } : {}) };
 }
 globalSchemaRegistry.registerValidator<ReturnType<typeof neq>>("neq", {
 	validate(validator, value): boolean {
@@ -25,18 +25,18 @@ globalSchemaRegistry.registerValidator<ReturnType<typeof neq>>("neq", {
 });
 
 export function match(
-	tester: RegExp | ((value: string) => boolean),
+	regexp: RegExp,
 	msg?: string,
-): Validator<{ tester: (value: string) => boolean }> {
+): Validator<{ regexp: RegExp }> {
 	return {
 		kind: "match",
-		tester: tester instanceof RegExp ? tester.test.bind(tester) : tester,
-		msg,
+		regexp,
+		...(msg ? { msg } : {}),
 	};
 }
 globalSchemaRegistry.registerValidator<ReturnType<typeof match>>("match", {
 	validate(validator, value): boolean {
-		return typeof value === "string" && validator.tester(value);
+		return typeof value === "string" && validator.regexp.test(value);
 	},
 });
 
@@ -44,7 +44,7 @@ export function gt(
 	value: string | number | Date,
 	msg?: string,
 ): Validator<{ value: string | number | Date }> {
-	return { kind: "gt", value, msg };
+	return { kind: "gt", value, ...(msg ? { msg } : {}) };
 }
 globalSchemaRegistry.registerValidator<ReturnType<typeof gt>>("gt", {
 	validate(validator, value): boolean {
@@ -57,7 +57,7 @@ export function gte(
 	value: string | number | Date,
 	msg?: string,
 ): Validator<{ value: string | number | Date }> {
-	return { kind: "gte", value, msg };
+	return { kind: "gte", value, ...(msg ? { msg } : {}) };
 }
 globalSchemaRegistry.registerValidator<ReturnType<typeof gte>>("gte", {
 	validate(validator, value): boolean {
@@ -70,7 +70,7 @@ export function lt(
 	value: string | number | Date,
 	msg?: string,
 ): Validator<{ value: string | number | Date }> {
-	return { kind: "lt", value, msg };
+	return { kind: "lt", value, ...(msg ? { msg } : {}) };
 }
 globalSchemaRegistry.registerValidator<ReturnType<typeof lt>>("lt", {
 	validate(validator, value): boolean {
@@ -83,7 +83,7 @@ export function lte(
 	value: string | number | Date,
 	msg?: string,
 ): Validator<{ value: string | number | Date }> {
-	return { kind: "lte", value, msg };
+	return { kind: "lte", value, ...(msg ? { msg } : {}) };
 }
 globalSchemaRegistry.registerValidator<ReturnType<typeof lte>>("lte", {
 	validate(validator, value): boolean {
@@ -96,7 +96,7 @@ export function minLength(
 	length: number,
 	msg?: string,
 ): Validator<{ length: number }> {
-	return { kind: "minLength", length, msg };
+	return { kind: "minLength", length, ...(msg ? { msg } : {}) };
 }
 globalSchemaRegistry.registerValidator<ReturnType<typeof minLength>>(
 	"minLength",
@@ -111,7 +111,7 @@ export function maxLength(
 	length: number,
 	msg?: string,
 ): Validator<{ length: number }> {
-	return { kind: "maxLength", length, msg };
+	return { kind: "maxLength", length, ...(msg ? { msg } : {}) };
 }
 globalSchemaRegistry.registerValidator<ReturnType<typeof maxLength>>(
 	"maxLength",
@@ -126,7 +126,7 @@ export function minSize(
 	size: number,
 	msg?: string,
 ): Validator<{ size: number }> {
-	return { kind: "minSize", size, msg };
+	return { kind: "minSize", size, ...(msg ? { msg } : {}) };
 }
 globalSchemaRegistry.registerValidator<ReturnType<typeof minSize>>("minSize", {
 	validate(validator, value): boolean {
@@ -142,7 +142,7 @@ export function maxSize(
 	size: number,
 	msg?: string,
 ): Validator<{ size: number }> {
-	return { kind: "maxSize", size, msg };
+	return { kind: "maxSize", size, ...(msg ? { msg } : {}) };
 }
 globalSchemaRegistry.registerValidator<ReturnType<typeof maxSize>>("maxSize", {
 	validate(validator, value): boolean {

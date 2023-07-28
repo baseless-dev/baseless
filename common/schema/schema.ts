@@ -1,3 +1,4 @@
+import { isAutoId } from "../system/autoid.ts";
 import {
 	globalSchemaRegistry,
 	type Infer,
@@ -48,7 +49,7 @@ globalSchemaRegistry.registerSchema<ReturnType<typeof undef>>("undef", {
 export function string(
 	validations: Validator[] = [],
 ): Schema<string> {
-	return { kind: "string", validations };
+	return { kind: "string", ...(validations?.length ? { validations } : {}) };
 }
 globalSchemaRegistry.registerSchema<ReturnType<typeof string>>("string", {
 	typeCheck(_schema, value): boolean {
@@ -56,10 +57,21 @@ globalSchemaRegistry.registerSchema<ReturnType<typeof string>>("string", {
 	},
 });
 
+export function autoid(
+	prefix = "",
+): Schema<string, { prefix?: string }> {
+	return { kind: "autoid", ...(prefix ? { prefix } : {}) };
+}
+globalSchemaRegistry.registerSchema<ReturnType<typeof autoid>>("autoid", {
+	typeCheck(schema, value): boolean {
+		return isAutoId(value, schema.prefix);
+	},
+});
+
 export function number(
 	validations: Validator[] = [],
 ): Schema<number> {
-	return { kind: "number", validations };
+	return { kind: "number", ...(validations?.length ? { validations } : {}) };
 }
 globalSchemaRegistry.registerSchema<ReturnType<typeof number>>("number", {
 	typeCheck(_schema, value): boolean {
@@ -70,7 +82,7 @@ globalSchemaRegistry.registerSchema<ReturnType<typeof number>>("number", {
 export function boolean(
 	validations: Validator[] = [],
 ): Schema<boolean> {
-	return { kind: "boolean", validations };
+	return { kind: "boolean", ...(validations?.length ? { validations } : {}) };
 }
 globalSchemaRegistry.registerSchema<ReturnType<typeof boolean>>("boolean", {
 	typeCheck(_schema, value): boolean {
@@ -81,7 +93,7 @@ globalSchemaRegistry.registerSchema<ReturnType<typeof boolean>>("boolean", {
 export function date(
 	validations: Validator[] = [],
 ): Schema<Date> {
-	return { kind: "date", validations };
+	return { kind: "date", ...(validations?.length ? { validations } : {}) };
 }
 globalSchemaRegistry.registerSchema<ReturnType<typeof date>>("date", {
 	typeCheck(_schema, value): boolean {
@@ -93,7 +105,11 @@ export function array<TItem extends Schema<unknown> = never>(
 	item: TItem,
 	validations: Validator[] = [],
 ): Schema<Array<Infer<TItem>>, { item: TItem }> {
-	return { kind: "array", item, validations };
+	return {
+		kind: "array",
+		item,
+		...(validations?.length ? { validations } : {}),
+	};
 }
 globalSchemaRegistry.registerSchema<ReturnType<typeof array>>("array", {
 	typeCheck(_schema, value): boolean {
@@ -115,7 +131,11 @@ export function record<TItem extends Schema<unknown> = never>(
 	item: TItem,
 	validations: Validator[] = [],
 ): Schema<Record<string, Infer<TItem>>, { item: TItem }> {
-	return { kind: "record", item, validations };
+	return {
+		kind: "record",
+		item,
+		...(validations?.length ? { validations } : {}),
+	};
 }
 globalSchemaRegistry.registerSchema<ReturnType<typeof record>>("record", {
 	typeCheck(_schema, value): boolean {
@@ -141,7 +161,11 @@ export function object<
 ): Schema<{ [K in keyof TObject]: Infer<TObject[K]> }, {
 	object: TObject;
 }> {
-	return { kind: "object", object, validations };
+	return {
+		kind: "object",
+		object,
+		...(validations?.length ? { validations } : {}),
+	};
 }
 globalSchemaRegistry.registerSchema<ReturnType<typeof object>>("object", {
 	typeCheck(schema, value): boolean {
@@ -230,12 +254,52 @@ export function union<
 }
 globalSchemaRegistry.registerSchema<ReturnType<typeof union>>("union", {
 	typeCheck(schema, value, registry): boolean {
-		throw "TODO";
+		return schema.schemas.some((inner) => {
+			const schemaImpl = globalSchemaRegistry.schemas.get(inner.kind);
+			if (!schemaImpl) {
+				return false;
+			}
+			return schemaImpl.typeCheck(inner, value, registry);
+		});
+	},
+	*walk(
+		schema,
+		value,
+		registry,
+	): Generator<[key: string, value: unknown, schema: Schema<unknown>]> {
+		const inner = schema.schemas.find((inner) => {
+			const schemaImpl = globalSchemaRegistry.schemas.get(inner.kind);
+			if (!schemaImpl) {
+				return false;
+			}
+			return schemaImpl.typeCheck(inner, value, registry);
+		});
+		yield ["", value, inner as Schema<unknown>];
+	},
+});
+
+export function tuple<
+	const TSchemas extends readonly Schema<unknown>[],
+>(
+	tuples: TSchemas,
+): Schema<{ [K in keyof TSchemas]: Infer<TSchemas[K]> }, { tuples: TSchemas }> {
+	return { kind: "tuple", tuples };
+}
+globalSchemaRegistry.registerSchema<ReturnType<typeof tuple>>("tuple", {
+	typeCheck(schema, value): boolean {
+		return !!value && Array.isArray(value) &&
+			value.length === schema.tuples.length;
 	},
 	*walk(
 		schema,
 		value,
 	): Generator<[key: string, value: unknown, schema: Schema<unknown>]> {
-		throw "TODO";
+		if (
+			!!value && Array.isArray(value) && value.length === schema.tuples.length
+		) {
+			for (const [key, inner] of schema.tuples.entries()) {
+				yield [`[${key}]`, value[key as keyof typeof value], inner];
+			}
+		}
 	},
 });

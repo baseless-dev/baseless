@@ -18,6 +18,7 @@ export type SchemaImpl<TSchema extends Schema<unknown>> = {
 	walk?: (
 		schema: TSchema,
 		value: unknown,
+		registry: SchemaRegistry,
 	) => Generator<[key: string, value: unknown, schema: Schema<unknown>]>;
 };
 
@@ -122,7 +123,13 @@ export function assertSchema<TSchema extends Schema<unknown>>(
 		}
 	}
 	if (schemaImpl.walk) {
-		for (const [key, val, inner] of schemaImpl.walk(schema, value)) {
+		for (
+			const [key, val, inner] of schemaImpl.walk(
+				schema,
+				value,
+				globalSchemaRegistry,
+			)
+		) {
 			try {
 				assertSchema(inner, val, [...path, key]);
 			} catch (error) {

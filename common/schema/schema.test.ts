@@ -2,7 +2,7 @@ import { assertThrows } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { assertSchema, type Infer } from "./types.ts";
 import * as s from "./schema.ts";
 import * as v from "./validator.ts";
-import { autoid, isAutoId } from "../system/autoid.ts";
+import { autoid } from "../system/autoid.ts";
 
 Deno.test("schema", async (t) => {
 	await t.step("assert string", () => {
@@ -14,7 +14,7 @@ Deno.test("schema", async (t) => {
 	await t.step("assert lazy", () => {
 		const testSchema = s.lazy(() => s.string());
 		type Test = Infer<typeof testSchema>;
-		// assertSchema(testSchema, "foo");
+		assertSchema(testSchema, "foo");
 		// assertThrows(() => assertSchema(testSchema, 42));
 	});
 	await t.step("assert optional", () => {
@@ -72,27 +72,40 @@ Deno.test("schema", async (t) => {
 		assertSchema(testSchema, null);
 		assertThrows(() => assertSchema(testSchema, true));
 	});
+	await t.step("assert tuple", () => {
+		const testSchema = s.tuple([s.string(), s.number(), s.literal("foo")]);
+		type Test = Infer<typeof testSchema>;
+		assertSchema(testSchema, ["a", 42, "foo"]);
+		assertThrows(() => assertSchema(testSchema, "a"));
+		assertThrows(() => assertSchema(testSchema, [42, "b", "bar"]));
+		assertThrows(() => assertSchema(testSchema, ["a", "b", "bar"]));
+		assertThrows(() => assertSchema(testSchema, ["a", 42, "bar"]));
+	});
 	await t.step("assert complex", () => {
-		const userSchema = s.object({
-			id: s.string([
-				v.match((v) => isAutoId(v, "id-")),
-			]),
+		const testSchema = s.object({
+			id: s.autoid("id-"),
 			username: s.string(
 				[v.minLength(4), v.maxLength(32)],
 			),
-			gender: s.choice(["male", "female", "non-binary"]),
+			// gender: s.choice(["binary", "non-binary", "fluid"]),
+			gender: s.union([
+				s.literal("binary"),
+				s.literal("non-binary"),
+				s.literal(69),
+			]),
 			age: s.optional(s.number([v.gte(18)])),
 		});
-		type Test = Infer<typeof userSchema>;
+		console.log(Deno.inspect(testSchema, { depth: 10 }));
+		type Test = Infer<typeof testSchema>;
 
-		assertSchema(userSchema, {
+		assertSchema(testSchema, {
 			id: autoid("id-"),
 			username: "boby",
-			gender: "male",
+			gender: "binary",
 		});
 
 		assertThrows(() =>
-			assertSchema(userSchema, {
+			assertSchema(testSchema, {
 				id: autoid("id-"),
 				username: "boby",
 				gender: "not your god damn business",
@@ -100,23 +113,12 @@ Deno.test("schema", async (t) => {
 		);
 
 		assertThrows(() =>
-			assertSchema(userSchema, {
+			assertSchema(testSchema, {
 				id: autoid("id-"),
 				username: "boby",
-				gender: "male",
+				gender: "binary",
 				age: 14,
 			})
 		);
-
-		// try {
-		// 	assertSchema(userSchema, {
-		// 		id: autoid("id-"),
-		// 		username: "boby",
-		// 		gender: "male",
-		// 		age: 14,
-		// 	});
-		// } catch (error) {
-		// 	throw error;
-		// }
 	});
 });

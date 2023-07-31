@@ -81,13 +81,25 @@ Deno.test("schema", async (t) => {
 		assertThrows(() => assertSchema(testSchema, ["a", "b", "bar"]));
 		assertThrows(() => assertSchema(testSchema, ["a", 42, "bar"]));
 	});
+	await t.step("assert partial", () => {
+		const testSchema = s.partial(s.object(
+			{
+				a: s.string(),
+			},
+		));
+		type Test = Infer<typeof testSchema>;
+		assertSchema(testSchema, { a: "a" });
+		assertSchema(testSchema, {});
+		assertThrows(() => assertSchema(testSchema, { a: 1 }));
+		assertThrows(() => assertSchema(testSchema, { b: "b" }));
+		assertThrows(() => assertSchema(testSchema, 42));
+	});
 	await t.step("assert complex", () => {
 		const testSchema = s.object({
 			id: s.autoid("id-"),
 			username: s.string(
 				[v.minLength(4), v.maxLength(32)],
 			),
-			// gender: s.choice(["binary", "non-binary", "fluid"]),
 			gender: s.union([
 				s.literal("binary"),
 				s.literal("non-binary"),
@@ -95,7 +107,6 @@ Deno.test("schema", async (t) => {
 			]),
 			age: s.optional(s.number([v.gte(18)])),
 		});
-		console.log(Deno.inspect(testSchema, { depth: 10 }));
 		type Test = Infer<typeof testSchema>;
 
 		assertSchema(testSchema, {

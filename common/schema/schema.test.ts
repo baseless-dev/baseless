@@ -53,16 +53,32 @@ Deno.test("schema", async (t) => {
 		assertThrows(() => assertSchema(testSchema, 42));
 	});
 	await t.step("assert object", () => {
-		const testSchema = s.object(
-			{
-				a: s.string(),
-			},
-		);
-		type Test = Infer<typeof testSchema>;
-		assertSchema(testSchema, { a: "a" });
-		assertThrows(() => assertSchema(testSchema, { a: 1 }));
-		assertThrows(() => assertSchema(testSchema, { a: "a", b: "b" }));
-		assertThrows(() => assertSchema(testSchema, 42));
+		{
+			const testSchema = s.object(
+				{
+					a: s.string(),
+				},
+			);
+			type Test = Infer<typeof testSchema>;
+			assertSchema(testSchema, { a: "a" });
+			assertThrows(() => assertSchema(testSchema, { a: 1 }));
+			assertThrows(() => assertSchema(testSchema, { a: "a", b: "b" }));
+			assertThrows(() => assertSchema(testSchema, 42));
+		}
+		{
+			const testSchema = s.object(
+				{
+					a: s.string(),
+					b: s.string(),
+				},
+				["b"],
+			);
+			type Test = Infer<typeof testSchema>;
+			assertSchema(testSchema, { a: "a" });
+			assertSchema(testSchema, { a: "a", b: "b" });
+			assertThrows(() => assertSchema(testSchema, { a: 1 }));
+			assertThrows(() => assertSchema(testSchema, { a: "a", b: 1 }));
+		}
 	});
 	await t.step("assert union", () => {
 		const testSchema = s.union([s.string(), s.number(), s.nill()]);
@@ -94,19 +110,37 @@ Deno.test("schema", async (t) => {
 		assertThrows(() => assertSchema(testSchema, { b: "b" }));
 		assertThrows(() => assertSchema(testSchema, 42));
 	});
-	await t.step("assert complex", () => {
-		const testSchema = s.object({
-			id: s.autoid("id-"),
-			username: s.string(
-				[v.minLength(4), v.maxLength(32)],
-			),
-			gender: s.union([
-				s.literal("binary"),
-				s.literal("non-binary"),
-				s.literal(69),
-			]),
-			age: s.optional(s.number([v.gte(18)])),
+	await t.step("assert describe", () => {
+		const testSchema = s.describe(s.string(), {
+			description: "A description",
 		});
+		type Test = Infer<typeof testSchema>;
+		assertSchema(testSchema, "foo");
+		assertThrows(() => assertSchema(testSchema, 42));
+	});
+	await t.step("assert complex", () => {
+		const testSchema = s.describe(
+			s.object({
+				id: s.describe(s.autoid("id-"), { label: "ID" }),
+				username: s.describe(
+					s.string(
+						[v.minLength(4), v.maxLength(32)],
+					),
+					{ label: "Username" },
+				),
+				gender: s.describe(
+					s.union([
+						s.literal("binary"),
+						s.literal("non-binary"),
+						s.literal(69),
+					]),
+					{ label: "Gender" },
+				),
+				age: s.describe(s.number([v.gte(18)]), { label: "Age" }),
+			}, ["age"]),
+			{ label: "User" },
+		);
+		// console.log(Deno.inspect(testSchema, { depth: 10 }));
 		type Test = Infer<typeof testSchema>;
 
 		assertSchema(testSchema, {

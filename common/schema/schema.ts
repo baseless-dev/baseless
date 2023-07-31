@@ -181,17 +181,31 @@ globalSchemaRegistry.registerSchema<ReturnType<typeof record>>("record", {
 });
 
 export function object<
-	TObject extends Record<string, Schema<string, unknown>> = never,
+	TObject extends Record<string, Schema<string, unknown>>,
+	TRequired extends Omit<TObject, TOptional[number]>,
+	TOutput extends
+		& { [K in keyof TRequired]: Infer<TRequired[K]> }
+		& { [K in TOptional[number]]?: Infer<TObject[K]> },
+	const TOptional extends readonly (keyof TObject)[] = [],
 >(
 	object: TObject,
+	// deno-lint-ignore no-explicit-any
+	optional: TOptional = [] as any,
 	validations: Validator[] = [],
-): Schema<"object", { [K in keyof TObject]: Infer<TObject[K]> }, {
-	object: TObject;
-}> {
+): Schema<
+	"object",
+	{ [K in keyof TOutput]: TOutput[K] },
+	{
+		object: TObject;
+		optional?: string[];
+	}
+> {
 	return {
 		kind: "object",
 		object,
 		...(validations?.length ? { validations } : {}),
+		// deno-lint-ignore no-explicit-any
+		...(optional?.length ? { optional: optional as any } : {}),
 	};
 }
 globalSchemaRegistry.registerSchema<ReturnType<typeof object>>("object", {
@@ -201,8 +215,11 @@ globalSchemaRegistry.registerSchema<ReturnType<typeof object>>("object", {
 		}
 		const forceOptional = context.partial === true;
 		const [requiredKeys, optionalKeys] = Object.entries(schema.object).reduce(
-			(pair, [key, inner]) => {
-				if (forceOptional || inner.kind === "optional") {
+			(pair, [key, _inner]) => {
+				if (
+					forceOptional ||
+					schema.optional?.includes(key as keyof typeof schema.object)
+				) {
 					pair[1].push(key);
 				} else {
 					pair[0].push(key);
@@ -237,7 +254,9 @@ globalSchemaRegistry.registerSchema<ReturnType<typeof object>>("object", {
 				yield [
 					key,
 					value[key as keyof typeof value],
-					partial === true ? optional(inner) : inner,
+					partial === true || schema.optional?.includes(key)
+						? optional(inner)
+						: inner,
 					innerContext,
 				];
 			}
@@ -405,5 +424,44 @@ globalSchemaRegistry.registerSchema<ReturnType<typeof tuple>>("tuple", {
 				yield [`[${key}]`, value[key as keyof typeof value], inner, context];
 			}
 		}
+	},
+});
+
+export function describe<TItem extends Schema<string, unknown> = never>(
+	schema: TItem,
+	{ label, description }: {
+		description?: string;
+		label?: string;
+	},
+): Schema<
+	"describe",
+	Infer<TItem>,
+	{ schema: TItem; description?: string; label?: string }
+> {
+	return {
+		kind: "describe",
+		schema,
+		...(description ? { description } : {}),
+		...(label ? { label } : {}),
+	};
+}
+globalSchemaRegistry.registerSchema<ReturnType<typeof describe>>("describe", {
+	check(_schema, _value): boolean {
+		return true;
+	},
+	*walk(
+		schema,
+		value,
+		_registry,
+		context,
+	): Generator<
+		[
+			key: string,
+			value: unknown,
+			schema: Schema<string, unknown>,
+			context: Record<string, unknown>,
+		]
+	> {
+		yield ["", value, schema.schema, context];
 	},
 });

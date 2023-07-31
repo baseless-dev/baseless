@@ -144,7 +144,7 @@ Deno.test("schema", async (t) => {
 				),
 			}, ["age"]),
 		);
-		console.log(Deno.inspect(testSchema, { depth: 10 }));
+		// console.log(Deno.inspect(testSchema, { depth: 10 }));
 		type Test = Infer<typeof testSchema>;
 
 		assertSchema(testSchema, {

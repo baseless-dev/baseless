@@ -428,11 +428,11 @@ globalSchemaRegistry.registerSchema<ReturnType<typeof tuple>>("tuple", {
 });
 
 export function describe<TItem extends Schema<string, unknown> = never>(
-	schema: TItem,
 	{ label, description }: {
 		description?: string;
 		label?: string;
 	},
+	schema: TItem,
 ): Schema<
 	"describe",
 	Infer<TItem>,
@@ -440,9 +440,9 @@ export function describe<TItem extends Schema<string, unknown> = never>(
 > {
 	return {
 		kind: "describe",
-		schema,
 		...(description ? { description } : {}),
 		...(label ? { label } : {}),
+		schema,
 	};
 }
 globalSchemaRegistry.registerSchema<ReturnType<typeof describe>>("describe", {

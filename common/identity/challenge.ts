@@ -1,27 +1,17 @@
-import { type AutoId, isAutoId } from "../system/autoid.ts";
-import { InvalidIdentityChallengeError } from "./errors.ts";
+import { type Infer, makeAssert, makeGuard, s } from "../schema/mod.ts";
 import { IDENTITY_AUTOID_PREFIX } from "./identity.ts";
 
-export interface IdentityChallenge<Meta = Record<string, unknown>> {
-	readonly identityId: AutoId;
-	readonly type: string;
-	readonly confirmed: boolean;
-	readonly meta: Meta;
-}
+export const IdentityChallengeSchema = s.describe(
+	{ label: "IdentityChallenge" },
+	s.object({
+		identityId: s.autoid(IDENTITY_AUTOID_PREFIX),
+		type: s.string(),
+		confirmed: s.boolean(),
+		meta: s.record(s.unknown()),
+	}),
+);
 
-export function isIdentityChallenge(
-	value?: unknown,
-): value is IdentityChallenge {
-	return !!value && typeof value === "object" && "identityId" in value &&
-		"type" in value && "confirmed" in value && "meta" in value &&
-		isAutoId(value.identityId, IDENTITY_AUTOID_PREFIX) &&
-		typeof value.confirmed === "boolean" && typeof value.meta === "object";
-}
+export type IdentityChallenge = Infer<typeof IdentityChallengeSchema>;
 
-export function assertIdentityChallenge(
-	value?: unknown,
-): asserts value is IdentityChallenge {
-	if (!isIdentityChallenge(value)) {
-		throw new InvalidIdentityChallengeError();
-	}
-}
+export const isIdentity = makeGuard(IdentityChallengeSchema);
+export const assertIdentity = makeAssert(IdentityChallengeSchema);

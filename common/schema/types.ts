@@ -196,6 +196,13 @@ export function assertSchema<TSchema extends Schema<string, unknown>>(
 	}
 }
 
+export function makeAssert<TSchema extends Schema<string, unknown>>(
+	schema: TSchema,
+): (value: unknown) => asserts value is Infer<TSchema> {
+	return (value): asserts value is Infer<TSchema> =>
+		assertSchema(schema, value);
+}
+
 export function isSchema<TSchema extends Schema<string, unknown>>(
 	schema: TSchema,
 	value: unknown,
@@ -206,4 +213,10 @@ export function isSchema<TSchema extends Schema<string, unknown>>(
 	} catch (_error) {
 		return false;
 	}
+}
+
+export function makeGuard<TSchema extends Schema<string, unknown>>(
+	schema: TSchema,
+): (value: unknown) => value is Infer<TSchema> {
+	return (value): value is Infer<TSchema> => isSchema(schema, value);
 }

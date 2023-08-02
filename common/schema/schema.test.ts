@@ -123,7 +123,7 @@ Deno.test("schema", async (t) => {
 		const testSchema = s.describe(
 			{ label: "User" },
 			s.object({
-				id: s.describe({ label: "ID" }, s.autoid("id-")),
+				id: s.describe({ label: "ID" }, s.autoid("id_")),
 				username: s.describe(
 					{ label: "Username" },
 					s.string(
@@ -144,18 +144,18 @@ Deno.test("schema", async (t) => {
 				),
 			}, ["age"]),
 		);
-		// console.log(Deno.inspect(testSchema, { depth: 10 }));
+		console.log(Deno.inspect(testSchema, { depth: 10 }));
 		type Test = Infer<typeof testSchema>;
 
 		assertSchema(testSchema, {
-			id: autoid("id-"),
+			id: autoid("id_"),
 			username: "boby",
 			gender: "binary",
 		});
 
 		assertThrows(() =>
 			assertSchema(testSchema, {
-				id: autoid("id-"),
+				id: autoid("id_"),
 				username: "boby",
 				gender: "not your god damn business",
 			})
@@ -163,7 +163,7 @@ Deno.test("schema", async (t) => {
 
 		assertThrows(() =>
 			assertSchema(testSchema, {
-				id: autoid("id-"),
+				id: autoid("id_"),
 				username: "boby",
 				gender: "binary",
 				age: 14,

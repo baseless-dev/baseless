@@ -1,6 +1,9 @@
 import type { AuthenticationCeremonyResponse } from "../../../common/auth/ceremony/response.ts";
 import { isAuthenticationCeremonyResponseDone } from "../../../common/auth/ceremony/response/done.ts";
-import { assertAuthenticationCeremonyStateIdentified } from "../../../common/auth/ceremony/state.ts";
+import {
+	assertAuthenticationCeremonyStateIdentified,
+	type AuthenticationCeremonyState,
+} from "../../../common/auth/ceremony/state.ts";
 import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 import { createTokens } from "./create_tokens.ts";
@@ -46,17 +49,19 @@ export async function submitAuthenticationChallenge(
 			refresh_token,
 		};
 	} else {
+		const { state, ...rest } =
+			result as (typeof result & { state?: AuthenticationCeremonyState });
 		return {
-			...result,
-			...("state" in result
+			...rest,
+			...(state
 				? {
 					encryptedState: await encryptAuthenticationCeremonyState(
-						result.state,
+						state,
 						context.config.auth.security.keys.algo,
 						context.config.auth.security.keys.privateKey,
 					),
 				}
 				: {}),
-		};
+		} as typeof result;
 	}
 }

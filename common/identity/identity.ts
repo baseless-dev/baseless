@@ -1,21 +1,16 @@
-import { type AutoId, isAutoId } from "../system/autoid.ts";
-import { InvalidIdentityError } from "./errors.ts";
+import { type Infer, s } from "../schema/mod.ts";
+import { makeAssert, makeGuard } from "../schema/types.ts";
+export const IDENTITY_AUTOID_PREFIX = "id_";
 
-export const IDENTITY_AUTOID_PREFIX = "id-";
+export const IdentitySchema = s.describe(
+	{ label: "Identity" },
+	s.object({
+		id: s.autoid(IDENTITY_AUTOID_PREFIX),
+		meta: s.record(s.unknown()),
+	}),
+);
 
-export interface Identity<Meta = Record<string, unknown>> {
-	readonly id: AutoId;
-	readonly meta: Meta;
-}
+export type Identity = Infer<typeof IdentitySchema>;
 
-export function isIdentity(value?: unknown): value is Identity {
-	return !!value && typeof value === "object" && "id" in value &&
-		"meta" in value && isAutoId(value.id, IDENTITY_AUTOID_PREFIX) &&
-		typeof value.meta === "object";
-}
-
-export function assertIdentity(value?: unknown): asserts value is Identity {
-	if (!isIdentity(value)) {
-		throw new InvalidIdentityError();
-	}
-}
+export const isIdentity = makeGuard(IdentitySchema);
+export const assertIdentity = makeAssert(IdentitySchema);

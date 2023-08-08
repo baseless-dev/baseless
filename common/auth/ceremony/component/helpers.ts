@@ -1,16 +1,17 @@
+import { assertSchema } from "../../../schema/types.ts";
 import {
-	assertAuthenticationCeremonyComponent,
 	type AuthenticationCeremonyComponent,
+	type AuthenticationCeremonyComponentChoice,
+	type AuthenticationCeremonyComponentConditional,
+	AuthenticationCeremonyComponentSchema,
+	type AuthenticationCeremonyComponentSequence,
 } from "../ceremony.ts";
-import type { AuthenticationCeremonyComponentChoice } from "./choice.ts";
-import type { AuthenticationCeremonyComponentConditional } from "./conditional.ts";
-import type { AuthenticationCeremonyComponentSequence } from "./sequence.ts";
 
 export function sequence(
 	...components: AuthenticationCeremonyComponent[]
 ): AuthenticationCeremonyComponentSequence {
-	for (const step of components) {
-		assertAuthenticationCeremonyComponent(step);
+	for (const component of components) {
+		assertSchema(AuthenticationCeremonyComponentSchema, component);
 	}
 	return { kind: "sequence", components };
 }
@@ -18,8 +19,8 @@ export function sequence(
 export function oneOf(
 	...components: AuthenticationCeremonyComponent[]
 ): AuthenticationCeremonyComponentChoice {
-	for (const step of components) {
-		assertAuthenticationCeremonyComponent(step);
+	for (const component of components) {
+		assertSchema(AuthenticationCeremonyComponentSchema, component);
 	}
 	return { kind: "choice", components };
 }

@@ -1,22 +1,25 @@
-import type { AuthenticationCeremonyComponent } from "../ceremony.ts";
-import { isAuthenticationCeremonyComponentChoice } from "./choice.ts";
-import { isAuthenticationCeremonyComponentConditional } from "./conditional.ts";
-import { isAuthenticationCeremonyComponentSequence } from "./sequence.ts";
+import { isSchema } from "../../../schema/types.ts";
+import {
+	type AuthenticationCeremonyComponent,
+	AuthenticationCeremonyComponentChoiceSchema,
+	AuthenticationCeremonyComponentConditionalSchema,
+	AuthenticationCeremonyComponentSequenceSchema,
+} from "../ceremony.ts";
 
 export function isLeaf(step: AuthenticationCeremonyComponent): boolean {
-	if (isAuthenticationCeremonyComponentSequence(step)) {
+	if (isSchema(AuthenticationCeremonyComponentSequenceSchema, step)) {
 		return step.components.every((step) =>
-			!(isAuthenticationCeremonyComponentSequence(step) ||
-				isAuthenticationCeremonyComponentChoice(step))
+			!(isSchema(AuthenticationCeremonyComponentSequenceSchema, step) ||
+				isSchema(AuthenticationCeremonyComponentChoiceSchema, step))
 		);
 	}
-	if (isAuthenticationCeremonyComponentChoice(step)) {
+	if (isSchema(AuthenticationCeremonyComponentChoiceSchema, step)) {
 		return step.components.every((step) =>
-			!(isAuthenticationCeremonyComponentSequence(step) ||
-				isAuthenticationCeremonyComponentChoice(step))
+			!(isSchema(AuthenticationCeremonyComponentSequenceSchema, step) ||
+				isSchema(AuthenticationCeremonyComponentChoiceSchema, step))
 		);
 	}
-	if (isAuthenticationCeremonyComponentConditional(step)) {
+	if (isSchema(AuthenticationCeremonyComponentConditionalSchema, step)) {
 		return false;
 	}
 	return true;

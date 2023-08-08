@@ -1,4 +1,4 @@
-import { globalSchemaRegistry, type Validator } from "./types.ts";
+import { registry, type Validator } from "./types.ts";
 
 export function eq(
 	v: string | number | Date,
@@ -6,7 +6,7 @@ export function eq(
 ): Validator<{ v: string | number | Date }> {
 	return { kind: "eq", v, msg };
 }
-globalSchemaRegistry.registerValidator<ReturnType<typeof eq>>("eq", {
+registry.registerValidator<ReturnType<typeof eq>>("eq", {
 	validate(validator, value): boolean {
 		return validator.v == value;
 	},
@@ -18,7 +18,7 @@ export function neq(
 ): Validator<{ value: string | number | Date }> {
 	return { kind: "neq", value, ...(msg ? { msg } : {}) };
 }
-globalSchemaRegistry.registerValidator<ReturnType<typeof neq>>("neq", {
+registry.registerValidator<ReturnType<typeof neq>>("neq", {
 	validate(validator, value): boolean {
 		return validator.value != value;
 	},
@@ -34,7 +34,7 @@ export function match(
 		...(msg ? { msg } : {}),
 	};
 }
-globalSchemaRegistry.registerValidator<ReturnType<typeof match>>("match", {
+registry.registerValidator<ReturnType<typeof match>>("match", {
 	validate(validator, value): boolean {
 		return typeof value === "string" && validator.regexp.test(value);
 	},
@@ -46,7 +46,7 @@ export function gt(
 ): Validator<{ value: string | number | Date }> {
 	return { kind: "gt", value, ...(msg ? { msg } : {}) };
 }
-globalSchemaRegistry.registerValidator<ReturnType<typeof gt>>("gt", {
+registry.registerValidator<ReturnType<typeof gt>>("gt", {
 	validate(validator, value): boolean {
 		return (typeof value === "string" || typeof value === "number" ||
 			value instanceof Date) && value > validator.value;
@@ -59,7 +59,7 @@ export function gte(
 ): Validator<{ value: string | number | Date }> {
 	return { kind: "gte", value, ...(msg ? { msg } : {}) };
 }
-globalSchemaRegistry.registerValidator<ReturnType<typeof gte>>("gte", {
+registry.registerValidator<ReturnType<typeof gte>>("gte", {
 	validate(validator, value): boolean {
 		return (typeof value === "string" || typeof value === "number" ||
 			value instanceof Date) && value >= validator.value;
@@ -72,7 +72,7 @@ export function lt(
 ): Validator<{ value: string | number | Date }> {
 	return { kind: "lt", value, ...(msg ? { msg } : {}) };
 }
-globalSchemaRegistry.registerValidator<ReturnType<typeof lt>>("lt", {
+registry.registerValidator<ReturnType<typeof lt>>("lt", {
 	validate(validator, value): boolean {
 		return (typeof value === "string" || typeof value === "number" ||
 			value instanceof Date) && value < validator.value;
@@ -85,7 +85,7 @@ export function lte(
 ): Validator<{ value: string | number | Date }> {
 	return { kind: "lte", value, ...(msg ? { msg } : {}) };
 }
-globalSchemaRegistry.registerValidator<ReturnType<typeof lte>>("lte", {
+registry.registerValidator<ReturnType<typeof lte>>("lte", {
 	validate(validator, value): boolean {
 		return (typeof value === "string" || typeof value === "number" ||
 			value instanceof Date) && value <= validator.value;
@@ -98,7 +98,7 @@ export function minLength(
 ): Validator<{ length: number }> {
 	return { kind: "minLength", length, ...(msg ? { msg } : {}) };
 }
-globalSchemaRegistry.registerValidator<ReturnType<typeof minLength>>(
+registry.registerValidator<ReturnType<typeof minLength>>(
 	"minLength",
 	{
 		validate(validator, value): boolean {
@@ -113,7 +113,7 @@ export function maxLength(
 ): Validator<{ length: number }> {
 	return { kind: "maxLength", length, ...(msg ? { msg } : {}) };
 }
-globalSchemaRegistry.registerValidator<ReturnType<typeof maxLength>>(
+registry.registerValidator<ReturnType<typeof maxLength>>(
 	"maxLength",
 	{
 		validate(validator, value): boolean {
@@ -128,7 +128,7 @@ export function minSize(
 ): Validator<{ size: number }> {
 	return { kind: "minSize", size, ...(msg ? { msg } : {}) };
 }
-globalSchemaRegistry.registerValidator<ReturnType<typeof minSize>>("minSize", {
+registry.registerValidator<ReturnType<typeof minSize>>("minSize", {
 	validate(validator, value): boolean {
 		return (Array.isArray(value) && value.length >= validator.size) ||
 			(value instanceof Map && value.size >= validator.size) ||
@@ -144,7 +144,7 @@ export function maxSize(
 ): Validator<{ size: number }> {
 	return { kind: "maxSize", size, ...(msg ? { msg } : {}) };
 }
-globalSchemaRegistry.registerValidator<ReturnType<typeof maxSize>>("maxSize", {
+registry.registerValidator<ReturnType<typeof maxSize>>("maxSize", {
 	validate(validator, value): boolean {
 		return (Array.isArray(value) && value.length <= validator.size) ||
 			(value instanceof Map && value.size <= validator.size) ||

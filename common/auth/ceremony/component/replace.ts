@@ -1,7 +1,10 @@
-import type { AuthenticationCeremonyComponent } from "../ceremony.ts";
-import { isAuthenticationCeremonyComponentChoice } from "./choice.ts";
+import { isSchema } from "../../../schema/types.ts";
+import {
+	type AuthenticationCeremonyComponent,
+	AuthenticationCeremonyComponentChoiceSchema,
+	AuthenticationCeremonyComponentSequenceSchema,
+} from "../ceremony.ts";
 import { oneOf, sequence } from "./helpers.ts";
-import { isAuthenticationCeremonyComponentSequence } from "./sequence.ts";
 
 export function replace(
 	component: AuthenticationCeremonyComponent,
@@ -12,12 +15,12 @@ export function replace(
 		return replacement;
 	}
 	if (
-		isAuthenticationCeremonyComponentSequence(component) ||
-		isAuthenticationCeremonyComponentChoice(component)
+		isSchema(AuthenticationCeremonyComponentSequenceSchema, component) ||
+		isSchema(AuthenticationCeremonyComponentChoiceSchema, component)
 	) {
 		let changed = false;
 		const componentsToReplace =
-			isAuthenticationCeremonyComponentSequence(component)
+			isSchema(AuthenticationCeremonyComponentSequenceSchema, component)
 				? component.components
 				: component.components;
 		const components = componentsToReplace.map((component) => {
@@ -28,7 +31,7 @@ export function replace(
 			return replaced;
 		});
 		if (changed) {
-			return isAuthenticationCeremonyComponentSequence(component)
+			return isSchema(AuthenticationCeremonyComponentSequenceSchema, component)
 				? sequence(...components)
 				: oneOf(...components);
 		}

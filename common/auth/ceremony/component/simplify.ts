@@ -1,30 +1,33 @@
-import type { AuthenticationCeremonyState } from "../state.ts";
-import type { AuthenticationCeremonyComponent } from "../ceremony.ts";
-import { isAuthenticationCeremonyComponentChoice } from "./choice.ts";
-import { isAuthenticationCeremonyComponentConditional } from "./conditional.ts";
+import {
+	type AuthenticationCeremonyComponent,
+	AuthenticationCeremonyComponentChoiceSchema,
+	AuthenticationCeremonyComponentConditionalSchema,
+	AuthenticationCeremonyComponentSequenceSchema,
+} from "../ceremony.ts";
 import { oneOf, sequence } from "./helpers.ts";
-import { isAuthenticationCeremonyComponentSequence } from "./sequence.ts";
 import type { IContext } from "../../../server/context.ts";
+import { Infer, isSchema } from "../../../schema/types.ts";
+import { type AuthenticationCeremonyStateSchema } from "../state.ts";
 
 export function simplify(
 	component: AuthenticationCeremonyComponent,
 ): AuthenticationCeremonyComponent {
-	if (isAuthenticationCeremonyComponentSequence(component)) {
+	if (isSchema(AuthenticationCeremonyComponentSequenceSchema, component)) {
 		const components: AuthenticationCeremonyComponent[] = [];
 		for (let inner of component.components) {
 			inner = simplify(inner);
-			if (isAuthenticationCeremonyComponentSequence(inner)) {
+			if (isSchema(AuthenticationCeremonyComponentSequenceSchema, inner)) {
 				components.push(...inner.components);
 			} else {
 				components.push(inner);
 			}
 		}
 		return sequence(...components);
-	} else if (isAuthenticationCeremonyComponentChoice(component)) {
+	} else if (isSchema(AuthenticationCeremonyComponentChoiceSchema, component)) {
 		const components: AuthenticationCeremonyComponent[] = [];
 		for (let inner of component.components) {
 			inner = simplify(inner);
-			if (isAuthenticationCeremonyComponentChoice(inner)) {
+			if (isSchema(AuthenticationCeremonyComponentChoiceSchema, inner)) {
 				components.push(...inner.components);
 			} else {
 				components.push(inner);
@@ -41,24 +44,24 @@ export function simplify(
 export async function simplifyWithContext(
 	component: AuthenticationCeremonyComponent,
 	context: IContext,
-	state: AuthenticationCeremonyState,
+	state: Infer<typeof AuthenticationCeremonyStateSchema>,
 ): Promise<AuthenticationCeremonyComponent> {
-	if (isAuthenticationCeremonyComponentSequence(component)) {
+	if (isSchema(AuthenticationCeremonyComponentSequenceSchema, component)) {
 		const components: AuthenticationCeremonyComponent[] = [];
 		for (let inner of component.components) {
 			inner = await simplifyWithContext(inner, context, state);
-			if (isAuthenticationCeremonyComponentSequence(inner)) {
+			if (isSchema(AuthenticationCeremonyComponentSequenceSchema, inner)) {
 				components.push(...inner.components);
 			} else {
 				components.push(inner);
 			}
 		}
 		return sequence(...components);
-	} else if (isAuthenticationCeremonyComponentChoice(component)) {
+	} else if (isSchema(AuthenticationCeremonyComponentChoiceSchema, component)) {
 		const components: AuthenticationCeremonyComponent[] = [];
 		for (let inner of component.components) {
 			inner = await simplifyWithContext(inner, context, state);
-			if (isAuthenticationCeremonyComponentChoice(inner)) {
+			if (isSchema(AuthenticationCeremonyComponentChoiceSchema, inner)) {
 				components.push(...inner.components);
 			} else {
 				components.push(inner);
@@ -68,7 +71,9 @@ export async function simplifyWithContext(
 			return components.at(0)!;
 		}
 		return oneOf(...components);
-	} else if (isAuthenticationCeremonyComponentConditional(component)) {
+	} else if (
+		isSchema(AuthenticationCeremonyComponentConditionalSchema, component)
+	) {
 		if (context && state) {
 			const result = await component.condition(context, state);
 			return simplifyWithContext(result, context, state);

@@ -1,15 +1,32 @@
 import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import * as h from "./helpers.ts";
 import { simplify, simplifyWithContext } from "./simplify.ts";
-import type { AuthenticationCeremonyState } from "../state.ts";
 import { IContext } from "../../../server/context.ts";
+import { type AuthenticationCeremonyStateSchema } from "../state.ts";
+import { Infer } from "../../../schema/types.ts";
 
 Deno.test("simplify", async (t) => {
-	const email = { kind: "email", prompt: "email" as const };
-	const password = { kind: "password", prompt: "password" as const };
-	const otp = { kind: "otp", prompt: "otp" as const };
-	const github = { kind: "github", prompt: "action" as const };
-	const google = { kind: "google", prompt: "action" as const };
+	const email = {
+		kind: "identification" as const,
+		id: "email",
+		prompt: "email" as const,
+	};
+	const password = {
+		kind: "challenge" as const,
+		id: "password",
+		prompt: "password" as const,
+	};
+	const otp = { kind: "challenge" as const, id: "otp", prompt: "otp" as const };
+	const github = {
+		kind: "identification" as const,
+		id: "github",
+		prompt: "action" as const,
+	};
+	const google = {
+		kind: "identification" as const,
+		id: "google",
+		prompt: "action" as const,
+	};
 	const conditional = h.iif((_ctx, _state) => {
 		return h.sequence(email, password);
 	});
@@ -52,7 +69,7 @@ Deno.test("simplify", async (t) => {
 
 	await t.step("with context", async () => {
 		const ctx = {} as IContext;
-		const state = {} as AuthenticationCeremonyState;
+		const state = {} as Infer<typeof AuthenticationCeremonyStateSchema>;
 		assertEquals(
 			await simplifyWithContext(conditional, ctx, state),
 			h.sequence(email, password),

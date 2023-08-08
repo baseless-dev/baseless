@@ -3,32 +3,48 @@ export type PhantomData<T> = {
 };
 
 // deno-lint-ignore ban-types
-export type Schema<Kind, T, Props = {}> = {
-	kind: Kind;
+export type Schema<T, Props = {}> = {
+	kind: string;
 	validations?: Validator[];
 	phantom?: PhantomData<T>;
 } & Props;
 
-export type SchemaImpl<TSchema extends Schema<string, unknown>> = {
-	check: (
+export type SchemaImplValidationGenerator = Generator<
+	[
+		key: string,
+		value: unknown,
+		schema: Schema<unknown>,
+		context: Record<string, unknown>,
+	],
+	boolean
+>;
+
+export type SchemaImpl<TSchema extends Schema<unknown>> = {
+	validate: (
 		schema: TSchema,
 		value: unknown,
 		registry: SchemaRegistry,
 		context: Record<string, unknown>,
-	) => boolean;
-	walk?: (
-		schema: TSchema,
-		value: unknown,
-		registry: SchemaRegistry,
-		context: Record<string, unknown>,
-	) => Generator<
-		[
-			key: string,
-			value: unknown,
-			schema: Schema<string, unknown>,
-			context: Record<string, unknown>,
-		]
-	>;
+	) => SchemaImplValidationGenerator;
+	// check: (
+	// 	schema: TSchema,
+	// 	value: unknown,
+	// 	registry: SchemaRegistry,
+	// 	context: Record<string, unknown>,
+	// ) => boolean;
+	// walk?: (
+	// 	schema: TSchema,
+	// 	value: unknown,
+	// 	registry: SchemaRegistry,
+	// 	context: Record<string, unknown>,
+	// ) => Generator<
+	// 	[
+	// 		key: string,
+	// 		value: unknown,
+	// 		schema: Schema<unknown>,
+	// 		context: Record<string, unknown>,
+	// 	]
+	// >;
 };
 
 // deno-lint-ignore ban-types
@@ -47,11 +63,11 @@ export type ValidatorImpl<TValidator extends Validator> = {
 export class SchemaRegistry {
 	public readonly schemas = new Map<
 		string,
-		SchemaImpl<Schema<string, unknown>>
+		SchemaImpl<Schema<unknown>>
 	>();
 	public readonly validators = new Map<string, ValidatorImpl<Validator>>();
 
-	public registerSchema<TSchema extends Schema<string, unknown>>(
+	public registerSchema<TSchema extends Schema<unknown>>(
 		kind: string,
 		impl: SchemaImpl<TSchema>,
 	): void {
@@ -74,9 +90,9 @@ export class SchemaRegistry {
 	}
 }
 
-export const globalSchemaRegistry = new SchemaRegistry();
+export const registry = new SchemaRegistry();
 
-export type Infer<TSchema extends Schema<string, unknown>> = NonNullable<
+export type Infer<TSchema extends Schema<unknown>> = NonNullable<
 	TSchema["phantom"]
 >["data"];
 
@@ -102,7 +118,7 @@ export class SchemaError extends Error {
 						)
 					})`
 					: ""
-			}.}`,
+			}.`,
 		);
 	}
 }
@@ -130,23 +146,35 @@ export class ValidationError extends Error {
 	}
 }
 
-export function assertSchema<TSchema extends Schema<string, unknown>>(
+export function assertSchema<TSchema extends Schema<unknown>>(
 	schema: TSchema,
 	value: unknown,
 	path: string[] = [],
 	context: Record<string, unknown> = {},
 ): asserts value is Infer<TSchema> {
-	const schemaImpl = globalSchemaRegistry.schemas.get(schema.kind);
+	const schemaImpl = registry.schemas.get(schema.kind);
 	if (!schemaImpl) {
 		throw new SchemaError(path);
 	}
-	if (!schemaImpl.check(schema, value, globalSchemaRegistry, context)) {
-		throw new SchemaError(path);
+	const causes: Array<SchemaError | ValidationError> = [];
+	const validator = schemaImpl.validate(schema, value, registry, context);
+	let result = validator.next();
+	for (; result.done !== true; result = validator.next()) {
+		const [key, val, innerSchema, subContext] = result.value;
+		assertSchema(
+			innerSchema,
+			val,
+			key ? [...path, key] : [...path],
+			subContext,
+		);
 	}
-	if (schema.validations) {
+	if (result.value !== true) {
+		throw new SchemaError(path, causes);
+	}
+	if (schema.validations?.length) {
 		const causes: Array<ValidationError> = [];
 		for (const validator of schema.validations) {
-			const validatorImpl = globalSchemaRegistry.validators.get(validator.kind);
+			const validatorImpl = registry.validators.get(validator.kind);
 			if (!validatorImpl) {
 				throw new ValidationError(
 					path,
@@ -163,47 +191,16 @@ export function assertSchema<TSchema extends Schema<string, unknown>>(
 			throw new ValidationError(path, "", causes);
 		}
 	}
-	if (schemaImpl.walk) {
-		const causes: Array<SchemaError | ValidationError> = [];
-		for (
-			const [key, val, innerSchema, subContext] of schemaImpl.walk(
-				schema,
-				value,
-				globalSchemaRegistry,
-				context,
-			)
-		) {
-			try {
-				assertSchema(
-					innerSchema,
-					val,
-					key ? [...path, key] : [...path],
-					subContext,
-				);
-			} catch (error) {
-				causes.push(error);
-			}
-		}
-		if (causes.length === 1) {
-			throw causes[0];
-		} else if (causes.length > 1) {
-			if (causes.every((cause) => cause instanceof ValidationError)) {
-				throw new ValidationError(path, "", causes as ValidationError[]);
-			} else {
-				throw new SchemaError(path, causes);
-			}
-		}
-	}
 }
 
-export function makeAssert<TSchema extends Schema<string, unknown>>(
+export function makeAssert<TSchema extends Schema<unknown>>(
 	schema: TSchema,
 ): (value: unknown) => asserts value is Infer<TSchema> {
 	return (value): asserts value is Infer<TSchema> =>
 		assertSchema(schema, value);
 }
 
-export function isSchema<TSchema extends Schema<string, unknown>>(
+export function isSchema<TSchema extends Schema<unknown>>(
 	schema: TSchema,
 	value: unknown,
 ): value is Infer<TSchema> {
@@ -215,7 +212,7 @@ export function isSchema<TSchema extends Schema<string, unknown>>(
 	}
 }
 
-export function makeGuard<TSchema extends Schema<string, unknown>>(
+export function makeGuard<TSchema extends Schema<unknown>>(
 	schema: TSchema,
 ): (value: unknown) => value is Infer<TSchema> {
 	return (value): value is Infer<TSchema> => isSchema(schema, value);

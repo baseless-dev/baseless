@@ -1,25 +1,35 @@
-import { InvalidAuthenticationCeremonyComponentError } from "../errors.ts";
-import {
-	type AuthenticationCeremonyComponentChallenge,
-	isAuthenticationCeremonyComponentChallenge,
-} from "./component/challenge.ts";
-import {
-	type AuthenticationCeremonyComponentChoice,
-	isAuthenticationCeremonyComponentChoice,
-} from "./component/choice.ts";
-import {
-	type AuthenticationCeremonyComponentConditional,
-	isAuthenticationCeremonyComponentConditional,
-} from "./component/conditional.ts";
-import {
-	type AuthenticationCeremonyComponentIdentification,
-	isAuthenticationCeremonyComponentIdentification,
-} from "./component/identification.ts";
-import {
-	type AuthenticationCeremonyComponentSequence,
-	isAuthenticationCeremonyComponentSequence,
-} from "./component/sequence.ts";
+import { s } from "../../schema/mod.ts";
+import type { Infer, Schema } from "../../schema/types.ts";
+import { IContext } from "../../server/context.ts";
+import { AuthenticationCeremonyStateSchema } from "./state.ts";
 
+export type AuthenticationCeremonyComponentIdentification = {
+	kind: "identification";
+	id: string;
+	prompt: "email" | "action";
+};
+export type AuthenticationCeremonyComponentChallenge = {
+	kind: "challenge";
+	id: string;
+	prompt: "password" | "otp";
+};
+export type AuthenticationCeremonyComponentSequence = {
+	kind: "sequence";
+	components: AuthenticationCeremonyComponent[];
+};
+export type AuthenticationCeremonyComponentChoice = {
+	kind: "choice";
+	components: AuthenticationCeremonyComponent[];
+};
+export type AuthenticationCeremonyComponentConditional = {
+	kind: "conditional";
+	condition: (
+		context: IContext,
+		state: Infer<typeof AuthenticationCeremonyStateSchema>,
+	) =>
+		| AuthenticationCeremonyComponent
+		| Promise<AuthenticationCeremonyComponent>;
+};
 export type AuthenticationCeremonyComponent =
 	| AuthenticationCeremonyComponentIdentification
 	| AuthenticationCeremonyComponentChallenge
@@ -27,20 +37,46 @@ export type AuthenticationCeremonyComponent =
 	| AuthenticationCeremonyComponentChoice
 	| AuthenticationCeremonyComponentConditional;
 
-export function isAuthenticationCeremonyComponent(
-	value?: unknown,
-): value is AuthenticationCeremonyComponent {
-	return isAuthenticationCeremonyComponentIdentification(value) ||
-		isAuthenticationCeremonyComponentChallenge(value) ||
-		isAuthenticationCeremonyComponentSequence(value) ||
-		isAuthenticationCeremonyComponentChoice(value) ||
-		isAuthenticationCeremonyComponentConditional(value);
-}
-
-export function assertAuthenticationCeremonyComponent(
-	value?: unknown,
-): asserts value is AuthenticationCeremonyComponent {
-	if (!isAuthenticationCeremonyComponent(value)) {
-		throw new InvalidAuthenticationCeremonyComponentError();
-	}
-}
+export const AuthenticationCeremonyComponentIdentificationSchema = s.object({
+	kind: s.literal("identification"),
+	id: s.string(),
+	prompt: s.choice(["email", "action"]),
+});
+export const AuthenticationCeremonyComponentChallengeSchema = s.object({
+	kind: s.literal("challenge"),
+	id: s.string(),
+	prompt: s.choice(["password", "otp"]),
+});
+export const AuthenticationCeremonyComponentSequenceSchema = s.lazy(() =>
+	s.object({
+		kind: s.literal("sequence"),
+		components: s.array(AuthenticationCeremonyComponentSchema),
+	})
+);
+export const AuthenticationCeremonyComponentChoiceSchema = s.lazy(() =>
+	s.object({
+		kind: s.literal("choice"),
+		components: s.array(AuthenticationCeremonyComponentSchema),
+	})
+);
+export const AuthenticationCeremonyComponentConditionalSchema = s.lazy(() =>
+	s.object({
+		kind: s.literal("conditional"),
+		condition: s.func<
+			[
+				context: IContext,
+				state: Infer<typeof AuthenticationCeremonyStateSchema>,
+			],
+			AuthenticationCeremonyComponent | Promise<AuthenticationCeremonyComponent>
+		>(),
+	})
+);
+export const AuthenticationCeremonyComponentSchema: Schema<
+	AuthenticationCeremonyComponent
+> = s.union([
+	AuthenticationCeremonyComponentIdentificationSchema,
+	AuthenticationCeremonyComponentChallengeSchema,
+	AuthenticationCeremonyComponentSequenceSchema,
+	AuthenticationCeremonyComponentChoiceSchema,
+	AuthenticationCeremonyComponentConditionalSchema,
+]);

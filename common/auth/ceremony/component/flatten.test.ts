@@ -3,10 +3,26 @@ import * as h from "./helpers.ts";
 import { flatten } from "./flatten.ts";
 
 Deno.test("flatten", () => {
-	const email = { kind: "email", prompt: "email" as const };
-	const password = { kind: "password", prompt: "password" as const };
-	const github = { kind: "github", prompt: "action" as const };
-	const google = { kind: "google", prompt: "action" as const };
+	const email = {
+		kind: "identification" as const,
+		id: "email",
+		prompt: "email" as const,
+	};
+	const password = {
+		kind: "challenge" as const,
+		id: "password",
+		prompt: "password" as const,
+	};
+	const github = {
+		kind: "identification" as const,
+		id: "github",
+		prompt: "action" as const,
+	};
+	const google = {
+		kind: "identification" as const,
+		id: "google",
+		prompt: "action" as const,
+	};
 	assertEquals(flatten(email), email);
 	assertEquals(
 		flatten(h.sequence(email, password)),

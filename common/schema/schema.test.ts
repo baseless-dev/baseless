@@ -5,10 +5,71 @@ import * as v from "./validator.ts";
 import { autoid } from "../system/autoid.ts";
 
 Deno.test("schema", async (t) => {
+	await t.step("assert nill", () => {
+		const testSchema = s.nill();
+		type Test = Infer<typeof testSchema>;
+		assertSchema(testSchema, null);
+		assertThrows(() => assertSchema(testSchema, 42));
+	});
+	await t.step("assert undef", () => {
+		const testSchema = s.undef();
+		type Test = Infer<typeof testSchema>;
+		assertSchema(testSchema, undefined);
+		assertThrows(() => assertSchema(testSchema, 42));
+	});
+	await t.step("assert unknown", () => {
+		const testSchema = s.unknown();
+		type Test = Infer<typeof testSchema>;
+		assertSchema(testSchema, undefined);
+		assertSchema(testSchema, null);
+		assertSchema(testSchema, {});
+		assertSchema(testSchema, 0);
+		assertSchema(testSchema, 1);
+		assertSchema(testSchema, "");
+		assertSchema(testSchema, new Date());
+	});
 	await t.step("assert string", () => {
 		const testSchema = s.string();
 		type Test = Infer<typeof testSchema>;
 		assertSchema(testSchema, "foo");
+		assertThrows(() => assertSchema(testSchema, 42));
+	});
+	await t.step("assert autoid", () => {
+		{
+			const testSchema = s.autoid();
+			type Test = Infer<typeof testSchema>;
+			assertSchema(testSchema, autoid());
+			assertThrows(() => assertSchema(testSchema, ""));
+		}
+		{
+			const testSchema = s.autoid("foo_");
+			assertSchema(testSchema, autoid("foo_"));
+			assertThrows(() => assertSchema(testSchema, autoid("bar_")));
+		}
+	});
+	await t.step("assert number", () => {
+		const testSchema = s.number();
+		type Test = Infer<typeof testSchema>;
+		assertSchema(testSchema, 42);
+		assertThrows(() => assertSchema(testSchema, ""));
+	});
+	await t.step("assert boolean", () => {
+		const testSchema = s.boolean();
+		type Test = Infer<typeof testSchema>;
+		assertSchema(testSchema, true);
+		assertThrows(() => assertSchema(testSchema, 42));
+	});
+	await t.step("assert func", () => {
+		const testSchema = s.func<[a: string, b: number], void | Promise<void>>();
+		type Test = Infer<typeof testSchema>;
+		assertSchema(testSchema, () => {});
+		assertThrows(() => assertSchema(testSchema, 42));
+	});
+	await t.step("assert date", () => {
+		const testSchema = s.date();
+		type Test = Infer<typeof testSchema>;
+		assertSchema(testSchema, new Date());
+		assertThrows(() => assertSchema(testSchema, {}));
 		assertThrows(() => assertSchema(testSchema, 42));
 	});
 	await t.step("assert lazy", () => {
@@ -46,9 +107,9 @@ Deno.test("schema", async (t) => {
 		assertThrows(() => assertSchema(testSchema, 42));
 	});
 	await t.step("assert record", () => {
-		const testSchema = s.record(s.string());
+		const testSchema = s.record(s.nill());
 		type Test = Infer<typeof testSchema>;
-		assertSchema(testSchema, { a: "b" });
+		assertSchema(testSchema, { a: null });
 		assertThrows(() => assertSchema(testSchema, { a: 1 }));
 		assertThrows(() => assertSchema(testSchema, 42));
 	});
@@ -81,12 +142,25 @@ Deno.test("schema", async (t) => {
 		}
 	});
 	await t.step("assert union", () => {
-		const testSchema = s.union([s.string(), s.number(), s.nill()]);
-		type Test = Infer<typeof testSchema>;
-		assertSchema(testSchema, "foo");
-		assertSchema(testSchema, 42);
-		assertSchema(testSchema, null);
-		assertThrows(() => assertSchema(testSchema, true));
+		{
+			const testSchema = s.union([s.string(), s.number(), s.nill()]);
+			type Test = Infer<typeof testSchema>;
+			assertSchema(testSchema, "foo");
+			assertSchema(testSchema, 42);
+			assertSchema(testSchema, null);
+			assertThrows(() => assertSchema(testSchema, true));
+		}
+		{
+			const testSchema = s.union([
+				s.object({ foo: s.string() }),
+				s.object({ bar: s.number() }),
+			]);
+			type Test = Infer<typeof testSchema>;
+			assertSchema(testSchema, { foo: "" });
+			assertSchema(testSchema, { bar: 42 });
+			assertThrows(() => assertSchema(testSchema, { foo: 42 }));
+			assertThrows(() => assertSchema(testSchema, { bar: "" }));
+		}
 	});
 	await t.step("assert tuple", () => {
 		const testSchema = s.tuple([s.string(), s.number(), s.literal("foo")]);
@@ -144,7 +218,7 @@ Deno.test("schema", async (t) => {
 				),
 			}, ["age"]),
 		);
-		console.log(Deno.inspect(testSchema, { depth: 10 }));
+		// console.log(Deno.inspect(testSchema, { depth: 10 }));
 		type Test = Infer<typeof testSchema>;
 
 		assertSchema(testSchema, {

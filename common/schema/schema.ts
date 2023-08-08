@@ -1,12 +1,13 @@
-import { isAutoId } from "../system/autoid.ts";
+import { AutoId, isAutoId } from "../system/autoid.ts";
 import {
-	globalSchemaRegistry,
 	type Infer,
+	registry,
 	type Schema,
+	type SchemaImplValidationGenerator,
 	type Validator,
 } from "./types.ts";
 
-export function lazy<TSchema extends Schema<string, unknown>>(
+export function lazy<TSchema extends Schema<unknown>>(
 	initializer: () => TSchema,
 ): TSchema {
 	let cached: TSchema | undefined = undefined;
@@ -28,160 +29,144 @@ export function lazy<TSchema extends Schema<string, unknown>>(
 	}) as any as TSchema;
 }
 
-export function nill(): Schema<"nill", null> {
+export function nill(): Schema<null> {
 	return { kind: "nill" };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof nill>>("nill", {
-	check(_schema, value): boolean {
+registry.registerSchema<ReturnType<typeof nill>>("nill", {
+	// deno-lint-ignore require-yield
+	*validate(_schema, value): SchemaImplValidationGenerator {
 		return value === null;
 	},
 });
 
-export function undef(): Schema<"undef", undefined> {
+export function undef(): Schema<undefined> {
 	return { kind: "undef" };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof undef>>("undef", {
-	check(_schema, value): boolean {
+registry.registerSchema<ReturnType<typeof undef>>("undef", {
+	// deno-lint-ignore require-yield
+	*validate(_schema, value): SchemaImplValidationGenerator {
 		return value === undefined;
 	},
 });
 
-export function unknown(): Schema<"unknown", unknown> {
+export function unknown(): Schema<unknown> {
 	return { kind: "unknown" };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof unknown>>("unknown", {
-	check(): boolean {
+registry.registerSchema<ReturnType<typeof unknown>>("unknown", {
+	// deno-lint-ignore require-yield
+	*validate(_schema, _value): SchemaImplValidationGenerator {
 		return true;
 	},
 });
 
-export function string(
-	validations: Validator[] = [],
-): Schema<"string", string> {
+export function string(validations: Validator[] = []): Schema<string> {
 	return { kind: "string", ...(validations?.length ? { validations } : {}) };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof string>>("string", {
-	check(_schema, value): boolean {
+registry.registerSchema<ReturnType<typeof string>>("string", {
+	// deno-lint-ignore require-yield
+	*validate(_schema, value): SchemaImplValidationGenerator {
 		return typeof value === "string";
 	},
 });
 
-export function autoid(
-	prefix = "",
-): Schema<"autoid", string, { prefix?: string }> {
+export function autoid(prefix = ""): Schema<AutoId, { prefix?: string }> {
 	return { kind: "autoid", ...(prefix ? { prefix } : {}) };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof autoid>>("autoid", {
-	check(schema, value): boolean {
-		return isAutoId(value, schema.prefix);
+registry.registerSchema<ReturnType<typeof autoid>>("autoid", {
+	// deno-lint-ignore require-yield
+	*validate(schema, value): SchemaImplValidationGenerator {
+		return typeof value === "string" && isAutoId(value, schema.prefix);
 	},
 });
 
-export function number(
-	validations: Validator[] = [],
-): Schema<"number", number> {
+export function number(validations: Validator[] = []): Schema<number> {
 	return { kind: "number", ...(validations?.length ? { validations } : {}) };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof number>>("number", {
-	check(_schema, value): boolean {
+registry.registerSchema<ReturnType<typeof number>>("number", {
+	// deno-lint-ignore require-yield
+	*validate(_schema, value): SchemaImplValidationGenerator {
 		return typeof value === "number";
 	},
 });
 
-export function boolean(
-	validations: Validator[] = [],
-): Schema<"boolean", boolean> {
+export function boolean(validations: Validator[] = []): Schema<boolean> {
 	return { kind: "boolean", ...(validations?.length ? { validations } : {}) };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof boolean>>("boolean", {
-	check(_schema, value): boolean {
+registry.registerSchema<ReturnType<typeof boolean>>("boolean", {
+	// deno-lint-ignore require-yield
+	*validate(_schema, value): SchemaImplValidationGenerator {
 		return typeof value === "boolean";
 	},
 });
 
-export function date(
-	validations: Validator[] = [],
-): Schema<"date", Date> {
+export function func<const Args extends unknown[], Return>(): Schema<
+	(...args: Args) => Return
+> {
+	return { kind: "function" };
+}
+registry.registerSchema<ReturnType<typeof func>>("function", {
+	// deno-lint-ignore require-yield
+	*validate(_schema, value): SchemaImplValidationGenerator {
+		return typeof value === "function";
+	},
+});
+
+export function date(validations: Validator[] = []): Schema<Date> {
 	return { kind: "date", ...(validations?.length ? { validations } : {}) };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof date>>("date", {
-	check(_schema, value): boolean {
+registry.registerSchema<ReturnType<typeof date>>("date", {
+	// deno-lint-ignore require-yield
+	*validate(_schema, value): SchemaImplValidationGenerator {
 		return !!value && value instanceof Date;
 	},
 });
 
-export function array<TItem extends Schema<string, unknown> = never>(
+export function array<TItem extends Schema<unknown> = never>(
 	item: TItem,
 	validations: Validator[] = [],
-): Schema<"array", Array<Infer<TItem>>, { item: TItem }> {
+): Schema<Array<Infer<TItem>>, { item: TItem }> {
 	return {
 		kind: "array",
 		item,
 		...(validations?.length ? { validations } : {}),
 	};
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof array>>("array", {
-	check(_schema, value): boolean {
-		return !!value && Array.isArray(value);
-	},
-	*walk(
-		schema,
-		value,
-		_registry,
-		context,
-	): Generator<
-		[
-			key: string,
-			value: unknown,
-			schema: Schema<string, unknown>,
-			context: Record<string, unknown>,
-		]
-	> {
-		if (!!value && Array.isArray(value)) {
-			for (const [key, val] of value.entries()) {
-				yield [key.toString(), val, schema.item, context];
-			}
+registry.registerSchema<ReturnType<typeof array>>("array", {
+	*validate(schema, value, _registry, context): SchemaImplValidationGenerator {
+		if (!value || !Array.isArray(value)) {
+			return false;
 		}
+		for (const [key, val] of value.entries()) {
+			yield [key.toString(), val, schema.item, context];
+		}
+		return true;
 	},
 });
 
-export function record<TItem extends Schema<string, unknown> = never>(
+export function record<TItem extends Schema<unknown> = never>(
 	item: TItem,
 	validations: Validator[] = [],
-): Schema<"record", Record<string, Infer<TItem>>, { item: TItem }> {
+): Schema<Record<string, Infer<TItem>>, { item: TItem }> {
 	return {
 		kind: "record",
 		item,
 		...(validations?.length ? { validations } : {}),
 	};
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof record>>("record", {
-	check(_schema, value): boolean {
-		return !!value && typeof value === "object";
-	},
-	*walk(
-		schema,
-		value,
-		_registry,
-		context,
-	): Generator<
-		[
-			key: string,
-			value: unknown,
-			schema: Schema<string, unknown>,
-			context: Record<string, unknown>,
-		]
-	> {
-		if (!!value && typeof value === "object") {
-			for (const [key, val] of Object.entries(value)) {
-				yield [key, val, schema.item, context];
-			}
+registry.registerSchema<ReturnType<typeof record>>("record", {
+	*validate(schema, value, _registry, context): SchemaImplValidationGenerator {
+		if (!value || typeof value !== "object") {
+			return false;
 		}
+		for (const [key, val] of Object.entries(value)) {
+			yield [key, val, schema.item, context];
+		}
+		return true;
 	},
 });
 
 export function object<
-	TObject extends Record<string, Schema<string, unknown>>,
+	TObject extends Record<string, Schema<unknown>>,
 	TRequired extends Omit<TObject, TOptional[number]>,
 	TOutput extends
 		& { [K in keyof TRequired]: Infer<TRequired[K]> }
@@ -193,7 +178,6 @@ export function object<
 	optional: TOptional = [] as any,
 	validations: Validator[] = [],
 ): Schema<
-	"object",
 	{ [K in keyof TOutput]: TOutput[K] },
 	{
 		object: TObject;
@@ -208,128 +192,91 @@ export function object<
 		...(optional?.length ? { optional: optional as any } : {}),
 	};
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof object>>("object", {
-	check(schema, value, _registry, context): boolean {
+registry.registerSchema<ReturnType<typeof object>>("object", {
+	*validate(schema, value, _registry, context): SchemaImplValidationGenerator {
 		if (!value || typeof value !== "object") {
 			return false;
 		}
-		const forceOptional = context.partial === true;
-		const [requiredKeys, optionalKeys] = Object.entries(schema.object).reduce(
-			(pair, [key, _inner]) => {
-				if (
-					forceOptional ||
-					schema.optional?.includes(key as keyof typeof schema.object)
-				) {
-					pair[1].push(key);
-				} else {
-					pair[0].push(key);
-				}
-				return pair;
-			},
-			[[], []] as [required: string[], optional: string[]],
-		);
-		const keysValue = Object.keys(value);
-		if (!requiredKeys.every((key) => keysValue.includes(key))) {
-			return false;
-		}
-		const missingKeys = keysValue.filter((key) => !requiredKeys.includes(key));
-		return missingKeys.every((key) => optionalKeys.includes(key));
-	},
-	*walk(
-		schema,
-		value,
-		_registry,
-		context,
-	): Generator<
-		[
-			key: string,
-			value: unknown,
-			schema: Schema<string, unknown>,
-			context: Record<string, unknown>,
-		]
-	> {
-		const { partial, ...innerContext } = context;
-		if (!!value && typeof value === "object") {
-			for (const [key, inner] of Object.entries(schema.object)) {
-				yield [
-					key,
-					value[key as keyof typeof value],
-					partial === true || schema.optional?.includes(key)
-						? optional(inner)
-						: inner,
-					innerContext,
-				];
+		const keys = new Set(Object.keys(value));
+		for (const [key, inner] of Object.entries(schema.object)) {
+			const isOptional = context.partial === true ||
+				(schema.optional?.includes(key as keyof typeof schema.object) ?? false);
+			const innerSchema = isOptional ? optional(inner) : inner;
+			const schemaImpl = registry.schemas.get(innerSchema.kind);
+			if (!schemaImpl) {
+				return false;
 			}
+			const valid = yield* schemaImpl.validate(
+				innerSchema,
+				value[key as keyof typeof value],
+				registry,
+				context,
+			);
+			if (!valid) {
+				return false;
+			}
+			yield [key, value[key as keyof typeof value], innerSchema, context];
+			keys.delete(key);
 		}
+		return keys.size === 0;
 	},
 });
 
-export function optional<TItem extends Schema<string, unknown> = never>(
+export function optional<TItem extends Schema<unknown> = never>(
 	schema: TItem,
-): Schema<"optional", Infer<TItem> | undefined, { schema: TItem }> {
+): Schema<Infer<TItem> | undefined, { schema: TItem }> {
 	return { kind: "optional", schema };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof optional>>("optional", {
-	check(_schema, _value): boolean {
-		return true;
-	},
-	*walk(
-		schema,
-		value,
-		_registry,
-		context,
-	): Generator<
-		[
-			key: string,
-			value: unknown,
-			schema: Schema<string, unknown>,
-			context: Record<string, unknown>,
-		]
-	> {
+registry.registerSchema<ReturnType<typeof optional>>("optional", {
+	*validate(schema, value, registry, context): SchemaImplValidationGenerator {
 		if (value) {
+			const schemaImpl = registry.schemas.get(schema.schema.kind);
+			if (!schemaImpl) {
+				return false;
+			}
+			const valid = yield* schemaImpl.validate(
+				schema.schema,
+				value,
+				registry,
+				context,
+			);
+			if (!valid) {
+				return false;
+			}
 			yield ["", value, schema.schema, context];
 		}
+		return true;
 	},
 });
 
 export function partial<
-	TSchema extends Schema<string, unknown> = never,
+	TSchema extends Schema<unknown> = never,
 >(
 	schema: TSchema,
-): Schema<"partial", Partial<Infer<TSchema>>, { schema: TSchema }> {
+): Schema<Partial<Infer<TSchema>>, { schema: TSchema }> {
 	return { kind: "partial", schema };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof partial>>("partial", {
-	check(schema, value): boolean {
-		if (schema.schema.kind !== "object") {
-			return true;
+registry.registerSchema<ReturnType<typeof partial>>("partial", {
+	*validate(schema, value, registry, context): SchemaImplValidationGenerator {
+		const schemaImpl = registry.schemas.get(schema.schema.kind);
+		if (!schemaImpl) {
+			return false;
 		}
-		return !!value && typeof value === "object";
-	},
-	*walk(
-		schema,
-		value,
-		_registry,
-		context,
-	): Generator<
-		[
-			key: string,
-			value: unknown,
-			schema: Schema<string, unknown>,
-			context: Record<string, unknown>,
-		]
-	> {
-		yield ["", value, schema.schema, { ...context, partial: true }];
+		return yield* schemaImpl.validate(schema.schema, value, registry, {
+			...context,
+			partial: true,
+		});
 	},
 });
 
 export function literal<const TLiteral extends string | number | boolean>(
 	literal: TLiteral,
-): Schema<"literal", TLiteral, { literal: TLiteral }> {
+): Schema<TLiteral, { literal: TLiteral }> {
 	return { kind: "literal", literal };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof literal>>("literal", {
-	check(schema, value): boolean {
+registry.registerSchema<ReturnType<typeof literal>>("literal", {
+	// deno-lint-ignore require-yield
+	*validate(schema, value): SchemaImplValidationGenerator {
 		return schema.literal === value;
 	},
 });
@@ -338,103 +285,81 @@ export function choice<
 	const TChoices extends readonly string[],
 >(
 	choices: TChoices,
-): Schema<"choice", TChoices[number], { choices: TChoices }> {
+): Schema<TChoices[number], { choices: TChoices }> {
 	return { kind: "choice", choices };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof choice>>("choice", {
-	check(schema, value): boolean {
+registry.registerSchema<ReturnType<typeof choice>>("choice", {
+	// deno-lint-ignore require-yield
+	*validate(schema, value): SchemaImplValidationGenerator {
 		return typeof value === "string" && schema.choices.includes(value);
 	},
 });
 
 export function union<
-	const TSchemas extends readonly Schema<string, unknown>[],
+	const TSchemas extends readonly Schema<unknown>[],
 >(
 	schemas: TSchemas,
-): Schema<"union", Infer<TSchemas[number]>, { schemas: TSchemas }> {
+): Schema<Infer<TSchemas[number]>, { schemas: TSchemas }> {
 	return { kind: "union", schemas };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof union>>("union", {
-	check(schema, value, registry, context): boolean {
-		return schema.schemas.some((inner) => {
-			const schemaImpl = globalSchemaRegistry.schemas.get(inner.kind);
-			if (!schemaImpl) {
-				return false;
-			}
-			return schemaImpl.check(inner, value, registry, context);
-		});
-	},
-	*walk(
-		schema,
-		value,
-		registry,
-		context,
-	): Generator<
-		[
-			key: string,
-			value: unknown,
-			schema: Schema<string, unknown>,
-			context: Record<string, unknown>,
-		]
-	> {
+registry.registerSchema<ReturnType<typeof union>>("union", {
+	*validate(schema, value, registry, context): SchemaImplValidationGenerator {
 		const inner = schema.schemas.find((inner) => {
-			const schemaImpl = globalSchemaRegistry.schemas.get(inner.kind);
+			const schemaImpl = registry.schemas.get(inner.kind);
 			if (!schemaImpl) {
 				return false;
 			}
-			return schemaImpl.check(inner, value, registry, context);
+			const validator = schemaImpl.validate(inner, value, registry, context);
+			let result = validator.next();
+			for (; result.done !== true; result = validator.next());
+			return result.value;
 		});
-		yield ["", value, inner as Schema<string, unknown>, context];
+
+		if (!inner) {
+			return false;
+		}
+
+		const schemaImpl = registry.schemas.get(inner.kind)!;
+		const valid = yield* schemaImpl.validate(inner, value, registry, context);
+		if (!valid) {
+			return false;
+		}
+		yield ["", value, inner, context];
+		return true;
 	},
 });
 
 export function tuple<
-	const TSchemas extends readonly Schema<string, unknown>[],
+	const TSchemas extends readonly Schema<unknown>[],
 >(
 	tuples: TSchemas,
 ): Schema<
-	"tuple",
 	{ [K in keyof TSchemas]: Infer<TSchemas[K]> },
 	{ tuples: TSchemas }
 > {
 	return { kind: "tuple", tuples };
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof tuple>>("tuple", {
-	check(schema, value): boolean {
-		return !!value && Array.isArray(value) &&
-			value.length === schema.tuples.length;
-	},
-	*walk(
-		schema,
-		value,
-		_registry,
-		context,
-	): Generator<
-		[
-			key: string,
-			value: unknown,
-			schema: Schema<string, unknown>,
-			context: Record<string, unknown>,
-		]
-	> {
+registry.registerSchema<ReturnType<typeof tuple>>("tuple", {
+	*validate(schema, value, registry, context): SchemaImplValidationGenerator {
 		if (
-			!!value && Array.isArray(value) && value.length === schema.tuples.length
+			!value || !Array.isArray(value) || value.length !== schema.tuples.length
 		) {
-			for (const [key, inner] of schema.tuples.entries()) {
-				yield [`[${key}]`, value[key as keyof typeof value], inner, context];
-			}
+			return false;
 		}
+		for (const [key, inner] of schema.tuples.entries()) {
+			yield [`[${key}]`, value[key as keyof typeof value], inner, context];
+		}
+		return true;
 	},
 });
 
-export function describe<TItem extends Schema<string, unknown> = never>(
+export function describe<TItem extends Schema<unknown> = never>(
 	{ label, description }: {
 		description?: string;
 		label?: string;
 	},
 	schema: TItem,
 ): Schema<
-	"describe",
 	Infer<TItem>,
 	{ schema: TItem; description?: string; label?: string }
 > {
@@ -445,23 +370,22 @@ export function describe<TItem extends Schema<string, unknown> = never>(
 		schema,
 	};
 }
-globalSchemaRegistry.registerSchema<ReturnType<typeof describe>>("describe", {
-	check(_schema, _value): boolean {
-		return true;
-	},
-	*walk(
-		schema,
-		value,
-		_registry,
-		context,
-	): Generator<
-		[
-			key: string,
-			value: unknown,
-			schema: Schema<string, unknown>,
-			context: Record<string, unknown>,
-		]
-	> {
+registry.registerSchema<ReturnType<typeof describe>>("describe", {
+	*validate(schema, value, registry, context): SchemaImplValidationGenerator {
+		const schemaImpl = registry.schemas.get(schema.schema.kind);
+		if (!schemaImpl) {
+			return false;
+		}
+		const valid = yield* schemaImpl.validate(
+			schema.schema,
+			value,
+			registry,
+			context,
+		);
+		if (!valid) {
+			return false;
+		}
 		yield ["", value, schema.schema, context];
+		return true;
 	},
 });

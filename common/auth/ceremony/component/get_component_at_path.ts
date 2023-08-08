@@ -1,7 +1,10 @@
-import type { AuthenticationCeremonyComponent } from "../ceremony.ts";
-import { isAuthenticationCeremonyComponentChoice } from "./choice.ts";
+import { isSchema } from "../../../schema/types.ts";
+import {
+	type AuthenticationCeremonyComponent,
+	AuthenticationCeremonyComponentChoiceSchema,
+	AuthenticationCeremonyComponentSequenceSchema,
+} from "../ceremony.ts";
 import { oneOf } from "./helpers.ts";
-import { isAuthenticationCeremonyComponentSequence } from "./sequence.ts";
 import { simplify } from "./simplify.ts";
 
 export class AuthenticationCeremonyComponentAtPathError extends Error {}
@@ -19,7 +22,7 @@ export function getComponentAtPath(
 	component: AuthenticationCeremonyComponent,
 	path: string[],
 ): GetComponentAtPathResult {
-	if (isAuthenticationCeremonyComponentSequence(component)) {
+	if (isSchema(AuthenticationCeremonyComponentSequenceSchema, component)) {
 		let i = 0;
 		const componentLength = component.components.length;
 		const pathLen = path.length;
@@ -35,7 +38,7 @@ export function getComponentAtPath(
 			throw new AuthenticationCeremonyComponentAtPathError();
 		}
 		return { done: false, component: component.components.at(i)! };
-	} else if (isAuthenticationCeremonyComponentChoice(component)) {
+	} else if (isSchema(AuthenticationCeremonyComponentChoiceSchema, component)) {
 		const nextComponents: GetComponentAtPathResult[] = [];
 		for (const inner of component.components) {
 			try {

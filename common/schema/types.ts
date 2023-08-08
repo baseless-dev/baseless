@@ -23,28 +23,8 @@ export type SchemaImpl<TSchema extends Schema<unknown>> = {
 	validate: (
 		schema: TSchema,
 		value: unknown,
-		registry: SchemaRegistry,
 		context: Record<string, unknown>,
 	) => SchemaImplValidationGenerator;
-	// check: (
-	// 	schema: TSchema,
-	// 	value: unknown,
-	// 	registry: SchemaRegistry,
-	// 	context: Record<string, unknown>,
-	// ) => boolean;
-	// walk?: (
-	// 	schema: TSchema,
-	// 	value: unknown,
-	// 	registry: SchemaRegistry,
-	// 	context: Record<string, unknown>,
-	// ) => Generator<
-	// 	[
-	// 		key: string,
-	// 		value: unknown,
-	// 		schema: Schema<unknown>,
-	// 		context: Record<string, unknown>,
-	// 	]
-	// >;
 };
 
 // deno-lint-ignore ban-types
@@ -157,18 +137,30 @@ export function assertSchema<TSchema extends Schema<unknown>>(
 		throw new SchemaError(path);
 	}
 	const causes: Array<SchemaError | ValidationError> = [];
-	const validator = schemaImpl.validate(schema, value, registry, context);
+	const validator = schemaImpl.validate(schema, value, context);
 	let result = validator.next();
-	for (; result.done !== true; result = validator.next()) {
-		const [key, val, innerSchema, subContext] = result.value;
-		assertSchema(
-			innerSchema,
-			val,
-			key ? [...path, key] : [...path],
-			subContext,
-		);
+	for (; result.done !== true;) {
+		try {
+			const [key, val, innerSchema, subContext] = result.value;
+			assertSchema(
+				innerSchema,
+				val,
+				key ? [...path, key] : [...path],
+				subContext,
+			);
+			result = validator.next();
+		} catch (error) {
+			try {
+				// Gives a chance to the validator to catch the error
+				result = validator.throw(error);
+			} catch (error) {
+				// Validator didn't catch the error
+				causes.push(error);
+				result = validator.next();
+			}
+		}
 	}
-	if (result.value !== true) {
+	if (result.value !== true || causes.length > 0) {
 		throw new SchemaError(path, causes);
 	}
 	if (schema.validations?.length) {

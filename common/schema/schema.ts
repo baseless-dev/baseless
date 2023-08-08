@@ -132,7 +132,7 @@ export function array<TItem extends Schema<unknown> = never>(
 	};
 }
 registry.registerSchema<ReturnType<typeof array>>("array", {
-	*validate(schema, value, _registry, context): SchemaImplValidationGenerator {
+	*validate(schema, value, context): SchemaImplValidationGenerator {
 		if (!value || !Array.isArray(value)) {
 			return false;
 		}
@@ -154,7 +154,7 @@ export function record<TItem extends Schema<unknown> = never>(
 	};
 }
 registry.registerSchema<ReturnType<typeof record>>("record", {
-	*validate(schema, value, _registry, context): SchemaImplValidationGenerator {
+	*validate(schema, value, context): SchemaImplValidationGenerator {
 		if (!value || typeof value !== "object") {
 			return false;
 		}
@@ -193,7 +193,7 @@ export function object<
 	};
 }
 registry.registerSchema<ReturnType<typeof object>>("object", {
-	*validate(schema, value, _registry, context): SchemaImplValidationGenerator {
+	*validate(schema, value, context): SchemaImplValidationGenerator {
 		if (!value || typeof value !== "object") {
 			return false;
 		}
@@ -202,19 +202,6 @@ registry.registerSchema<ReturnType<typeof object>>("object", {
 			const isOptional = context.partial === true ||
 				(schema.optional?.includes(key as keyof typeof schema.object) ?? false);
 			const innerSchema = isOptional ? optional(inner) : inner;
-			const schemaImpl = registry.schemas.get(innerSchema.kind);
-			if (!schemaImpl) {
-				return false;
-			}
-			const valid = yield* schemaImpl.validate(
-				innerSchema,
-				value[key as keyof typeof value],
-				registry,
-				context,
-			);
-			if (!valid) {
-				return false;
-			}
 			yield [key, value[key as keyof typeof value], innerSchema, context];
 			keys.delete(key);
 		}
@@ -228,21 +215,8 @@ export function optional<TItem extends Schema<unknown> = never>(
 	return { kind: "optional", schema };
 }
 registry.registerSchema<ReturnType<typeof optional>>("optional", {
-	*validate(schema, value, registry, context): SchemaImplValidationGenerator {
+	*validate(schema, value, context): SchemaImplValidationGenerator {
 		if (value) {
-			const schemaImpl = registry.schemas.get(schema.schema.kind);
-			if (!schemaImpl) {
-				return false;
-			}
-			const valid = yield* schemaImpl.validate(
-				schema.schema,
-				value,
-				registry,
-				context,
-			);
-			if (!valid) {
-				return false;
-			}
 			yield ["", value, schema.schema, context];
 		}
 		return true;
@@ -257,15 +231,12 @@ export function partial<
 	return { kind: "partial", schema };
 }
 registry.registerSchema<ReturnType<typeof partial>>("partial", {
-	*validate(schema, value, registry, context): SchemaImplValidationGenerator {
-		const schemaImpl = registry.schemas.get(schema.schema.kind);
-		if (!schemaImpl) {
-			return false;
-		}
-		return yield* schemaImpl.validate(schema.schema, value, registry, {
+	*validate(schema, value, context): SchemaImplValidationGenerator {
+		yield ["", value, schema.schema, {
 			...context,
 			partial: true,
-		});
+		}];
+		return true;
 	},
 });
 
@@ -303,29 +274,16 @@ export function union<
 	return { kind: "union", schemas };
 }
 registry.registerSchema<ReturnType<typeof union>>("union", {
-	*validate(schema, value, registry, context): SchemaImplValidationGenerator {
-		const inner = schema.schemas.find((inner) => {
-			const schemaImpl = registry.schemas.get(inner.kind);
-			if (!schemaImpl) {
-				return false;
+	*validate(schema, value, context): SchemaImplValidationGenerator {
+		for (const inner of schema.schemas) {
+			try {
+				yield ["", value, inner, context];
+				return true;
+			} catch (_error) {
+				// empty
 			}
-			const validator = schemaImpl.validate(inner, value, registry, context);
-			let result = validator.next();
-			for (; result.done !== true; result = validator.next());
-			return result.value;
-		});
-
-		if (!inner) {
-			return false;
 		}
-
-		const schemaImpl = registry.schemas.get(inner.kind)!;
-		const valid = yield* schemaImpl.validate(inner, value, registry, context);
-		if (!valid) {
-			return false;
-		}
-		yield ["", value, inner, context];
-		return true;
+		return false;
 	},
 });
 
@@ -340,7 +298,7 @@ export function tuple<
 	return { kind: "tuple", tuples };
 }
 registry.registerSchema<ReturnType<typeof tuple>>("tuple", {
-	*validate(schema, value, registry, context): SchemaImplValidationGenerator {
+	*validate(schema, value, context): SchemaImplValidationGenerator {
 		if (
 			!value || !Array.isArray(value) || value.length !== schema.tuples.length
 		) {
@@ -371,20 +329,7 @@ export function describe<TItem extends Schema<unknown> = never>(
 	};
 }
 registry.registerSchema<ReturnType<typeof describe>>("describe", {
-	*validate(schema, value, registry, context): SchemaImplValidationGenerator {
-		const schemaImpl = registry.schemas.get(schema.schema.kind);
-		if (!schemaImpl) {
-			return false;
-		}
-		const valid = yield* schemaImpl.validate(
-			schema.schema,
-			value,
-			registry,
-			context,
-		);
-		if (!valid) {
-			return false;
-		}
+	*validate(schema, value, context): SchemaImplValidationGenerator {
 		yield ["", value, schema.schema, context];
 		return true;
 	},

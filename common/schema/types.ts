@@ -85,44 +85,41 @@ export class SchemaKindAlreadyRegisteredError extends Error {
 
 export class SchemaError extends Error {
 	name = "SchemaError" as const;
+	public path: ReadonlyArray<string>;
+	public causes: ReadonlyArray<SchemaError | ValidationError>;
 	constructor(
-		public readonly path: string[],
-		public readonly causes: ReadonlyArray<SchemaError | ValidationError> = [],
+		path: ReadonlyArray<string>,
+		msg_or_causes?:
+			| string
+			| undefined
+			| ReadonlyArray<SchemaError | ValidationError>,
 	) {
 		super(
-			`Schema error${path.length > 0 ? ` at '${path.join(".")}'` : ""}${
-				causes.length
-					? ` (caused by ${
-						causes.map((cause) => cause.message.replace(/[\s.]$/, "")).join(
-							`; `,
-						)
-					})`
-					: ""
-			}.`,
+			typeof msg_or_causes === "string" ? msg_or_causes : "Schema error.",
 		);
+		this.path = path;
+		this.causes = Array.isArray(msg_or_causes) ? msg_or_causes : [];
 	}
 }
 
 export class ValidationError extends Error {
 	name = "ValidationError" as const;
+	public path: ReadonlyArray<string>;
+	public causes: ReadonlyArray<ValidationError>;
+	constructor(path: ReadonlyArray<string>, msg?: string);
 	constructor(
-		public readonly path: string[],
-		msg?: string,
-		public readonly causes: ReadonlyArray<ValidationError> = [],
+		path: ReadonlyArray<string>,
+		causes: ReadonlyArray<ValidationError>,
+	);
+	constructor(
+		path: ReadonlyArray<string>,
+		msg_or_causes: string | undefined | ReadonlyArray<ValidationError>,
 	) {
 		super(
-			`Validation error${path.length > 0 ? ` at '${path.join(".")}'` : ""}${
-				msg ? `, reason: ${msg}` : ""
-			}${
-				causes.length
-					? ` (caused by ${
-						causes.map((cause) => cause.message.replace(/[\s.]$/, "")).join(
-							`; `,
-						)
-					})`
-					: ""
-			}.`,
+			typeof msg_or_causes === "string" ? msg_or_causes : "Validation error.",
 		);
+		this.path = path;
+		this.causes = Array.isArray(msg_or_causes) ? msg_or_causes : [];
 	}
 }
 
@@ -160,7 +157,11 @@ export function assertSchema<TSchema extends Schema<unknown>>(
 			}
 		}
 	}
-	if (result.value !== true || causes.length > 0) {
+	if (result.value === false) {
+		throw new SchemaError(path);
+	} else if (causes.length === 1) {
+		throw causes[0];
+	} else if (causes.length > 1) {
 		throw new SchemaError(path, causes);
 	}
 	if (schema.validations?.length) {
@@ -180,7 +181,7 @@ export function assertSchema<TSchema extends Schema<unknown>>(
 		if (causes.length === 1) {
 			throw causes[0];
 		} else if (causes.length > 1) {
-			throw new ValidationError(path, "", causes);
+			throw new ValidationError(path, causes);
 		}
 	}
 }

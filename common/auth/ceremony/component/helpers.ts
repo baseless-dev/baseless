@@ -6,6 +6,7 @@ import {
 	AuthenticationCeremonyComponentSchema,
 	type AuthenticationCeremonyComponentSequence,
 } from "../ceremony.ts";
+export * as h from "./helpers.ts";
 
 export function sequence(
 	...components: AuthenticationCeremonyComponent[]

@@ -2,6 +2,7 @@ import { isSchema } from "../../../schema/types.ts";
 import {
 	type AuthenticationCeremonyComponent,
 	AuthenticationCeremonyComponentChoiceSchema,
+	AuthenticationCeremonyComponentConditionalSchema,
 	AuthenticationCeremonyComponentSequenceSchema,
 } from "../ceremony.ts";
 import { oneOf } from "./helpers.ts";
@@ -64,9 +65,13 @@ export function getComponentAtPath(
 				component: simplify(oneOf(...new Set(components))),
 			};
 		}
+	} else if (
+		isSchema(AuthenticationCeremonyComponentConditionalSchema, component)
+	) {
+		throw new AuthenticationCeremonyComponentAtPathError();
 	} else if (path.length === 0) {
 		return { done: false, component };
-	} else if (component.kind === path.at(0)!) {
+	} else if (component.id === path.at(0)!) {
 		return { done: true };
 	}
 	throw new AuthenticationCeremonyComponentAtPathError();

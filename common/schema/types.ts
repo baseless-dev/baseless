@@ -126,64 +126,75 @@ export class ValidationError extends Error {
 export function assertSchema<TSchema extends Schema<unknown>>(
 	schema: TSchema,
 	value: unknown,
-	path: string[] = [],
-	context: Record<string, unknown> = {},
+	catchAllError = false,
 ): asserts value is Infer<TSchema> {
-	const schemaImpl = registry.schemas.get(schema.kind);
-	if (!schemaImpl) {
-		throw new SchemaError(path);
-	}
-	const causes: Array<SchemaError | ValidationError> = [];
-	const validator = schemaImpl.validate(schema, value, context);
-	let result = validator.next();
-	for (; result.done !== true;) {
-		try {
-			const [key, val, innerSchema, subContext] = result.value;
-			assertSchema(
-				innerSchema,
-				val,
-				key ? [...path, key] : [...path],
-				subContext,
-			);
-			result = validator.next();
-		} catch (error) {
+	function _assertSchema<TSchema extends Schema<unknown>>(
+		schema: TSchema,
+		value: unknown,
+		path: string[] = [],
+		context: Record<string, unknown> = {},
+	): asserts value is Infer<TSchema> {
+		const schemaImpl = registry.schemas.get(schema.kind);
+		if (!schemaImpl) {
+			throw new SchemaError(path);
+		}
+		const causes: Array<SchemaError | ValidationError> = [];
+		const validator = schemaImpl.validate(schema, value, context);
+		let result = validator.next();
+		for (; result.done !== true;) {
 			try {
-				// Gives a chance to the validator to catch the error
-				result = validator.throw(error);
-			} catch (error) {
-				// Validator didn't catch the error
-				causes.push(error);
-				result = validator.next();
-			}
-		}
-	}
-	if (result.value === false) {
-		throw new SchemaError(path);
-	} else if (causes.length === 1) {
-		throw causes[0];
-	} else if (causes.length > 1) {
-		throw new SchemaError(path, causes);
-	}
-	if (schema.validations?.length) {
-		const causes: Array<ValidationError> = [];
-		for (const validator of schema.validations) {
-			const validatorImpl = registry.validators.get(validator.kind);
-			if (!validatorImpl) {
-				throw new ValidationError(
-					path,
-					`Unknown validation "${validator.kind}".`,
+				const [key, val, innerSchema, subContext] = result.value;
+				_assertSchema(
+					innerSchema,
+					val,
+					key ? [...path, key] : [...path],
+					subContext,
 				);
-			}
-			if (!validatorImpl.validate(validator, value)) {
-				causes.push(new ValidationError(path, validator.msg));
+				result = validator.next();
+			} catch (error) {
+				try {
+					// Gives a chance to the validator to catch the error
+					result = validator.throw(error);
+				} catch (error) {
+					// Validator didn't catch the error
+					if (catchAllError) {
+						causes.push(error);
+						result = validator.next();
+					} else {
+						throw error;
+					}
+				}
 			}
 		}
-		if (causes.length === 1) {
+		if (result.value === false) {
+			throw new SchemaError(path);
+		} else if (causes.length === 1) {
 			throw causes[0];
 		} else if (causes.length > 1) {
-			throw new ValidationError(path, causes);
+			throw new SchemaError(path, causes);
+		}
+		if (schema.validations?.length) {
+			const causes: Array<ValidationError> = [];
+			for (const validator of schema.validations) {
+				const validatorImpl = registry.validators.get(validator.kind);
+				if (!validatorImpl) {
+					throw new ValidationError(
+						path,
+						`Unknown validation "${validator.kind}".`,
+					);
+				}
+				if (!validatorImpl.validate(validator, value)) {
+					causes.push(new ValidationError(path, validator.msg));
+				}
+			}
+			if (causes.length === 1) {
+				throw causes[0];
+			} else if (causes.length > 1) {
+				throw new ValidationError(path, causes);
+			}
 		}
 	}
+	_assertSchema(schema, value);
 }
 
 export function makeAssert<TSchema extends Schema<unknown>>(

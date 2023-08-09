@@ -1,54 +1,20 @@
-import { isSchema } from "../../../schema/types.ts";
-import {
-	type AuthenticationCeremonyComponent,
-	AuthenticationCeremonyComponentChoiceSchema,
-	AuthenticationCeremonyComponentSequenceSchema,
-} from "../ceremony.ts";
+import { type AuthenticationCeremonyComponent } from "../ceremony.ts";
 import { oneOf, sequence } from "./helpers.ts";
-import { isLeaf } from "./is_leaf.ts";
-import { replace } from "./replace.ts";
+import walk, { EOS } from "./walk.ts";
 
 export function flatten(
 	step: AuthenticationCeremonyComponent,
 ): AuthenticationCeremonyComponent {
-	const decomposed: AuthenticationCeremonyComponent[] = [];
-	const trees: AuthenticationCeremonyComponent[] = [step];
-
-	while (trees.length) {
-		const root = trees.shift()!;
-		if (isLeaf(root)) {
-			decomposed.push(root);
-		} else {
-			let forked = false;
-			const steps: AuthenticationCeremonyComponent[] = [];
-			const walk: AuthenticationCeremonyComponent[] = [root];
-			while (walk.length) {
-				const node = walk.shift()!;
-				if (isSchema(AuthenticationCeremonyComponentChoiceSchema, node)) {
-					trees.push(
-						...node.components.map((step) => replace(root, node, step)),
-					);
-					forked = true;
-				} else if (
-					isSchema(AuthenticationCeremonyComponentSequenceSchema, node)
-				) {
-					walk.unshift(...node.components);
-				} else {
-					steps.push(node);
-				}
-			}
-			if (!forked) {
-				trees.push(
-					isSchema(AuthenticationCeremonyComponentSequenceSchema, root)
-						? sequence(...steps)
-						: oneOf(...steps),
-				);
-			}
+	const branches: AuthenticationCeremonyComponent[] = [];
+	for (const [comp, parents] of walk(step)) {
+		if (comp === EOS) {
+			branches.push(parents.length > 1 ? sequence(...parents) : parents[0]);
 		}
 	}
-
-	if (decomposed.length > 1) {
-		return oneOf(...decomposed);
+	if (branches.length > 1) {
+		return oneOf(...branches);
+	} else if (branches.length === 1) {
+		return branches[0];
 	}
-	return decomposed.at(0)!;
+	return step;
 }

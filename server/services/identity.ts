@@ -66,9 +66,7 @@ export class IdentityService implements IIdentityService {
 	/**
 	 * @throws {IdentityNotFoundError}
 	 */
-	get<Meta extends Record<string, unknown>>(
-		id: AutoId,
-	): Promise<Identity<Partial<Meta>>> {
+	get(id: AutoId): Promise<Identity> {
 		return this.#identityProvider.get(id);
 	}
 
@@ -87,7 +85,7 @@ export class IdentityService implements IIdentityService {
 	 * @throws {IdentityUpdateError}
 	 */
 	update(
-		identity: Identity<Record<string, unknown>>,
+		identity: Identity,
 		expiration?: number | Date,
 	): Promise<void> {
 		// TODO life cycle hooks
@@ -111,20 +109,17 @@ export class IdentityService implements IIdentityService {
 	/**
 	 * @throws {IdentityIdentificationNotFoundError}
 	 */
-	getIdentification<Meta extends Record<string, unknown>>(
-		id: AutoId,
-		type: string,
-	): Promise<IdentityIdentification<Meta>> {
+	getIdentification(id: AutoId, type: string): Promise<IdentityIdentification> {
 		return this.#identityProvider.getIdentification(id, type);
 	}
 
 	/**
 	 * @throws {IdentityIdentificationNotFoundError}
 	 */
-	matchIdentification<Meta extends Record<string, unknown>>(
+	matchIdentification(
 		type: string,
 		identification: string,
-	): Promise<IdentityIdentification<Meta>> {
+	): Promise<IdentityIdentification> {
 		return this.#identityProvider.matchIdentification(type, identification);
 	}
 
@@ -192,10 +187,10 @@ export class IdentityService implements IIdentityService {
 	/**
 	 * @throws {IdentityChallengeNotFoundError}
 	 */
-	getChallenge<Meta extends Record<string, unknown>>(
+	getChallenge(
 		id: AutoId,
 		type: string,
-	): Promise<IdentityChallenge<Meta>> {
+	): Promise<IdentityChallenge> {
 		return this.#identityProvider.getChallenge(id, type);
 	}
 
@@ -240,7 +235,7 @@ export class IdentityService implements IIdentityService {
 	/**
 	 * @throws {IdentityChallengeCreateError}
 	 */
-	async updateChallenge(
+	updateChallenge(
 		identityChallenge: IdentityChallenge,
 		expiration?: number | Date,
 	): Promise<void> {

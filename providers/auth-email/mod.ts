@@ -7,7 +7,7 @@ import type { MessageProvider } from "../message.ts";
 
 export class EmailAuthentificationIdenticator
 	extends AuthenticationIdenticator {
-	kind = "email" as const;
+	id = "email";
 	prompt = "email" as const;
 	#messageProvider: MessageProvider;
 	constructor(messageProvider: MessageProvider) {

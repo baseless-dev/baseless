@@ -29,9 +29,7 @@ export class SessionService implements ISessionService {
 	/**
 	 * @throws {SessionIDNotFoundError}
 	 */
-	get<Meta extends Record<string, unknown>>(
-		sessionId: AutoId,
-	): Promise<SessionData<Meta>> {
+	get(sessionId: AutoId): Promise<SessionData> {
 		return this.#sessionProvider.get(sessionId);
 	}
 

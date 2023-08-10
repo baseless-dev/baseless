@@ -15,9 +15,7 @@ export interface ISessionService {
 	/**
 	 * @throws {SessionIDNotFoundError}
 	 */
-	get<Meta extends Record<string, unknown>>(
-		sessionId: AutoId,
-	): Promise<SessionData<Meta>>;
+	get(sessionId: AutoId): Promise<SessionData>;
 
 	/**
 	 * @throws {SessionCreateError}

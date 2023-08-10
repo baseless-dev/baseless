@@ -7,7 +7,7 @@ import {
 
 export class PasswordAuthentificationChallenger
 	extends AuthenticationChallenger {
-	kind = "password" as const;
+	id = "password";
 	prompt = "password" as const;
 
 	async #hash(password: string): Promise<string> {

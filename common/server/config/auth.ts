@@ -8,6 +8,8 @@ import { AuthenticationIdenticator } from "../../auth/identicator.ts";
 import type { Identity } from "../../identity/identity.ts";
 import type { IContext } from "../context.ts";
 import { extract } from "../../auth/ceremony/component/extract.ts";
+import { simplify } from "../../auth/ceremony/component/simplify.ts";
+import { sequence } from "../../auth/ceremony/component/helpers.ts";
 
 export type AuthenticationKeys = {
 	readonly algo: string;
@@ -252,9 +254,9 @@ export class AuthenticationConfigurationBuilder {
 			},
 			allowAnonymousIdentity: this.#allowAnonymousIdentity ?? false,
 			highRiskActionTimeWindow: this.#highRiskActionTimeWindow ?? 60 * 5,
-			ceremony: this.#ceremony,
-			identificators: new Map(identificatorCompoenents.map((c) => [c.kind, c])),
-			challengers: new Map(challengerComponents.map((c) => [c.kind, c])),
+			ceremony: simplify(sequence(this.#ceremony, { kind: "done" as const })),
+			identificators: new Map(identificatorCompoenents.map((c) => [c.id, c])),
+			challengers: new Map(challengerComponents.map((c) => [c.id, c])),
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,

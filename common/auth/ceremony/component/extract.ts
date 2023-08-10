@@ -1,16 +1,15 @@
-import { isSchema } from "../../../schema/types.ts";
 import {
 	type AuthenticationCeremonyComponent,
-	AuthenticationCeremonyComponentChoiceSchema,
-	AuthenticationCeremonyComponentSequenceSchema,
+	isAuthenticationCeremonyComponentChoice,
+	isAuthenticationCeremonyComponentSequence,
 } from "../ceremony.ts";
 
 export function extract(
 	component: AuthenticationCeremonyComponent,
 ): AuthenticationCeremonyComponent[] {
-	if (isSchema(AuthenticationCeremonyComponentSequenceSchema, component)) {
+	if (isAuthenticationCeremonyComponentSequence(component)) {
 		return Array.from(new Set(component.components.flatMap(extract)));
-	} else if (isSchema(AuthenticationCeremonyComponentChoiceSchema, component)) {
+	} else if (isAuthenticationCeremonyComponentChoice(component)) {
 		return Array.from(new Set(component.components.flatMap(extract)));
 	}
 	return [component];

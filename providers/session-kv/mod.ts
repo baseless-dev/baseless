@@ -36,15 +36,13 @@ export class KVSessionProvider implements SessionProvider {
 	/**
 	 * @throws {SessionIDNotFoundError}
 	 */
-	async get<Meta extends Record<string, unknown>>(
-		sessionId: AutoId,
-	): Promise<SessionData<Meta>> {
+	async get(sessionId: AutoId): Promise<SessionData> {
 		try {
 			assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
 			const result = await this.#kvProvider.get(`/byId/${sessionId}`);
 			const sessionData = JSON.parse(result.value);
 			assertSessionData(sessionData);
-			return sessionData as SessionData<Meta>;
+			return sessionData;
 		} catch (inner) {
 			this.#logger.error(`Failed to get session ${sessionId}, got ${inner}`);
 		}

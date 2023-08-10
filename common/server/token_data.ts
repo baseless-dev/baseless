@@ -1,7 +1,7 @@
 import type { SessionData } from "../session/data.ts";
 
-export type TokenData<Meta = Record<string, unknown>> = {
+export type TokenData = {
 	lastAuthorizationTime: number;
 	scope: string[];
-	sessionData: SessionData<Meta>;
+	sessionData: SessionData;
 };

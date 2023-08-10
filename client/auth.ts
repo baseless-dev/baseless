@@ -21,7 +21,7 @@ import {
 	assertAuthenticationCeremonyResponseTokens,
 	type AuthenticationCeremonyResponseTokens,
 	isAuthenticationCeremonyResponseTokens,
-} from "../common/auth/ceremony/response/tokens.ts";
+} from "../common/auth/ceremony/response.ts";
 import {
 	assertAuthenticationTokens,
 	type AuthenticationTokens,

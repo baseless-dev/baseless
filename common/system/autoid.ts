@@ -136,7 +136,7 @@ function sfc32(a: number, b: number, c: number, d: number): () => number {
 export function isAutoId(value?: unknown, prefix = ""): value is AutoId {
 	const pl = prefix.length;
 	return !!value && typeof value === "string" &&
-		value.substring(0, pl) === prefix && AutoIdRegExp.test(value.substring(pl));
+		value.startsWith(prefix) && AutoIdRegExp.test(value.substring(pl));
 }
 
 /**

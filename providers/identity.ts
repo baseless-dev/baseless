@@ -38,9 +38,7 @@ export interface IdentityProvider {
 	/**
 	 * @throws {IdentityNotFoundError}
 	 */
-	get<Meta extends Record<string, unknown>>(
-		id: AutoId,
-	): Promise<Identity<Partial<Meta>>>;
+	get(id: AutoId): Promise<Identity>;
 
 	/**
 	 * @throws {IdentityCreateError}
@@ -54,7 +52,7 @@ export interface IdentityProvider {
 	 * @throws {IdentityUpdateError}
 	 */
 	update(
-		identity: Identity<Record<string, unknown>>,
+		identity: Identity,
 		expiration?: number | Date,
 	): Promise<void>;
 
@@ -70,18 +68,18 @@ export interface IdentityProvider {
 	/**
 	 * @throws {IdentityIdentificationNotFoundError}
 	 */
-	matchIdentification<Meta extends Record<string, unknown>>(
+	matchIdentification(
 		type: string,
 		identification: string,
-	): Promise<IdentityIdentification<Meta>>;
+	): Promise<IdentityIdentification>;
 
 	/**
 	 * @throws {IdentityIdentificationNotFoundError}
 	 */
-	getIdentification<Meta extends Record<string, unknown>>(
+	getIdentification(
 		identityId: AutoId,
 		type: string,
-	): Promise<IdentityIdentification<Meta>>;
+	): Promise<IdentityIdentification>;
 
 	/**
 	 * @throws {IdentityIdentificationCreateError}
@@ -113,10 +111,10 @@ export interface IdentityProvider {
 	/**
 	 * @throws {IdentityChallengeNotFoundError}
 	 */
-	getChallenge<Meta extends Record<string, unknown>>(
+	getChallenge(
 		identityId: AutoId,
 		type: string,
-	): Promise<IdentityChallenge<Meta>>;
+	): Promise<IdentityChallenge>;
 
 	/**
 	 * @throws {IdentityChallengeCreateError}

@@ -18,7 +18,7 @@ import {
 
 export class TOTPLoggerAuthentificationChallenger
 	extends AuthenticationChallenger {
-	kind = "totp" as const;
+	id = "totp";
 	prompt = "otp" as const;
 	#options: Omit<TOTPOptions, "key">;
 	#logger = createLogger("auth-totp-logger");

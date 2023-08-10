@@ -1,5 +1,5 @@
 import type { AuthenticationCeremonyResponse } from "../../../common/auth/ceremony/response.ts";
-import { isAuthenticationCeremonyResponseDone } from "../../../common/auth/ceremony/response/done.ts";
+import { isAuthenticationCeremonyResponseDone } from "../../../common/auth/ceremony/response.ts";
 import {
 	assertAuthenticationCeremonyStateIdentified,
 	type AuthenticationCeremonyState,

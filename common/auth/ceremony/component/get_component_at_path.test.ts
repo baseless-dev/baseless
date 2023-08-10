@@ -1,7 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import * as h from "./helpers.ts";
 import { getComponentAtPath } from "./get_component_at_path.ts";
-import { flatten } from "./flatten.ts";
 
 Deno.test("getComponentAtPath", () => {
 	const email = {
@@ -25,71 +24,72 @@ Deno.test("getComponentAtPath", () => {
 		id: "google",
 		prompt: "action" as const,
 	};
+	const done = { kind: "done" as const };
 
 	assertEquals(
-		getComponentAtPath(flatten(h.sequence(email, password)), []),
-		{ done: false, component: email },
+		getComponentAtPath(h.sequence(email, password, done), []),
+		email,
 	);
 	assertEquals(
-		getComponentAtPath(flatten(h.sequence(email, password)), [
+		getComponentAtPath(h.sequence(email, password, done), [
 			"email",
 		]),
-		{ done: false, component: password },
+		password,
 	);
 	assertEquals(
-		getComponentAtPath(flatten(h.sequence(email, password)), [
+		getComponentAtPath(h.sequence(email, password, done), [
 			"email",
 			"password",
 		]),
-		{ done: true },
+		done,
 	);
 	assertEquals(
 		getComponentAtPath(
-			flatten(h.sequence(email, password, h.oneOf(github, google), otp)),
+			h.sequence(email, password, h.oneOf(github, google), otp, done),
 			[],
 		),
-		{ done: false, component: email },
+		email,
 	);
 	assertEquals(
 		getComponentAtPath(
-			flatten(h.sequence(email, password, h.oneOf(github, google), otp)),
+			h.sequence(email, password, h.oneOf(github, google), otp, done),
 			["email"],
 		),
-		{ done: false, component: password },
+		password,
 	);
 	assertEquals(
 		getComponentAtPath(
-			flatten(h.sequence(email, password, h.oneOf(github, google), otp)),
+			h.sequence(email, password, h.oneOf(github, google), otp, done),
 			["email", "password"],
 		),
-		{ done: false, component: h.oneOf(github, google) },
+		h.oneOf(github, google),
 	);
 	assertEquals(
 		getComponentAtPath(
-			flatten(h.sequence(email, password, h.oneOf(github, google), otp)),
+			h.sequence(email, password, h.oneOf(github, google), otp, done),
 			["email", "password", "github"],
 		),
-		{ done: false, component: otp },
+		otp,
 	);
 	assertEquals(
 		getComponentAtPath(
-			flatten(h.sequence(email, password, h.oneOf(github, google), otp)),
+			h.sequence(email, password, h.oneOf(github, google), otp, done),
 			["email", "password", "google"],
 		),
-		{ done: false, component: otp },
+		otp,
 	);
 	assertEquals(
 		getComponentAtPath(
-			flatten(h.sequence(email, password, h.oneOf(github, google), otp)),
+			h.sequence(email, password, h.oneOf(github, google), otp, done),
 			["email", "password", "github", "otp"],
 		),
-		{ done: true },
+		done,
 	);
 	assertEquals(
 		getComponentAtPath(
-			flatten(h.sequence(email, password, h.oneOf(github, google), otp)),
+			h.sequence(email, password, h.oneOf(github, google), otp, done),
 			["email", "password", "google", "otp"],
 		),
-		{ done: true },
+		done,
 	);
 });

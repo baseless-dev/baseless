@@ -1,6 +1,6 @@
 import type { IdentityChallenge } from "../identity/challenge.ts";
 import type { IContext } from "../server/context.ts";
-import type { AuthenticationCeremonyComponentChallenge } from "./ceremony/component/challenge.ts";
+import type { AuthenticationCeremonyComponentChallenge } from "./ceremony/ceremony.ts";
 
 export type AuthenticationChallengerConfigureIdentityChallengeOptions = {
 	context: IContext;
@@ -21,11 +21,13 @@ export type AuthenticationChallengerVerifyOptions = {
 
 export abstract class AuthenticationChallenger
 	implements AuthenticationCeremonyComponentChallenge {
-	abstract kind: string;
+	kind = "challenge" as const;
+	abstract id: string;
 	abstract prompt: "password" | "otp";
 	toJSON(): Record<string, unknown> {
 		return {
-			kind: this.kind,
+			kind: "challenge",
+			id: this.id,
 			prompt: this.prompt,
 		};
 	}

@@ -9,19 +9,33 @@ import {
 	AuthenticationRateLimitedError,
 } from "../../common/auth/errors.ts";
 import type { AuthenticationCeremonyResponse } from "../../common/auth/ceremony/response.ts";
-import { isAuthenticationCeremonyResponseState } from "../../common/auth/ceremony/response/state.ts";
+import {
+	isAuthenticationCeremonyResponseDone,
+	isAuthenticationCeremonyResponseState,
+} from "../../common/auth/ceremony/response.ts";
 import {
 	assertAuthenticationCeremonyStateIdentified,
 	type AuthenticationCeremonyState,
 	isAuthenticationCeremonyStateIdentified,
 } from "../../common/auth/ceremony/state.ts";
-import { isAuthenticationCeremonyComponentChoice } from "../../common/auth/ceremony/component/choice.ts";
-import { flatten } from "../../common/auth/ceremony/component/flatten.ts";
-import { getComponentAtPath } from "../../common/auth/ceremony/component/get_component_at_path.ts";
-import { simplifyWithContext } from "../../common/auth/ceremony/component/simplify.ts";
+import {
+	type AuthenticationCeremonyComponentChallenge,
+	type AuthenticationCeremonyComponentChoice,
+	type AuthenticationCeremonyComponentConditional,
+	type AuthenticationCeremonyComponentIdentification,
+	isAuthenticationCeremonyComponentChallenge,
+	isAuthenticationCeremonyComponentChoice,
+	isAuthenticationCeremonyComponentDone,
+	isAuthenticationCeremonyComponentIdentification,
+} from "../../common/auth/ceremony/ceremony.ts";
+import {
+	getComponentAtPath,
+	type NonSequenceAuthenticationCeremonyComponent,
+} from "../../common/auth/ceremony/component/get_component_at_path.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import type { IContext } from "../../common/server/context.ts";
 import type { IAuthenticationService } from "../../common/server/services/auth.ts";
+import { resolveConditional } from "../../common/auth/ceremony/component/resolve_conditional.ts";
 
 export class AuthenticationService implements IAuthenticationService {
 	#logger = createLogger("auth-service");
@@ -35,28 +49,36 @@ export class AuthenticationService implements IAuthenticationService {
 
 	async getAuthenticationCeremony(
 		state?: AuthenticationCeremonyState,
-	): Promise<AuthenticationCeremonyResponse> {
+	): Promise<
+		AuthenticationCeremonyResponse<
+			| AuthenticationCeremonyComponentIdentification
+			| AuthenticationCeremonyComponentChallenge
+			| AuthenticationCeremonyComponentChoice
+		>
+	> {
 		state ??= { choices: [] };
-		const step = flatten(
-			await simplifyWithContext(
-				this.#context.config.auth.ceremony,
-				this.#context,
-				state,
-			),
+		const step = await resolveConditional(
+			this.#context.config.auth.ceremony,
+			this.#context,
+			state,
 		);
-		const result = getComponentAtPath(step, state.choices);
-		if (result.done) {
+		const result = getComponentAtPath(step, state.choices) as Exclude<
+			NonSequenceAuthenticationCeremonyComponent,
+			AuthenticationCeremonyComponentConditional
+		>;
+		if (isAuthenticationCeremonyComponentDone(result)) {
 			if (isAuthenticationCeremonyStateIdentified(state)) {
 				return { done: true, identityId: state.identity };
 			}
 			throw new AuthenticationCeremonyDoneError();
 		}
-		const last = isAuthenticationCeremonyComponentChoice(result.component)
+		const last = isAuthenticationCeremonyComponentChoice(result)
 			? false
-			: getComponentAtPath(step, [...state.choices, result.component.kind])
-				.done;
+			: isAuthenticationCeremonyResponseDone(
+				getComponentAtPath(step, [...state.choices, result.id]),
+			);
 		const first = state.choices.length === 0;
-		return { done: false, component: result.component, first, last, state };
+		return { done: false, component: result, first, last, state };
 	}
 
 	async submitAuthenticationIdentification(
@@ -81,7 +103,14 @@ export class AuthenticationService implements IAuthenticationService {
 			throw new AuthenticationCeremonyDoneError();
 		}
 		const step = isAuthenticationCeremonyComponentChoice(result.component)
-			? result.component.components.find((s) => s.kind === type)
+			? result.component.components.find((
+				s,
+			): s is
+				| AuthenticationCeremonyComponentIdentification
+				| AuthenticationCeremonyComponentChallenge =>
+				(isAuthenticationCeremonyComponentIdentification(s) ||
+					isAuthenticationCeremonyComponentChallenge(s)) && s.id === type
+			)
 			: result.component;
 		if (!step) {
 			throw new AuthenticationInvalidStepError();
@@ -106,7 +135,8 @@ export class AuthenticationService implements IAuthenticationService {
 			identification,
 		});
 		if (identifyResult instanceof URL) {
-			return { done: false, redirect: identifyResult };
+			throw "Not Implemented";
+			//return { done: false, redirect: identifyResult };
 		}
 		const newState = {
 			choices: [...state.choices, type],
@@ -148,20 +178,27 @@ export class AuthenticationService implements IAuthenticationService {
 			throw new AuthenticationCeremonyDoneError();
 		}
 		const step = isAuthenticationCeremonyComponentChoice(result.component)
-			? result.component.components.find((s) => s.kind === type)
+			? result.component.components.find((
+				s,
+			): s is
+				| AuthenticationCeremonyComponentIdentification
+				| AuthenticationCeremonyComponentChallenge =>
+				(isAuthenticationCeremonyComponentIdentification(s) ||
+					isAuthenticationCeremonyComponentChallenge(s)) && s.id === type
+			)
 			: result.component;
 		if (!step) {
 			throw new AuthenticationInvalidStepError();
 		}
 
-		const challenger = this.#context.config.auth.challengers.get(step.kind);
+		const challenger = this.#context.config.auth.challengers.get(step.id);
 		if (!challenger) {
 			throw new AuthenticationMissingChallengerError();
 		}
 
 		const identityChallenge = await this.#context.identity.getChallenge(
 			state.identity,
-			step.kind,
+			step.id,
 		);
 		if (!identityChallenge.confirmed) {
 			throw new AuthenticationIdentityChallengeNotConfirmedError();

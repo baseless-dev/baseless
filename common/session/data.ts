@@ -4,10 +4,10 @@ import { InvalidSessionDataError } from "./errors.ts";
 
 export const SESSION_AUTOID_PREFIX = "ses-";
 
-export type SessionData<Meta = Record<string, unknown>> = {
+export type SessionData = {
 	id: AutoId;
 	identityId: AutoId;
-	meta: Meta;
+	meta: Record<string, unknown>;
 };
 
 export function isSessionData(value?: unknown): value is SessionData {

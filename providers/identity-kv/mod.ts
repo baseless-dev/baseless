@@ -49,15 +49,13 @@ export class KVIdentityProvider implements IdentityProvider {
 	/**
 	 * @throws {IdentityNotFoundError}
 	 */
-	async get<Meta extends Record<string, unknown> = Record<string, unknown>>(
-		id: AutoId,
-	): Promise<Identity<Partial<Meta>>> {
+	async get(id: AutoId): Promise<Identity> {
 		assertAutoId(id, IDENTITY_AUTOID_PREFIX);
 		try {
 			const value = await this.kv.get(`${this.prefix}/identities/${id}`);
 			const identity = JSON.parse(value.value) as unknown;
 			assertIdentity(identity);
-			return identity as Identity<Meta>;
+			return identity;
 		} catch (inner) {
 			this.#logger.error(`Failed to get identity ${id}, got ${inner}`);
 		}
@@ -67,8 +65,8 @@ export class KVIdentityProvider implements IdentityProvider {
 	/**
 	 * @throws {IdentityCreateError}
 	 */
-	async create<Meta extends Record<string, unknown> = Record<string, unknown>>(
-		meta: Meta,
+	async create(
+		meta: Record<string, unknown>,
 		expiration?: number | Date,
 	): Promise<Identity> {
 		try {
@@ -79,7 +77,7 @@ export class KVIdentityProvider implements IdentityProvider {
 				JSON.stringify(identity),
 				{ expiration },
 			);
-			return identity as Identity<Meta>;
+			return identity;
 		} catch (inner) {
 			this.#logger.error(`Failed to create identity, got ${inner}`);
 		}
@@ -90,7 +88,7 @@ export class KVIdentityProvider implements IdentityProvider {
 	 * @throws {IdentityUpdateError}
 	 */
 	async update(
-		identity: Identity<Record<string, unknown>>,
+		identity: Identity,
 		expiration?: number | Date,
 	): Promise<void> {
 		try {
@@ -168,17 +166,17 @@ export class KVIdentityProvider implements IdentityProvider {
 	/**
 	 * @throws {IdentityIdentificationNotFoundError}
 	 */
-	async getIdentification<Meta extends Record<string, unknown>>(
+	async getIdentification(
 		identityId: AutoId,
 		type: string,
-	): Promise<IdentityIdentification<Meta>> {
+	): Promise<IdentityIdentification> {
 		try {
 			const result = await this.kv.get(
 				`${this.prefix}/identities/${identityId}/identifications/${type}`,
 			);
 			const data = JSON.parse(result.value);
 			assertIdentityIdentification(data);
-			return data as IdentityIdentification<Meta>;
+			return data;
 		} catch (inner) {
 			this.#logger.error(
 				`Failed to match identification ${type}, got ${inner}`,
@@ -190,19 +188,17 @@ export class KVIdentityProvider implements IdentityProvider {
 	/**
 	 * @throws {IdentityIdentificationNotFoundError}
 	 */
-	async matchIdentification<
-		Meta extends Record<string, unknown> = Record<string, unknown>,
-	>(
+	async matchIdentification(
 		type: string,
 		identification: string,
-	): Promise<IdentityIdentification<Meta>> {
+	): Promise<IdentityIdentification> {
 		try {
 			const result = await this.kv.get(
 				`${this.prefix}/identifications/${type}:${identification}`,
 			);
 			const data = JSON.parse(result.value);
 			assertIdentityIdentification(data);
-			return data as IdentityIdentification<Meta>;
+			return data;
 		} catch (inner) {
 			this.#logger.error(
 				`Failed to match identification ${type}:${identification}, got ${inner}`,
@@ -336,10 +332,10 @@ export class KVIdentityProvider implements IdentityProvider {
 	/**
 	 * @throws {IdentityChallengeNotFoundError}
 	 */
-	async getChallenge<Meta extends Record<string, unknown>>(
+	async getChallenge(
 		id: AutoId,
 		type: string,
-	): Promise<IdentityChallenge<Meta>> {
+	): Promise<IdentityChallenge> {
 		try {
 			assertAutoId(id, IDENTITY_AUTOID_PREFIX);
 			const result = await this.kv.get(
@@ -347,7 +343,7 @@ export class KVIdentityProvider implements IdentityProvider {
 			);
 			const data = JSON.parse(result.value);
 			assertIdentityChallenge(data);
-			return data as IdentityChallenge<Meta>;
+			return data;
 		} catch (inner) {
 			this.#logger.error(
 				`Failed to get challenge ${type} for identity ${id}, got ${inner}`,

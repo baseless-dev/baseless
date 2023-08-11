@@ -20,7 +20,6 @@ import {
 } from "../../common/auth/ceremony/state.ts";
 import {
 	type AuthenticationCeremonyComponentChallenge,
-	type AuthenticationCeremonyComponentChoice,
 	type AuthenticationCeremonyComponentConditional,
 	type AuthenticationCeremonyComponentIdentification,
 	isAuthenticationCeremonyComponentChallenge,
@@ -51,9 +50,10 @@ export class AuthenticationService implements IAuthenticationService {
 		state?: AuthenticationCeremonyState,
 	): Promise<
 		AuthenticationCeremonyResponse<
-			| AuthenticationCeremonyComponentIdentification
-			| AuthenticationCeremonyComponentChallenge
-			| AuthenticationCeremonyComponentChoice
+			Exclude<
+				NonSequenceAuthenticationCeremonyComponent,
+				AuthenticationCeremonyComponentConditional
+			>
 		>
 	> {
 		state ??= { choices: [] };
@@ -86,7 +86,14 @@ export class AuthenticationService implements IAuthenticationService {
 		type: string,
 		identification: string,
 		subject: string,
-	): Promise<AuthenticationCeremonyResponse> {
+	): Promise<
+		AuthenticationCeremonyResponse<
+			Exclude<
+				NonSequenceAuthenticationCeremonyComponent,
+				AuthenticationCeremonyComponentConditional
+			>
+		>
+	> {
 		const counterInterval =
 			this.#context.config.auth.security.rateLimit.identificationInterval *
 			1000;
@@ -112,7 +119,7 @@ export class AuthenticationService implements IAuthenticationService {
 					isAuthenticationCeremonyComponentChallenge(s)) && s.id === type
 			)
 			: result.component;
-		if (!step) {
+		if (!step || isAuthenticationCeremonyComponentDone(step)) {
 			throw new AuthenticationInvalidStepError();
 		}
 
@@ -155,7 +162,14 @@ export class AuthenticationService implements IAuthenticationService {
 		type: string,
 		challenge: string,
 		subject: string,
-	): Promise<AuthenticationCeremonyResponse> {
+	): Promise<
+		AuthenticationCeremonyResponse<
+			Exclude<
+				NonSequenceAuthenticationCeremonyComponent,
+				AuthenticationCeremonyComponentConditional
+			>
+		>
+	> {
 		assertAuthenticationCeremonyStateIdentified(state);
 
 		const counterInterval =
@@ -187,7 +201,8 @@ export class AuthenticationService implements IAuthenticationService {
 					isAuthenticationCeremonyComponentChallenge(s)) && s.id === type
 			)
 			: result.component;
-		if (!step) {
+
+		if (!step || isAuthenticationCeremonyComponentDone(step)) {
 			throw new AuthenticationInvalidStepError();
 		}
 

@@ -477,7 +477,8 @@
   },
   "npm": {
     "specifiers": {
-      "@types/react": "@types/react@18.2.0"
+      "@types/react": "@types/react@18.2.0",
+      "zod": "zod@3.21.4"
     },
     "packages": {
       "@types/prop-types@15.7.5": {
@@ -498,6 +499,10 @@
       },
       "csstype@3.1.2": {
         "integrity": "sha512-I7K1Uu0MBPzaFKg4nI5Q7Vs2t+3gWWW648spaF+Rg7pI9ds18Ugn+lvg4SHczUdKlHI5LWBXyqfS8+DufyBsgQ==",
+        "dependencies": {}
+      },
+      "zod@3.21.4": {
+        "integrity": "sha512-m46AKbrzKVzOzs/DZgVnG5H55N1sv1M8qZU3A8RIKbs3mrACDNeIOeilDymVb2HdmP8uwshOCF4uJ8uM9rCqJw==",
         "dependencies": {}
       }
     }

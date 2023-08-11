@@ -86,14 +86,7 @@ export class AuthenticationService implements IAuthenticationService {
 		type: string,
 		identification: string,
 		subject: string,
-	): Promise<
-		AuthenticationCeremonyResponse<
-			Exclude<
-				NonSequenceAuthenticationCeremonyComponent,
-				AuthenticationCeremonyComponentConditional
-			>
-		>
-	> {
+	): Promise<AuthenticationCeremonyResponse> {
 		const counterInterval =
 			this.#context.config.auth.security.rateLimit.identificationInterval *
 			1000;
@@ -162,14 +155,7 @@ export class AuthenticationService implements IAuthenticationService {
 		type: string,
 		challenge: string,
 		subject: string,
-	): Promise<
-		AuthenticationCeremonyResponse<
-			Exclude<
-				NonSequenceAuthenticationCeremonyComponent,
-				AuthenticationCeremonyComponentConditional
-			>
-		>
-	> {
+	): Promise<AuthenticationCeremonyResponse> {
 		assertAuthenticationCeremonyStateIdentified(state);
 
 		const counterInterval =

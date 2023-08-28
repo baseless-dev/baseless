@@ -126,7 +126,9 @@ export function isAuthenticationCeremonyComponentChallengeOTP(
 	return !!value && typeof value === "object" && "kind" in value &&
 		value.kind === "challenge" && "id" in value &&
 		typeof value.id === "string" && "prompt" in value &&
-		value.prompt === "otp" &&
+		value.prompt === "otp" && "digits" in value &&
+		typeof value.digits ===
+			"number" &&
 		(!("timeout" in value) || typeof value.timeout === "number");
 }
 export function isAuthenticationCeremonyComponentChallengeTOTP(
@@ -135,7 +137,8 @@ export function isAuthenticationCeremonyComponentChallengeTOTP(
 	return !!value && typeof value === "object" && "kind" in value &&
 		value.kind === "challenge" && "id" in value &&
 		typeof value.id === "string" && "prompt" in value &&
-		value.prompt === "totp" && "timeout" in value &&
+		value.prompt === "totp" && "digits" in value &&
+		typeof value.digits === "number" && "timeout" in value &&
 		typeof value.timeout === "number";
 }
 export function isAuthenticationCeremonyComponentChallenge(

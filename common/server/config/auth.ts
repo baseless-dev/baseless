@@ -3,8 +3,14 @@ import {
 	assertAuthenticationCeremonyComponent,
 	type AuthenticationCeremonyComponent,
 } from "../../auth/ceremony/ceremony.ts";
-import { AuthenticationChallenger } from "../../auth/challenger.ts";
-import { AuthenticationIdenticator } from "../../auth/identicator.ts";
+import {
+	type AuthenticationChallenger,
+	isAuthenticationChallenger,
+} from "../../auth/challenger.ts";
+import {
+	type AuthenticationIdenticator,
+	isAuthenticationIdenticator,
+} from "../../auth/identicator.ts";
 import type { Identity } from "../../identity/identity.ts";
 import type { IContext } from "../context.ts";
 import { extract } from "../../auth/ceremony/component/extract.ts";
@@ -222,15 +228,11 @@ export class AuthenticationConfigurationBuilder {
 		}
 		const ceremonyComponents = extract(this.#ceremony);
 		ceremonyComponents.push(...this.#components);
-		const identificatorCompoenents = ceremonyComponents.filter((
-			component,
-		): component is AuthenticationIdenticator =>
-			component instanceof AuthenticationIdenticator
+		const identificatorCompoenents = ceremonyComponents.filter(
+			isAuthenticationIdenticator,
 		);
-		const challengerComponents = ceremonyComponents.filter((
-			component,
-		): component is AuthenticationChallenger =>
-			component instanceof AuthenticationChallenger
+		const challengerComponents = ceremonyComponents.filter(
+			isAuthenticationChallenger,
 		);
 		return {
 			enabled: this.#enabled,

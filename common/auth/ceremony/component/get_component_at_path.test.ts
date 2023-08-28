@@ -17,12 +17,12 @@ Deno.test("getComponentAtPath", () => {
 	const github = {
 		kind: "identification" as const,
 		id: "github",
-		prompt: "action" as const,
+		prompt: "oauth2" as const,
 	};
 	const google = {
 		kind: "identification" as const,
 		id: "google",
-		prompt: "action" as const,
+		prompt: "oauth2" as const,
 	};
 	const done = { kind: "done" as const };
 

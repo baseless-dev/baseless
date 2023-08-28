@@ -10,6 +10,19 @@ export class InvalidAuthenticationCeremonyStateIdentified extends Error {
 export class InvalidAuthenticationCeremonyState extends Error {
 	name = "InvalidAuthenticationCeremonyState" as const;
 }
+export class InvalidAuthenticationCeremonyComponentChallengePasswordError
+	extends Error {
+	name =
+		"InvalidAuthenticationCeremonyComponentChallengePasswordError" as const;
+}
+export class InvalidAuthenticationCeremonyComponentChallengeOTPError
+	extends Error {
+	name = "InvalidAuthenticationCeremonyComponentChallengeOTPError" as const;
+}
+export class InvalidAuthenticationCeremonyComponentChallengeTOTPError
+	extends Error {
+	name = "InvalidAuthenticationCeremonyComponentChallengeTOTPError" as const;
+}
 export class InvalidAuthenticationCeremonyComponentChallengeError
 	extends Error {
 	name = "InvalidAuthenticationCeremonyComponentChallengeError" as const;
@@ -20,6 +33,16 @@ export class InvalidAuthenticationCeremonyComponentChoiceError extends Error {
 export class InvalidAuthenticationCeremonyComponentConditionalError
 	extends Error {
 	name = "InvalidAuthenticationCeremonyComponentConditionalError" as const;
+}
+export class InvalidAuthenticationCeremonyComponentIdentificationEmailError
+	extends Error {
+	name =
+		"InvalidAuthenticationCeremonyComponentIdentificationEmailError" as const;
+}
+export class InvalidAuthenticationCeremonyComponentIdentificationOAuth2Error
+	extends Error {
+	name =
+		"InvalidAuthenticationCeremonyComponentIdentificationOAuth2Error" as const;
 }
 export class InvalidAuthenticationCeremonyComponentIdentificationError
 	extends Error {
@@ -126,4 +149,10 @@ export class HighRiskActionTimeWindowExpiredError extends Error {
 }
 export class InvalidAuthenticationCeremonyComponentDoneError extends Error {
 	name = "InvalidAuthenticationCeremonyComponentDoneError" as const;
+}
+export class InvalidAuthenticationChallengerError extends Error {
+	name = "InvalidAuthenticationChallengerError" as const;
+}
+export class InvalidAuthenticationIdenticatorError extends Error {
+	name = "InvalidAuthenticationIdenticatorError" as const;
 }

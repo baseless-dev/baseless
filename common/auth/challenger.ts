@@ -1,6 +1,10 @@
 import type { IdentityChallenge } from "../identity/challenge.ts";
 import type { IContext } from "../server/context.ts";
-import type { AuthenticationCeremonyComponentChallenge } from "./ceremony/ceremony.ts";
+import {
+	type AuthenticationCeremonyComponentChallenge,
+	isAuthenticationCeremonyComponentChallenge,
+} from "./ceremony/ceremony.ts";
+import { InvalidAuthenticationChallengerError } from "./errors.ts";
 
 export type AuthenticationChallengerConfigureIdentityChallengeOptions = {
 	context: IContext;
@@ -19,29 +23,39 @@ export type AuthenticationChallengerVerifyOptions = {
 	challenge: string;
 };
 
-export abstract class AuthenticationChallenger
-	implements AuthenticationCeremonyComponentChallenge {
-	kind = "challenge" as const;
-	abstract id: string;
-	abstract prompt: "password" | "otp";
-	toJSON(): Record<string, unknown> {
-		return {
-			kind: "challenge",
-			id: this.id,
-			prompt: this.prompt,
-		};
+export type AuthenticationChallenger =
+	& AuthenticationCeremonyComponentChallenge
+	& {
+		configureIdentityChallenge?: (
+			options: AuthenticationChallengerConfigureIdentityChallengeOptions,
+		) => Promise<IdentityChallenge["meta"]>;
+		sendChallenge?: (
+			options: AuthenticationChallengerSendChallengeOptions,
+		) => Promise<void>;
+		rateLimit: { interval: number; count: number };
+		verify(
+			options: AuthenticationChallengerVerifyOptions,
+		): Promise<boolean>;
+	};
+
+export function isAuthenticationChallenger(
+	value: unknown,
+): value is AuthenticationChallenger {
+	return isAuthenticationCeremonyComponentChallenge(value) &&
+		"verify" in value && typeof value.verify === "function" &&
+		"rateLimit" in value && typeof value.rateLimit === "object" &&
+		!!value.rateLimit && "interval" in value.rateLimit &&
+		typeof value.rateLimit.interval === "number" &&
+		"count" in value.rateLimit && typeof value.rateLimit.count === "number" &&
+		(!("sendChallenge" in value) ||
+			typeof value.sendChallenge === "function") &&
+		(!("configureIdentityChallenge" in value) ||
+			typeof value.configureIdentityChallenge === "function");
+}
+export function assertAuthenticationChallenger(
+	value: unknown,
+): asserts value is AuthenticationChallenger {
+	if (!isAuthenticationChallenger(value)) {
+		throw new InvalidAuthenticationChallengerError();
 	}
-	configureIdentityChallenge?: (
-		options: AuthenticationChallengerConfigureIdentityChallengeOptions,
-	) => Promise<IdentityChallenge["meta"]> = undefined;
-
-	sendChallenge?: (
-		options: AuthenticationChallengerSendChallengeOptions,
-	) => Promise<void> = undefined;
-
-	rateLimit: { interval: number; count: number } = { interval: 0, count: 0 };
-
-	abstract verify(
-		options: AuthenticationChallengerVerifyOptions,
-	): Promise<boolean>;
 }

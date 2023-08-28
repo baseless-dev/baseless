@@ -64,7 +64,7 @@ Deno.test("Client Auth", async (t) => {
 					sequence,
 					email,
 					password,
-					totp,
+					otp,
 					createIdentity,
 					createIdentification,
 					createChallenge,
@@ -73,7 +73,7 @@ Deno.test("Client Auth", async (t) => {
 				config.auth()
 					.setEnabled(true)
 					.setAllowAnonymousIdentity(true)
-					.setCeremony(oneOf(sequence(email, password), sequence(email, totp)))
+					.setCeremony(oneOf(sequence(email, password), sequence(email, otp)))
 					.setExpirations({ accessToken: 1_000, refreshToken: 4_000 });
 				john = await createIdentity({});
 				await createIdentification({
@@ -86,7 +86,7 @@ Deno.test("Client Auth", async (t) => {
 				await createChallenge({
 					identityId: john.id,
 					type: "password",
-					meta: await password.configureIdentityChallenge(
+					meta: await password.configureIdentityChallenge!(
 						// deno-lint-ignore no-explicit-any
 						{ challenge: "123" } as any,
 					),
@@ -94,8 +94,8 @@ Deno.test("Client Auth", async (t) => {
 				});
 				await createChallenge({
 					identityId: john.id,
-					type: "totp",
-					meta: await totp.configureIdentityChallenge(
+					type: "otp-logger",
+					meta: await otp.configureIdentityChallenge!(
 						// deno-lint-ignore no-explicit-any
 						{ challenge: await generateKey(16) } as any,
 					),
@@ -169,8 +169,7 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseState(result);
 		assertEquals(result.first, true);
 		assertEquals(result.last, false);
-		// deno-lint-ignore no-explicit-any
-		assertEquals(result.component, email.toJSON() as any);
+		assertEquals(result.component, JSON.parse(JSON.stringify(email)));
 		assertAuthenticationCeremonyResponseState(
 			await getAuthenticationCeremony(authApp, "invalid"),
 		);
@@ -222,7 +221,7 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("submitAuthenticationIdentification", async () => {
-		const { app, password, totp } = await initializeDummyServerApp();
+		const { app, password, otp } = await initializeDummyServerApp();
 		const authApp = initializeAuth(app);
 		const result = await submitAuthenticationIdentification(
 			authApp,
@@ -234,8 +233,7 @@ Deno.test("Client Auth", async (t) => {
 		assertEquals(result.last, false);
 		assertEquals(
 			result.component,
-			// deno-lint-ignore no-explicit-any
-			oneOf(password.toJSON() as any, totp.toJSON() as any),
+			JSON.parse(JSON.stringify(oneOf(password, otp))),
 		);
 		await assertRejects(() =>
 			submitAuthenticationIdentification(authApp, "email", "unknown@test.local")
@@ -275,13 +273,13 @@ Deno.test("Client Auth", async (t) => {
 		await signIn(authApp);
 		const messages: { ns: string; lvl: string; message: string }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
-			if (ns === "auth-totp-logger") {
+			if (ns === "auth-otp-logger") {
 				messages.push({ ns, lvl, message: msg });
 			}
 		});
 		const result = await sendChallengeValidationCode(
 			authApp,
-			"totp",
+			"otp-logger",
 		);
 		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
@@ -295,20 +293,20 @@ Deno.test("Client Auth", async (t) => {
 		await signIn(authApp);
 		const messages: { ns: string; lvl: string; message: string }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
-			if (ns === "auth-totp-logger") {
+			if (ns === "auth-otp-logger") {
 				messages.push({ ns, lvl, message: msg });
 			}
 		});
 		const result = await sendChallengeValidationCode(
 			authApp,
-			"totp",
+			"otp-logger",
 		);
 		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
 		const validationCode = messages[0]?.message;
 		const confirmResult = await confirmChallengeValidationCode(
 			authApp,
-			"totp",
+			"otp-logger",
 			validationCode,
 		);
 		assertEquals(confirmResult.confirmed, true);
@@ -326,13 +324,13 @@ Deno.test("Client Auth", async (t) => {
 		assertAuthenticationCeremonyResponseEncryptedState(result1);
 		const messages: { ns: string; lvl: string; message: string }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
-			if (ns === "auth-totp-logger") {
+			if (ns === "auth-otp-logger") {
 				messages.push({ ns, lvl, message: msg! });
 			}
 		});
 		const result2 = await sendIdentificationChallenge(
 			authApp,
-			"totp",
+			"otp-logger",
 			result1.encryptedState,
 		);
 		assertSendIdentificationChallengeResponse(result2);
@@ -341,7 +339,7 @@ Deno.test("Client Auth", async (t) => {
 		setGlobalLogHandler(() => {});
 		const result3 = await submitAuthenticationChallenge(
 			authApp,
-			"totp",
+			"otp-logger",
 			challengeCode,
 			result1.encryptedState,
 		);

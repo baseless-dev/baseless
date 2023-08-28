@@ -1,33 +1,34 @@
 import { encode } from "../../common/encoding/base64.ts";
-import {
+import type {
 	AuthenticationChallenger,
-	type AuthenticationChallengerConfigureIdentityChallengeOptions,
-	type AuthenticationChallengerVerifyOptions,
+	AuthenticationChallengerConfigureIdentityChallengeOptions,
+	AuthenticationChallengerVerifyOptions,
 } from "../../common/auth/challenger.ts";
+import type { IdentityChallenge } from "../../common/identity/challenge.ts";
 
-export class PasswordAuthentificationChallenger
-	extends AuthenticationChallenger {
-	id = "password";
-	prompt = "password" as const;
-
-	async #hash(password: string): Promise<string> {
+export function PasswordAuthentificationChallenger(): AuthenticationChallenger {
+	async function hashPassword(password: string): Promise<string> {
 		return encode(
 			await crypto.subtle.digest("SHA-512", new TextEncoder().encode(password)),
 		);
 	}
-
-	configureIdentityChallenge = async (
-		{ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions,
-	) => {
-		const hash = await this.#hash(challenge);
-		return { hash };
+	return {
+		kind: "challenge",
+		id: "password",
+		prompt: "password",
+		rateLimit: { count: 0, interval: 0 },
+		async configureIdentityChallenge(
+			{ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions,
+		): Promise<IdentityChallenge["meta"]> {
+			const hash = await hashPassword(challenge);
+			return { hash };
+		},
+		async verify(
+			{ challenge, identityChallenge }: AuthenticationChallengerVerifyOptions,
+		): Promise<boolean> {
+			const hash = await hashPassword(challenge);
+			return "hash" in identityChallenge.meta &&
+				identityChallenge.meta.hash === hash;
+		},
 	};
-
-	async verify(
-		{ challenge, identityChallenge }: AuthenticationChallengerVerifyOptions,
-	): Promise<boolean> {
-		const hash = await this.#hash(challenge);
-		return "hash" in identityChallenge.meta &&
-			identityChallenge.meta.hash === hash;
-	}
 }

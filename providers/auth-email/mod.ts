@@ -5,9 +5,10 @@ import type {
 } from "../../common/auth/identicator.ts";
 import type { MessageProvider } from "../message.ts";
 
+// deno-lint-ignore explicit-function-return-type
 export function EmailAuthentificationIdenticator(
 	messageProvider: MessageProvider,
-): AuthenticationIdenticator {
+) {
 	return {
 		kind: "identification",
 		id: "email",
@@ -29,5 +30,5 @@ export function EmailAuthentificationIdenticator(
 		): Promise<boolean> {
 			return identityIdentification.identification === identification;
 		},
-	};
+	} satisfies AuthenticationIdenticator;
 }

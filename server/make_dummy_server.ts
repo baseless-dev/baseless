@@ -15,14 +15,12 @@ import type { AssetProvider } from "../providers/asset.ts";
 import type { CounterProvider } from "../providers/counter.ts";
 import type { IdentityProvider } from "../providers/identity.ts";
 import type { SessionProvider } from "../providers/session.ts";
-import type { AuthenticationIdenticator } from "../common/auth/identicator.ts";
-import type { AuthenticationChallenger } from "../common/auth/challenger.ts";
 
 export type DummyServerHelpers = {
 	config: ConfigurationBuilder;
-	email: AuthenticationIdenticator;
-	password: AuthenticationChallenger;
-	otp: AuthenticationChallenger;
+	email: ReturnType<typeof EmailAuthentificationIdenticator>;
+	password: ReturnType<typeof PasswordAuthentificationChallenger>;
+	otp: ReturnType<typeof OTPLoggerAuthentificationChallenger>;
 	createIdentity: KVIdentityProvider["create"];
 	createIdentification: KVIdentityProvider["createIdentification"];
 	createChallenge: KVIdentityProvider["createChallenge"];
@@ -30,9 +28,9 @@ export type DummyServerHelpers = {
 
 export type DummyServerResult = {
 	server: Server;
-	email: AuthenticationIdenticator;
-	password: AuthenticationChallenger;
-	otp: AuthenticationChallenger;
+	email: ReturnType<typeof EmailAuthentificationIdenticator>;
+	password: ReturnType<typeof PasswordAuthentificationChallenger>;
+	otp: ReturnType<typeof OTPLoggerAuthentificationChallenger>;
 	assetProvider: AssetProvider;
 	counterProvider: CounterProvider;
 	identityProvider: IdentityProvider;

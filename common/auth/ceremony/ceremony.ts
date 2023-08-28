@@ -39,6 +39,7 @@ export interface AuthenticationCeremonyComponentChallengeOTP {
 	readonly kind: "challenge";
 	readonly id: string;
 	readonly prompt: "otp";
+	readonly digits: number;
 	readonly timeout?: number;
 }
 
@@ -46,6 +47,7 @@ export interface AuthenticationCeremonyComponentChallengeTOTP {
 	readonly kind: "challenge";
 	readonly id: string;
 	readonly prompt: "totp";
+	readonly digits: number;
 	readonly timeout: number;
 }
 

@@ -4,7 +4,7 @@ import type {
 	AuthenticationChallengerSendChallengeOptions,
 	AuthenticationChallengerVerifyOptions,
 } from "../../common/auth/challenger.ts";
-import { IdentityChallenge } from "../../common/identity/challenge.ts";
+import type { IdentityChallenge } from "../../common/identity/challenge.ts";
 import {
 	createLogger,
 	LogLevel,
@@ -16,10 +16,11 @@ import {
 	type TOTPOptions,
 } from "../../common/system/otp.ts";
 
+// deno-lint-ignore explicit-function-return-type
 export function OTPLoggerAuthentificationChallenger(
 	options: Omit<TOTPOptions, "key">,
 	logLevel = LogLevel.INFO,
-): AuthenticationChallenger {
+) {
 	assertTOTPOptions({ ...options, key: "" });
 	const logger = createLogger("auth-otp-logger");
 	const logMethod = LogLevelMethod[logLevel];
@@ -27,6 +28,7 @@ export function OTPLoggerAuthentificationChallenger(
 		kind: "challenge",
 		id: "otp-logger",
 		prompt: "otp",
+		digits: options.digits ?? 6,
 		rateLimit: { count: 0, interval: 0 },
 		// deno-lint-ignore require-await
 		async configureIdentityChallenge(
@@ -68,5 +70,5 @@ export function OTPLoggerAuthentificationChallenger(
 			}
 			return false;
 		},
-	};
+	} satisfies AuthenticationChallenger;
 }

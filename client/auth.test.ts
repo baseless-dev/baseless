@@ -86,7 +86,7 @@ Deno.test("Client Auth", async (t) => {
 				await createChallenge({
 					identityId: john.id,
 					type: "password",
-					meta: await password.configureIdentityChallenge!(
+					meta: await password.configureIdentityChallenge(
 						// deno-lint-ignore no-explicit-any
 						{ challenge: "123" } as any,
 					),
@@ -95,7 +95,7 @@ Deno.test("Client Auth", async (t) => {
 				await createChallenge({
 					identityId: john.id,
 					type: "otp-logger",
-					meta: await otp.configureIdentityChallenge!(
+					meta: await otp.configureIdentityChallenge(
 						// deno-lint-ignore no-explicit-any
 						{ challenge: await generateKey(16) } as any,
 					),

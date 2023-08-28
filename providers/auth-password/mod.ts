@@ -6,7 +6,8 @@ import type {
 } from "../../common/auth/challenger.ts";
 import type { IdentityChallenge } from "../../common/identity/challenge.ts";
 
-export function PasswordAuthentificationChallenger(): AuthenticationChallenger {
+// deno-lint-ignore explicit-function-return-type
+export function PasswordAuthentificationChallenger() {
 	async function hashPassword(password: string): Promise<string> {
 		return encode(
 			await crypto.subtle.digest("SHA-512", new TextEncoder().encode(password)),
@@ -30,5 +31,5 @@ export function PasswordAuthentificationChallenger(): AuthenticationChallenger {
 			return "hash" in identityChallenge.meta &&
 				identityChallenge.meta.hash === hash;
 		},
-	};
+	} satisfies AuthenticationChallenger;
 }

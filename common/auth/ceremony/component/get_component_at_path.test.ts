@@ -13,7 +13,12 @@ Deno.test("getComponentAtPath", () => {
 		id: "password",
 		prompt: "password" as const,
 	};
-	const otp = { kind: "challenge" as const, id: "otp", prompt: "otp" as const };
+	const otp = {
+		kind: "challenge" as const,
+		id: "otp",
+		prompt: "otp" as const,
+		digits: 6,
+	};
 	const github = {
 		kind: "identification" as const,
 		id: "github",

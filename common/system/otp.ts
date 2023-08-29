@@ -75,6 +75,23 @@ export class InvalidTOTPOptionsError extends Error {
 	name = "InvalidTOTPOptionsError" as const;
 }
 
+export function isOTPOptions(value?: unknown): value is OTPOptions {
+	return !!value && typeof value === "object" && "digits" in value &&
+		typeof value.digits === "number";
+}
+
+export function assertOTPOptions(
+	value?: unknown,
+): asserts value is OTPOptions {
+	if (!isOTPOptions(value)) {
+		throw new InvalidOTPOptionsError();
+	}
+}
+
+export class InvalidOTPOptionsError extends Error {
+	name = "InvalidOTPOptionsError" as const;
+}
+
 /**
  * Converts a counter value to a 128-bit Uint8Array representation with padding.
  * @param {number} counter - The counter value to convert.

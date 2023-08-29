@@ -66,11 +66,7 @@ export default async function makeDummyServer(
 		new LoggerMessageProvider(),
 	);
 	const password = PasswordAuthentificationChallenger();
-	const otp = OTPLoggerAuthentificationChallenger({
-		period: 60,
-		algorithm: "SHA-256",
-		digits: 6,
-	});
+	const otp = OTPLoggerAuthentificationChallenger({ digits: 6 });
 
 	const helpers: DummyServerHelpers = {
 		config,

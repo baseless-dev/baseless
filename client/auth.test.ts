@@ -35,7 +35,6 @@ import { assertAuthenticationCeremonyResponseState } from "../common/auth/ceremo
 import { assertAuthenticationCeremonyResponseEncryptedState } from "../common/auth/ceremony/response.ts";
 import { Message } from "../common/message/message.ts";
 import { setGlobalLogHandler } from "../common/system/logger.ts";
-import { generateKey } from "../common/system/otp.ts";
 import { assertSendIdentificationChallengeResponse } from "../common/auth/send_identification_challenge_response.ts";
 import { assertAuthenticationCeremonyResponseTokens } from "../common/auth/ceremony/response.ts";
 import { decode } from "../common/encoding/base64.ts";
@@ -95,10 +94,7 @@ Deno.test("Client Auth", async (t) => {
 				await createChallenge({
 					identityId: john.id,
 					type: "otp-logger",
-					meta: await otp.configureIdentityChallenge(
-						// deno-lint-ignore no-explicit-any
-						{ challenge: await generateKey(16) } as any,
-					),
+					meta: {},
 					confirmed: true,
 				});
 			},

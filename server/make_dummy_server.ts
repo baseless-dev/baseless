@@ -15,12 +15,14 @@ import type { AssetProvider } from "../providers/asset.ts";
 import type { CounterProvider } from "../providers/counter.ts";
 import type { IdentityProvider } from "../providers/identity.ts";
 import type { SessionProvider } from "../providers/session.ts";
+import { TOTPAuthentificationChallenger } from "../providers/auth-totp/mod.ts";
 
 export type DummyServerHelpers = {
 	config: ConfigurationBuilder;
 	email: ReturnType<typeof EmailAuthentificationIdenticator>;
 	password: ReturnType<typeof PasswordAuthentificationChallenger>;
 	otp: ReturnType<typeof OTPLoggerAuthentificationChallenger>;
+	totp: ReturnType<typeof TOTPAuthentificationChallenger>;
 	createIdentity: KVIdentityProvider["create"];
 	createIdentification: KVIdentityProvider["createIdentification"];
 	createChallenge: KVIdentityProvider["createChallenge"];
@@ -31,6 +33,7 @@ export type DummyServerResult = {
 	email: ReturnType<typeof EmailAuthentificationIdenticator>;
 	password: ReturnType<typeof PasswordAuthentificationChallenger>;
 	otp: ReturnType<typeof OTPLoggerAuthentificationChallenger>;
+	totp: ReturnType<typeof TOTPAuthentificationChallenger>;
 	assetProvider: AssetProvider;
 	counterProvider: CounterProvider;
 	identityProvider: IdentityProvider;
@@ -63,10 +66,15 @@ export default async function makeDummyServer(
 	const sessionKV = new MemoryKVProvider();
 	const sessionProvider = new KVSessionProvider(sessionKV);
 	const email = EmailAuthentificationIdenticator(
+		"email",
 		new LoggerMessageProvider(),
 	);
-	const password = PasswordAuthentificationChallenger();
-	const otp = OTPLoggerAuthentificationChallenger({ digits: 6 });
+	const password = PasswordAuthentificationChallenger("password");
+	const otp = OTPLoggerAuthentificationChallenger("otp", { digits: 6 });
+	const totp = TOTPAuthentificationChallenger("totp", {
+		digits: 6,
+		period: 60,
+	});
 
 	const helpers: DummyServerHelpers = {
 		config,
@@ -74,6 +82,7 @@ export default async function makeDummyServer(
 		email,
 		password,
 		otp,
+		totp,
 		createIdentity: (meta, expiration) =>
 			identityProvider.create(meta, expiration),
 		createIdentification: (identityIdentification) =>
@@ -96,6 +105,7 @@ export default async function makeDummyServer(
 		email,
 		password,
 		otp,
+		totp,
 		assetProvider,
 		counterProvider,
 		identityProvider,

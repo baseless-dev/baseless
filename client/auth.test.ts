@@ -93,7 +93,7 @@ Deno.test("Client Auth", async (t) => {
 				});
 				await createChallenge({
 					identityId: john.id,
-					type: "otp-logger",
+					type: "otp",
 					meta: {},
 					confirmed: true,
 				});
@@ -275,7 +275,7 @@ Deno.test("Client Auth", async (t) => {
 		});
 		const result = await sendChallengeValidationCode(
 			authApp,
-			"otp-logger",
+			"otp",
 		);
 		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
@@ -295,14 +295,14 @@ Deno.test("Client Auth", async (t) => {
 		});
 		const result = await sendChallengeValidationCode(
 			authApp,
-			"otp-logger",
+			"otp",
 		);
 		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
 		const validationCode = messages[0]?.message;
 		const confirmResult = await confirmChallengeValidationCode(
 			authApp,
-			"otp-logger",
+			"otp",
 			validationCode,
 		);
 		assertEquals(confirmResult.confirmed, true);
@@ -326,7 +326,7 @@ Deno.test("Client Auth", async (t) => {
 		});
 		const result2 = await sendIdentificationChallenge(
 			authApp,
-			"otp-logger",
+			"otp",
 			result1.encryptedState,
 		);
 		assertSendIdentificationChallengeResponse(result2);
@@ -335,7 +335,7 @@ Deno.test("Client Auth", async (t) => {
 		setGlobalLogHandler(() => {});
 		const result3 = await submitAuthenticationChallenge(
 			authApp,
-			"otp-logger",
+			"otp",
 			challengeCode,
 			result1.encryptedState,
 		);

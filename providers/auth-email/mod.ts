@@ -7,11 +7,12 @@ import type { MessageProvider } from "../message.ts";
 
 // deno-lint-ignore explicit-function-return-type
 export function EmailAuthentificationIdenticator(
+	id: string,
 	messageProvider: MessageProvider,
 ) {
 	return {
 		kind: "identification",
-		id: "email",
+		id,
 		prompt: "email",
 		rateLimit: { count: 0, interval: 0 },
 		async sendMessage(

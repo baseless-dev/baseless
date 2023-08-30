@@ -16,6 +16,7 @@ import {
 
 // deno-lint-ignore explicit-function-return-type
 export function OTPLoggerAuthentificationChallenger(
+	id: string,
 	options: OTPOptions,
 	ttl = 60 * 1000,
 	logLevel = LogLevel.INFO,
@@ -25,7 +26,7 @@ export function OTPLoggerAuthentificationChallenger(
 	const logMethod = LogLevelMethod[logLevel];
 	return {
 		kind: "challenge",
-		id: "otp-logger",
+		id,
 		prompt: "otp",
 		digits: options.digits ?? 6,
 		rateLimit: { count: 0, interval: 0 },

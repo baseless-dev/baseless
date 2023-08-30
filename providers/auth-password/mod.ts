@@ -7,7 +7,7 @@ import type {
 import type { IdentityChallenge } from "../../common/identity/challenge.ts";
 
 // deno-lint-ignore explicit-function-return-type
-export function PasswordAuthentificationChallenger() {
+export function PasswordAuthentificationChallenger(id: string) {
 	async function hashPassword(password: string): Promise<string> {
 		return encode(
 			await crypto.subtle.digest("SHA-512", new TextEncoder().encode(password)),
@@ -15,7 +15,7 @@ export function PasswordAuthentificationChallenger() {
 	}
 	return {
 		kind: "challenge",
-		id: "password",
+		id,
 		prompt: "password",
 		rateLimit: { count: 0, interval: 0 },
 		async configureIdentityChallenge(

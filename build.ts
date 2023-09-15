@@ -55,7 +55,7 @@ for await (
 			globToRegExp(
 				join(
 					__dirname,
-					"providers/{asset-denofs}/**/*",
+					"providers/{asset-denofs,kv-denokv}/**/*",
 				),
 			),
 			/build\.ts/,
@@ -107,13 +107,13 @@ for await (const entryPoint of entryPoints) {
 	browserProject.addSourceFileAtPath(entryPoint);
 	nodeProject.addSourceFileAtPath(entryPoint);
 	typesProject.addSourceFileAtPath(entryPoint);
-	const outputPath = join(
-		__dirname,
-		"npm/deno/",
-		relative(__dirname, entryPoint),
-	);
-	await Deno.mkdir(dirname(outputPath), { recursive: true });
-	await Deno.copyFile(entryPoint, outputPath);
+	// const outputPath = join(
+	// 	__dirname,
+	// 	"npm/deno/",
+	// 	relative(__dirname, entryPoint),
+	// );
+	// await Deno.mkdir(dirname(outputPath), { recursive: true });
+	// await Deno.copyFile(entryPoint, outputPath);
 }
 
 const browserResult = await browserProject.emitToMemory({
@@ -297,7 +297,7 @@ await Deno.writeTextFile(
 						return [key.replace(/\.tsx?$/, "").replace(/\/mod$/, ""), {
 							node: "./" + join("node/esm/", key.replace(/\.tsx?$/, ".mjs")),
 							browser: "./" + join("browser/", key.replace(/\.tsx?$/, ".mjs")),
-							deno: "./" + join("deno/", key),
+							// deno: "./" + join("deno/", key),
 							types: "./" + join("types/", key.replace(/\.tsx?$/, ".d.ts")),
 						}];
 					},

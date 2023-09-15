@@ -39,7 +39,7 @@ export class KVSessionProvider implements SessionProvider {
 	async get(sessionId: AutoId): Promise<SessionData> {
 		try {
 			assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
-			const result = await this.#kvProvider.get(`/byId/${sessionId}`);
+			const result = await this.#kvProvider.get(["byId", sessionId]);
 			const sessionData = JSON.parse(result.value);
 			assertSessionData(sessionData);
 			return sessionData;
@@ -66,11 +66,11 @@ export class KVSessionProvider implements SessionProvider {
 				meta,
 			};
 			await Promise.all([
-				this.#kvProvider.put(`/byId/${id}`, JSON.stringify(sessionData), {
+				this.#kvProvider.put(["byId", id], JSON.stringify(sessionData), {
 					expiration,
 				}),
 				this.#kvProvider.put(
-					`/byIdentity/${identityId}/${id}`,
+					["byIdentity", identityId, id],
 					JSON.stringify(sessionData),
 					{ expiration },
 				),
@@ -93,12 +93,12 @@ export class KVSessionProvider implements SessionProvider {
 			assertSessionData(sessionData);
 			await Promise.all([
 				this.#kvProvider.put(
-					`/byId/${sessionData.id}`,
+					["byId", sessionData.id],
 					JSON.stringify(sessionData),
 					{ expiration },
 				),
 				this.#kvProvider.put(
-					`/byIdentity/${sessionData.identityId}/${sessionData.id}`,
+					["byIdentity", sessionData.identityId, sessionData.id],
 					JSON.stringify(sessionData),
 					{ expiration },
 				),
@@ -120,9 +120,9 @@ export class KVSessionProvider implements SessionProvider {
 			assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
 			const sessionData = await this.get(sessionId);
 			await Promise.all([
-				this.#kvProvider.delete(`/byId/${sessionData.id}`),
+				this.#kvProvider.delete(["byId", sessionData.id]),
 				this.#kvProvider.delete(
-					`/byIdentity/${sessionData.identityId}/${sessionData.id}`,
+					["byIdentity", sessionData.identityId, sessionData.id],
 				),
 			]);
 			return;
@@ -138,7 +138,7 @@ export class KVSessionProvider implements SessionProvider {
 		try {
 			assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
 			const result = await this.#kvProvider.list({
-				prefix: `/byIdentity/${identityId}`,
+				prefix: ["byIdentity", identityId],
 			});
 			return result.keys.map((key) => JSON.parse(key.value)).filter(
 				isSessionData,

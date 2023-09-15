@@ -10,6 +10,14 @@ import type {
 	KVPutOptions,
 } from "../kv.ts";
 
+function keyPathToKeyString(key: string[]): string {
+	return key.map((p) => p.replaceAll("/", "\\/")).join("/");
+}
+
+function keyStringToKeyPath(key: string): string[] {
+	return key.split("/").map((p) => p.replaceAll("\\/", "/"));
+}
+
 export class WebStorageKVProvider implements KVProvider {
 	#logger = createLogger("baseless-kv-webstorage");
 
@@ -24,12 +32,13 @@ export class WebStorageKVProvider implements KVProvider {
 	 */
 	// deno-lint-ignore require-await
 	async get(
-		key: string,
+		key: string[],
 		_options?: KVGetOptions,
 	): Promise<KVKey> {
-		const json = this.storage.getItem(`${this.prefix}${key}`);
+		const keyString = keyPathToKeyString([this.prefix, ...key]);
+		const json = this.storage.getItem(keyString);
 		if (json === null) {
-			this.#logger.debug(`Key "${key}" does not exists.`);
+			this.#logger.debug(`Key "${keyString}" does not exists.`);
 			throw new KVKeyNotFoundError();
 		}
 		let obj: Record<string, unknown>;
@@ -37,7 +46,7 @@ export class WebStorageKVProvider implements KVProvider {
 			obj = JSON.parse(json) ?? {};
 		} catch (inner) {
 			this.#logger.error(
-				`Coudn't parse JSON for key "${key}", got error : ${inner}.`,
+				`Coudn't parse JSON for key "${keyString}", got error : ${inner}.`,
 			);
 			throw new KVKeyNotFoundError();
 		}
@@ -46,8 +55,8 @@ export class WebStorageKVProvider implements KVProvider {
 			? obj.expiration
 			: undefined;
 		if (expiration && Date.now() > expiration) {
-			this.storage.removeItem(`/${this.prefix}${key}`);
-			this.#logger.debug(`Key "${key}" does not exists.`);
+			this.storage.removeItem(keyString);
+			this.#logger.debug(`Key "${keyString}" does not exists.`);
 			throw new KVKeyNotFoundError();
 		}
 		return {
@@ -62,7 +71,7 @@ export class WebStorageKVProvider implements KVProvider {
 	 */
 	// deno-lint-ignore require-await
 	async put(
-		key: string,
+		key: string[],
 		value: string,
 		options?: KVPutOptions,
 	): Promise<void> {
@@ -71,29 +80,35 @@ export class WebStorageKVProvider implements KVProvider {
 				? options.expiration.getTime()
 				: options.expiration + new Date().getTime()
 			: null;
+		const keyString = keyPathToKeyString([this.prefix, ...key]);
 		this.storage.setItem(
-			`${this.prefix}${key}`,
+			keyString,
 			JSON.stringify({ value, expiration }),
 		);
-		this.#logger.debug(`Key "${key}" set.`);
+		this.#logger.debug(`Key "${keyString}" set.`);
 	}
 
 	async list(
 		{ prefix, cursor = "", limit = 10 }: KVListOptions,
 	): Promise<KVListResult> {
-		const prefixStart = this.prefix.length;
-		const prefixEnd = this.prefix.length + prefix.length;
+		const prefixString = keyPathToKeyString([this.prefix, ...prefix]);
+		const prefixLength = prefixString.length;
+		const cursorString = keyPathToKeyString([
+			this.prefix,
+			...keyStringToKeyPath(cursor),
+		]);
 		const keys: KVKey[] = [];
 		let count = 0;
 		for (let i = 0, l = this.storage.length; i < l && count < limit; ++i) {
 			const key = this.storage.key(i);
 			if (
-				key?.substring(0, prefixStart) === this.prefix &&
-				key?.substring(prefixStart, prefixEnd) === prefix &&
-				key.substring(prefixStart) > cursor
+				key?.substring(0, prefixLength) === prefixString &&
+				key > cursorString
 			) {
 				count++;
-				const result = await this.get(key.substring(prefixStart));
+				const result = await this.get(
+					keyStringToKeyPath(key.substring(this.prefix.length + 1)),
+				);
 				keys.push(result);
 				if (count >= limit) {
 					break;
@@ -104,13 +119,14 @@ export class WebStorageKVProvider implements KVProvider {
 		return {
 			keys: keys as unknown as ReadonlyArray<KVKey>,
 			done,
-			next: done ? undefined : keys.at(-1)?.key,
+			next: done ? undefined : keyPathToKeyString(keys.at(-1)!.key),
 		};
 	}
 
 	// deno-lint-ignore require-await
-	async delete(key: string): Promise<void> {
-		this.storage.removeItem(`${this.prefix}${key}`);
-		this.#logger.debug(`Key "${key}" deleted.`);
+	async delete(key: string[]): Promise<void> {
+		const keyString = keyPathToKeyString([this.prefix, ...key]);
+		this.storage.removeItem(keyString);
+		this.#logger.debug(`Key "${keyString}" deleted.`);
 	}
 }

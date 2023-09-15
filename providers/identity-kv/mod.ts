@@ -52,7 +52,7 @@ export class KVIdentityProvider implements IdentityProvider {
 	async get(id: AutoId): Promise<Identity> {
 		assertAutoId(id, IDENTITY_AUTOID_PREFIX);
 		try {
-			const value = await this.kv.get(`${this.prefix}/identities/${id}`);
+			const value = await this.kv.get([this.prefix, "identities", id]);
 			const identity = JSON.parse(value.value) as unknown;
 			assertIdentity(identity);
 			return identity;
@@ -73,7 +73,7 @@ export class KVIdentityProvider implements IdentityProvider {
 			const id = autoid(IDENTITY_AUTOID_PREFIX);
 			const identity: Identity = { id, meta };
 			await this.kv.put(
-				`${this.prefix}/identities/${id}`,
+				[this.prefix, "identities", id],
 				JSON.stringify(identity),
 				{ expiration },
 			);
@@ -97,7 +97,7 @@ export class KVIdentityProvider implements IdentityProvider {
 				throw new IdentityExistsError();
 			}
 			await this.kv.put(
-				`${this.prefix}/identities/${identity.id}`,
+				[this.prefix, "identities", identity.id],
 				JSON.stringify(identity),
 				{ expiration },
 			);
@@ -120,7 +120,7 @@ export class KVIdentityProvider implements IdentityProvider {
 			}
 			try {
 				const ops: Promise<unknown>[] = [
-					this.kv.delete(`${this.prefix}/identities/${id}`),
+					this.kv.delete([this.prefix, "identities", id]),
 				];
 				for (
 					const { type, identification } of await this.listIdentification(id)
@@ -148,7 +148,7 @@ export class KVIdentityProvider implements IdentityProvider {
 		try {
 			assertAutoId(id, IDENTITY_AUTOID_PREFIX);
 			const result = await this.kv.list({
-				prefix: `${this.prefix}/identities/${id}/identifications/`,
+				prefix: [this.prefix, "identities", id, "identifications"],
 			});
 			return result.keys.map((key) => {
 				const data = JSON.parse(key.value);
@@ -172,7 +172,7 @@ export class KVIdentityProvider implements IdentityProvider {
 	): Promise<IdentityIdentification> {
 		try {
 			const result = await this.kv.get(
-				`${this.prefix}/identities/${identityId}/identifications/${type}`,
+				[this.prefix, "identities", identityId, "identifications", type],
 			);
 			const data = JSON.parse(result.value);
 			assertIdentityIdentification(data);
@@ -194,7 +194,7 @@ export class KVIdentityProvider implements IdentityProvider {
 	): Promise<IdentityIdentification> {
 		try {
 			const result = await this.kv.get(
-				`${this.prefix}/identifications/${type}:${identification}`,
+				[this.prefix, "identifications", type, identification],
 			);
 			const data = JSON.parse(result.value);
 			assertIdentityIdentification(data);
@@ -215,10 +215,19 @@ export class KVIdentityProvider implements IdentityProvider {
 		expiration?: number | Date,
 	): Promise<void> {
 		try {
-			const keyIdentity =
-				`${this.prefix}/identities/${identityIdentification.identityId}/identifications/${identityIdentification.type}`;
-			const keyIdentification =
-				`${this.prefix}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
+			const keyIdentity = [
+				this.prefix,
+				"identities",
+				identityIdentification.identityId,
+				"identifications",
+				identityIdentification.type,
+			];
+			const keyIdentification = [
+				this.prefix,
+				"identifications",
+				identityIdentification.type,
+				identityIdentification.identification,
+			];
 			const exists = await this.kv.get(keyIdentification).catch((_) =>
 				undefined
 			);
@@ -250,10 +259,19 @@ export class KVIdentityProvider implements IdentityProvider {
 		expiration?: number | Date,
 	): Promise<void> {
 		try {
-			const keyIdentity =
-				`${this.prefix}/identities/${identityIdentification.identityId}/identifications/${identityIdentification.type}`;
-			const keyIdentification =
-				`${this.prefix}/identifications/${identityIdentification.type}:${identityIdentification.identification}`;
+			const keyIdentity = [
+				this.prefix,
+				"identities",
+				identityIdentification.identityId,
+				"identifications",
+				identityIdentification.type,
+			];
+			const keyIdentification = [
+				this.prefix,
+				"identifications",
+				identityIdentification.type,
+				identityIdentification.identification,
+			];
 			const exists = await this.kv.get(keyIdentification).catch((_) =>
 				undefined
 			);
@@ -287,10 +305,19 @@ export class KVIdentityProvider implements IdentityProvider {
 	): Promise<void> {
 		try {
 			assertAutoId(id, IDENTITY_AUTOID_PREFIX);
-			const keyIdentity =
-				`${this.prefix}/identities/${id}/identifications/${type}`;
-			const keyIdentification =
-				`${this.prefix}/identifications/${type}:${identification}`;
+			const keyIdentity = [
+				this.prefix,
+				"identities",
+				id,
+				"identifications",
+				type,
+			];
+			const keyIdentification = [
+				this.prefix,
+				"identifications",
+				type,
+				identification,
+			];
 			const exists = await this.kv.get(keyIdentification).catch((_) =>
 				undefined
 			);
@@ -314,7 +341,7 @@ export class KVIdentityProvider implements IdentityProvider {
 		try {
 			assertAutoId(id, IDENTITY_AUTOID_PREFIX);
 			const result = await this.kv.list({
-				prefix: `${this.prefix}/identities/${id}/challenges/`,
+				prefix: [this.prefix, "identities", id, "challenges"],
 			});
 			return result.keys.map((key) => {
 				const data = JSON.parse(key.value);
@@ -339,7 +366,7 @@ export class KVIdentityProvider implements IdentityProvider {
 		try {
 			assertAutoId(id, IDENTITY_AUTOID_PREFIX);
 			const result = await this.kv.get(
-				`${this.prefix}/identities/${id}/challenges/${type}`,
+				[this.prefix, "identities", id, "challenges", type],
 			);
 			const data = JSON.parse(result.value);
 			assertIdentityChallenge(data);
@@ -360,8 +387,13 @@ export class KVIdentityProvider implements IdentityProvider {
 		expiration?: number | Date,
 	): Promise<void> {
 		try {
-			const key =
-				`${this.prefix}/identities/${identityChallenge.identityId}/challenges/${identityChallenge.type}`;
+			const key = [
+				this.prefix,
+				"identities",
+				identityChallenge.identityId,
+				"challenges",
+				identityChallenge.type,
+			];
 			const exists = await this.kv.get(key).catch((_) => undefined);
 			if (exists) {
 				throw new IdentityChallengeExistsError();
@@ -386,8 +418,13 @@ export class KVIdentityProvider implements IdentityProvider {
 		expiration?: number | Date,
 	): Promise<void> {
 		try {
-			const key =
-				`${this.prefix}/identities/${identityChallenge.identityId}/challenges/${identityChallenge.type}`;
+			const key = [
+				this.prefix,
+				"identities",
+				identityChallenge.identityId,
+				"challenges",
+				identityChallenge.type,
+			];
 			const exists = await this.kv.get(key).catch((_) => undefined);
 			if (!exists) {
 				throw new IdentityChallengeNotFoundError();
@@ -413,7 +450,7 @@ export class KVIdentityProvider implements IdentityProvider {
 	): Promise<void> {
 		try {
 			assertAutoId(id, IDENTITY_AUTOID_PREFIX);
-			const key = `${this.prefix}/identities/${id}/challenges/${type}`;
+			const key = [this.prefix, "identities", id, "challenges", type];
 			const exists = await this.kv.get(key).catch((_) => undefined);
 			if (!exists) {
 				throw new IdentityChallengeNotFoundError();

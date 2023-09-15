@@ -12,7 +12,7 @@ export interface KVGetOptions {
  * Options when listing keys
  */
 export interface KVListOptions {
-	readonly prefix: string;
+	readonly prefix: string[];
 	readonly cursor?: string;
 	readonly limit?: number;
 }
@@ -31,7 +31,7 @@ export type KVPutOptions = {
  * KV Key
  */
 export interface KVKey {
-	readonly key: string;
+	readonly key: string[];
 	readonly expiration?: number;
 	readonly value: string;
 }
@@ -55,7 +55,7 @@ export interface KVProvider {
 	 * @throws {KVKeyNotFoundError} This exception is thrown if the key is not found
 	 */
 	get(
-		key: string,
+		key: string[],
 		options?: KVGetOptions,
 	): Promise<KVKey>;
 
@@ -64,7 +64,7 @@ export interface KVProvider {
 	 * @throws {KVPutError}
 	 */
 	put(
-		key: string,
+		key: string[],
 		value: string,
 		options?: KVPutOptions,
 	): Promise<void>;
@@ -78,5 +78,5 @@ export interface KVProvider {
 	 * Delete a key
 	 * @throws {KVKeyNotFoundError}
 	 */
-	delete(key: string): Promise<void>;
+	delete(key: string[]): Promise<void>;
 }

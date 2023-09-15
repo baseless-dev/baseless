@@ -17,7 +17,7 @@ export interface IKVService {
 	 * @throws {KVKeyNotFoundError}
 	 */
 	get(
-		key: string,
+		key: string[],
 		options?: KVGetOptions,
 	): Promise<KVKey>;
 
@@ -25,7 +25,7 @@ export interface IKVService {
 	 * @throws {KVPutError}
 	 */
 	put(
-		key: string,
+		key: string[],
 		value: string,
 		options?: KVPutOptions,
 	): Promise<void>;
@@ -35,5 +35,5 @@ export interface IKVService {
 	/**
 	 * @throws {KVKeyNotFoundError}
 	 */
-	delete(key: string): Promise<void>;
+	delete(key: string[]): Promise<void>;
 }

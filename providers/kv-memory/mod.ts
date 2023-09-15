@@ -26,6 +26,14 @@ function assertItem(value?: unknown): asserts value is Item {
 	}
 }
 
+function keyPathToKeyString(key: string[]): string {
+	return key.map((p) => p.replaceAll("/", "\\/")).join("/");
+}
+
+function keyStringToKeyPath(key: string): string[] {
+	return key.split("/").map((p) => p.replaceAll("\\/", "/"));
+}
+
 export class MemoryKVProvider implements KVProvider {
 	#logger = createLogger("kv-memory");
 	#cache = new CacheMap<string, Item>();
@@ -35,10 +43,11 @@ export class MemoryKVProvider implements KVProvider {
 	 */
 	// deno-lint-ignore require-await
 	async get(
-		key: string,
+		key: string[],
 		_options?: KVGetOptions,
 	): Promise<KVKey> {
-		const item = this.#cache.get(key);
+		const keyString = keyPathToKeyString(key);
+		const item = this.#cache.get(keyString);
 		if (!item) {
 			throw new KVKeyNotFoundError();
 		}
@@ -54,7 +63,7 @@ export class MemoryKVProvider implements KVProvider {
 	 */
 	// deno-lint-ignore require-await
 	async put(
-		key: string,
+		key: string[],
 		value: string,
 		options?: KVPutOptions,
 	): Promise<void> {
@@ -65,22 +74,27 @@ export class MemoryKVProvider implements KVProvider {
 				: options.expiration + now
 			: undefined;
 		const item: Item = { value, expiration };
-		this.#cache.set(key, item, expiration ? expiration - now : undefined);
+		const keyString = keyPathToKeyString(key);
+		this.#cache.set(keyString, item, expiration ? expiration - now : undefined);
 	}
 
 	async list(
 		{ prefix, cursor = "", limit = 10 }: KVListOptions,
 	): Promise<KVListResult> {
-		const prefixEnd = prefix.length;
+		const prefixString = keyPathToKeyString(prefix);
+		const prefixLength = prefixString.length;
+		const cursorString = keyPathToKeyString(keyStringToKeyPath(cursor));
 		const keys: KVKey[] = [];
 		let count = 0;
 		for (const [key] of this.#cache.entries()) {
 			if (
-				key?.substring(0, prefixEnd) === prefix &&
-				key.substring(0) > cursor
+				key?.substring(0, prefixLength) === prefixString &&
+				key > cursorString
 			) {
 				count++;
-				const result = await this.get(key);
+				const result = await this.get(
+					keyStringToKeyPath(key),
+				);
 				keys.push(result);
 				if (count >= limit) {
 					break;
@@ -91,12 +105,13 @@ export class MemoryKVProvider implements KVProvider {
 		return {
 			keys: keys as unknown as ReadonlyArray<KVKey>,
 			done,
-			next: done ? undefined : keys.at(-1)?.key,
+			next: done ? undefined : keyPathToKeyString(keys.at(-1)!.key),
 		};
 	}
 
 	// deno-lint-ignore require-await
-	async delete(key: string): Promise<void> {
-		this.#cache.delete(key);
+	async delete(key: string[]): Promise<void> {
+		const keyString = keyPathToKeyString(key);
+		this.#cache.delete(keyString);
 	}
 }

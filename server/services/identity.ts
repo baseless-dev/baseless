@@ -371,7 +371,7 @@ export class IdentityService implements IIdentityService {
 			}
 			const code = otp({ digits: 6 });
 			await this.#context.kv.put(
-				`/auth/validationcode/${identityId}/${type}`,
+				["auth", "validationcode", identityId, type],
 				code,
 				{ expiration: 1000 * 60 * 5 },
 			);
@@ -428,7 +428,7 @@ export class IdentityService implements IIdentityService {
 			}
 
 			const savedCode = await this.#context.kv.get(
-				`/auth/validationcode/${identityId}/${type}`,
+				["auth", "validationcode", identityId, type],
 			).catch((_) => undefined);
 			if (savedCode?.value === code) {
 				await this.#context.identity.updateIdentification({

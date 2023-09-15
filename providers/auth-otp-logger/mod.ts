@@ -35,7 +35,7 @@ export function OTPLoggerAuthentificationChallenger(
 				AuthenticationChallengerSendChallengeOptions,
 		): Promise<void> {
 			const code = otp(options);
-			await context.kv.put(`otp-logger/${identityChallenge.identityId}`, code, {
+			await context.kv.put(["otp-logger", identityChallenge.identityId], code, {
 				expiration: ttl,
 			});
 			// TODO template?
@@ -46,7 +46,7 @@ export function OTPLoggerAuthentificationChallenger(
 				AuthenticationChallengerVerifyOptions,
 		): Promise<boolean> {
 			const code = await context.kv.get(
-				`otp-logger/${identityChallenge.identityId}`,
+				["otp-logger", identityChallenge.identityId],
 			);
 			return code.value === challenge;
 		},

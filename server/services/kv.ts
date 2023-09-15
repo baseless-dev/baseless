@@ -21,7 +21,7 @@ export class KVService implements IKVService {
 	 * @throws {KVKeyNotFoundError}
 	 */
 	get(
-		key: string,
+		key: string[],
 		options?: KVGetOptions,
 	): Promise<KVKey> {
 		// TODO security rules
@@ -32,7 +32,7 @@ export class KVService implements IKVService {
 	 * @throws {KVPutError}
 	 */
 	put(
-		key: string,
+		key: string[],
 		value: string,
 		options?: KVPutOptions,
 	): Promise<void> {
@@ -48,7 +48,7 @@ export class KVService implements IKVService {
 	/**
 	 * @throws {KVKeyNotFoundError}
 	 */
-	delete(key: string): Promise<void> {
+	delete(key: string[]): Promise<void> {
 		// TODO security rules
 		return this.#kvProvider.delete(key);
 	}

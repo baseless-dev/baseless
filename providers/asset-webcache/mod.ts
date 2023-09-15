@@ -2,7 +2,7 @@ import { createLogger } from "../../common/system/logger.ts";
 import type { AssetProvider } from "../asset.ts";
 
 export class WebCacheAssetProvider implements AssetProvider {
-	#logger = createLogger("asset-local");
+	#logger = createLogger("asset-webcache");
 	#cache: Cache;
 	#fallbackAssetProvider: AssetProvider;
 

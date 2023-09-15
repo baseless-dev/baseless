@@ -55,7 +55,7 @@ for await (
 			globToRegExp(
 				join(
 					__dirname,
-					"providers/{asset-local}/**/*",
+					"providers/{asset-denofs}/**/*",
 				),
 			),
 			/build\.ts/,

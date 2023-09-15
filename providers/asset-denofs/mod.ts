@@ -9,8 +9,8 @@ import { contentType } from "https://deno.land/std@0.179.0/media_types/mod.ts";
 import type { AssetProvider } from "../asset.ts";
 import { createLogger } from "../../common/system/logger.ts";
 
-export class LocalAssetProvider implements AssetProvider {
-	#logger = createLogger("asset-local");
+export class DenoFSAssetProvider implements AssetProvider {
+	#logger = createLogger("asset-denofs");
 	#rootDir: string;
 
 	constructor(rootDir: string) {

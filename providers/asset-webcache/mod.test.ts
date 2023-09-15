@@ -1,10 +1,10 @@
-import { LocalAssetProvider } from "../asset-local/mod.ts";
+import { DenoFSAssetProvider } from "../asset-denofs/mod.ts";
 import testAssetProvider from "../asset.test.ts";
 import { WebCacheAssetProvider } from "./mod.ts";
 
 Deno.test("WebCacheAssetProvider", async (t) => {
-	const lap = new LocalAssetProvider(
-		import.meta.resolve("../asset-local/tests"),
+	const lap = new DenoFSAssetProvider(
+		import.meta.resolve("../asset-denofs/tests"),
 	);
 	await caches.delete("baseless-asset-cache-test");
 	const ap = new WebCacheAssetProvider(

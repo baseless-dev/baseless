@@ -5,6 +5,7 @@ import { createLogger } from "../../common/system/logger.ts";
 import type {
 	KVGetOptions,
 	KVKey,
+	KVListKey,
 	KVListOptions,
 	KVListResult,
 	KVProvider,
@@ -31,7 +32,7 @@ function keyPathToKeyString(key: string[]): string {
 }
 
 function keyStringToKeyPath(key: string): string[] {
-	return key.split("/").map((p) => p.replaceAll("\\/", "/"));
+	return key.split(/(?<!\\)\//).map((p) => p.replaceAll("\\/", "/"));
 }
 
 export class MemoryKVProvider implements KVProvider {
@@ -83,8 +84,8 @@ export class MemoryKVProvider implements KVProvider {
 	): Promise<KVListResult> {
 		const prefixString = keyPathToKeyString(prefix);
 		const prefixLength = prefixString.length;
-		const cursorString = keyPathToKeyString(keyStringToKeyPath(cursor));
-		const keys: KVKey[] = [];
+		const cursorString = cursor;
+		const keys: KVListKey[] = [];
 		let count = 0;
 		for (const [key] of this.#cache.entries()) {
 			if (
@@ -92,10 +93,9 @@ export class MemoryKVProvider implements KVProvider {
 				key > cursorString
 			) {
 				count++;
-				const result = await this.get(
-					keyStringToKeyPath(key),
-				);
-				keys.push(result);
+				const keyPath = keyStringToKeyPath(key);
+				const { expiration } = await this.get(keyPath);
+				keys.push({ key: keyPath, expiration });
 				if (count >= limit) {
 					break;
 				}

@@ -102,7 +102,7 @@ export class IdentityService implements IIdentityService {
 
 	listIdentification(
 		id: AutoId,
-	): Promise<IdentityIdentification[]> {
+	): Promise<string[]> {
 		return this.#identityProvider.listIdentification(id);
 	}
 
@@ -170,17 +170,15 @@ export class IdentityService implements IIdentityService {
 	deleteIdentification(
 		id: AutoId,
 		type: string,
-		identification: string,
 	): Promise<void> {
 		// TODO life cycle hooks
 		return this.#identityProvider.deleteIdentification(
 			id,
 			type,
-			identification,
 		);
 	}
 
-	listChallenge(id: AutoId): Promise<IdentityChallenge[]> {
+	listChallenge(id: AutoId): Promise<string[]> {
 		return this.#identityProvider.listChallenge(id);
 	}
 
@@ -273,8 +271,14 @@ export class IdentityService implements IIdentityService {
 		try {
 			assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
 			assertMessage(message);
-			const identifications = await this.#identityProvider.listIdentification(
-				identityId,
+			const identificationTypes = await this.#identityProvider
+				.listIdentification(
+					identityId,
+				);
+			const identifications = await Promise.all(
+				identificationTypes.map((type) =>
+					this.#identityProvider.getIdentification(identityId, type)
+				),
 			);
 			const confirmedIdentifications = identifications.filter((i) =>
 				i.confirmed
@@ -376,8 +380,13 @@ export class IdentityService implements IIdentityService {
 				{ expiration: 1000 * 60 * 5 },
 			);
 
-			const identityIdentifications = await this.#context.identity
+			const identityIdentificationTypes = await this.#context.identity
 				.listIdentification(identityId);
+			const identityIdentifications = await Promise.all(
+				identityIdentificationTypes.map((type) =>
+					this.#context.identity.getIdentification(identityId, type)
+				),
+			);
 			const identityIdentification = identityIdentifications.find((ii) =>
 				ii.type === type
 			);
@@ -418,8 +427,13 @@ export class IdentityService implements IIdentityService {
 				throw new AuthenticationRateLimitedError();
 			}
 
-			const identityIdentifications = await this.#context.identity
+			const identityIdentificationTypes = await this.#context.identity
 				.listIdentification(identityId);
+			const identityIdentifications = await Promise.all(
+				identityIdentificationTypes.map((type) =>
+					this.#context.identity.getIdentification(identityId, type)
+				),
+			);
 			const identityIdentification = identityIdentifications.find((ii) =>
 				ii.type === type
 			);

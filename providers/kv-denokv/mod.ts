@@ -3,6 +3,7 @@ import { createLogger } from "../../common/system/logger.ts";
 import type {
 	KVGetOptions,
 	KVKey,
+	KVListKey,
 	KVListOptions,
 	KVListResult,
 	KVProvider,
@@ -11,10 +12,12 @@ import type {
 
 export class DenoKVProvider implements KVProvider {
 	#logger = createLogger("baseless-kv-denokv");
+	#storage: Deno.Kv;
 
 	public constructor(
-		protected readonly storage: Deno.Kv,
+		storage: any,
 	) {
+		this.#storage = storage;
 	}
 
 	async get(
@@ -22,7 +25,9 @@ export class DenoKVProvider implements KVProvider {
 		_options?: KVGetOptions | undefined,
 	): Promise<KVKey> {
 		const now = new Date().getTime();
-		const value = await this.storage.get<{ value: string; expiration: number }>(
+		const value = await this.#storage.get<
+			{ value: string; expiration: number }
+		>(
 			key,
 			{
 				consistency: "eventual",
@@ -56,7 +61,7 @@ export class DenoKVProvider implements KVProvider {
 				? options.expiration.getTime()
 				: options.expiration + new Date().getTime()
 			: undefined;
-		const result = await this.storage.set(key, { value, expiration }, {
+		const result = await this.#storage.set(key, { value, expiration }, {
 			expireIn,
 		});
 		if (!result.ok) {
@@ -65,7 +70,7 @@ export class DenoKVProvider implements KVProvider {
 	}
 	async list(options: KVListOptions): Promise<KVListResult> {
 		const now = new Date().getTime();
-		const results = await this.storage.list<
+		const results = await this.#storage.list<
 			{ value: string; expiration: number }
 		>({
 			prefix: options.prefix,
@@ -74,12 +79,11 @@ export class DenoKVProvider implements KVProvider {
 			limit: options.limit,
 			cursor: options.cursor,
 		});
-		const keys: KVKey[] = [];
+		const keys: KVListKey[] = [];
 		for await (const key of results) {
 			if (!key.value.expiration || key.value.expiration < now) {
 				keys.push({
 					key: key.key as string[],
-					value: key.value.value,
 					expiration: undefined,
 				});
 			}
@@ -92,6 +96,6 @@ export class DenoKVProvider implements KVProvider {
 	}
 
 	async delete(key: string[]): Promise<void> {
-		await this.storage.delete(key);
+		await this.#storage.delete(key);
 	}
 }

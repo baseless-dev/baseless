@@ -39,5 +39,5 @@ export interface ISessionService {
 	 */
 	destroy(sessionId: AutoId): Promise<void>;
 
-	list(identityId: AutoId): Promise<SessionData[]>;
+	list(identityId: AutoId): Promise<AutoId[]>;
 }

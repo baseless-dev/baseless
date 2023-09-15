@@ -123,11 +123,11 @@ export class KVIdentityProvider implements IdentityProvider {
 					this.kv.delete([this.prefix, "identities", id]),
 				];
 				for (
-					const { type, identification } of await this.listIdentification(id)
+					const type of await this.listIdentification(id)
 				) {
-					ops.push(this.deleteIdentification(id, type, identification));
+					ops.push(this.deleteIdentification(id, type));
 				}
-				for (const { type } of await this.listChallenge(id)) {
+				for (const type of await this.listChallenge(id)) {
 					ops.push(this.deleteChallenge(id, type));
 				}
 				await Promise.all(ops);
@@ -144,17 +144,13 @@ export class KVIdentityProvider implements IdentityProvider {
 
 	async listIdentification(
 		id: AutoId,
-	): Promise<IdentityIdentification[]> {
+	): Promise<string[]> {
 		try {
 			assertAutoId(id, IDENTITY_AUTOID_PREFIX);
 			const result = await this.kv.list({
 				prefix: [this.prefix, "identities", id, "identifications"],
 			});
-			return result.keys.map((key) => {
-				const data = JSON.parse(key.value);
-				assertIdentityIdentification(data);
-				return data;
-			});
+			return result.keys.map((key) => key.key.at(-1)!);
 		} catch (inner) {
 			this.#logger.error(
 				`Failed to list identifications for identity ${id}, got ${inner}`,
@@ -301,10 +297,15 @@ export class KVIdentityProvider implements IdentityProvider {
 	async deleteIdentification(
 		id: AutoId,
 		type: string,
-		identification: string,
 	): Promise<void> {
 		try {
 			assertAutoId(id, IDENTITY_AUTOID_PREFIX);
+			const identification = await this.getIdentification(id, type).catch((_) =>
+				undefined
+			);
+			if (!identification) {
+				throw new IdentityIdentificationNotFoundError();
+			}
 			const keyIdentity = [
 				this.prefix,
 				"identities",
@@ -316,14 +317,8 @@ export class KVIdentityProvider implements IdentityProvider {
 				this.prefix,
 				"identifications",
 				type,
-				identification,
+				identification.identification,
 			];
-			const exists = await this.kv.get(keyIdentification).catch((_) =>
-				undefined
-			);
-			if (!exists) {
-				throw new IdentityIdentificationNotFoundError();
-			}
 			await Promise.all([
 				this.kv.delete(keyIdentity),
 				this.kv.delete(keyIdentification),
@@ -331,23 +326,19 @@ export class KVIdentityProvider implements IdentityProvider {
 			return;
 		} catch (inner) {
 			this.#logger.error(
-				`Failed to delete identification ${type}:${identification}, got ${inner}`,
+				`Failed to delete identification ${type}, got ${inner}`,
 			);
 		}
 		throw new IdentityIdentificationDeleteError();
 	}
 
-	async listChallenge(id: AutoId): Promise<IdentityChallenge[]> {
+	async listChallenge(id: AutoId): Promise<string[]> {
 		try {
 			assertAutoId(id, IDENTITY_AUTOID_PREFIX);
 			const result = await this.kv.list({
 				prefix: [this.prefix, "identities", id, "challenges"],
 			});
-			return result.keys.map((key) => {
-				const data = JSON.parse(key.value);
-				assertIdentityChallenge(data);
-				return data;
-			});
+			return result.keys.map((key) => key.key.at(-1)!);
 		} catch (inner) {
 			this.#logger.error(
 				`Failed to list challenges for identity ${id}, got ${inner}`,

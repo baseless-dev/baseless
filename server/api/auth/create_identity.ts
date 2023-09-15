@@ -51,7 +51,6 @@ export async function createIdentity(
 			await context.identity.deleteIdentification(
 				identityId,
 				identificationType,
-				identification,
 			).catch((_) => {});
 			if (!context.tokenData) {
 				await context.identity.delete(identityId).catch((_) => {});

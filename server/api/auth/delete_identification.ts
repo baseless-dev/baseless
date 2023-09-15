@@ -15,7 +15,6 @@ export async function deleteIdentification(
 	const identityId = context.tokenData.sessionData.identityId;
 	const data = await getJsonData(request);
 	const identificationType = data?.identificationType?.toString() ?? "";
-	const identification = data?.identification?.toString() ?? "";
 	if (
 		context.tokenData.lastAuthorizationTime >=
 			Date.now() / 1000 + context.config.auth.highRiskActionTimeWindow
@@ -26,7 +25,6 @@ export async function deleteIdentification(
 		await context.identity.deleteIdentification(
 			identityId,
 			identificationType,
-			identification,
 		);
 	} catch (_error) {
 		throw new IdentityIdentificationDeleteError();

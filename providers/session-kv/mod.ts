@@ -1,7 +1,6 @@
 import { IDENTITY_AUTOID_PREFIX } from "../../common/identity/identity.ts";
 import {
 	assertSessionData,
-	isSessionData,
 	SESSION_AUTOID_PREFIX,
 	type SessionData,
 } from "../../common/session/data.ts";
@@ -15,6 +14,7 @@ import {
 	assertAutoId,
 	type AutoId,
 	autoid,
+	isAutoId,
 } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import type { KVProvider } from "../kv.ts";
@@ -23,14 +23,9 @@ import type { SessionProvider } from "../session.ts";
 export class KVSessionProvider implements SessionProvider {
 	#logger = createLogger("session-kv");
 	#kvProvider: KVProvider;
-	#prefix: string;
 
-	public constructor(
-		kv: KVProvider,
-		prefix = "sessions",
-	) {
+	public constructor(kv: KVProvider) {
 		this.#kvProvider = kv;
-		this.#prefix = prefix;
 	}
 
 	/**
@@ -134,15 +129,15 @@ export class KVSessionProvider implements SessionProvider {
 		throw new SessionDestroyError();
 	}
 
-	async list(identityId: AutoId): Promise<SessionData[]> {
+	async list(identityId: AutoId): Promise<AutoId[]> {
 		try {
 			assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
 			const result = await this.#kvProvider.list({
 				prefix: ["byIdentity", identityId],
 			});
-			return result.keys.map((key) => JSON.parse(key.value)).filter(
-				isSessionData,
-			);
+			return result.keys.map((key) => key.key.at(-1)).filter((
+				id,
+			): id is AutoId => isAutoId(id, SESSION_AUTOID_PREFIX));
 		} catch (inner) {
 			this.#logger.error(
 				`Failed to list sessions for identity ${identityId}, got ${inner}`,

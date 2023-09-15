@@ -64,7 +64,7 @@ export class SessionService implements ISessionService {
 		return this.#sessionProvider.destroy(sessionId);
 	}
 
-	list(identityId: AutoId): Promise<SessionData[]> {
+	list(identityId: AutoId): Promise<AutoId[]> {
 		return this.#sessionProvider.list(identityId);
 	}
 }

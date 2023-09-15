@@ -4,6 +4,7 @@ import { createLogger } from "../../common/system/logger.ts";
 import type {
 	KVGetOptions,
 	KVKey,
+	KVListKey,
 	KVListOptions,
 	KVListResult,
 	KVProvider,
@@ -15,7 +16,7 @@ function keyPathToKeyString(key: string[]): string {
 }
 
 function keyStringToKeyPath(key: string): string[] {
-	return key.split("/").map((p) => p.replaceAll("\\/", "/"));
+	return key.split(/(?<!\\)\//).map((p) => p.replaceAll("\\/", "/"));
 }
 
 export class WebStorageKVProvider implements KVProvider {
@@ -97,7 +98,7 @@ export class WebStorageKVProvider implements KVProvider {
 			this.prefix,
 			...keyStringToKeyPath(cursor),
 		]);
-		const keys: KVKey[] = [];
+		const keys: KVListKey[] = [];
 		let count = 0;
 		for (let i = 0, l = this.storage.length; i < l && count < limit; ++i) {
 			const key = this.storage.key(i);
@@ -106,10 +107,11 @@ export class WebStorageKVProvider implements KVProvider {
 				key > cursorString
 			) {
 				count++;
-				const result = await this.get(
-					keyStringToKeyPath(key.substring(this.prefix.length + 1)),
+				const keyPath = keyStringToKeyPath(
+					key.substring(this.prefix.length + 1),
 				);
-				keys.push(result);
+				const { expiration } = await this.get(keyPath);
+				keys.push({ key: keyPath, expiration });
 				if (count >= limit) {
 					break;
 				}

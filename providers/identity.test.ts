@@ -71,7 +71,7 @@ export default async function testIdentityProvider(
 
 	await t.step("listIdentification", async () => {
 		const idents = await ip.listIdentification(identityId);
-		assertEquals(idents, [ident1]);
+		assertEquals(idents, [ident1.type]);
 	});
 
 	await t.step("updateIdentification", async () => {
@@ -98,13 +98,11 @@ export default async function testIdentityProvider(
 		await ip.deleteIdentification(
 			identityId,
 			ident2.type,
-			ident2.identification,
 		);
 		await assertRejects(() =>
 			ip.deleteIdentification(
 				identityId,
 				ident2.type,
-				ident2.identification,
 			)
 		);
 	});
@@ -127,7 +125,7 @@ export default async function testIdentityProvider(
 
 	await t.step("listChallenge", async () => {
 		const challengs = await ip.listChallenge(identityId);
-		assertEquals(challengs, [challenge1]);
+		assertEquals(challengs, [challenge1.type]);
 	});
 
 	await t.step("updateIdentification", async () => {

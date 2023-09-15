@@ -36,5 +36,8 @@ export interface SessionProvider {
 	 */
 	destroy(sessionId: AutoId): Promise<void>;
 
-	list(identityId: AutoId): Promise<SessionData[]>;
+	/**
+	 * @param identityId
+	 */
+	list(identityId: AutoId): Promise<AutoId[]>;
 }

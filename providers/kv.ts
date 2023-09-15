@@ -37,10 +37,18 @@ export interface KVKey {
 }
 
 /**
+ * KV List Key
+ */
+export interface KVListKey {
+	readonly key: string[];
+	readonly expiration?: number;
+}
+
+/**
  * KV List result
  */
 export interface KVListResult {
-	readonly keys: ReadonlyArray<KVKey>;
+	readonly keys: ReadonlyArray<KVListKey>;
 	readonly done: boolean;
 	readonly next?: string;
 }

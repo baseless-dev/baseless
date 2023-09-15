@@ -61,7 +61,7 @@ export interface IIdentityService {
 
 	listIdentification(
 		id: AutoId,
-	): Promise<IdentityIdentification[]>;
+	): Promise<string[]>;
 
 	/**
 	 * @throws {IdentityIdentificationNotFoundError}
@@ -102,10 +102,9 @@ export interface IIdentityService {
 	deleteIdentification(
 		id: AutoId,
 		type: string,
-		identification: string,
 	): Promise<void>;
 
-	listChallenge(id: AutoId): Promise<IdentityChallenge[]>;
+	listChallenge(id: AutoId): Promise<string[]>;
 
 	/**
 	 * @throws {IdentityChallengeNotFoundError}

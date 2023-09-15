@@ -51,7 +51,7 @@ export default async function testSessionProvider(
 
 	await t.step("list", async () => {
 		const sessionList = await session.list(identityId1);
-		assertEquals(sessionList, [sessionData1]);
+		assertEquals(sessionList, [sessionData1!.id]);
 	});
 
 	await t.step("destroy", async () => {

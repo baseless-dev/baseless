@@ -549,13 +549,11 @@ export async function updateChallenge(
 export async function deleteIdentification(
 	app: AuthApp,
 	identificationType: string,
-	identification: string,
 	locale: string,
 ): Promise<void> {
 	assertAuthApp(app);
 	const body = JSON.stringify({
 		identificationType,
-		identification,
 		locale,
 	});
 	const resp = await app.fetch(

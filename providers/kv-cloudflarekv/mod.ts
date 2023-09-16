@@ -19,7 +19,7 @@ function keyStringToKeyPath(key: string): string[] {
 }
 
 export class CloudFlareKVProvider implements KVProvider {
-	#logger = createLogger("baseless-kv-cloudflarekv");
+	#logger = createLogger("kv-cloudflarekv");
 	#storage: KVNamespace;
 
 	public constructor(

@@ -20,7 +20,7 @@ function keyStringToKeyPath(key: string): string[] {
 }
 
 export class WebStorageKVProvider implements KVProvider {
-	#logger = createLogger("baseless-kv-webstorage");
+	#logger = createLogger("kv-webstorage");
 
 	public constructor(
 		protected readonly storage: Storage,

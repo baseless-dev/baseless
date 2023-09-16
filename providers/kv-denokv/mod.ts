@@ -11,11 +11,11 @@ import type {
 } from "../kv.ts";
 
 export class DenoKVProvider implements KVProvider {
-	#logger = createLogger("baseless-kv-denokv");
+	#logger = createLogger("kv-denokv");
 	#storage: Deno.Kv;
 
 	public constructor(
-		storage: any,
+		storage: Deno.Kv,
 	) {
 		this.#storage = storage;
 	}
@@ -30,7 +30,7 @@ export class DenoKVProvider implements KVProvider {
 		>(
 			key,
 			{
-				consistency: "eventual",
+				consistency: "strong",
 			},
 		);
 		if (

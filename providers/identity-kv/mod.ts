@@ -38,7 +38,7 @@ import type { IdentityProvider } from "../identity.ts";
 import type { KVProvider } from "../kv.ts";
 
 export class KVIdentityProvider implements IdentityProvider {
-	#logger = createLogger("baseless-identity-kv");
+	#logger = createLogger("identity-kv");
 
 	public constructor(
 		protected readonly kv: KVProvider,

@@ -1,10 +1,9 @@
-import { func } from "../schema/schema.ts";
 import {
 	InvalidDocumentDataArrayError,
 	InvalidDocumentDataError,
-	InvalidDocumentDataIncrementError,
 	InvalidDocumentDataObjectError,
 	InvalidDocumentDataPrimitiveError,
+	InvalidDocumentError,
 	InvalidDocumentKeyError,
 } from "./errors.ts";
 
@@ -26,6 +25,7 @@ export type DocumentData =
 export interface Document<Data = unknown> {
 	readonly key: DocumentKey;
 	readonly data: Readonly<Data>;
+	readonly versionstamp: string;
 }
 
 export function isDocumentKey(value?: unknown): value is DocumentKey {
@@ -96,5 +96,19 @@ export function assertDocumentData(
 ): asserts value is DocumentData {
 	if (!isDocumentData(value)) {
 		throw new InvalidDocumentDataError();
+	}
+}
+
+export function isDocument(value: unknown): value is Document {
+	return !!value && typeof value === "object" &&
+		"key" in value && typeof value.key === "object" &&
+		Array.isArray(value.key) &&
+		"versionstamp" in value && typeof value.versionstamp === "string" &&
+		"data" in value && !!value.data;
+}
+
+export function assertDocument(value: unknown): asserts value is Document {
+	if (!isDocument(value)) {
+		throw new InvalidDocumentError();
 	}
 }

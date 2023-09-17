@@ -283,6 +283,9 @@ await Deno.writeTextFile(
 			dependencies: {
 				jose: "4.13.1",
 			},
+			devDependencies: {
+				"@cloudflare/workers-types": "4.20230914.0",
+			},
 			exports: Object.fromEntries(
 				entryPoints.map(
 					(entryPath) => {

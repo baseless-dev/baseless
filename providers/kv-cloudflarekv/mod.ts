@@ -1,4 +1,4 @@
-import { KVKeyNotFoundError, KVPutError } from "../../common/kv/errors.ts";
+import { KVKeyNotFoundError } from "../../common/kv/errors.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import type {
 	KVGetOptions,
@@ -20,17 +20,17 @@ function keyStringToKeyPath(key: string): string[] {
 
 export class CloudFlareKVProvider implements KVProvider {
 	#logger = createLogger("kv-cloudflarekv");
-	#storage: KVNamespace;
+	#kv: KVNamespace;
 
 	public constructor(
-		storage: any,
+		kv: KVNamespace,
 	) {
-		this.#storage = storage;
+		this.#kv = kv;
 	}
 
 	async get(key: string[], options?: KVGetOptions | undefined): Promise<KVKey> {
 		const keyString = keyPathToKeyString(key);
-		const result = await this.#storage.getWithMetadata<{ expiration: number }>(
+		const result = await this.#kv.getWithMetadata<{ expiration: number }>(
 			keyString,
 			{ type: "text", cacheTtl: options?.cacheTtl },
 		);
@@ -55,7 +55,7 @@ export class CloudFlareKVProvider implements KVProvider {
 				? options.expiration.getTime() / 1000 >> 0
 				: (options.expiration + new Date().getTime()) / 1000 >> 0
 			: undefined;
-		await this.#storage.put(keyString, value, {
+		await this.#kv.put(keyString, value, {
 			expiration,
 			metadata: { expiration },
 		});
@@ -66,7 +66,7 @@ export class CloudFlareKVProvider implements KVProvider {
 	): Promise<KVListResult> {
 		const prefixString = keyPathToKeyString(prefix);
 		const cursorString = cursor;
-		const results = await this.#storage.list<{ expiration: number }>({
+		const results = await this.#kv.list<{ expiration: number }>({
 			prefix: prefixString,
 			cursor: cursorString,
 			limit,
@@ -84,6 +84,6 @@ export class CloudFlareKVProvider implements KVProvider {
 
 	delete(key: string[]): Promise<void> {
 		const prefixString = keyPathToKeyString(key);
-		return this.#storage.delete(prefixString);
+		return this.#kv.delete(prefixString);
 	}
 }

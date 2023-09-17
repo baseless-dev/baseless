@@ -2,7 +2,6 @@ import { DocumentProvider } from "./document.ts";
 import {
 	assert,
 	assertEquals,
-	assertExists,
 	assertRejects,
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 
@@ -103,20 +102,16 @@ export default async function testDocumentProvider(
 			username: "Barbar",
 			age: 18,
 		});
-		assertEquals(await provider.get<User>(["users", "foo"]), {
-			key: ["users", "foo"],
-			data: { username: "Barbar", age: 18 },
-		});
+		const { data } = await provider.get<User>(["users", "foo"]);
+		assertEquals(data, { username: "Barbar", age: 18 });
 	});
 
 	await t.step("patch", async () => {
 		await provider.patch<User>(["users", "foo"], {
 			age: 21,
 		});
-		assertEquals(await provider.get<User>(["users", "foo"]), {
-			key: ["users", "foo"],
-			data: { username: "Barbar", age: 21 },
-		});
+		const { data } = await provider.get<User>(["users", "foo"]);
+		assertEquals(data, { username: "Barbar", age: 21 });
 	});
 
 	await t.step("delete", async () => {
@@ -129,5 +124,13 @@ export default async function testDocumentProvider(
 		await provider.deleteMany([["users", "jane"], ["users", "foo"]]);
 		assertRejects(() => provider.get<User>(["users", "jane"]));
 		assertRejects(() => provider.get<User>(["users", "foo"]));
+	});
+
+	await t.step("atomic", async () => {
+		const atomic = provider.atomic()
+			.notExists(["users", "bar"])
+			.set<User>(["users", "bar"], { username: "Barrr", age: 28 });
+		const result = await provider.commit(atomic);
+		assertEquals(result.ok, true);
 	});
 }

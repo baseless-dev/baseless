@@ -90,7 +90,7 @@ export class WebStorageKVProvider implements KVProvider {
 	}
 
 	async list(
-		{ prefix, cursor = "", limit = 10 }: KVListOptions,
+		{ prefix, cursor = "", limit }: KVListOptions,
 	): Promise<KVListResult> {
 		const prefixString = keyPathToKeyString([this.prefix, ...prefix]);
 		const prefixLength = prefixString.length;
@@ -100,6 +100,7 @@ export class WebStorageKVProvider implements KVProvider {
 		]);
 		const keys: KVListKey[] = [];
 		let count = 0;
+		limit ??= Number.MAX_VALUE;
 		for (let i = 0, l = this.storage.length; i < l && count < limit; ++i) {
 			const key = this.storage.key(i);
 			if (

@@ -123,7 +123,7 @@ export class MemoryDocumentProvider extends DocumentProvider {
 		key: DocumentKey,
 		data: Readonly<Partial<Data>>,
 	): Promise<void> {
-		const document = await this.get(key);
+		const document = await this.get<Data>(key);
 		const keyString = keyPathToKeyString(key);
 		this.#storage.set(keyString, {
 			key,

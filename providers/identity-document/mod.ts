@@ -1,22 +1,32 @@
 import {
-	IdentityChallengeDeleteError,
-	IdentityDeleteError,
+	IdentityChallengeExistsError,
+	IdentityChallengeNotFoundError,
 	IdentityIdentificationCreateError,
 	IdentityIdentificationDeleteError,
 	IdentityIdentificationNotFoundError,
-	IdentityIdentificationUpdateError,
+	IdentityUpdateError,
 } from "../../client/errors.ts";
-import { DocumentKey } from "../../common/document/document.ts";
-import { IdentityChallenge } from "../../common/identity/challenge.ts";
-import { IdentityIdentification } from "../../common/identity/identification.ts";
+import type { DocumentKey } from "../../common/document/document.ts";
+import type { IdentityChallenge } from "../../common/identity/challenge.ts";
+import type { IdentityIdentification } from "../../common/identity/identification.ts";
 import {
-	Identity,
+	type Identity,
 	IDENTITY_AUTOID_PREFIX,
 } from "../../common/identity/identity.ts";
-import { AutoId, autoid } from "../../common/system/autoid.ts";
+import { type AutoId, autoid } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import { DocumentProvider } from "../document.ts";
-import { IdentityProvider } from "../identity.ts";
+import { type IdentityProvider } from "../identity.ts";
+
+interface IdentityDocument {
+	id: AutoId;
+	meta: Record<string, unknown>;
+	identifications: Record<
+		IdentityIdentification["type"],
+		IdentityIdentification
+	>;
+	challenges: Record<IdentityChallenge["type"], IdentityChallenge>;
+}
 
 export class DocumentIdentityProvider implements IdentityProvider {
 	#logger = createLogger("identity-document");
@@ -32,82 +42,74 @@ export class DocumentIdentityProvider implements IdentityProvider {
 	}
 
 	async get(identityId: AutoId): Promise<Identity> {
-		const { data: identity } = await this.#document.get<Identity>([
+		const { data: { id, meta } } = await this.#document.get<IdentityDocument>([
 			this.#prefix,
 			"identities",
 			identityId,
-		]);
-		return identity;
+		], { consistency: "strong" });
+		return { id, meta };
 	}
 
 	async create(
 		meta: Record<string, unknown>,
 	): Promise<Identity> {
-		const identity: Identity = {
+		const document: IdentityDocument = {
 			id: autoid(IDENTITY_AUTOID_PREFIX),
 			meta,
+			identifications: {},
+			challenges: {},
 		};
 		await this.#document.create<Identity>(
-			[this.#prefix, "identities", identity.id],
-			identity,
+			[this.#prefix, "identities", document.id],
+			document,
 		);
-		return identity;
+		return { id: document.id, meta: document.meta };
 	}
 
 	async update(
 		identity: Identity,
 	): Promise<void> {
-		await this.#document.update<Identity>(
+		const document = await this.#document.get<IdentityDocument>(
 			[this.#prefix, "identities", identity.id],
-			identity,
+			{ consistency: "strong" },
 		);
+		const atomic = this.#document.atomic()
+			.match(document.key, document.versionstamp)
+			.set(document.key, { ...document.data, meta: identity.meta });
+		const result = await this.#document.commit(atomic);
+		if (!result.ok) {
+			throw new IdentityUpdateError();
+		}
 	}
 
 	async delete(identityId: AutoId): Promise<void> {
-		const document = await this.#document.get<Identity>(
+		const document = await this.#document.get<IdentityDocument>(
 			[this.#prefix, "identities", identityId],
+			{ consistency: "strong" },
 		);
-		const listResult = await this.#document.list({
-			prefix: [this.#prefix, "identities", identityId],
-		});
-		const identificationKeys: DocumentKey[] = [];
 		let atomic = this.#document.atomic()
 			.match(document.key, document.versionstamp)
 			.delete(document.key);
-		for (const key of listResult.keys) {
-			atomic = atomic.delete(key);
-			if (key.at(3) === "identifications" && key.length === 4) {
-				identificationKeys.push([
-					this.#prefix,
-					"identities",
-					identityId,
-					"identifications",
-					key.at(4)!,
-				]);
-			}
-		}
-		const identifications = await this.#document.getMany<
-			IdentityIdentification
-		>(identificationKeys);
-		for (const identification of identifications) {
+		for (const identification of Object.values(document.data.identifications)) {
 			atomic = atomic.delete([
 				this.#prefix,
 				"identifications",
-				identification.data.type,
-				identification.data.identification,
+				identification.type,
+				identification.identification,
 			]);
 		}
-		const commitResult = await this.#document.commit(atomic);
-		if (!commitResult.ok) {
-			throw new IdentityDeleteError();
+		const result = await this.#document.commit(atomic);
+		if (!result.ok) {
+			throw new IdentityUpdateError();
 		}
 	}
 
 	async listIdentification(identityId: AutoId): Promise<string[]> {
-		const identifications = await this.#document.list({
-			prefix: [this.#prefix, "identities", identityId, "identifications"],
-		});
-		return identifications.keys.map((key) => key.at(-1)!);
+		const document = await this.#document.get<IdentityDocument>(
+			[this.#prefix, "identities", identityId],
+			{ consistency: "strong" },
+		);
+		return Object.keys(document.data.identifications);
 	}
 
 	async matchIdentification(
@@ -115,10 +117,16 @@ export class DocumentIdentityProvider implements IdentityProvider {
 		identification: string,
 	): Promise<IdentityIdentification> {
 		try {
-			const result = await this.#document.get<IdentityIdentification>(
+			const result = await this.#document.get<DocumentKey>(
 				[this.#prefix, "identifications", type, identification],
+				{ consistency: "strong" },
 			);
-			return result.data;
+			const document = await this.#document.get<IdentityDocument>(result.data, {
+				consistency: "strong",
+			});
+			if (type in document.data.identifications) {
+				return document.data.identifications[type];
+			}
 		} catch (inner) {
 			this.#logger.error(
 				`Failed to match identification ${type}:${identification}, got ${inner}`,
@@ -131,38 +139,44 @@ export class DocumentIdentityProvider implements IdentityProvider {
 		identityId: string,
 		type: string,
 	): Promise<IdentityIdentification> {
-		const result = await this.#document.get<IdentityIdentification>(
-			[this.#prefix, "identities", identityId, "identifications", type],
+		const document = await this.#document.get<IdentityDocument>(
+			[this.#prefix, "identities", identityId],
+			{ consistency: "strong" },
 		);
-		return result.data;
+		if (type in document.data.identifications) {
+			return document.data.identifications[type];
+		}
+		throw new IdentityIdentificationNotFoundError();
 	}
 
 	async createIdentification(
 		identityIdentification: IdentityIdentification,
 	): Promise<void> {
+		const document = await this.#document.get<IdentityDocument>(
+			[this.#prefix, "identities", identityIdentification.identityId],
+			{ consistency: "strong" },
+		);
 		const atomic = this.#document.atomic()
+			.match(document.key, document.versionstamp)
 			.notExists([
 				this.#prefix,
 				"identifications",
 				identityIdentification.type,
 				identityIdentification.identification,
 			])
-			.set(
-				[
-					this.#prefix,
-					"identifications",
-					identityIdentification.type,
-					identityIdentification.identification,
-				],
-				identityIdentification,
-			)
+			.set(document.key, {
+				...document.data,
+				identifications: {
+					...document.data.identifications,
+					...{ [identityIdentification.type]: identityIdentification },
+				},
+			})
 			.set([
 				this.#prefix,
-				"identities",
-				identityIdentification.identityId,
 				"identifications",
 				identityIdentification.type,
-			], identityIdentification);
+				identityIdentification.identification,
+			], document.key);
 		const result = await this.#document.commit(atomic);
 		if (!result.ok) {
 			throw new IdentityIdentificationCreateError();
@@ -172,48 +186,70 @@ export class DocumentIdentityProvider implements IdentityProvider {
 	async updateIdentification(
 		identityIdentification: IdentityIdentification,
 	): Promise<void> {
-		const document = await this.#document.get<IdentityIdentification>([
-			this.#prefix,
-			"identities",
-			identityIdentification.identityId,
-			"identifications",
-			identityIdentification.type,
-		]);
-		const updatedIdentityIdentification: IdentityIdentification = {
-			...document.data,
-			...identityIdentification,
-		};
-		const atomic = this.#document.atomic()
+		const document = await this.#document.get<IdentityDocument>(
+			[this.#prefix, "identities", identityIdentification.identityId],
+			{ consistency: "strong" },
+		);
+		let atomic = this.#document.atomic()
 			.match(document.key, document.versionstamp)
-			.set(document.key, updatedIdentityIdentification)
-			.set([
-				this.#prefix,
-				"identifications",
-				document.data.type,
-				document.data.identification,
-			], updatedIdentityIdentification);
-		const commitResult = await this.#document.commit(atomic);
-		if (!commitResult.ok) {
-			throw new IdentityIdentificationUpdateError();
+			.set(document.key, {
+				...document.data,
+				identifications: {
+					...document.data.identifications,
+					...{ [identityIdentification.type]: identityIdentification },
+				},
+			});
+		const oldIdentityIdentification =
+			document.data.identifications[identityIdentification.type];
+		if (
+			identityIdentification.identification !==
+				oldIdentityIdentification.identification
+		) {
+			atomic = atomic
+				.notExists([
+					this.#prefix,
+					"identifications",
+					identityIdentification.type,
+					identityIdentification.identification,
+				])
+				.set([
+					this.#prefix,
+					"identifications",
+					identityIdentification.type,
+					identityIdentification.identification,
+				], document.key)
+				.delete([
+					this.#prefix,
+					"identifications",
+					oldIdentityIdentification.type,
+					oldIdentityIdentification.identification,
+				]);
+		}
+		const result = await this.#document.commit(atomic);
+		if (!result.ok) {
+			throw new IdentityIdentificationCreateError();
 		}
 	}
 
 	async deleteIdentification(identityId: AutoId, type: string): Promise<void> {
-		const document = await this.#document.get<IdentityIdentification>([
-			this.#prefix,
-			"identities",
-			identityId,
-			"identifications",
-			type,
-		]);
+		const document = await this.#document.get<IdentityDocument>(
+			[this.#prefix, "identities", identityId],
+			{ consistency: "strong" },
+		);
+		const oldIdentityIdentification = document.data.identifications[type];
+		const identifications = { ...document.data.identifications };
+		delete identifications[type];
 		const atomic = this.#document.atomic()
 			.match(document.key, document.versionstamp)
-			.delete(document.key)
+			.set(document.key, {
+				...document.data,
+				identifications,
+			})
 			.delete([
 				this.#prefix,
 				"identifications",
-				document.data.type,
-				document.data.identification,
+				oldIdentityIdentification.type,
+				oldIdentityIdentification.identification,
 			]);
 		const commitResult = await this.#document.commit(atomic);
 		if (!commitResult.ok) {
@@ -222,66 +258,93 @@ export class DocumentIdentityProvider implements IdentityProvider {
 	}
 
 	async listChallenge(identityId: AutoId): Promise<string[]> {
-		const result = await this.#document.list({
-			prefix: [this.#prefix, "identities", identityId, "challenges"],
-		});
-		return result.keys.map((key) => key.at(-1)!);
+		const document = await this.#document.get<IdentityDocument>(
+			[this.#prefix, "identities", identityId],
+			{ consistency: "strong" },
+		);
+		return Object.keys(document.data.challenges);
 	}
 
 	async getChallenge(
 		identityId: AutoId,
 		type: string,
 	): Promise<IdentityChallenge> {
-		const result = await this.#document.get<IdentityChallenge>(
-			[this.#prefix, "identities", identityId, "challenges", type],
+		const document = await this.#document.get<IdentityDocument>(
+			[this.#prefix, "identities", identityId],
+			{ consistency: "strong" },
 		);
-		return result.data;
+		if (type in document.data.challenges) {
+			return document.data.challenges[type];
+		}
+		throw new IdentityChallengeNotFoundError();
 	}
 
 	async createChallenge(
 		identityChallenge: IdentityChallenge,
 	): Promise<void> {
-		await this.#document.create<IdentityChallenge>(
-			[
-				this.#prefix,
-				"identities",
-				identityChallenge.identityId,
-				"challenges",
-				identityChallenge.type,
-			],
-			identityChallenge,
+		const document = await this.#document.get<IdentityDocument>(
+			[this.#prefix, "identities", identityChallenge.identityId],
+			{ consistency: "strong" },
 		);
+		if (identityChallenge.type in document.data.challenges) {
+			throw new IdentityChallengeExistsError();
+		}
+		const atomic = this.#document.atomic()
+			.match(document.key, document.versionstamp)
+			.set(document.key, {
+				...document.data,
+				challenges: {
+					...document.data.challenges,
+					...{ [identityChallenge.type]: identityChallenge },
+				},
+			});
+		const result = await this.#document.commit(atomic);
+		if (!result.ok) {
+			throw new IdentityIdentificationCreateError();
+		}
 	}
 
 	async updateChallenge(
 		identityChallenge: IdentityChallenge,
 	): Promise<void> {
-		await this.#document.update<IdentityChallenge>(
-			[
-				this.#prefix,
-				"identities",
-				identityChallenge.identityId,
-				"challenges",
-				identityChallenge.type,
-			],
-			identityChallenge,
+		const document = await this.#document.get<IdentityDocument>(
+			[this.#prefix, "identities", identityChallenge.identityId],
+			{ consistency: "strong" },
 		);
+		const atomic = this.#document.atomic()
+			.match(document.key, document.versionstamp)
+			.set(document.key, {
+				...document.data,
+				challenges: {
+					...document.data.challenges,
+					...{ [identityChallenge.type]: identityChallenge },
+				},
+			});
+		const result = await this.#document.commit(atomic);
+		if (!result.ok) {
+			throw new IdentityIdentificationCreateError();
+		}
 	}
 
 	async deleteChallenge(identityId: AutoId, type: string): Promise<void> {
-		try {
-			const document = await this.#document.get<IdentityChallenge>(
-				[this.#prefix, "identities", identityId, "challenges", type],
-			);
-			const atomic = this.#document.atomic()
-				.match(document.key, document.versionstamp)
-				.delete(document.key);
-			const result = await this.#document.commit(atomic);
-			if (!result.ok) {
-				throw new IdentityChallengeDeleteError();
-			}
-		} catch (_) {
-			throw new IdentityChallengeDeleteError();
+		const document = await this.#document.get<IdentityDocument>(
+			[this.#prefix, "identities", identityId],
+			{ consistency: "strong" },
+		);
+		if (!(type in document.data.challenges)) {
+			throw new IdentityChallengeNotFoundError();
+		}
+		const challenges = { ...document.data.challenges };
+		delete challenges[type];
+		const atomic = this.#document.atomic()
+			.match(document.key, document.versionstamp)
+			.set(document.key, {
+				...document.data,
+				challenges: challenges,
+			});
+		const result = await this.#document.commit(atomic);
+		if (!result.ok) {
+			throw new IdentityIdentificationCreateError();
 		}
 	}
 }

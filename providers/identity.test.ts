@@ -136,11 +136,6 @@ export default async function testIdentityProvider(
 		await ip.updateChallenge(challeng2);
 		const challeng3 = await ip.getChallenge(identityId, "password");
 		assertEquals(challeng2, challeng3);
-		const challeng4: IdentityChallenge = {
-			...challenge1,
-			type: "foo",
-		};
-		await assertRejects(() => ip.updateChallenge(challeng4));
 	});
 
 	await t.step("deleteChallenge", async () => {

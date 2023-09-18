@@ -149,7 +149,7 @@ export class WebStorageDocumentProvider extends DocumentProvider {
 		key: DocumentKey,
 		data: Readonly<Partial<Data>>,
 	): Promise<void> {
-		const document = await this.get(key);
+		const document = await this.get<Data>(key);
 		const keyString = keyPathToKeyString([this.#prefix, ...key]);
 		this.#storage.setItem(
 			keyString,

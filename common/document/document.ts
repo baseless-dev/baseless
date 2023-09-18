@@ -24,7 +24,7 @@ export type DocumentData =
 
 export interface Document<Data = unknown> {
 	readonly key: DocumentKey;
-	readonly data: Readonly<Data>;
+	readonly data: Data;
 	readonly versionstamp: string;
 }
 

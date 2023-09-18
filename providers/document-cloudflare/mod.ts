@@ -174,44 +174,56 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 	async commit(atomic: DocumentAtomic): Promise<DocumentAtomicsResult> {
 		const lock = autoid("lock-");
 		const expireAt = new Date().getTime() + 1000 * 60 * 2;
-		const releaseLockStub: DurableObjectStub[] = [];
+		let acquiredLocks: DurableObjectStub[] = [];
 		try {
 			// Acquire lock
-			for await (const check of atomic.checks) {
-				const doId = this.#do.idFromName(keyPathToKeyString(check.key));
-				const doStud = this.#do.get(doId);
-				const response = await doStud.fetch("https://example.com/acquireLock", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ check, lock, expireAt }),
-				}).catch((_) => undefined);
-				if (response?.status !== 200) {
-					throw new DocumentUpdateError();
-				}
-				releaseLockStub.push(doStud);
+			const acquiringLockResult = await Promise.allSettled(
+				atomic.checks.map(async (check) => {
+					try {
+						const doId = this.#do.idFromName(keyPathToKeyString(check.key));
+						const doStub = this.#do.get(doId);
+						const response = await doStub.fetch(
+							"https://example.com/acquireLock",
+							{
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({ check, lock, expireAt }),
+							},
+						);
+						if (response?.status !== 200) {
+							return doStub;
+						}
+					} catch (error) {
+						throw error;
+					}
+				}),
+			);
+			acquiredLocks = acquiringLockResult
+				.filter((r): r is PromiseFulfilledResult<DurableObjectStub> =>
+					r.status === "fulfilled"
+				)
+				.map((r) => r.value);
+			if (acquiringLockResult.length !== acquiredLocks.length) {
+				throw new DocumentAtomicError();
 			}
-			// Perform op with lock key
-			for await (const op of atomic.ops) {
-				const doId = this.#do.idFromName(keyPathToKeyString(op.key));
-				const doStud = this.#do.get(doId);
-				let response: Response | undefined;
-				if (op.type === "set") {
-					response = await doStud.fetch("https://example.com/set", {
+			// // Perform op with lock key
+			await Promise.allSettled(atomic.ops.map(async (op) => {
+				try {
+					const doId = this.#do.idFromName(keyPathToKeyString(op.key));
+					const doStub = this.#do.get(doId);
+					await doStub.fetch(`https://example.com/${op.type}`, {
 						method: "POST",
 						headers: { "Content-Type": "application/json", "X-Lock-Key": lock },
-						body: JSON.stringify({ key: op.key, data: op.data }),
-					}).catch((_) => undefined);
-				} else {
-					response = await doStud.fetch("https://example.com/delete", {
-						method: "POST",
-						headers: { "Content-Type": "application/json", "X-Lock-Key": lock },
-						body: JSON.stringify({ key: op.key }),
-					}).catch((_) => undefined);
+						body: JSON.stringify(
+							op.type === "set"
+								? { key: op.key, data: op.data }
+								: { key: op.key },
+						),
+					});
+				} catch (error) {
+					throw error;
 				}
-				if (response?.status !== 200) {
-					throw new DocumentAtomicError();
-				}
-			}
+			}));
 			return { ok: true };
 		} catch (error) {
 			this.#logger.error(`Document atomic error: ${error}`);
@@ -219,7 +231,7 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 		} finally {
 			// Release lock
 			await Promise.allSettled(
-				releaseLockStub.map((doStud) =>
+				acquiredLocks.map((doStud) =>
 					doStud.fetch("https://example.com/releaseLock", {
 						method: "POST",
 						headers: { "X-Lock-Key": lock },

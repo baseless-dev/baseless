@@ -5,7 +5,7 @@ import { EmailAuthentificationIdenticator } from "../providers/auth-email/mod.ts
 import { PasswordAuthentificationChallenger } from "../providers/auth-password/mod.ts";
 import { OTPLoggerAuthentificationChallenger } from "../providers/auth-otp-logger/mod.ts";
 import { MemoryCounterProvider } from "../providers/counter-memory/mod.ts";
-import { KVIdentityProvider } from "../providers/identity-kv/mod.ts";
+import { DocumentIdentityProvider } from "../providers/identity-document/mod.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
 import { LoggerMessageProvider } from "../providers/message-logger/mod.ts";
 import { KVSessionProvider } from "../providers/session-kv/mod.ts";
@@ -16,6 +16,7 @@ import type { CounterProvider } from "../providers/counter.ts";
 import type { IdentityProvider } from "../providers/identity.ts";
 import type { SessionProvider } from "../providers/session.ts";
 import { TOTPAuthentificationChallenger } from "../providers/auth-totp/mod.ts";
+import { MemoryDocumentProvider } from "../providers/document-memory/mod.ts";
 
 export type DummyServerHelpers = {
 	config: ConfigurationBuilder;
@@ -23,9 +24,9 @@ export type DummyServerHelpers = {
 	password: ReturnType<typeof PasswordAuthentificationChallenger>;
 	otp: ReturnType<typeof OTPLoggerAuthentificationChallenger>;
 	totp: ReturnType<typeof TOTPAuthentificationChallenger>;
-	createIdentity: KVIdentityProvider["create"];
-	createIdentification: KVIdentityProvider["createIdentification"];
-	createChallenge: KVIdentityProvider["createChallenge"];
+	createIdentity: DocumentIdentityProvider["create"];
+	createIdentification: DocumentIdentityProvider["createIdentification"];
+	createChallenge: DocumentIdentityProvider["createChallenge"];
 } & typeof h;
 
 export type DummyServerResult = {
@@ -61,8 +62,8 @@ export default async function makeDummyServer(
 	const assetProvider = new MemoryAssetProvider();
 	const counterProvider = new MemoryCounterProvider();
 	const kvProvider = new MemoryKVProvider();
-	const identityKV = new MemoryKVProvider();
-	const identityProvider = new KVIdentityProvider(identityKV);
+	const identityDocument = new MemoryDocumentProvider();
+	const identityProvider = new DocumentIdentityProvider(identityDocument);
 	const sessionKV = new MemoryKVProvider();
 	const sessionProvider = new KVSessionProvider(sessionKV);
 	const email = EmailAuthentificationIdenticator(
@@ -83,12 +84,11 @@ export default async function makeDummyServer(
 		password,
 		otp,
 		totp,
-		createIdentity: (meta, expiration) =>
-			identityProvider.create(meta, expiration),
+		createIdentity: (meta) => identityProvider.create(meta),
 		createIdentification: (identityIdentification) =>
 			identityProvider.createIdentification(identityIdentification),
-		createChallenge: (identityChallenge, expiration) =>
-			identityProvider.createChallenge(identityChallenge, expiration),
+		createChallenge: (identityChallenge) =>
+			identityProvider.createChallenge(identityChallenge),
 	};
 
 	await configurator?.(helpers);

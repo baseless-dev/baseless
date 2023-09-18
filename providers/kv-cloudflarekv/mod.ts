@@ -8,7 +8,9 @@ import type {
 	KVProvider,
 	KVPutOptions,
 } from "../kv.ts";
-/// <reference types="https://esm.sh/v132/@cloudflare/workers-types@4.20230914.0/index.d.ts" />
+import type {
+	KVNamespace,
+} from "npm:@cloudflare/workers-types@4.20230914.0/experimental";
 
 function keyPathToKeyString(key: string[]): string {
 	return key.map((p) => p.replaceAll("/", "\\/")).join("/");

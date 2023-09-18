@@ -23,7 +23,7 @@
 		"check": "DENO_DIR=.deno deno check client/**/*.ts",
 		"info": "DENO_DIR=.deno deno info",
 		"bench": "DENO_DIR=.deno deno bench -A --unstable",
-		"test": "DENO_DIR=.deno deno test -A --unstable --coverage=coverage",
+		"test": "DENO_DIR=.deno deno test -A --unstable --fail-fast --coverage=coverage",
 		"test:fast": "DENO_DIR=.deno deno test -A --unstable --parallel --fail-fast",
 		"coverage": "DENO_DIR=.deno deno coverage coverage"
 	},

@@ -34,6 +34,11 @@ const importMap: Map<string, { browser: string; node: string }> = new Map([
 		browser: "https://deno.land/x/jose@v4.13.1/types.d.ts",
 		node: "jose",
 	}],
+	["npm:@cloudflare/workers-types@4.20230914.0/experimental", {
+		browser:
+			"https://esm.sh/@cloudflare/workers-types@4.20230914.0/experimental/index.ts",
+		node: "@cloudflare/workers-types/experimental",
+	}],
 ]);
 
 await Deno.remove(join(__dirname, "./npm"), { recursive: true }).catch(
@@ -52,12 +57,12 @@ for await (
 					"{.deno,coverage,examples,node_modules,npm}/**/*",
 				),
 			),
-			// globToRegExp(
-			// 	join(
-			// 		__dirname,
-			// 		"providers/{asset-denofs,kv-denokv}/**/*",
-			// 	),
-			// ),
+			globToRegExp(
+				join(
+					__dirname,
+					"providers/{asset-denofs,kv-denokv,document-denokv}/**/*",
+				),
+			),
 			/build\.ts/,
 		],
 	})
@@ -107,13 +112,13 @@ for await (const entryPoint of entryPoints) {
 	browserProject.addSourceFileAtPath(entryPoint);
 	nodeProject.addSourceFileAtPath(entryPoint);
 	typesProject.addSourceFileAtPath(entryPoint);
-	const outputPath = join(
-		__dirname,
-		"npm/deno/",
-		relative(__dirname, entryPoint),
-	);
-	await Deno.mkdir(dirname(outputPath), { recursive: true });
-	await Deno.copyFile(entryPoint, outputPath);
+	// const outputPath = join(
+	// 	__dirname,
+	// 	"npm/deno/",
+	// 	relative(__dirname, entryPoint),
+	// );
+	// await Deno.mkdir(dirname(outputPath), { recursive: true });
+	// await Deno.copyFile(entryPoint, outputPath);
 }
 
 const browserResult = await browserProject.emitToMemory({
@@ -230,7 +235,9 @@ const nodeResult = await nodeProject.emitToMemory({
 });
 const nodeDiagnostics = nodeResult.getDiagnostics();
 
-const typesResult = await typesProject.emitToMemory({ emitOnlyDtsFiles: true });
+const typesResult = await typesProject.emitToMemory({
+	emitOnlyDtsFiles: true,
+});
 const typesDiagnostics = typesResult.getDiagnostics();
 
 const diagnostics = [
@@ -265,7 +272,7 @@ for (const file of nodeResult.getFiles()) {
 }
 for (const file of typesResult.getFiles()) {
 	await Deno.mkdir(dirname(file.filePath), { recursive: true });
-	await Deno.writeTextFile(file.filePath, file.text);
+	await Deno.writeTextFile(file.filePath, file.text.replaceAll("npm:", ""));
 }
 
 await Deno.writeTextFile(
@@ -293,7 +300,7 @@ await Deno.writeTextFile(
 						return [key.replace(/\.tsx?$/, "").replace(/\/mod$/, ""), {
 							node: "./" + join("node/esm/", key.replace(/\.tsx?$/, ".mjs")),
 							browser: "./" + join("browser/", key.replace(/\.tsx?$/, ".mjs")),
-							deno: "./" + join("deno/", key),
+							// deno: "./" + join("deno/", key),
 							types: "./" + join("types/", key.replace(/\.tsx?$/, ".d.ts")),
 						}];
 					},

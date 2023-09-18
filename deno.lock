@@ -477,10 +477,15 @@
   },
   "npm": {
     "specifiers": {
+      "@cloudflare/workers-types@4.20230914.0": "@cloudflare/workers-types@4.20230914.0",
       "@types/react": "@types/react@18.2.0",
       "zod": "zod@3.21.4"
     },
     "packages": {
+      "@cloudflare/workers-types@4.20230914.0": {
+        "integrity": "sha512-OVeN4lFVu1O0PJGZ2d0FwpK8lelFcr33qYOgCh77ErEYmEBO4adwnIxcIsdQbFbhF0ffN6joiVcljD4zakdaeQ==",
+        "dependencies": {}
+      },
       "@types/prop-types@15.7.5": {
         "integrity": "sha512-JCB8C6SnDoQf0cNycqd/35A7MjcnK+ZTqE7judS6o7utxUCg6imJg3QK2qzHKszlTjcj2cn+NwMB2i96ubpj7w==",
         "dependencies": {}

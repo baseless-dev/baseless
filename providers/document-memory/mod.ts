@@ -153,8 +153,12 @@ export class MemoryDocumentProvider extends DocumentProvider {
 					return { ok: false };
 				}
 			} else {
-				const document = await this.get(check.key);
-				if (document.versionstamp !== check.versionstamp) {
+				try {
+					const document = await this.get(check.key);
+					if (document.versionstamp !== check.versionstamp) {
+						return { ok: false };
+					}
+				} catch (_) {
 					return { ok: false };
 				}
 			}

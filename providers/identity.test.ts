@@ -128,7 +128,7 @@ export default async function testIdentityProvider(
 		assertEquals(challengs, [challenge1.type]);
 	});
 
-	await t.step("updateIdentification", async () => {
+	await t.step("updateChallenge", async () => {
 		const challeng2: IdentityChallenge = {
 			...challenge1,
 			meta: { foo: "bar" },
@@ -143,7 +143,7 @@ export default async function testIdentityProvider(
 		await assertRejects(() => ip.updateChallenge(challeng4));
 	});
 
-	await t.step("deleteIdentification", async () => {
+	await t.step("deleteChallenge", async () => {
 		const challeng2: IdentityChallenge = {
 			...challenge1,
 			type: "password2",

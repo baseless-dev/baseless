@@ -1,8 +1,6 @@
-/// <reference types="https://esm.sh/v132/@cloudflare/workers-types@4.20230914.0/index.d.ts" />
-
 import {
-	Document,
-	DocumentKey,
+	type Document,
+	type DocumentKey,
 	isDocument,
 } from "../../common/document/document.ts";
 import {
@@ -17,13 +15,20 @@ import { autoid } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import {
 	DocumentAtomic,
-	DocumentAtomicCheck,
-	DocumentAtomicsResult,
-	DocumentGetOptions,
-	DocumentListOptions,
-	DocumentListResult,
+	type DocumentAtomicCheck,
+	type DocumentAtomicsResult,
+	type DocumentGetOptions,
+	type DocumentListOptions,
+	type DocumentListResult,
 	DocumentProvider,
 } from "../document.ts";
+import type {
+	DurableObject,
+	DurableObjectNamespace,
+	DurableObjectState,
+	DurableObjectStorage,
+	KVNamespace,
+} from "npm:@cloudflare/workers-types@4.20230914.0/experimental";
 
 function keyPathToKeyString(key: string[]): string {
 	return key.map((p) => p.replaceAll("/", "\\/")).join("/");
@@ -55,7 +60,11 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 		if (options?.consistency === "strong") {
 			const doId = this.#do.idFromName(keyString);
 			const doStud = this.#do.get(doId);
-			const response = await doStud.fetch("https://example.com/get").catch((
+			const response = await doStud.fetch("https://example.com/get", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ key }),
+			}).catch((
 				_,
 			) => undefined);
 			if (response?.status !== 200) {
@@ -107,7 +116,7 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 		const response = await doStud.fetch("https://example.com/create", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ data }),
+			body: JSON.stringify({ key, data }),
 		}).catch((_) => undefined);
 		if (response?.status !== 200) {
 			throw new DocumentCreateError();
@@ -123,7 +132,7 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 		const response = await doStud.fetch("https://example.com/update", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ data }),
+			body: JSON.stringify({ key, data }),
 		}).catch((_) => undefined);
 		if (response?.status !== 200) {
 			throw new DocumentUpdateError();
@@ -139,7 +148,7 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 		const response = await doStud.fetch("https://example.com/patch", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ data }),
+			body: JSON.stringify({ key, data }),
 		}).catch((_) => undefined);
 		if (response?.status !== 200) {
 			throw new DocumentPatchError();
@@ -151,6 +160,8 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 		const doStud = this.#do.get(doId);
 		const response = await doStud.fetch("https://example.com/delete", {
 			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ key }),
 		}).catch((_) => undefined);
 		if (response?.status !== 200) {
 			throw new DocumentDeleteError();
@@ -188,12 +199,13 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 					response = await doStud.fetch("https://example.com/set", {
 						method: "POST",
 						headers: { "Content-Type": "application/json", "X-Lock-Key": lock },
-						body: JSON.stringify({ data: op.data }),
+						body: JSON.stringify({ key: op.key, data: op.data }),
 					}).catch((_) => undefined);
 				} else {
 					response = await doStud.fetch("https://example.com/delete", {
 						method: "POST",
-						headers: { "X-Lock-Key": lock },
+						headers: { "Content-Type": "application/json", "X-Lock-Key": lock },
+						body: JSON.stringify({ key: op.key }),
 					}).catch((_) => undefined);
 				}
 				if (response?.status !== 200) {
@@ -222,13 +234,11 @@ export class CloudflareDocumentDurableObject implements DurableObject {
 	#logger = createLogger("document-cloudflare-do");
 	#storage: DurableObjectStorage;
 	#kv: KVNamespace;
-	#key: DocumentKey;
 	#document: Document | undefined;
 	#lock: { lock: string; expireAt: number } | undefined;
 
 	constructor(state: DurableObjectState, env: { DOCUMENT_KV: KVNamespace }) {
 		this.#kv = env.DOCUMENT_KV;
-		this.#key = keyStringToKeyPath(state.id.name ?? "");
 		this.#storage = state.storage;
 		state.blockConcurrencyWhile(async () => {
 			this.#document = await this.#storage.get("document");
@@ -256,16 +266,16 @@ export class CloudflareDocumentDurableObject implements DurableObject {
 			if (op === "update" && !this.#document) {
 				return new Response(null, { status: 404 });
 			}
-			const data = await request.json() as Readonly<unknown>;
+			const { key, data } = await request.json() as any;
 			const versionstamp = new Date().getTime().toString();
 			this.#document = {
-				key: this.#key,
+				key,
 				data,
 				versionstamp,
 			};
 			await this.#storage.put("document", this.#document);
 			await this.#kv.put(
-				keyPathToKeyString(this.#key),
+				keyPathToKeyString(key),
 				JSON.stringify(this.#document),
 			);
 			return new Response(null, { status: 200 });
@@ -274,24 +284,25 @@ export class CloudflareDocumentDurableObject implements DurableObject {
 			if (!this.#document) {
 				return new Response(null, { status: 404 });
 			}
-			const data = await request.json() as Readonly<unknown>;
+			const { key, data } = await request.json() as any;
 			const versionstamp = new Date().getTime().toString();
 			this.#document = {
-				key: this.#key,
+				key: key,
 				data: { ...this.#document.data, ...data },
 				versionstamp,
 			};
 			await this.#storage.put("document", this.#document);
 			await this.#kv.put(
-				keyPathToKeyString(this.#key),
+				keyPathToKeyString(key),
 				JSON.stringify(this.#document),
 			);
 			return new Response(null, { status: 200 });
 		}
 		if (op === "delete") {
+			const { key } = await request.json() as any;
 			this.#document = undefined;
 			await this.#storage.delete("document");
-			await this.#kv.delete(keyPathToKeyString(this.#key));
+			await this.#kv.delete(keyPathToKeyString(key));
 			return new Response(null, { status: 200 });
 		}
 		if (op === "acquireLock") {
@@ -311,7 +322,7 @@ export class CloudflareDocumentDurableObject implements DurableObject {
 				}
 			}
 			this.#lock = { lock: data.lock, expireAt: data.expireAt };
-			this.#storage.put("lock", this.#lock);
+			await this.#storage.put("lock", this.#lock);
 			return new Response(null, { status: 200 });
 		}
 		if (op === "releaseLock") {
@@ -320,7 +331,7 @@ export class CloudflareDocumentDurableObject implements DurableObject {
 				return new Response(null, { status: 409 });
 			}
 			this.#lock = undefined;
-			this.#storage.delete("lock");
+			await this.#storage.delete("lock");
 			return new Response(null, { status: 200 });
 		}
 		return new Response(null, { status: 501 });

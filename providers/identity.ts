@@ -38,14 +38,13 @@ export interface IdentityProvider {
 	/**
 	 * @throws {IdentityNotFoundError}
 	 */
-	get(id: AutoId): Promise<Identity>;
+	get(identityId: AutoId): Promise<Identity>;
 
 	/**
 	 * @throws {IdentityCreateError}
 	 */
 	create(
 		meta: Record<string, unknown>,
-		expiration?: number | Date,
 	): Promise<Identity>;
 
 	/**
@@ -53,16 +52,15 @@ export interface IdentityProvider {
 	 */
 	update(
 		identity: Identity,
-		expiration?: number | Date,
 	): Promise<void>;
 
 	/**
 	 * @throws {IdentityDeleteError}
 	 */
-	delete(id: AutoId): Promise<void>;
+	delete(identityId: AutoId): Promise<void>;
 
 	listIdentification(
-		id: AutoId,
+		identityId: AutoId,
 	): Promise<string[]>;
 
 	/**
@@ -86,7 +84,6 @@ export interface IdentityProvider {
 	 */
 	createIdentification(
 		identityIdentification: IdentityIdentification,
-		expiration?: number | Date,
 	): Promise<void>;
 
 	/**
@@ -94,18 +91,17 @@ export interface IdentityProvider {
 	 */
 	updateIdentification(
 		identityIdentification: IdentityIdentification,
-		expiration?: number | Date,
 	): Promise<void>;
 
 	/**
 	 * @throws {IdentityIdentificationDeleteError}
 	 */
 	deleteIdentification(
-		id: AutoId,
+		identityId: AutoId,
 		type: string,
 	): Promise<void>;
 
-	listChallenge(id: AutoId): Promise<string[]>;
+	listChallenge(identityId: AutoId): Promise<string[]>;
 
 	/**
 	 * @throws {IdentityChallengeNotFoundError}
@@ -120,7 +116,6 @@ export interface IdentityProvider {
 	 */
 	createChallenge(
 		identityChallenge: IdentityChallenge,
-		expiration?: number | Date,
 	): Promise<void>;
 
 	/**
@@ -128,14 +123,13 @@ export interface IdentityProvider {
 	 */
 	updateChallenge(
 		identityChallenge: IdentityChallenge,
-		expiration?: number | Date,
 	): Promise<void>;
 
 	/**
 	 * @throws {IdentityChallengeDeleteError}
 	 */
 	deleteChallenge(
-		id: AutoId,
+		identityId: AutoId,
 		type: string,
 	): Promise<void>;
 }

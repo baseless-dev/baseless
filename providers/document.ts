@@ -1,4 +1,4 @@
-import { Document, DocumentKey } from "../common/document/document.ts";
+import type { Document, DocumentKey } from "../common/document/document.ts";
 
 export interface DocumentGetOptions {
 	readonly consistency: "strong" | "eventual";

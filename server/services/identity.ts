@@ -75,10 +75,9 @@ export class IdentityService implements IIdentityService {
 	 */
 	create(
 		meta: Record<string, unknown>,
-		expiration?: number | Date,
 	): Promise<Identity> {
 		// TODO life cycle hooks
-		return this.#identityProvider.create(meta, expiration);
+		return this.#identityProvider.create(meta);
 	}
 
 	/**
@@ -86,10 +85,9 @@ export class IdentityService implements IIdentityService {
 	 */
 	update(
 		identity: Identity,
-		expiration?: number | Date,
 	): Promise<void> {
 		// TODO life cycle hooks
-		return this.#identityProvider.update(identity, expiration);
+		return this.#identityProvider.update(identity);
 	}
 
 	/**
@@ -129,7 +127,6 @@ export class IdentityService implements IIdentityService {
 	 */
 	async createIdentification(
 		identityIdentification: IdentityIdentification,
-		expiration?: number | Date,
 	): Promise<void> {
 		const key =
 			`/auth/identification/${identityIdentification.type}:${identityIdentification.identification}`;
@@ -140,7 +137,6 @@ export class IdentityService implements IIdentityService {
 		// TODO life cycle hooks
 		return this.#identityProvider.createIdentification(
 			identityIdentification,
-			expiration,
 		);
 	}
 
@@ -149,14 +145,12 @@ export class IdentityService implements IIdentityService {
 	 */
 	updateIdentification(
 		identityIdentification: IdentityIdentification,
-		expiration?: number | Date,
 	): Promise<void> {
 		try {
 			assertIdentityIdentification(identityIdentification);
 			// TODO life cycle hooks
 			return this.#identityProvider.updateIdentification(
 				identityIdentification,
-				expiration,
 			);
 		} catch (_error) {
 			// skip
@@ -215,14 +209,12 @@ export class IdentityService implements IIdentityService {
 	 */
 	createChallenge(
 		identityChallenge: IdentityChallenge,
-		expiration?: number | Date,
 	): Promise<void> {
 		try {
 			assertIdentityChallenge(identityChallenge);
 			// TODO life cycle hooks
 			return this.#identityProvider.createChallenge(
 				identityChallenge,
-				expiration,
 			);
 		} catch (_error) {
 			// skip
@@ -235,14 +227,12 @@ export class IdentityService implements IIdentityService {
 	 */
 	updateChallenge(
 		identityChallenge: IdentityChallenge,
-		expiration?: number | Date,
 	): Promise<void> {
 		try {
 			assertIdentityChallenge(identityChallenge);
 			// TODO life cycle hooks
 			return this.#identityProvider.updateChallenge(
 				identityChallenge,
-				expiration,
 			);
 		} catch (_error) {
 			// skip

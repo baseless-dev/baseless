@@ -11,7 +11,7 @@ import {
 	DocumentPatchError,
 	DocumentUpdateError,
 } from "../../common/document/errors.ts";
-import { autoid } from "../../common/system/autoid.ts";
+import { type AutoId, autoid } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import {
 	DocumentAtomic,
@@ -71,6 +71,9 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 				throw new DocumentNotFoundError();
 			}
 			const value = await response.json() as unknown;
+			if (!isDocument(value)) {
+				throw new DocumentNotFoundError();
+			}
 			return value as Document<Data>;
 		} else {
 			const value = await this.#kv.get(keyString, "json");
@@ -117,7 +120,7 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ key, data }),
-		}).catch((_) => undefined);
+		}).catch(() => undefined);
 		if (response?.status !== 200) {
 			throw new DocumentCreateError();
 		}
@@ -133,7 +136,7 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ key, data }),
-		}).catch((_) => undefined);
+		}).catch(() => undefined);
 		if (response?.status !== 200) {
 			throw new DocumentUpdateError();
 		}
@@ -149,7 +152,7 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ key, data }),
-		}).catch((_) => undefined);
+		}).catch(() => undefined);
 		if (response?.status !== 200) {
 			throw new DocumentPatchError();
 		}
@@ -162,7 +165,7 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ key }),
-		}).catch((_) => undefined);
+		}).catch(() => undefined);
 		if (response?.status !== 200) {
 			throw new DocumentDeleteError();
 		}
@@ -174,72 +177,111 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 	async commit(atomic: DocumentAtomic): Promise<DocumentAtomicsResult> {
 		const lock = autoid("lock-");
 		const expireAt = new Date().getTime() + 1000 * 60 * 2;
-		let acquiredLocks: DurableObjectStub[] = [];
+		let rollback = false;
+
+		// Determined keys to lock
+		const keysToLock: Array<
+			{ key: DocumentKey; type?: string; versionstamp?: string }
+		> = [
+			...atomic.checks,
+			...atomic.ops.map((op) => ({
+				key: op.key,
+			})),
+		];
+		const uniqueKeysToLock = Object.values(keysToLock.reduce(
+			(map, item) => {
+				const keyString = keyPathToKeyString(item.key);
+				if (!(keyString in map) || item.type) {
+					map[keyString] = item;
+				}
+				return map;
+			},
+			{} as Record<string, { key: DocumentKey; check?: DocumentAtomicCheck }>,
+		));
+
+		// Acquire locks
+		const lockedStubs: DurableObjectStub[] = await Promise.allSettled(
+			uniqueKeysToLock.map(async (item) => {
+				const doId = this.#do.idFromName(keyPathToKeyString(item.key));
+				const doStub = this.#do.get(doId);
+				const response = await doStub.fetch("https://example.com/lock", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						key: item.key,
+						lock,
+						expireAt,
+						check: item.check,
+					}),
+				}).catch(() => undefined);
+				if (response?.status !== 200) {
+					throw new DocumentAtomicError();
+				}
+				return doStub;
+			}),
+		).then((results) => {
+			return results
+				.map((r) => r.status === "fulfilled" ? r.value : undefined)
+				.filter((r): r is DurableObjectStub => r !== undefined);
+		}).catch(() => []);
+
 		try {
-			// Acquire lock
-			const acquiringLockResult = await Promise.allSettled(
-				atomic.checks.map(async (check) => {
-					try {
-						const doId = this.#do.idFromName(keyPathToKeyString(check.key));
-						const doStub = this.#do.get(doId);
-						const response = await doStub.fetch(
-							"https://example.com/acquireLock",
-							{
-								method: "POST",
-								headers: { "Content-Type": "application/json" },
-								body: JSON.stringify({ check, lock, expireAt }),
-							},
-						);
-						if (response?.status !== 200) {
-							return doStub;
-						}
-					} catch (error) {
-						throw error;
-					}
-				}),
-			);
-			acquiredLocks = acquiringLockResult
-				.filter((r): r is PromiseFulfilledResult<DurableObjectStub> =>
-					r.status === "fulfilled"
-				)
-				.map((r) => r.value);
-			if (acquiringLockResult.length !== acquiredLocks.length) {
+			// Did not acquire all locks
+			if (uniqueKeysToLock.length !== lockedStubs.length) {
 				throw new DocumentAtomicError();
 			}
-			// // Perform op with lock key
+
+			// Perform op with lock key
 			await Promise.allSettled(atomic.ops.map(async (op) => {
-				try {
-					const doId = this.#do.idFromName(keyPathToKeyString(op.key));
-					const doStub = this.#do.get(doId);
-					await doStub.fetch(`https://example.com/${op.type}`, {
+				const doId = this.#do.idFromName(keyPathToKeyString(op.key));
+				const doStub = this.#do.get(doId);
+				const response = await doStub.fetch(
+					`https://example.com/${op.type}`,
+					{
 						method: "POST",
-						headers: { "Content-Type": "application/json", "X-Lock-Key": lock },
+						headers: {
+							"Content-Type": "application/json",
+							"X-Lock-Key": lock,
+						},
 						body: JSON.stringify(
 							op.type === "set"
 								? { key: op.key, data: op.data }
 								: { key: op.key },
 						),
-					});
-				} catch (error) {
-					throw error;
+					},
+				).catch(() => undefined);
+				if (response?.status !== 200) {
+					rollback = true;
 				}
 			}));
-			return { ok: true };
+			return { ok: !rollback };
 		} catch (error) {
+			rollback = true;
 			this.#logger.error(`Document atomic error: ${error}`);
-			throw new DocumentAtomicError();
+			return { ok: false };
 		} finally {
-			// Release lock
-			await Promise.allSettled(
-				acquiredLocks.map((doStud) =>
-					doStud.fetch("https://example.com/releaseLock", {
-						method: "POST",
-						headers: { "X-Lock-Key": lock },
-					})
+			// Release lock and rollback if nessessary
+			await Promise.all(
+				lockedStubs.map((doStud) =>
+					doStud.fetch(
+						`https://example.com/${rollback ? "rollback" : "commit"}`,
+						{
+							method: "POST",
+							headers: { "X-Lock-Key": lock },
+						},
+					)
 				),
 			);
 		}
 	}
+}
+
+interface AtomicState {
+	key: DocumentKey;
+	lock: AutoId;
+	expireAt: number;
+	uncommitedDelete: boolean;
+	uncommitedDocument: Document | undefined;
 }
 
 export class CloudflareDocumentDurableObject implements DurableObject {
@@ -247,105 +289,141 @@ export class CloudflareDocumentDurableObject implements DurableObject {
 	#storage: DurableObjectStorage;
 	#kv: KVNamespace;
 	#document: Document | undefined;
-	#lock: { lock: string; expireAt: number } | undefined;
+	#atomicState?: AtomicState;
 
 	constructor(state: DurableObjectState, env: { DOCUMENT_KV: KVNamespace }) {
 		this.#kv = env.DOCUMENT_KV;
 		this.#storage = state.storage;
 		state.blockConcurrencyWhile(async () => {
 			this.#document = await this.#storage.get("document");
-			this.#lock = await this.#storage.get("lock");
+			this.#atomicState = await this.#storage.get("atomicState");
 		});
+	}
+
+	async #setDocument(key: DocumentKey, document?: Document): Promise<void> {
+		this.#document = document;
+		if (document) {
+			await this.#storage.put("document", document);
+			await this.#kv.put(
+				keyPathToKeyString(document.key),
+				JSON.stringify(document),
+			);
+		} else {
+			await this.#storage.delete("document");
+			await this.#kv.delete(keyPathToKeyString(key));
+		}
+	}
+
+	async #setAtomicState(atomicState?: AtomicState): Promise<void> {
+		this.#atomicState = atomicState;
+		if (atomicState) {
+			await this.#storage.put("atomicState", atomicState);
+		} else {
+			await this.#storage.delete("atomicState");
+		}
 	}
 
 	async fetch(request: Request): Promise<Response> {
 		const url = new URL(request.url);
-		const op = url.pathname.split("/")[1];
 		const now = new Date().getTime();
+		const op = url.pathname.split("/")[1];
+
 		if (op === "get") {
 			return Response.json(this.#document, { status: 200 });
 		}
-		if (
-			this.#lock && this.#lock.expireAt > now &&
-			request.headers.get("X-Lock-Key") !== this.#lock.lock
-		) {
-			return new Response(null, { status: 423 });
+
+		if (this.#atomicState) {
+			if (this.#atomicState.expireAt <= now) {
+				await this.#setAtomicState(undefined);
+			} else if (request.headers.get("X-Lock-Key") !== this.#atomicState.lock) {
+				return new Response("Locked", { status: 423 });
+			}
 		}
-		if (op === "create" || op === "set" || op === "update") {
+
+		if (op === "create" || op === "set" || op === "update" || op === "patch") {
 			if (op === "create" && this.#document) {
-				return new Response(null, { status: 409 });
+				return new Response("Conflict", { status: 409 });
 			}
-			if (op === "update" && !this.#document) {
-				return new Response(null, { status: 404 });
+			if ((op === "update" || op === "patch") && !this.#document) {
+				return new Response("Not Found", { status: 404 });
 			}
-			const { key, data } = await request.json() as any;
+			const { key, data } = await request.json() as {
+				key: DocumentKey;
+				data: unknown;
+			};
 			const versionstamp = new Date().getTime().toString();
-			this.#document = {
+			const uncommitedDocument: Document = {
 				key,
-				data,
+				data: op === "patch" && typeof this.#document?.data === "object" &&
+						typeof data === "object"
+					? { ...this.#document.data, ...data }
+					: data,
 				versionstamp,
 			};
-			await this.#storage.put("document", this.#document);
-			await this.#kv.put(
-				keyPathToKeyString(key),
-				JSON.stringify(this.#document),
-			);
-			return new Response(null, { status: 200 });
-		}
-		if (op === "patch") {
-			if (!this.#document) {
-				return new Response(null, { status: 404 });
-			}
-			const { key, data } = await request.json() as any;
-			const versionstamp = new Date().getTime().toString();
-			this.#document = {
-				key: key,
-				data: { ...this.#document.data, ...data },
-				versionstamp,
-			};
-			await this.#storage.put("document", this.#document);
-			await this.#kv.put(
-				keyPathToKeyString(key),
-				JSON.stringify(this.#document),
-			);
-			return new Response(null, { status: 200 });
-		}
-		if (op === "delete") {
-			const { key } = await request.json() as any;
-			this.#document = undefined;
-			await this.#storage.delete("document");
-			await this.#kv.delete(keyPathToKeyString(key));
-			return new Response(null, { status: 200 });
-		}
-		if (op === "acquireLock") {
-			const data = await request.json() as Readonly<
-				{ check: DocumentAtomicCheck; lock: string; expireAt: number }
-			>;
-			if (data.check.type === "notExists") {
-				if (this.#document) {
-					return new Response(null, { status: 409 });
-				}
+			if (this.#atomicState) {
+				await this.#setAtomicState({
+					...this.#atomicState,
+					uncommitedDocument,
+				});
 			} else {
-				if (
-					!this.#document ||
-					this.#document.versionstamp !== data.check.versionstamp
-				) {
-					return new Response(null, { status: 409 });
-				}
+				await this.#setDocument(key, uncommitedDocument);
 			}
-			this.#lock = { lock: data.lock, expireAt: data.expireAt };
-			await this.#storage.put("lock", this.#lock);
 			return new Response(null, { status: 200 });
 		}
-		if (op === "releaseLock") {
-			const lock = request.headers.get("X-Lock-Key");
-			if (this.#lock?.lock !== lock) {
-				return new Response(null, { status: 409 });
+
+		if (op === "delete") {
+			const { key } = await request.json() as { key: DocumentKey };
+			if (this.#atomicState) {
+				await this.#setAtomicState({
+					...this.#atomicState,
+					uncommitedDelete: true,
+				});
+			} else {
+				await this.#setDocument(key, undefined);
 			}
-			this.#lock = undefined;
-			await this.#storage.delete("lock");
 			return new Response(null, { status: 200 });
+		} else if (op === "lock") {
+			const { key, lock, expireAt, check } = await request.json() as {
+				key: DocumentKey;
+				lock: AutoId;
+				expireAt: number;
+				check?: DocumentAtomicCheck;
+			};
+			if (check?.type === "notExists" && this.#document) {
+				return new Response("Conflict", { status: 409 });
+			} else if (
+				check?.type === "match" &&
+				this.#document?.versionstamp !== check.versionstamp
+			) {
+				return new Response("Conflict", { status: 409 });
+			}
+			await this.#setAtomicState({
+				key,
+				lock,
+				expireAt,
+				uncommitedDelete: false,
+				uncommitedDocument: undefined,
+			});
+			return Response.json({ ok: true }, { status: 200 });
+		} else if (op === "rollback") {
+			await this.#setAtomicState(undefined);
+			return Response.json({ ok: true }, { status: 200 });
+		} else if (op === "commit") {
+			if (!this.#atomicState) {
+				return new Response("Precondition Failed", { status: 412 });
+			}
+			if (this.#atomicState.uncommitedDelete) {
+				await this.#setDocument(this.#atomicState.key, undefined);
+			} else {
+				await this.#setDocument(
+					this.#atomicState.key,
+					this.#atomicState.uncommitedDocument,
+				);
+			}
+			await this.#setAtomicState(undefined);
+			return Response.json({ ok: true }, { status: 200 });
 		}
-		return new Response(null, { status: 501 });
+
+		return new Response("Bad Request", { status: 400 });
 	}
 }

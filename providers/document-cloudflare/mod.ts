@@ -32,7 +32,7 @@ function keyStringToKeyPath(key: string): string[] {
 	return key.split(/(?<!\\)\//).map((p) => p.replaceAll("\\/", "/"));
 }
 
-export class CloudflareDocumentProvider extends DocumentProvider {
+export class CloudFlareDocumentProvider extends DocumentProvider {
 	#logger = createLogger("document-cloudflare");
 	#kv: KVNamespace;
 	#do: DurableObjectNamespace;
@@ -277,7 +277,7 @@ interface AtomicState {
 	uncommitedDocument: Document | undefined;
 }
 
-export class CloudflareDocumentDurableObject /*implements DurableObject*/ {
+export class CloudFlareDocumentDurableObject /*implements DurableObject*/ {
 	#logger = createLogger("document-cloudflare-do");
 	#storage: DurableObjectStorage;
 	#kv: KVNamespace;

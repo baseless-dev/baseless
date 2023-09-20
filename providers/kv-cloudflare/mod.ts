@@ -22,9 +22,8 @@ export class CloudFlareKVProvider implements KVProvider {
 	#logger = createLogger("kv-cloudflarekv");
 	#kv: KVNamespace;
 
-	public constructor(
-		kv: any,
-	) {
+	// deno-lint-ignore no-explicit-any
+	public constructor(kv: any) {
 		this.#kv = kv;
 	}
 

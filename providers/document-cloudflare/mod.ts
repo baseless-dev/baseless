@@ -22,13 +22,7 @@ import {
 	type DocumentListResult,
 	DocumentProvider,
 } from "../document.ts";
-import type {
-	DurableObject,
-	DurableObjectNamespace,
-	DurableObjectState,
-	DurableObjectStorage,
-	KVNamespace,
-} from "npm:@cloudflare/workers-types@4.20230914.0/experimental";
+/// <reference types="https://esm.sh/v132/@cloudflare/workers-types@4.20230914.0/index.d.ts" />
 
 function keyPathToKeyString(key: string[]): string {
 	return key.map((p) => p.replaceAll("/", "\\/")).join("/");
@@ -43,10 +37,8 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 	#kv: KVNamespace;
 	#do: DurableObjectNamespace;
 
-	constructor(
-		kvNS: KVNamespace,
-		doNS: DurableObjectNamespace,
-	) {
+	// deno-lint-ignore no-explicit-any
+	constructor(kvNS: any, doNS: any) {
 		super();
 		this.#kv = kvNS;
 		this.#do = doNS;
@@ -217,12 +209,13 @@ export class CloudflareDocumentProvider extends DocumentProvider {
 				if (response?.status !== 200) {
 					throw new DocumentAtomicError();
 				}
-				return doStub;
+				return doStub as unknown;
 			}),
 		).then((results) => {
-			return results
+			const t = results
 				.map((r) => r.status === "fulfilled" ? r.value : undefined)
 				.filter((r): r is DurableObjectStub => r !== undefined);
+			return t;
 		}).catch(() => []);
 
 		try {
@@ -284,14 +277,15 @@ interface AtomicState {
 	uncommitedDocument: Document | undefined;
 }
 
-export class CloudflareDocumentDurableObject implements DurableObject {
+export class CloudflareDocumentDurableObject /*implements DurableObject*/ {
 	#logger = createLogger("document-cloudflare-do");
 	#storage: DurableObjectStorage;
 	#kv: KVNamespace;
 	#document: Document | undefined;
 	#atomicState?: AtomicState;
 
-	constructor(state: DurableObjectState, env: { DOCUMENT_KV: KVNamespace }) {
+	// deno-lint-ignore no-explicit-any
+	constructor(state: any, env: any) {
 		this.#kv = env.DOCUMENT_KV;
 		this.#storage = state.storage;
 		state.blockConcurrencyWhile(async () => {

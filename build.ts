@@ -34,11 +34,14 @@ const importMap: Map<string, { browser: string; node: string }> = new Map([
 		browser: "https://deno.land/x/jose@v4.13.1/types.d.ts",
 		node: "jose",
 	}],
-	["npm:@cloudflare/workers-types@4.20230914.0/experimental", {
-		browser:
-			"https://esm.sh/@cloudflare/workers-types@4.20230914.0/experimental/index.ts",
-		node: "@cloudflare/workers-types/experimental",
-	}],
+	[
+		"https://unpkg.com/@cloudflare/workers-types@4.20230914.0/experimental/index.ts",
+		{
+			browser:
+				"https://unpkg.com/@cloudflare/workers-types@4.20230914.0/experimental/index.ts",
+			node: "@cloudflare/workers-types/experimental",
+		},
+	],
 ]);
 
 await Deno.remove(join(__dirname, "./npm"), { recursive: true }).catch(
@@ -89,7 +92,7 @@ const browserProject = new Project({
 });
 const nodeProject = new Project({
 	compilerOptions: {
-		outDir: join(__dirname, "npm/node/esm"),
+		outDir: join(__dirname, "npm/node"),
 		declaration: false,
 		sourceMap: true,
 		target: ScriptTarget.ESNext,
@@ -112,13 +115,6 @@ for await (const entryPoint of entryPoints) {
 	browserProject.addSourceFileAtPath(entryPoint);
 	nodeProject.addSourceFileAtPath(entryPoint);
 	typesProject.addSourceFileAtPath(entryPoint);
-	// const outputPath = join(
-	// 	__dirname,
-	// 	"npm/deno/",
-	// 	relative(__dirname, entryPoint),
-	// );
-	// await Deno.mkdir(dirname(outputPath), { recursive: true });
-	// await Deno.copyFile(entryPoint, outputPath);
 }
 
 const browserResult = await browserProject.emitToMemory({
@@ -272,7 +268,11 @@ for (const file of nodeResult.getFiles()) {
 }
 for (const file of typesResult.getFiles()) {
 	await Deno.mkdir(dirname(file.filePath), { recursive: true });
-	await Deno.writeTextFile(file.filePath, file.text.replaceAll("npm:", ""));
+	// Poor's man replace importMap in types file
+	for (const [src, { node }] of importMap) {
+		file.text = file.text.replaceAll(src, node);
+	}
+	await Deno.writeTextFile(file.filePath, file.text);
 }
 
 await Deno.writeTextFile(
@@ -298,7 +298,7 @@ await Deno.writeTextFile(
 					(entryPath) => {
 						const key = "./" + relative(__dirname, entryPath);
 						return [key.replace(/\.tsx?$/, "").replace(/\/mod$/, ""), {
-							node: "./" + join("node/esm/", key.replace(/\.tsx?$/, ".mjs")),
+							node: "./" + join("node/", key.replace(/\.tsx?$/, ".mjs")),
 							browser: "./" + join("browser/", key.replace(/\.tsx?$/, ".mjs")),
 							// deno: "./" + join("deno/", key),
 							types: "./" + join("types/", key.replace(/\.tsx?$/, ".d.ts")),
@@ -328,72 +328,6 @@ console.log(
 			}ms.`,
 		),
 );
-
-// await Deno.writeTextFile(
-// 	join(__dirname, "npm/.eslintrc.json"),
-// 	JSON.stringify({
-// 		"root": true,
-// 		"parser": "@typescript-eslint/parser",
-// 		"parserOptions": {
-// 			"project": true,
-// 			"createDefaultProgram": true
-// 		},
-// 		"plugins": [
-// 			"jsdoc",
-// 			"@typescript-eslint"
-// 		],
-// 		"extends": [
-// 			"plugin:@typescript-eslint/recommended"
-// 		],
-// 		"rules": {
-// 			"@typescript-eslint/no-unused-vars": [
-// 				"error",
-// 				{
-// 					"argsIgnorePattern": "^_"
-// 				}
-// 			],
-// 			"jsdoc/no-undefined-types": 1,
-// 			"@typescript-eslint/consistent-type-imports": [
-// 				"error",
-// 				{
-// 					"prefer": "type-imports",
-// 					"fixStyle": "inline-type-imports"
-// 				}
-// 			],
-// 			"@typescript-eslint/consistent-type-exports": [
-// 				"error"
-// 			]
-// 		}
-// 	},
-// 		undefined,
-// 		"  ",
-// 	)
-// );
-// await Deno.writeTextFile(
-// 	join(__dirname, "npm/tsconfig.json"),
-// 	JSON.stringify({
-// 		"compilerOptions": {
-// 			"lib": [
-// 				"esnext",
-// 				"dom",
-// 				"dom.iterable"
-// 			]
-// 		},
-// 	},
-// 		undefined,
-// 		"  ",)
-// );
-// await Deno.writeTextFile(
-// 	join(__dirname, "npm/.eslintignore"),
-// 	`**/*.{d.ts,ts,mjs.map}`
-// );
-// await Deno.writeTextFile(
-// 	join(__dirname, "npm/.npmignore"),
-// 	`tsconfig.json\n.eslintrc.json\n.eslintignore#`
-// );
-
-// const eslint = new Deno.Command(`npx`, { cwd: "./npm", args: ["eslint", "."] }).spawn();
-// await eslint.status;
 
 Deno.exit(0);
 

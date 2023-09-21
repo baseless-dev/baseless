@@ -3,18 +3,21 @@ import type { IContext } from "../common/server/context.ts";
 import type { IAssetService } from "../common/server/services/asset.ts";
 import type { IAuthenticationService } from "../common/server/services/auth.ts";
 import type { ICounterService } from "../common/server/services/counter.ts";
+import type { IDocumentService } from "../common/server/services/document.ts";
 import type { IIdentityService } from "../common/server/services/identity.ts";
 import type { IKVService } from "../common/server/services/kv.ts";
 import type { ISessionService } from "../common/server/services/session.ts";
 import type { TokenData } from "../common/server/token_data.ts";
 import type { AssetProvider } from "../providers/asset.ts";
 import type { CounterProvider } from "../providers/counter.ts";
+import type { DocumentProvider } from "../providers/document.ts";
 import type { IdentityProvider } from "../providers/identity.ts";
 import type { KVProvider } from "../providers/kv.ts";
 import type { SessionProvider } from "../providers/session.ts";
 import { AssetService } from "./services/asset.ts";
 import { AuthenticationService } from "./services/auth.ts";
 import { CounterService } from "./services/counter.ts";
+import { DocumentService } from "./services/document.ts";
 import { IdentityService } from "./services/identity.ts";
 import { KVService } from "./services/kv.ts";
 import { SessionService } from "./services/session.ts";
@@ -30,6 +33,7 @@ export class Context implements IContext {
 	#assetProvider: AssetProvider;
 	#counterProvider: CounterProvider;
 	#kvProvider: KVProvider;
+	#documentProvider: DocumentProvider;
 	#identityProvider: IdentityProvider;
 	#sessionProvider: SessionProvider;
 	constructor(
@@ -40,6 +44,7 @@ export class Context implements IContext {
 		assetProvider: AssetProvider,
 		counterProvider: CounterProvider,
 		kvProvider: KVProvider,
+		documentProvider: DocumentProvider,
 		identityProvider: IdentityProvider,
 		sessionProvider: SessionProvider,
 	) {
@@ -50,6 +55,7 @@ export class Context implements IContext {
 		this.#assetProvider = assetProvider;
 		this.#counterProvider = counterProvider;
 		this.#kvProvider = kvProvider;
+		this.#documentProvider = documentProvider;
 		this.#identityProvider = identityProvider;
 		this.#sessionProvider = sessionProvider;
 	}
@@ -70,6 +76,9 @@ export class Context implements IContext {
 	}
 	get kv(): IKVService {
 		return new KVService(this.#kvProvider);
+	}
+	get document(): IDocumentService {
+		return new DocumentService(this.#documentProvider);
 	}
 	get identity(): IIdentityService {
 		return new IdentityService(this.#identityProvider, this);

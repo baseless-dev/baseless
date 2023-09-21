@@ -12,7 +12,7 @@ import {
 	DocumentUpdateError,
 } from "../../common/document/errors.ts";
 import { type AutoId, autoid } from "../../common/system/autoid.ts";
-import { createLogger } from "../../common/system/logger.ts";
+import { createLogger, type Logger } from "../../common/system/logger.ts";
 import {
 	DocumentAtomic,
 	type DocumentAtomicCheck,
@@ -166,7 +166,25 @@ export class CloudFlareDocumentProvider extends DocumentProvider {
 		await Promise.all(keys.map((key) => this.delete(key)));
 	}
 
-	async commit(atomic: DocumentAtomic): Promise<DocumentAtomicsResult> {
+	atomic(): DocumentAtomic {
+		return new CloudFlareDocumentAtomic(this.#kv, this.#do, this.#logger);
+	}
+}
+
+export class CloudFlareDocumentAtomic extends DocumentAtomic {
+	#kv: KVNamespace;
+	#do: DurableObjectNamespace;
+	#logger: Logger;
+
+	// deno-lint-ignore no-explicit-any
+	constructor(kvNS: any, doNS: any, logger: Logger) {
+		super();
+		this.#kv = kvNS;
+		this.#do = doNS;
+		this.#logger = logger;
+	}
+
+	async commit(): Promise<DocumentAtomicsResult> {
 		const lock = autoid("lock-");
 		const expireAt = new Date().getTime() + 1000 * 60 * 2;
 		let rollback = false;
@@ -175,8 +193,8 @@ export class CloudFlareDocumentProvider extends DocumentProvider {
 		const keysToLock: Array<
 			{ key: DocumentKey; type?: string; versionstamp?: string }
 		> = [
-			...atomic.checks,
-			...atomic.ops.map((op) => ({
+			...this.checks,
+			...this.ops.map((op) => ({
 				key: op.key,
 			})),
 		];
@@ -225,7 +243,7 @@ export class CloudFlareDocumentProvider extends DocumentProvider {
 			}
 
 			// Perform op with lock key
-			await Promise.allSettled(atomic.ops.map(async (op) => {
+			await Promise.allSettled(this.ops.map(async (op) => {
 				const doId = this.#do.idFromName(keyPathToKeyString(op.key));
 				const doStub = this.#do.get(doId);
 				const response = await doStub.fetch(

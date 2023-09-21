@@ -62,6 +62,7 @@ export default async function makeDummyServer(
 	const assetProvider = new MemoryAssetProvider();
 	const counterProvider = new MemoryCounterProvider();
 	const kvProvider = new MemoryKVProvider();
+	const documentProvider = new MemoryDocumentProvider();
 	const identityDocument = new MemoryDocumentProvider();
 	const identityProvider = new DocumentIdentityProvider(identityDocument);
 	const sessionKV = new MemoryKVProvider();
@@ -101,6 +102,7 @@ export default async function makeDummyServer(
 			identityProvider,
 			sessionProvider,
 			kvProvider,
+			documentProvider,
 		}),
 		email,
 		password,

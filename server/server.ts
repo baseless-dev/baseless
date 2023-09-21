@@ -7,6 +7,7 @@ import { createLogger } from "../common/system/logger.ts";
 import { type Router, RouterBuilder } from "../common/system/router.ts";
 import type { AssetProvider } from "../providers/asset.ts";
 import type { CounterProvider } from "../providers/counter.ts";
+import type { DocumentProvider } from "../providers/document.ts";
 import type { IdentityProvider } from "../providers/identity.ts";
 import type { KVProvider } from "../providers/kv.ts";
 import type { SessionProvider } from "../providers/session.ts";
@@ -20,6 +21,7 @@ export class Server {
 	#assetProvider: AssetProvider;
 	#counterProvider: CounterProvider;
 	#kvProvider: KVProvider;
+	#documentProvider: DocumentProvider;
 	#identityProvider: IdentityProvider;
 	#sessionProvider: SessionProvider;
 
@@ -31,6 +33,7 @@ export class Server {
 			assetProvider: AssetProvider;
 			counterProvider: CounterProvider;
 			kvProvider: KVProvider;
+			documentProvider: DocumentProvider;
 			identityProvider: IdentityProvider;
 			sessionProvider: SessionProvider;
 		},
@@ -39,6 +42,7 @@ export class Server {
 		this.#assetProvider = options.assetProvider;
 		this.#counterProvider = options.counterProvider;
 		this.#kvProvider = options.kvProvider;
+		this.#documentProvider = options.documentProvider;
 		this.#identityProvider = options.identityProvider;
 		this.#sessionProvider = options.sessionProvider;
 
@@ -76,6 +80,7 @@ export class Server {
 		const configuration = this.#configuration;
 		const counterProvider = this.#counterProvider;
 		const kvProvider = this.#kvProvider;
+		const documentProvider = this.#documentProvider;
 		const identityProvider = this.#identityProvider;
 		const sessionProvider = this.#sessionProvider;
 		let tokenData: TokenData | undefined = undefined;
@@ -128,6 +133,7 @@ export class Server {
 			assetProvider,
 			counterProvider,
 			kvProvider,
+			documentProvider,
 			identityProvider,
 			sessionProvider,
 		);

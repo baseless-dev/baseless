@@ -73,10 +73,10 @@ export class DocumentIdentityProvider implements IdentityProvider {
 			[this.#prefix, "identities", identity.id],
 			{ consistency: "strong" },
 		);
-		const atomic = this.#document.atomic()
+		const result = await this.#document.atomic()
 			.match(document.key, document.versionstamp)
-			.set(document.key, { ...document.data, meta: identity.meta });
-		const result = await this.#document.commit(atomic);
+			.set(document.key, { ...document.data, meta: identity.meta })
+			.commit();
 		if (!result.ok) {
 			throw new IdentityUpdateError();
 		}
@@ -87,18 +87,18 @@ export class DocumentIdentityProvider implements IdentityProvider {
 			[this.#prefix, "identities", identityId],
 			{ consistency: "strong" },
 		);
-		let atomic = this.#document.atomic()
+		const atomic = this.#document.atomic()
 			.match(document.key, document.versionstamp)
 			.delete(document.key);
 		for (const identification of Object.values(document.data.identifications)) {
-			atomic = atomic.delete([
+			atomic.delete([
 				this.#prefix,
 				"identifications",
 				identification.type,
 				identification.identification,
 			]);
 		}
-		const result = await this.#document.commit(atomic);
+		const result = await atomic.commit();
 		if (!result.ok) {
 			throw new IdentityUpdateError();
 		}
@@ -156,7 +156,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 			[this.#prefix, "identities", identityIdentification.identityId],
 			{ consistency: "strong" },
 		);
-		const atomic = this.#document.atomic()
+		const result = await this.#document.atomic()
 			.match(document.key, document.versionstamp)
 			.notExists([
 				this.#prefix,
@@ -176,8 +176,8 @@ export class DocumentIdentityProvider implements IdentityProvider {
 				"identifications",
 				identityIdentification.type,
 				identityIdentification.identification,
-			], document.key);
-		const result = await this.#document.commit(atomic);
+			], document.key)
+			.commit();
 		if (!result.ok) {
 			throw new IdentityIdentificationCreateError();
 		}
@@ -190,7 +190,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 			[this.#prefix, "identities", identityIdentification.identityId],
 			{ consistency: "strong" },
 		);
-		let atomic = this.#document.atomic()
+		const atomic = this.#document.atomic()
 			.match(document.key, document.versionstamp)
 			.set(document.key, {
 				...document.data,
@@ -205,7 +205,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 			identityIdentification.identification !==
 				oldIdentityIdentification.identification
 		) {
-			atomic = atomic
+			atomic
 				.notExists([
 					this.#prefix,
 					"identifications",
@@ -225,7 +225,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 					oldIdentityIdentification.identification,
 				]);
 		}
-		const result = await this.#document.commit(atomic);
+		const result = await atomic.commit();
 		if (!result.ok) {
 			throw new IdentityIdentificationCreateError();
 		}
@@ -239,7 +239,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 		const oldIdentityIdentification = document.data.identifications[type];
 		const identifications = { ...document.data.identifications };
 		delete identifications[type];
-		const atomic = this.#document.atomic()
+		const commitResult = await this.#document.atomic()
 			.match(document.key, document.versionstamp)
 			.set(document.key, {
 				...document.data,
@@ -250,8 +250,8 @@ export class DocumentIdentityProvider implements IdentityProvider {
 				"identifications",
 				oldIdentityIdentification.type,
 				oldIdentityIdentification.identification,
-			]);
-		const commitResult = await this.#document.commit(atomic);
+			])
+			.commit();
 		if (!commitResult.ok) {
 			throw new IdentityIdentificationDeleteError();
 		}
@@ -289,7 +289,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 		if (identityChallenge.type in document.data.challenges) {
 			throw new IdentityChallengeExistsError();
 		}
-		const atomic = this.#document.atomic()
+		const result = await this.#document.atomic()
 			.match(document.key, document.versionstamp)
 			.set(document.key, {
 				...document.data,
@@ -297,8 +297,8 @@ export class DocumentIdentityProvider implements IdentityProvider {
 					...document.data.challenges,
 					...{ [identityChallenge.type]: identityChallenge },
 				},
-			});
-		const result = await this.#document.commit(atomic);
+			})
+			.commit();
 		if (!result.ok) {
 			throw new IdentityIdentificationCreateError();
 		}
@@ -311,7 +311,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 			[this.#prefix, "identities", identityChallenge.identityId],
 			{ consistency: "strong" },
 		);
-		const atomic = this.#document.atomic()
+		const result = await this.#document.atomic()
 			.match(document.key, document.versionstamp)
 			.set(document.key, {
 				...document.data,
@@ -319,8 +319,8 @@ export class DocumentIdentityProvider implements IdentityProvider {
 					...document.data.challenges,
 					...{ [identityChallenge.type]: identityChallenge },
 				},
-			});
-		const result = await this.#document.commit(atomic);
+			})
+			.commit();
 		if (!result.ok) {
 			throw new IdentityIdentificationCreateError();
 		}
@@ -336,13 +336,13 @@ export class DocumentIdentityProvider implements IdentityProvider {
 		}
 		const challenges = { ...document.data.challenges };
 		delete challenges[type];
-		const atomic = this.#document.atomic()
+		const result = await this.#document.atomic()
 			.match(document.key, document.versionstamp)
 			.set(document.key, {
 				...document.data,
 				challenges: challenges,
-			});
-		const result = await this.#document.commit(atomic);
+			})
+			.commit();
 		if (!result.ok) {
 			throw new IdentityIdentificationCreateError();
 		}

@@ -31,9 +31,9 @@ export type DocumentAtomicOperation =
 		readonly data: Readonly<unknown>;
 	};
 
-export class DocumentAtomic {
-	public readonly checks: ReadonlyArray<DocumentAtomicCheck>;
-	public readonly ops: ReadonlyArray<DocumentAtomicOperation>;
+export abstract class DocumentAtomic {
+	protected readonly checks: Array<DocumentAtomicCheck>;
+	protected readonly ops: Array<DocumentAtomicOperation>;
 
 	constructor(
 		checks: Array<DocumentAtomicCheck> = [],
@@ -44,32 +44,26 @@ export class DocumentAtomic {
 	}
 
 	notExists(key: DocumentKey): DocumentAtomic {
-		return new DocumentAtomic(
-			[...this.checks, { type: "notExists", key }],
-			[...this.ops],
-		);
+		this.checks.push({ type: "notExists", key });
+		return this;
 	}
 
 	match(key: DocumentKey, versionstamp: string): DocumentAtomic {
-		return new DocumentAtomic(
-			[...this.checks, { type: "match", key, versionstamp }],
-			[...this.ops],
-		);
+		this.checks.push({ type: "match", key, versionstamp });
+		return this;
 	}
 
 	set<Data = unknown>(key: DocumentKey, data: Readonly<Data>): DocumentAtomic {
-		return new DocumentAtomic(
-			[...this.checks],
-			[...this.ops, { type: "set", key, data }],
-		);
+		this.ops.push({ type: "set", key, data });
+		return this;
 	}
 
 	delete(key: DocumentKey): DocumentAtomic {
-		return new DocumentAtomic(
-			[...this.checks],
-			[...this.ops, { type: "delete", key }],
-		);
+		this.ops.push({ type: "delete", key });
+		return this;
 	}
+
+	abstract commit(): Promise<DocumentAtomicsResult>;
 }
 
 export abstract class DocumentProvider {
@@ -104,11 +98,5 @@ export abstract class DocumentProvider {
 
 	abstract deleteMany(keys: Array<DocumentKey>): Promise<void>;
 
-	atomic(): DocumentAtomic {
-		return new DocumentAtomic();
-	}
-
-	abstract commit(
-		atomic: DocumentAtomic,
-	): Promise<DocumentAtomicsResult>;
+	abstract atomic(): DocumentAtomic;
 }

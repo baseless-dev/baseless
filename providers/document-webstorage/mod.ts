@@ -175,8 +175,29 @@ export class WebStorageDocumentProvider extends DocumentProvider {
 		}
 	}
 
-	async commit(atomic: DocumentAtomic): Promise<DocumentAtomicsResult> {
-		for (const check of atomic.checks) {
+	atomic(): DocumentAtomic {
+		return new WebStorageDocumentAtomic(this, this.#storage, this.#prefix);
+	}
+}
+
+export class WebStorageDocumentAtomic extends DocumentAtomic {
+	#provider: WebStorageDocumentProvider;
+	#storage: Storage;
+	#prefix: string;
+
+	constructor(
+		provider: WebStorageDocumentProvider,
+		storage: Storage,
+		prefix: string,
+	) {
+		super();
+		this.#provider = provider;
+		this.#storage = storage;
+		this.#prefix = prefix;
+	}
+
+	async commit(): Promise<DocumentAtomicsResult> {
+		for (const check of this.checks) {
 			if (check.type === "notExists") {
 				if (
 					this.#storage.getItem(
@@ -186,13 +207,13 @@ export class WebStorageDocumentProvider extends DocumentProvider {
 					return { ok: false };
 				}
 			} else {
-				const document = await this.get(check.key);
+				const document = await this.#provider.get(check.key);
 				if (document.versionstamp !== check.versionstamp) {
 					return { ok: false };
 				}
 			}
 		}
-		for (const op of atomic.ops) {
+		for (const op of this.ops) {
 			const keyString = keyPathToKeyString([this.#prefix, ...op.key]);
 			if (op.type === "delete") {
 				this.#storage.removeItem(keyString);

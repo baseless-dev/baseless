@@ -155,9 +155,27 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 		}
 	}
 
-	async commit(atomic: DocumentAtomic): Promise<DocumentAtomicsResult> {
+	atomic(): DocumentAtomic {
+		return new DenoKVDocumentAtomic(this, this.#storage);
+	}
+}
+
+export class DenoKVDocumentAtomic extends DocumentAtomic {
+	#provider: DenoKVDocumentProvider;
+	#storage: Deno.Kv;
+
+	constructor(
+		provider: DenoKVDocumentProvider,
+		storage: Deno.Kv,
+	) {
+		super();
+		this.#provider = provider;
+		this.#storage = storage;
+	}
+
+	async commit(): Promise<DocumentAtomicsResult> {
 		let transaction = this.#storage.atomic();
-		for (const check of atomic.checks) {
+		for (const check of this.checks) {
 			if (check.type === "notExists") {
 				transaction = transaction.check({ key: check.key, versionstamp: null });
 			} else {
@@ -167,7 +185,7 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 				});
 			}
 		}
-		for (const op of atomic.ops) {
+		for (const op of this.ops) {
 			if (op.type === "set") {
 				transaction = transaction.set(op.key, op.data);
 			} else {

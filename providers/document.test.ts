@@ -27,7 +27,7 @@ export default async function testDocumentProvider(
 			username: "Bar",
 			age: 42,
 		});
-		assertRejects(() =>
+		await assertRejects(() =>
 			provider.create<User>(["users", "john"], { username: "John2", age: 1 })
 		);
 	});
@@ -117,20 +117,20 @@ export default async function testDocumentProvider(
 	await t.step("delete", async () => {
 		await provider.delete(["users", "john"]);
 		await provider.delete(["users", "unknown"]);
-		assertRejects(() => provider.get<User>(["users", "john"]));
+		await assertRejects(() => provider.get<User>(["users", "john"]));
 	});
 
 	await t.step("deleteMany", async () => {
 		await provider.deleteMany([["users", "jane"], ["users", "foo"]]);
-		assertRejects(() => provider.get<User>(["users", "jane"]));
-		assertRejects(() => provider.get<User>(["users", "foo"]));
+		await assertRejects(() => provider.get<User>(["users", "jane"]));
+		await assertRejects(() => provider.get<User>(["users", "foo"]));
 	});
 
 	await t.step("atomic", async () => {
-		const atomic = provider.atomic()
+		const result = await provider.atomic()
 			.notExists(["users", "bar"])
-			.set<User>(["users", "bar"], { username: "Barrr", age: 28 });
-		const result = await provider.commit(atomic);
+			.set<User>(["users", "bar"], { username: "Barrr", age: 28 })
+			.commit();
 		assertEquals(result.ok, true);
 	});
 }

@@ -146,15 +146,33 @@ export class MemoryDocumentProvider extends DocumentProvider {
 		}
 	}
 
-	async commit(atomic: DocumentAtomic): Promise<DocumentAtomicsResult> {
-		for (const check of atomic.checks) {
+	atomic(): DocumentAtomic {
+		return new MemoryDocumentAtomic(this, this.#storage);
+	}
+}
+
+export class MemoryDocumentAtomic extends DocumentAtomic {
+	#provider: MemoryDocumentProvider;
+	#storage: Map<string, Document>;
+
+	constructor(
+		provider: MemoryDocumentProvider,
+		storage: Map<string, Document>,
+	) {
+		super();
+		this.#provider = provider;
+		this.#storage = storage;
+	}
+
+	async commit(): Promise<DocumentAtomicsResult> {
+		for (const check of this.checks) {
 			if (check.type === "notExists") {
 				if (this.#storage.has(keyPathToKeyString(check.key))) {
 					return { ok: false };
 				}
 			} else {
 				try {
-					const document = await this.get(check.key);
+					const document = await this.#provider.get(check.key);
 					if (document.versionstamp !== check.versionstamp) {
 						return { ok: false };
 					}
@@ -163,11 +181,11 @@ export class MemoryDocumentProvider extends DocumentProvider {
 				}
 			}
 		}
-		for (const op of atomic.ops) {
+		for (const op of this.ops) {
+			const keyString = keyPathToKeyString(op.key);
 			if (op.type === "delete") {
-				this.delete(op.key);
+				this.#storage.delete(keyString);
 			} else {
-				const keyString = keyPathToKeyString(op.key);
 				this.#storage.set(keyString, {
 					key: op.key,
 					data: op.data,

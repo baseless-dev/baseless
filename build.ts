@@ -34,14 +34,6 @@ const importMap: Map<string, { browser: string; node: string }> = new Map([
 		browser: "https://deno.land/x/jose@v4.13.1/types.d.ts",
 		node: "jose",
 	}],
-	[
-		"https://unpkg.com/@cloudflare/workers-types@4.20230914.0/experimental/index.ts",
-		{
-			browser:
-				"https://unpkg.com/@cloudflare/workers-types@4.20230914.0/experimental/index.ts",
-			node: "@cloudflare/workers-types/experimental",
-		},
-	],
 ]);
 
 await Deno.remove(join(__dirname, "./npm"), { recursive: true }).catch(
@@ -299,7 +291,8 @@ await Deno.writeTextFile(
 						const key = "./" + relative(__dirname, entryPath);
 						return [key.replace(/\.tsx?$/, "").replace(/\/mod$/, ""), {
 							node: "./" + join("node/", key.replace(/\.tsx?$/, ".mjs")),
-							browser: "./" + join("browser/", key.replace(/\.tsx?$/, ".mjs")),
+							browser: "./" + join("node/", key.replace(/\.tsx?$/, ".mjs")),
+							// browser: "./" + join("browser/", key.replace(/\.tsx?$/, ".mjs")),
 							// deno: "./" + join("deno/", key),
 							types: "./" + join("types/", key.replace(/\.tsx?$/, ".d.ts")),
 						}];

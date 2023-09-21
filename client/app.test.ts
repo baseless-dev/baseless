@@ -1,4 +1,7 @@
-import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
+import {
+	assert,
+	assertEquals,
+} from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { assertApp, initializeApp } from "./app.ts";
 
 Deno.test("Client App", async (t) => {
@@ -10,6 +13,6 @@ Deno.test("Client App", async (t) => {
 		assertApp(app);
 		assertEquals(app.clientId, "test");
 		assertEquals(app.apiEndpoint, "http://test.local/api");
-		assertEquals(app.fetch, globalThis.fetch);
+		assert(typeof app.fetch === "function");
 	});
 });

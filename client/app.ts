@@ -36,7 +36,7 @@ export function assertApp(value?: unknown): asserts value is App {
 
 export class InvalidAppError extends Error {}
 export function initializeApp(
-	{ clientId, apiEndpoint, fetch = globalThis.fetch }: {
+	{ clientId, apiEndpoint, fetch = globalThis.fetch.bind(globalThis) }: {
 		clientId: string;
 		apiEndpoint: string;
 		fetch?: typeof globalThis.fetch;

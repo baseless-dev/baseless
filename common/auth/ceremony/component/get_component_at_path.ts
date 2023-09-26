@@ -1,22 +1,21 @@
 import {
 	type AuthenticationCeremonyComponent,
-	type AuthenticationCeremonyComponentSequence,
+	type AuthenticationCeremonyComponentChoice,
 	isAuthenticationCeremonyComponentChallenge,
 	isAuthenticationCeremonyComponentIdentification,
 } from "../ceremony.ts";
 import { oneOf } from "./helpers.ts";
-import walk from "./walk.ts";
+import walk, { type WalkedAuthenticationCeremonyComponent } from "./walk.ts";
 
-export type NonSequenceAuthenticationCeremonyComponent = Exclude<
-	AuthenticationCeremonyComponent,
-	AuthenticationCeremonyComponentSequence
->;
+export type NonSequenceAuthenticationCeremonyComponent =
+	| WalkedAuthenticationCeremonyComponent
+	| AuthenticationCeremonyComponentChoice;
 
 export function getComponentAtPath(
 	component: AuthenticationCeremonyComponent,
 	path: string[],
 ): NonSequenceAuthenticationCeremonyComponent | undefined {
-	const components = new Set<NonSequenceAuthenticationCeremonyComponent>();
+	const components = new Set<WalkedAuthenticationCeremonyComponent>();
 	const joinedPath = path.join("/");
 	for (const [comp, parents] of walk(component)) {
 		const currentPath = parents.map((c) => {

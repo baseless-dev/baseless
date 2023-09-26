@@ -1,4 +1,4 @@
-import { Document, DocumentKey } from "../../common/document/document.ts";
+import type { Document, DocumentKey } from "../../common/document/document.ts";
 import {
 	DocumentCreateError,
 	DocumentNotFoundError,
@@ -6,10 +6,10 @@ import {
 import { createLogger } from "../../common/system/logger.ts";
 import {
 	DocumentAtomic,
-	DocumentAtomicsResult,
-	DocumentGetOptions,
-	DocumentListOptions,
-	DocumentListResult,
+	type DocumentAtomicsResult,
+	type DocumentGetOptions,
+	type DocumentListOptions,
+	type DocumentListResult,
 	DocumentProvider,
 } from "../document.ts";
 

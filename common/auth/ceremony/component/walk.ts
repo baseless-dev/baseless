@@ -1,6 +1,10 @@
 import {
 	type AuthenticationCeremonyComponent,
+	type AuthenticationCeremonyComponentChallenge,
 	type AuthenticationCeremonyComponentChoice,
+	type AuthenticationCeremonyComponentConditional,
+	type AuthenticationCeremonyComponentDone,
+	type AuthenticationCeremonyComponentIdentification,
 	type AuthenticationCeremonyComponentSequence,
 	isAuthenticationCeremonyComponentChoice,
 	isAuthenticationCeremonyComponentSequence,
@@ -9,29 +13,27 @@ import { h } from "./helpers.ts";
 import { isLeaf } from "./is_leaf.ts";
 import { simplify } from "./simplify.ts";
 
+export type WalkedAuthenticationCeremonyComponent =
+	| AuthenticationCeremonyComponentIdentification
+	| AuthenticationCeremonyComponentChallenge
+	| AuthenticationCeremonyComponentConditional
+	| AuthenticationCeremonyComponentDone;
+
 export default function* walk(
 	component: AuthenticationCeremonyComponent,
 ): Generator<
 	[
-		component: Exclude<
-			AuthenticationCeremonyComponent,
-			| AuthenticationCeremonyComponentSequence
-			| AuthenticationCeremonyComponentChoice
-		>,
-		parents: ReadonlyArray<AuthenticationCeremonyComponent>,
+		component: WalkedAuthenticationCeremonyComponent,
+		parents: ReadonlyArray<WalkedAuthenticationCeremonyComponent>,
 	]
 > {
 	function* _walk(
 		component: AuthenticationCeremonyComponent,
-		parents: AuthenticationCeremonyComponent[] = [],
+		parents: WalkedAuthenticationCeremonyComponent[] = [],
 	): Generator<
 		[
-			component: Exclude<
-				AuthenticationCeremonyComponent,
-				| AuthenticationCeremonyComponentSequence
-				| AuthenticationCeremonyComponentChoice
-			>,
-			parents: ReadonlyArray<AuthenticationCeremonyComponent>,
+			component: WalkedAuthenticationCeremonyComponent,
+			parents: ReadonlyArray<WalkedAuthenticationCeremonyComponent>,
 		]
 	> {
 		if (isAuthenticationCeremonyComponentSequence(component)) {
@@ -39,7 +41,7 @@ export default function* walk(
 				const newParents = [...parents];
 				for (const inner of component.components) {
 					yield* _walk(inner, [...newParents]);
-					newParents.push(inner);
+					newParents.push(inner as WalkedAuthenticationCeremonyComponent);
 				}
 			} else {
 				for (let i = 0, l = component.components.length; i < l; ++i) {

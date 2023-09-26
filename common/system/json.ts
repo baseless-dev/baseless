@@ -3,8 +3,10 @@ export type Json =
 	| JsonArray
 	| JsonObject;
 export type JsonValue = string | number | boolean | null;
-export type JsonArray = Array<Json>;
-export type JsonObject = { [key: string]: Json };
+// deno-lint-ignore no-empty-interface
+export interface JsonArray extends Array<Json> {}
+// deno-lint-ignore no-empty-interface
+export interface JsonObject extends Record<string, Json> {}
 
 export function isJsonValue(value?: unknown): value is JsonValue {
 	return !(typeof value !== "undefined") || value === null ||

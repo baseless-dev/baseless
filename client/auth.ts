@@ -35,6 +35,8 @@ import {
 	type SendChallengeValidationCodeResponse,
 } from "../common/auth/send_challenge_validation_code_response.ts";
 import { assertIdentity, type Identity } from "../common/identity/identity.ts";
+import type { getComponentAtPath } from "../common/auth/ceremony/component/get_component_at_path.ts";
+import type { AuthenticationCeremonyComponentConditional } from "../common/auth/ceremony/ceremony.ts";
 
 export class AuthApp {
 	#app: App;
@@ -244,7 +246,14 @@ export function onAuthStateChange(
 export async function getAuthenticationCeremony(
 	app: AuthApp,
 	state?: string,
-): Promise<AuthenticationCeremonyResponse> {
+): Promise<
+	AuthenticationCeremonyResponse<
+		Exclude<
+			ReturnType<typeof getComponentAtPath>,
+			AuthenticationCeremonyComponentConditional | undefined
+		>
+	>
+> {
 	assertAuthApp(app);
 	let method = "GET";
 	let body: string | undefined;
@@ -261,12 +270,10 @@ export async function getAuthenticationCeremony(
 			method,
 		},
 	);
-	// const text = await resp.text();
-	// const result = JSON.parse(text);
 	const result = await resp.json();
 	throwIfApiError(result);
 	assertAuthenticationCeremonyResponse(result.data);
-	return result.data;
+	return result.data as any;
 }
 
 export async function submitAuthenticationIdentification(
@@ -274,7 +281,14 @@ export async function submitAuthenticationIdentification(
 	type: string,
 	identification: string,
 	state?: string,
-): Promise<AuthenticationCeremonyResponse> {
+): Promise<
+	AuthenticationCeremonyResponse<
+		Exclude<
+			ReturnType<typeof getComponentAtPath>,
+			AuthenticationCeremonyComponentConditional | undefined
+		>
+	>
+> {
 	assertAuthApp(app);
 	const body = JSON.stringify({
 		type,
@@ -291,7 +305,7 @@ export async function submitAuthenticationIdentification(
 	if (isAuthenticationCeremonyResponseTokens(result.data)) {
 		app.tokens = result.data;
 	}
-	return result.data;
+	return result.data as any;
 }
 
 export async function submitAuthenticationChallenge(
@@ -299,7 +313,14 @@ export async function submitAuthenticationChallenge(
 	type: string,
 	challenge: string,
 	state: string,
-): Promise<AuthenticationCeremonyResponse> {
+): Promise<
+	AuthenticationCeremonyResponse<
+		Exclude<
+			ReturnType<typeof getComponentAtPath>,
+			AuthenticationCeremonyComponentConditional | undefined
+		>
+	>
+> {
 	assertAuthApp(app);
 	const body = JSON.stringify({ type, challenge, state });
 	const resp = await app.fetch(
@@ -312,7 +333,7 @@ export async function submitAuthenticationChallenge(
 	if (isAuthenticationCeremonyResponseTokens(result.data)) {
 		app.tokens = result.data;
 	}
-	return result.data;
+	return result.data as any;
 }
 
 export async function sendIdentificationChallenge(

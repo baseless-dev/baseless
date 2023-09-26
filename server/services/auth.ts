@@ -29,7 +29,6 @@ import {
 } from "../../common/auth/ceremony/ceremony.ts";
 import {
 	getComponentAtPath,
-	type NonSequenceAuthenticationCeremonyComponent,
 } from "../../common/auth/ceremony/component/get_component_at_path.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import type { IContext } from "../../common/server/context.ts";
@@ -51,8 +50,8 @@ export class AuthenticationService implements IAuthenticationService {
 	): Promise<
 		AuthenticationCeremonyResponse<
 			Exclude<
-				NonSequenceAuthenticationCeremonyComponent,
-				AuthenticationCeremonyComponentConditional
+				ReturnType<typeof getComponentAtPath>,
+				AuthenticationCeremonyComponentConditional | undefined
 			>
 		>
 	> {
@@ -63,10 +62,10 @@ export class AuthenticationService implements IAuthenticationService {
 			state,
 		);
 		const result = getComponentAtPath(step, state.choices) as Exclude<
-			NonSequenceAuthenticationCeremonyComponent,
+			ReturnType<typeof getComponentAtPath>,
 			AuthenticationCeremonyComponentConditional
 		>;
-		if (isAuthenticationCeremonyComponentDone(result)) {
+		if (!result || isAuthenticationCeremonyComponentDone(result)) {
 			if (isAuthenticationCeremonyStateIdentified(state)) {
 				return { done: true, identityId: state.identity };
 			}
@@ -86,7 +85,14 @@ export class AuthenticationService implements IAuthenticationService {
 		type: string,
 		identification: string,
 		subject: string,
-	): Promise<AuthenticationCeremonyResponse> {
+	): Promise<
+		AuthenticationCeremonyResponse<
+			Exclude<
+				ReturnType<typeof getComponentAtPath>,
+				AuthenticationCeremonyComponentConditional | undefined
+			>
+		>
+	> {
 		const counterInterval =
 			this.#context.config.auth.security.rateLimit.identificationInterval *
 			1000;
@@ -155,7 +161,14 @@ export class AuthenticationService implements IAuthenticationService {
 		type: string,
 		challenge: string,
 		subject: string,
-	): Promise<AuthenticationCeremonyResponse> {
+	): Promise<
+		AuthenticationCeremonyResponse<
+			Exclude<
+				ReturnType<typeof getComponentAtPath>,
+				AuthenticationCeremonyComponentConditional | undefined
+			>
+		>
+	> {
 		assertAuthenticationCeremonyStateIdentified(state);
 
 		const counterInterval =

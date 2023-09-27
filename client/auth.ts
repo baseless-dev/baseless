@@ -38,16 +38,174 @@ import { assertIdentity, type Identity } from "../common/identity/identity.ts";
 import type { getComponentAtPath } from "../common/auth/ceremony/component/get_component_at_path.ts";
 import type { AuthenticationCeremonyComponentConditional } from "../common/auth/ceremony/ceremony.ts";
 
-interface AuthApp {
-	app: App;
-	tokens?: AuthenticationTokens;
-	accessTokenExpiration?: number;
-	pendingRefreshTokenRequest?: Promise<void>;
-	expireTimeout?: number;
-	persistence: Persistence;
-	storage: Storage;
-	onAuthStateChange: EventEmitter<[Identity | undefined]>;
-	fetchWithTokens: typeof globalThis.fetch;
+class AuthApp {
+	#app: App;
+	#tokens?: AuthenticationTokens;
+	#accessTokenExpiration?: number;
+	#pendingRefreshTokenRequest?: Promise<void>;
+	#expireTimeout?: number;
+	#persistence: Persistence;
+	#storage: Storage;
+	#onAuthStateChange: EventEmitter<[Identity | undefined]>;
+
+	constructor(
+		app: App,
+	) {
+		this.#app = app;
+		const localPersistence = globalThis.localStorage.getItem(
+			`baseless_${app.clientId}_persistence`,
+		);
+		this.#persistence = isPersistence(localPersistence)
+			? localPersistence
+			: "local";
+		this.#storage = this.#persistence === "local"
+			? globalThis.localStorage
+			: globalThis.sessionStorage;
+		this.#onAuthStateChange = new EventEmitter<[Identity | undefined]>();
+
+		const tokensString = this.#storage.getItem(
+			`baseless_${app.clientId}_tokens`,
+		);
+		if (tokensString) {
+			try {
+				const maybeTokens = JSON.parse(tokensString);
+				assertAuthenticationTokens(maybeTokens);
+				this.tokens = maybeTokens;
+			} catch (error) {
+				console.error(
+					`[baseless] failed to parse tokens from storage, got ${error}.`,
+				);
+				this.#storage.removeItem(`baseless_${app.clientId}_tokens`);
+			}
+		}
+	}
+
+	get accessTokenExpiration(): number | undefined {
+		return this.#accessTokenExpiration;
+	}
+
+	get pendingRefreshTokenRequest(): Promise<void> | undefined {
+		return this.#pendingRefreshTokenRequest;
+	}
+
+	get expireTimeout(): number | undefined {
+		return this.#expireTimeout;
+	}
+
+	get persistence(): Persistence {
+		return this.#persistence;
+	}
+
+	set persistence(persistence: Persistence) {
+		assertPersistence(persistence);
+		globalThis.localStorage.setItem(
+			`baseless_${this.#app.clientId}_persistence`,
+			persistence,
+		);
+		const oldStorage = this.#storage;
+		const newStorage = persistence === "local"
+			? globalThis.localStorage
+			: globalThis.sessionStorage;
+		const tokens = oldStorage?.getItem(
+			`baseless_${this.#app.clientId}_tokens`,
+		);
+		if (tokens) {
+			newStorage.setItem(`baseless_${this.#app.clientId}_tokens`, tokens);
+			oldStorage.removeItem(`baseless_${this.#app.clientId}_tokens`);
+		}
+		this.#storage = newStorage;
+		this.#persistence = persistence;
+	}
+
+	get storage(): Storage {
+		return this.#storage;
+	}
+
+	get onAuthStateChange(): EventEmitter<[Identity | undefined]> {
+		return this.#onAuthStateChange;
+	}
+
+	get tokens(): AuthenticationTokens | undefined {
+		return this.#tokens ? { ...this.#tokens } : undefined;
+	}
+
+	set tokens(tokens: Readonly<AuthenticationTokens> | undefined) {
+		clearTimeout(this.#expireTimeout);
+		this.#expireTimeout = undefined;
+		if (tokens) {
+			assertAuthenticationTokens(tokens);
+			const { access_token, id_token, refresh_token } = tokens;
+			tokens = { access_token, id_token, refresh_token };
+			const { sub: identityId, meta } = JSON.parse(
+				atob(id_token.split(".").at(1)!),
+			);
+			const identity = { id: identityId, meta };
+			assertIdentity(identity);
+			const { exp: accessTokenExp = Number.MAX_VALUE } = JSON.parse(
+				atob(access_token.split(".").at(1)!),
+			);
+			const { exp: refreshTokenExp = undefined } = refresh_token
+				? JSON.parse(atob(refresh_token.split(".").at(1)!))
+				: {};
+			const expiration = parseInt(refreshTokenExp ?? accessTokenExp, 10);
+			this.#tokens = tokens;
+			this.#accessTokenExpiration = parseInt(accessTokenExp, 10);
+			this.#onAuthStateChange.emit(identity);
+			this.#expireTimeout = setTimeout(
+				() => this.tokens = undefined,
+				expiration * 1000 - Date.now(),
+			);
+			this.#storage.setItem(
+				`baseless_${this.#app.clientId}_tokens`,
+				JSON.stringify(tokens),
+			);
+		} else {
+			this.#tokens = undefined;
+			this.#accessTokenExpiration = undefined;
+			this.#onAuthStateChange.emit(undefined);
+			this.#storage.removeItem(`baseless_${this.#app.clientId}_tokens`);
+		}
+	}
+
+	async fetchWithTokens(
+		input: RequestInfo | URL,
+		init?: RequestInit,
+	): Promise<Response> {
+		if (this.#pendingRefreshTokenRequest) {
+			await this.#pendingRefreshTokenRequest;
+		}
+		const headers = new Headers(init?.headers);
+		const now = Date.now() / 1000 >> 0;
+		if (
+			this.#tokens?.access_token && this.#tokens.refresh_token &&
+			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
+		) {
+			const refreshPromise = this.#app.fetch(
+				`${this.#app.apiEndpoint}/auth/refreshTokens`,
+				{
+					method: "POST",
+					headers: { "X-Refresh-Token": this.#tokens.refresh_token },
+				},
+			);
+			this.#pendingRefreshTokenRequest = refreshPromise
+				.catch(() => {})
+				.then(
+					() => {
+						this.#pendingRefreshTokenRequest = undefined;
+					},
+				);
+			const resp = await refreshPromise;
+			const result = await resp.json();
+			throwIfApiError(result);
+			assertAuthenticationTokens(result.data);
+			this.#tokens = result.data;
+		}
+
+		if (this.#tokens?.access_token) {
+			headers.set("Authorization", `Bearer ${this.#tokens.access_token}`);
+		}
+		return this.#app.fetch(input, { ...init, headers });
+	}
 }
 
 const authApps = new Map<App["clientId"], AuthApp>();
@@ -83,159 +241,13 @@ export function assertInitializedAuth(
 	}
 }
 
-export function initializeAuth(app: App): void {
-	if (authApps.has(app.clientId)) {
-		return;
-	}
-	const localPersistence = globalThis.localStorage.getItem(
-		`baseless_${app.clientId}_persistence`,
-	);
-	let _persistence = isPersistence(localPersistence)
-		? localPersistence
-		: "local";
-	let _storage = _persistence === "local"
-		? globalThis.localStorage
-		: globalThis.sessionStorage;
-	let _tokens: AuthenticationTokens | undefined;
-	const _onAuthStateChange = new EventEmitter<[Identity | undefined]>();
-	let _accessTokenExpiration: number | undefined;
-	let _pendingRefreshTokenRequest: Promise<void> | undefined;
-	let _expireTimeout: number | undefined;
-
-	const tokensString = _storage.getItem(
-		`baseless_${app.clientId}_tokens`,
-	);
-	if (tokensString) {
-		try {
-			const maybeTokens = JSON.parse(tokensString);
-			assertAuthenticationTokens(maybeTokens);
-			_tokens = maybeTokens;
-		} catch (error) {
-			console.error(
-				`[baseless] failed to parse tokens from storage, got ${error}.`,
-			);
-			_storage.removeItem(`baseless_${app.clientId}_tokens`);
-		}
+export function initializeAuth(app: App): App {
+	if (!authApps.has(app.clientId)) {
+		const auth = new AuthApp(app);
+		authApps.set(app.clientId, auth);
 	}
 
-	const auth: AuthApp = {
-		app,
-		get tokens() {
-			return _tokens ? { ..._tokens } : undefined;
-		},
-		get accessTokenExpiration() {
-			return _accessTokenExpiration;
-		},
-		get pendingRefreshTokenRequest() {
-			return _pendingRefreshTokenRequest;
-		},
-		get expireTimeout() {
-			return _expireTimeout;
-		},
-		get persistence() {
-			return _persistence;
-		},
-		get storage() {
-			return _storage;
-		},
-		get onAuthStateChange() {
-			return _onAuthStateChange;
-		},
-		set tokens(tokens: Readonly<AuthenticationTokens> | undefined) {
-			clearTimeout(_expireTimeout);
-			_expireTimeout = undefined;
-			if (tokens) {
-				assertAuthenticationTokens(tokens);
-				const { access_token, id_token, refresh_token } = tokens;
-				tokens = { access_token, id_token, refresh_token };
-				const { sub: identityId, meta } = JSON.parse(
-					atob(id_token.split(".").at(1)!),
-				);
-				const identity = { id: identityId, meta };
-				assertIdentity(identity);
-				const { exp: accessTokenExp = Number.MAX_VALUE } = JSON.parse(
-					atob(access_token.split(".").at(1)!),
-				);
-				const { exp: refreshTokenExp = undefined } = refresh_token
-					? JSON.parse(atob(refresh_token.split(".").at(1)!))
-					: {};
-				const expiration = parseInt(refreshTokenExp ?? accessTokenExp, 10);
-				_tokens = tokens;
-				_accessTokenExpiration = parseInt(accessTokenExp, 10);
-				_onAuthStateChange.emit(identity);
-				_expireTimeout = setTimeout(
-					() => this.tokens = undefined,
-					expiration * 1000 - Date.now(),
-				);
-				_storage.setItem(
-					`baseless_${this.app.clientId}_tokens`,
-					JSON.stringify(tokens),
-				);
-			} else {
-				_tokens = undefined;
-				_accessTokenExpiration = undefined;
-				_onAuthStateChange.emit(undefined);
-				_storage.removeItem(`baseless_${app.clientId}_tokens`);
-			}
-		},
-		set persistence(persistence: Persistence) {
-			assertPersistence(persistence);
-			globalThis.localStorage.setItem(
-				`baseless_${app.clientId}_persistence`,
-				persistence,
-			);
-			const oldStorage = _storage;
-			const newStorage = persistence === "local"
-				? globalThis.localStorage
-				: globalThis.sessionStorage;
-			const tokens = oldStorage?.getItem(
-				`baseless_${app.clientId}_tokens`,
-			);
-			if (tokens) {
-				newStorage.setItem(`baseless_${app.clientId}_tokens`, tokens);
-				oldStorage.removeItem(`baseless_${app.clientId}_tokens`);
-			}
-			_storage = newStorage;
-			_persistence = persistence;
-		},
-		async fetchWithTokens(input, init): Promise<Response> {
-			if (_pendingRefreshTokenRequest) {
-				await _pendingRefreshTokenRequest;
-			}
-			const headers = new Headers(init?.headers);
-			const now = Date.now() / 1000 >> 0;
-			if (
-				_tokens?.access_token && _tokens.refresh_token &&
-				_accessTokenExpiration && _accessTokenExpiration <= now
-			) {
-				const refreshPromise = app.fetch(
-					`${app.apiEndpoint}/auth/refreshTokens`,
-					{
-						method: "POST",
-						headers: { "X-Refresh-Token": _tokens.refresh_token },
-					},
-				);
-				_pendingRefreshTokenRequest = refreshPromise
-					.catch(() => {})
-					.then(
-						() => {
-							_pendingRefreshTokenRequest = undefined;
-						},
-					);
-				const resp = await refreshPromise;
-				const result = await resp.json();
-				throwIfApiError(result);
-				assertAuthenticationTokens(result.data);
-				_tokens = result.data;
-			}
-
-			if (_tokens?.access_token) {
-				headers.set("Authorization", `Bearer ${_tokens.access_token}`);
-			}
-			return app.fetch(input, { ...init, headers });
-		},
-	};
-	authApps.set(app.clientId, auth);
+	return app;
 }
 
 export function getPersistence(app: App): Persistence {

@@ -3,7 +3,7 @@ import {
 	type AuthenticationCeremonyResponse,
 } from "../common/auth/ceremony/response.ts";
 import { EventEmitter } from "../common/system/event_emitter.ts";
-import { App } from "./app.ts";
+import { App, isApp } from "./app.ts";
 import { throwIfApiError } from "./errors.ts";
 import {
 	assertSendIdentificationValidationCodeResponse,
@@ -38,182 +38,34 @@ import { assertIdentity, type Identity } from "../common/identity/identity.ts";
 import type { getComponentAtPath } from "../common/auth/ceremony/component/get_component_at_path.ts";
 import type { AuthenticationCeremonyComponentConditional } from "../common/auth/ceremony/ceremony.ts";
 
-export class AuthApp {
-	#app: App;
-	#tokens: AuthenticationTokens | undefined;
-	#accessTokenExpiration: number | undefined;
-	#pendingRefreshTokenRequest: Promise<void> | undefined;
-	#expireTimeout: number | undefined;
-	#persistence: Persistence;
-	#onAuthStateChange: EventEmitter<[Identity | undefined]>;
-	#storage: Storage;
-
-	constructor(app: App) {
-		this.#app = app;
-		this.#onAuthStateChange = new EventEmitter<[Identity | undefined]>();
-
-		const persistence =
-			globalThis.localStorage.getItem(`baseless_${app.clientId}_persistence`) ??
-				"local";
-		this.#persistence = isPersistence(persistence) ? persistence : "local";
-		this.#storage = this.persistence === "local"
-			? globalThis.localStorage
-			: globalThis.sessionStorage;
-
-		const tokensString = this.#storage.getItem(
-			`baseless_${app.clientId}_tokens`,
-		);
-		if (tokensString) {
-			try {
-				const tokens = JSON.parse(tokensString);
-				assertAuthenticationTokens(tokens);
-				this.#tokens = tokens;
-			} catch (error) {
-				console.error(
-					`[baseless] failed to parse tokens from storage, got ${error}.`,
-				);
-				this.#storage.removeItem(`baseless_${app.clientId}_tokens`);
-			}
-		}
-	}
-
-	get clientId(): string {
-		return this.#app.clientId;
-	}
-
-	get apiEndpoint(): string {
-		return this.#app.apiEndpoint;
-	}
-
-	async fetch(
-		input: URL | Request | string,
-		init?: RequestInit,
-	): Promise<Response> {
-		if (this.#pendingRefreshTokenRequest) {
-			await this.#pendingRefreshTokenRequest;
-		}
-		const headers = new Headers(init?.headers);
-		const now = Date.now() / 1000 >> 0;
-		if (
-			this.#tokens?.access_token && this.#tokens.refresh_token &&
-			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
-		) {
-			const refreshPromise = this.#app.fetch(
-				`${this.apiEndpoint}/auth/refreshTokens`,
-				{
-					method: "POST",
-					headers: { "X-Refresh-Token": this.#tokens.refresh_token },
-				},
-			);
-			this.#pendingRefreshTokenRequest = refreshPromise
-				.catch(() => {})
-				.then(
-					() => {
-						this.#pendingRefreshTokenRequest = undefined;
-					},
-				);
-			const resp = await refreshPromise;
-			const result = await resp.json();
-			throwIfApiError(result);
-			assertAuthenticationTokens(result.data);
-			this.#tokens = result.data;
-		}
-
-		if (this.#tokens?.access_token) {
-			headers.set("Authorization", `Bearer ${this.#tokens.access_token}`);
-		}
-		return this.#app.fetch(input, { ...init, headers });
-	}
-
-	get onAuthStateChange(): EventEmitter<[Identity | undefined]> {
-		return this.#onAuthStateChange;
-	}
-
-	get storage(): Storage {
-		return this.#storage;
-	}
-
-	get tokens(): Readonly<AuthenticationTokens> | undefined {
-		return this.#tokens ? { ...this.#tokens } : undefined;
-	}
-
-	set tokens(tokens: Readonly<AuthenticationTokens> | undefined) {
-		clearTimeout(this.#expireTimeout);
-		this.#expireTimeout = undefined;
-		if (tokens) {
-			assertAuthenticationTokens(tokens);
-			const { access_token, id_token, refresh_token } = tokens;
-			tokens = { access_token, id_token, refresh_token };
-			const { sub: identityId, meta } = JSON.parse(
-				atob(id_token.split(".").at(1)!),
-			);
-			const identity = { id: identityId, meta };
-			assertIdentity(identity);
-			const { exp: accessTokenExp = Number.MAX_VALUE } = JSON.parse(
-				atob(access_token.split(".").at(1)!),
-			);
-			const { exp: refreshTokenExp = undefined } = refresh_token
-				? JSON.parse(atob(refresh_token.split(".").at(1)!))
-				: {};
-			const expiration = parseInt(refreshTokenExp ?? accessTokenExp, 10);
-			this.#tokens = tokens;
-			this.#accessTokenExpiration = parseInt(accessTokenExp, 10);
-			this.#onAuthStateChange.emit(identity);
-			this.#expireTimeout = setTimeout(
-				() => this.tokens = undefined,
-				expiration * 1000 - Date.now(),
-			);
-			this.#storage.setItem(
-				`baseless_${this.clientId}_tokens`,
-				JSON.stringify(tokens),
-			);
-		} else {
-			this.#tokens = undefined;
-			this.#accessTokenExpiration = undefined;
-			this.#onAuthStateChange.emit(undefined);
-			this.#storage.removeItem(`baseless_${this.clientId}_tokens`);
-		}
-	}
-
-	get persistence(): Persistence {
-		return this.#persistence;
-	}
-
-	set persistence(persistence: Persistence) {
-		assertPersistence(persistence);
-		globalThis.localStorage.setItem(
-			`baseless_${this.#app.clientId}_persistence`,
-			persistence,
-		);
-		const oldStorage = this.#storage;
-		const newStorage = persistence === "local"
-			? globalThis.localStorage
-			: globalThis.sessionStorage;
-		const tokens = oldStorage?.getItem(`baseless_${this.#app.clientId}_tokens`);
-		if (tokens) {
-			newStorage.setItem(`baseless_${this.#app.clientId}_tokens`, tokens);
-			oldStorage.removeItem(`baseless_${this.#app.clientId}_tokens`);
-		}
-		this.#storage = newStorage;
-		this.#persistence = persistence;
-	}
+interface AuthApp {
+	app: App;
+	tokens?: AuthenticationTokens;
+	accessTokenExpiration?: number;
+	pendingRefreshTokenRequest?: Promise<void>;
+	expireTimeout?: number;
+	persistence: Persistence;
+	storage: Storage;
+	onAuthStateChange: EventEmitter<[Identity | undefined]>;
+	fetchWithTokens: typeof globalThis.fetch;
 }
 
-export function isAuthApp(value?: unknown): value is AuthApp {
-	return !!value && value instanceof AuthApp;
-}
-export function assertAuthApp(value?: unknown): asserts value is AuthApp {
-	if (!isAuthApp(value)) {
-		throw new AuthNotInitializedError();
+const authApps = new Map<App["clientId"], AuthApp>();
+function getAuth(app: App): AuthApp {
+	if (!authApps.has(app.clientId)) {
+		initializeAuth(app);
 	}
+	return authApps.get(app.clientId)!;
 }
-export class AuthNotInitializedError extends Error {}
 
 export type Persistence = "local" | "session";
+
+export class AuthNotInitializedError extends Error {}
 
 export function isPersistence(value?: unknown): value is Persistence {
 	return value === "local" || value === "session";
 }
+
 export function assertPersistence(
 	value?: unknown,
 ): asserts value is Persistence {
@@ -223,28 +75,189 @@ export function assertPersistence(
 }
 export class InvalidPersistenceError extends Error {}
 
-export function initializeAuth(app: App): AuthApp {
-	return new AuthApp(app);
+export function assertInitializedAuth(
+	value?: unknown,
+): asserts value is App {
+	if (!isApp(value) || !authApps.has(value.clientId)) {
+		throw new AuthNotInitializedError();
+	}
 }
 
-export function getPersistence(app: AuthApp): Persistence {
-	return app.persistence;
+export function initializeAuth(app: App): void {
+	if (authApps.has(app.clientId)) {
+		return;
+	}
+	const localPersistence = globalThis.localStorage.getItem(
+		`baseless_${app.clientId}_persistence`,
+	);
+	let _persistence = isPersistence(localPersistence)
+		? localPersistence
+		: "local";
+	let _storage = _persistence === "local"
+		? globalThis.localStorage
+		: globalThis.sessionStorage;
+	let _tokens: AuthenticationTokens | undefined;
+	const _onAuthStateChange = new EventEmitter<[Identity | undefined]>();
+	let _accessTokenExpiration: number | undefined;
+	let _pendingRefreshTokenRequest: Promise<void> | undefined;
+	let _expireTimeout: number | undefined;
+
+	const tokensString = _storage.getItem(
+		`baseless_${app.clientId}_tokens`,
+	);
+	if (tokensString) {
+		try {
+			const maybeTokens = JSON.parse(tokensString);
+			assertAuthenticationTokens(maybeTokens);
+			_tokens = maybeTokens;
+		} catch (error) {
+			console.error(
+				`[baseless] failed to parse tokens from storage, got ${error}.`,
+			);
+			_storage.removeItem(`baseless_${app.clientId}_tokens`);
+		}
+	}
+
+	const auth: AuthApp = {
+		app,
+		get tokens() {
+			return _tokens ? { ..._tokens } : undefined;
+		},
+		get accessTokenExpiration() {
+			return _accessTokenExpiration;
+		},
+		get pendingRefreshTokenRequest() {
+			return _pendingRefreshTokenRequest;
+		},
+		get expireTimeout() {
+			return _expireTimeout;
+		},
+		get persistence() {
+			return _persistence;
+		},
+		get storage() {
+			return _storage;
+		},
+		get onAuthStateChange() {
+			return _onAuthStateChange;
+		},
+		set tokens(tokens: Readonly<AuthenticationTokens> | undefined) {
+			clearTimeout(_expireTimeout);
+			_expireTimeout = undefined;
+			if (tokens) {
+				assertAuthenticationTokens(tokens);
+				const { access_token, id_token, refresh_token } = tokens;
+				tokens = { access_token, id_token, refresh_token };
+				const { sub: identityId, meta } = JSON.parse(
+					atob(id_token.split(".").at(1)!),
+				);
+				const identity = { id: identityId, meta };
+				assertIdentity(identity);
+				const { exp: accessTokenExp = Number.MAX_VALUE } = JSON.parse(
+					atob(access_token.split(".").at(1)!),
+				);
+				const { exp: refreshTokenExp = undefined } = refresh_token
+					? JSON.parse(atob(refresh_token.split(".").at(1)!))
+					: {};
+				const expiration = parseInt(refreshTokenExp ?? accessTokenExp, 10);
+				_tokens = tokens;
+				_accessTokenExpiration = parseInt(accessTokenExp, 10);
+				_onAuthStateChange.emit(identity);
+				_expireTimeout = setTimeout(
+					() => this.tokens = undefined,
+					expiration * 1000 - Date.now(),
+				);
+				_storage.setItem(
+					`baseless_${this.app.clientId}_tokens`,
+					JSON.stringify(tokens),
+				);
+			} else {
+				_tokens = undefined;
+				_accessTokenExpiration = undefined;
+				_onAuthStateChange.emit(undefined);
+				_storage.removeItem(`baseless_${app.clientId}_tokens`);
+			}
+		},
+		set persistence(persistence: Persistence) {
+			assertPersistence(persistence);
+			globalThis.localStorage.setItem(
+				`baseless_${app.clientId}_persistence`,
+				persistence,
+			);
+			const oldStorage = _storage;
+			const newStorage = persistence === "local"
+				? globalThis.localStorage
+				: globalThis.sessionStorage;
+			const tokens = oldStorage?.getItem(
+				`baseless_${app.clientId}_tokens`,
+			);
+			if (tokens) {
+				newStorage.setItem(`baseless_${app.clientId}_tokens`, tokens);
+				oldStorage.removeItem(`baseless_${app.clientId}_tokens`);
+			}
+			_storage = newStorage;
+			_persistence = persistence;
+		},
+		async fetchWithTokens(input, init): Promise<Response> {
+			if (_pendingRefreshTokenRequest) {
+				await _pendingRefreshTokenRequest;
+			}
+			const headers = new Headers(init?.headers);
+			const now = Date.now() / 1000 >> 0;
+			if (
+				_tokens?.access_token && _tokens.refresh_token &&
+				_accessTokenExpiration && _accessTokenExpiration <= now
+			) {
+				const refreshPromise = app.fetch(
+					`${app.apiEndpoint}/auth/refreshTokens`,
+					{
+						method: "POST",
+						headers: { "X-Refresh-Token": _tokens.refresh_token },
+					},
+				);
+				_pendingRefreshTokenRequest = refreshPromise
+					.catch(() => {})
+					.then(
+						() => {
+							_pendingRefreshTokenRequest = undefined;
+						},
+					);
+				const resp = await refreshPromise;
+				const result = await resp.json();
+				throwIfApiError(result);
+				assertAuthenticationTokens(result.data);
+				_tokens = result.data;
+			}
+
+			if (_tokens?.access_token) {
+				headers.set("Authorization", `Bearer ${_tokens.access_token}`);
+			}
+			return app.fetch(input, { ...init, headers });
+		},
+	};
+	authApps.set(app.clientId, auth);
 }
 
-export function setPersistence(app: AuthApp, persistence: Persistence): void {
-	app.persistence = persistence;
+export function getPersistence(app: App): Persistence {
+	assertInitializedAuth(app);
+	return getAuth(app).persistence;
+}
+
+export function setPersistence(app: App, persistence: Persistence): void {
+	assertInitializedAuth(app);
+	getAuth(app).persistence = persistence;
 }
 
 export function onAuthStateChange(
-	app: AuthApp,
+	app: App,
 	listener: (identity: Identity | undefined) => void,
 ): () => void {
-	assertAuthApp(app);
-	return app.onAuthStateChange.listen(listener);
+	assertInitializedAuth(app);
+	return getAuth(app).onAuthStateChange.listen(listener);
 }
 
 export async function getAuthenticationCeremony(
-	app: AuthApp,
+	app: App,
 	state?: string,
 ): Promise<
 	AuthenticationCeremonyResponse<
@@ -254,7 +267,8 @@ export async function getAuthenticationCeremony(
 		>
 	>
 > {
-	assertAuthApp(app);
+	assertInitializedAuth(app);
+	const auth = getAuth(app);
 	let method = "GET";
 	let body: string | undefined;
 	const headers = new Headers();
@@ -263,7 +277,7 @@ export async function getAuthenticationCeremony(
 		headers.set("Content-Type", "application/json");
 		body = JSON.stringify({ state });
 	}
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/getAuthenticationCeremony`,
 		{
 			body,
@@ -273,11 +287,12 @@ export async function getAuthenticationCeremony(
 	const result = await resp.json();
 	throwIfApiError(result);
 	assertAuthenticationCeremonyResponse(result.data);
+	// deno-lint-ignore no-explicit-any
 	return result.data as any;
 }
 
 export async function submitAuthenticationIdentification(
-	app: AuthApp,
+	app: App,
 	type: string,
 	identification: string,
 	state?: string,
@@ -289,13 +304,14 @@ export async function submitAuthenticationIdentification(
 		>
 	>
 > {
-	assertAuthApp(app);
+	assertInitializedAuth(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({
 		type,
 		identification,
 		...(state ? { state } : undefined),
 	});
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/submitAuthenticationIdentification`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -303,13 +319,14 @@ export async function submitAuthenticationIdentification(
 	throwIfApiError(result);
 	assertAuthenticationCeremonyResponse(result.data);
 	if (isAuthenticationCeremonyResponseTokens(result.data)) {
-		app.tokens = result.data;
+		getAuth(app).tokens = result.data;
 	}
+	// deno-lint-ignore no-explicit-any
 	return result.data as any;
 }
 
 export async function submitAuthenticationChallenge(
-	app: AuthApp,
+	app: App,
 	type: string,
 	challenge: string,
 	state: string,
@@ -321,9 +338,10 @@ export async function submitAuthenticationChallenge(
 		>
 	>
 > {
-	assertAuthApp(app);
+	assertInitializedAuth(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({ type, challenge, state });
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/submitAuthenticationChallenge`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -331,19 +349,21 @@ export async function submitAuthenticationChallenge(
 	throwIfApiError(result);
 	assertAuthenticationCeremonyResponse(result.data);
 	if (isAuthenticationCeremonyResponseTokens(result.data)) {
-		app.tokens = result.data;
+		getAuth(app).tokens = result.data;
 	}
+	// deno-lint-ignore no-explicit-any
 	return result.data as any;
 }
 
 export async function sendIdentificationChallenge(
-	app: AuthApp,
+	app: App,
 	type: string,
 	state: string,
 ): Promise<SendIdentificationChallengeResponse> {
-	assertAuthApp(app);
+	assertInitializedAuth(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({ type, state });
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/sendIdentificationChallenge`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -354,13 +374,13 @@ export async function sendIdentificationChallenge(
 }
 
 export async function sendIdentificationValidationCode(
-	app: AuthApp,
+	app: App,
 	type: string,
 	identification: string,
 ): Promise<SendIdentificationValidationCodeResponse> {
-	assertAuthApp(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({ type, identification });
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/sendIdentificationValidationCode`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -371,14 +391,14 @@ export async function sendIdentificationValidationCode(
 }
 
 export async function confirmIdentificationValidationCode(
-	app: AuthApp,
+	app: App,
 	type: string,
 	identification: string,
 	code: string,
 ): Promise<ConfirmIdentificationValidationCodeResponse> {
-	assertAuthApp(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({ type, identification, code });
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/confirmIdentificationValidationCode`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -388,23 +408,23 @@ export async function confirmIdentificationValidationCode(
 	return result.data;
 }
 
-export async function signOut(app: AuthApp): Promise<void> {
-	assertAuthApp(app);
-	const resp = await app.fetch(
+export async function signOut(app: App): Promise<void> {
+	const auth = getAuth(app);
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/signOut`,
 		{ method: "POST" },
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
-	app.tokens = undefined;
+	auth.tokens = undefined;
 }
 
-export function getIdToken(app: AuthApp): string | undefined {
-	assertAuthApp(app);
-	return app.tokens?.id_token;
+export function getIdToken(app: App): string | undefined {
+	const auth = getAuth(app);
+	return auth.tokens?.id_token;
 }
 
-export function getIdentity(app: AuthApp): Identity | undefined {
+export function getIdentity(app: App): Identity | undefined {
 	const id_token = getIdToken(app);
 	if (!id_token) {
 		return undefined;
@@ -417,33 +437,33 @@ export function getIdentity(app: AuthApp): Identity | undefined {
 }
 
 export async function createAnonymousIdentity(
-	app: AuthApp,
+	app: App,
 ): Promise<AuthenticationCeremonyResponseTokens> {
-	assertAuthApp(app);
-	const resp = await app.fetch(
+	const auth = getAuth(app);
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/createAnonymousIdentity`,
 		{ method: "POST" },
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
 	assertAuthenticationCeremonyResponseTokens(result.data);
-	app.tokens = result.data;
+	auth.tokens = result.data;
 	return result.data;
 }
 
 export async function createIdentity(
-	app: AuthApp,
+	app: App,
 	identificationType: string,
 	identification: string,
 	locale: string,
 ): Promise<void> {
-	assertAuthApp(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({
 		identificationType,
 		identification,
 		locale,
 	});
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/createIdentity`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -452,18 +472,18 @@ export async function createIdentity(
 }
 
 export async function addIdentification(
-	app: AuthApp,
+	app: App,
 	identificationType: string,
 	identification: string,
 	locale: string,
 ): Promise<void> {
-	assertAuthApp(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({
 		identificationType,
 		identification,
 		locale,
 	});
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/addIdentification`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -472,18 +492,18 @@ export async function addIdentification(
 }
 
 export async function addChallenge(
-	app: AuthApp,
+	app: App,
 	challengeType: string,
 	challenge: string,
 	locale: string,
 ): Promise<void> {
-	assertAuthApp(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({
 		challengeType,
 		challenge,
 		locale,
 	});
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/addChallenge`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -492,12 +512,12 @@ export async function addChallenge(
 }
 
 export async function sendChallengeValidationCode(
-	app: AuthApp,
+	app: App,
 	type: string,
 ): Promise<SendChallengeValidationCodeResponse> {
-	assertAuthApp(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({ type });
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/sendChallengeValidationCode`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -508,16 +528,16 @@ export async function sendChallengeValidationCode(
 }
 
 export async function confirmChallengeValidationCode(
-	app: AuthApp,
+	app: App,
 	type: string,
 	answer: string,
 ): Promise<ConfirmChallengeValidationCodeResponse> {
-	assertAuthApp(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({
 		type,
 		answer,
 	});
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/confirmChallengeValidationCode`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -528,18 +548,18 @@ export async function confirmChallengeValidationCode(
 }
 
 export async function updateIdentification(
-	app: AuthApp,
+	app: App,
 	identificationType: string,
 	identification: string,
 	locale: string,
 ): Promise<void> {
-	assertAuthApp(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({
 		identificationType,
 		identification,
 		locale,
 	});
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/updateIdentification`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -548,18 +568,18 @@ export async function updateIdentification(
 }
 
 export async function updateChallenge(
-	app: AuthApp,
+	app: App,
 	challengeType: string,
 	challenge: string,
 	locale: string,
 ): Promise<void> {
-	assertAuthApp(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({
 		challengeType,
 		challenge,
 		locale,
 	});
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/updateChallenge`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -568,16 +588,16 @@ export async function updateChallenge(
 }
 
 export async function deleteIdentification(
-	app: AuthApp,
+	app: App,
 	identificationType: string,
 	locale: string,
 ): Promise<void> {
-	assertAuthApp(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({
 		identificationType,
 		locale,
 	});
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/deleteIdentification`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
@@ -586,16 +606,16 @@ export async function deleteIdentification(
 }
 
 export async function deleteChallenge(
-	app: AuthApp,
+	app: App,
 	challengeType: string,
 	locale: string,
 ): Promise<void> {
-	assertAuthApp(app);
+	const auth = getAuth(app);
 	const body = JSON.stringify({
 		challengeType,
 		locale,
 	});
-	const resp = await app.fetch(
+	const resp = await auth.fetchWithTokens(
 		`${app.apiEndpoint}/auth/deleteChallenge`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);

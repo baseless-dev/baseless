@@ -2,7 +2,6 @@ import type { Document, DocumentKey } from "../../common/document/document.ts";
 import { type IDocumentService } from "../../common/server/services/document.ts";
 import {
 	DocumentAtomic,
-	type DocumentAtomicsResult,
 	type DocumentGetOptions,
 	type DocumentListOptions,
 	type DocumentListResult,

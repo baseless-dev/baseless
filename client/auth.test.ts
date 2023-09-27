@@ -9,9 +9,8 @@ import { App, initializeApp } from "./app.ts";
 import {
 	addChallenge,
 	addIdentification,
-	assertAuthApp,
+	assertInitializedAuth,
 	assertPersistence,
-	AuthApp,
 	confirmChallengeValidationCode,
 	confirmIdentificationValidationCode,
 	createAnonymousIdentity,
@@ -51,7 +50,7 @@ Deno.test("Client Auth", async (t) => {
 		{
 			identity: Identity;
 			app: App;
-			signIn: (authApp: AuthApp) => Promise<void>;
+			signIn: (app: App) => Promise<void>;
 		} & DummyServerResult
 	> => {
 		let john: Identity;
@@ -117,15 +116,15 @@ Deno.test("Client Auth", async (t) => {
 			...result,
 			identity: john!,
 			app,
-			signIn: async (authApp) => {
+			signIn: async (app) => {
 				const result = await submitAuthenticationIdentification(
-					authApp,
+					app,
 					"email",
 					"john@test.local",
 				);
 				assertAuthenticationCeremonyResponseEncryptedState(result);
 				await submitAuthenticationChallenge(
-					authApp,
+					app,
 					"password",
 					"123",
 					result.encryptedState,
@@ -136,44 +135,44 @@ Deno.test("Client Auth", async (t) => {
 
 	await t.step("initializeAuth", async () => {
 		const { app } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		assertAuthApp(authApp);
+		initializeAuth(app);
+		assertInitializedAuth(app);
 	});
 
 	await t.step("getPersistence", async () => {
 		const { app } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		const persistence = getPersistence(authApp);
+		initializeAuth(app);
+		const persistence = getPersistence(app);
 		assertPersistence(persistence);
 	});
 
 	await t.step("setPersistence", async () => {
 		const { app } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
+		initializeAuth(app);
 		// deno-lint-ignore no-explicit-any
-		assertThrows(() => setPersistence(authApp, "invalid" as any));
-		setPersistence(authApp, "local");
-		assertEquals(getPersistence(authApp), "local");
-		setPersistence(authApp, "session");
-		assertEquals(getPersistence(authApp), "session");
+		assertThrows(() => setPersistence(app, "invalid" as any));
+		setPersistence(app, "local");
+		assertEquals(getPersistence(app), "local");
+		setPersistence(app, "session");
+		assertEquals(getPersistence(app), "session");
 	});
 
 	await t.step("getAuthenticationCeremony", async () => {
 		const { app, email } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		const result = await getAuthenticationCeremony(authApp);
+		initializeAuth(app);
+		const result = await getAuthenticationCeremony(app);
 		assertAuthenticationCeremonyResponseState(result);
 		assertEquals(result.first, true);
 		assertEquals(result.last, false);
 		assertEquals(result.component, JSON.parse(JSON.stringify(email)));
 		assertAuthenticationCeremonyResponseState(
-			await getAuthenticationCeremony(authApp, "invalid"),
+			await getAuthenticationCeremony(app, "invalid"),
 		);
 	});
 
 	await t.step("sendIdentificationValidationCode", async () => {
 		const { app } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
+		initializeAuth(app);
 		const messages: { ns: string; lvl: string; message: Message }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
 			if (ns === "message-logger") {
@@ -181,7 +180,7 @@ Deno.test("Client Auth", async (t) => {
 			}
 		});
 		const result = await sendIdentificationValidationCode(
-			authApp,
+			app,
 			"email",
 			"john@test.local",
 		);
@@ -192,7 +191,7 @@ Deno.test("Client Auth", async (t) => {
 
 	await t.step("confirmIdentificationValidationCode", async () => {
 		const { app } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
+		initializeAuth(app);
 		const messages: { ns: string; lvl: string; message: Message }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
 			if (ns === "message-logger") {
@@ -200,7 +199,7 @@ Deno.test("Client Auth", async (t) => {
 			}
 		});
 		const sendResult = await sendIdentificationValidationCode(
-			authApp,
+			app,
 			"email",
 			"john@test.local",
 		);
@@ -208,7 +207,7 @@ Deno.test("Client Auth", async (t) => {
 		assertEquals(sendResult.sent, true);
 		const validationCode = messages[0]?.message.text;
 		const confirmResult = await confirmIdentificationValidationCode(
-			authApp,
+			app,
 			"email",
 			"john@test.local",
 			validationCode,
@@ -218,9 +217,9 @@ Deno.test("Client Auth", async (t) => {
 
 	await t.step("submitAuthenticationIdentification", async () => {
 		const { app, password, otp } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
+		initializeAuth(app);
 		const result = await submitAuthenticationIdentification(
-			authApp,
+			app,
 			"email",
 			"john@test.local",
 		);
@@ -232,41 +231,41 @@ Deno.test("Client Auth", async (t) => {
 			JSON.parse(JSON.stringify(oneOf(password, otp))),
 		);
 		await assertRejects(() =>
-			submitAuthenticationIdentification(authApp, "email", "unknown@test.local")
+			submitAuthenticationIdentification(app, "email", "unknown@test.local")
 		);
 	});
 
 	await t.step("submitAuthenticationChallenge", async () => {
 		const { app } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
+		initializeAuth(app);
 		const result1 = await submitAuthenticationIdentification(
-			authApp,
+			app,
 			"email",
 			"john@test.local",
 		);
 		assertAuthenticationCeremonyResponseEncryptedState(result1);
 		const result2 = await submitAuthenticationChallenge(
-			authApp,
+			app,
 			"password",
 			"123",
 			result1.encryptedState,
 		);
 		assertAuthenticationCeremonyResponseTokens(result2);
-		await signOut(authApp);
+		await signOut(app);
 	});
 
 	await t.step("signOut", async () => {
 		const { app, signIn } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		await signIn(authApp);
-		await signOut(authApp);
-		await assertRejects(() => signOut(authApp));
+		initializeAuth(app);
+		await signIn(app);
+		await signOut(app);
+		await assertRejects(() => signOut(app));
 	});
 
 	await t.step("sendChallengeValidationCode", async () => {
 		const { app, signIn } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		await signIn(authApp);
+		initializeAuth(app);
+		await signIn(app);
 		const messages: { ns: string; lvl: string; message: string }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
 			if (ns === "auth-otp-logger") {
@@ -274,19 +273,19 @@ Deno.test("Client Auth", async (t) => {
 			}
 		});
 		const result = await sendChallengeValidationCode(
-			authApp,
+			app,
 			"otp",
 		);
 		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
 		assertEquals(messages[0]?.message.length, 6);
-		await signOut(authApp);
+		await signOut(app);
 	});
 
 	await t.step("confirmChallengeValidationCode", async () => {
 		const { app, signIn } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		await signIn(authApp);
+		initializeAuth(app);
+		await signIn(app);
 		const messages: { ns: string; lvl: string; message: string }[] = [];
 		setGlobalLogHandler((ns, lvl, msg) => {
 			if (ns === "auth-otp-logger") {
@@ -294,26 +293,26 @@ Deno.test("Client Auth", async (t) => {
 			}
 		});
 		const result = await sendChallengeValidationCode(
-			authApp,
+			app,
 			"otp",
 		);
 		setGlobalLogHandler(() => {});
 		assertEquals(result.sent, true);
 		const validationCode = messages[0]?.message;
 		const confirmResult = await confirmChallengeValidationCode(
-			authApp,
+			app,
 			"otp",
 			validationCode,
 		);
 		assertEquals(confirmResult.confirmed, true);
-		await signOut(authApp);
+		await signOut(app);
 	});
 
 	await t.step("sendIdentificationChallenge", async () => {
 		const { app } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
+		initializeAuth(app);
 		const result1 = await submitAuthenticationIdentification(
-			authApp,
+			app,
 			"email",
 			"john@test.local",
 		);
@@ -325,7 +324,7 @@ Deno.test("Client Auth", async (t) => {
 			}
 		});
 		const result2 = await sendIdentificationChallenge(
-			authApp,
+			app,
 			"otp",
 			result1.encryptedState,
 		);
@@ -334,27 +333,27 @@ Deno.test("Client Auth", async (t) => {
 		assertEquals(challengeCode.length, 6);
 		setGlobalLogHandler(() => {});
 		const result3 = await submitAuthenticationChallenge(
-			authApp,
+			app,
 			"otp",
 			challengeCode,
 			result1.encryptedState,
 		);
 		assertAuthenticationCeremonyResponseTokens(result3);
-		await signOut(authApp);
+		await signOut(app);
 	});
 
 	await t.step("onAuthStateChange", async () => {
 		const { app, identity: john, signIn } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
+		initializeAuth(app);
 		const changes: (Identity | undefined)[] = [];
-		const unsubscribe = onAuthStateChange(authApp, (identity) => {
+		const unsubscribe = onAuthStateChange(app, (identity) => {
 			changes.push(identity);
 		});
-		await signIn(authApp);
+		await signIn(app);
 		assertEquals(changes, [john]);
-		await signOut(authApp);
+		await signOut(app);
 		assertEquals(changes, [john, undefined]);
-		await signIn(authApp);
+		await signIn(app);
 		assertEquals(changes, [john, undefined, john]);
 		await sleep(4200);
 		assertEquals(changes, [john, undefined, john, undefined]);
@@ -363,35 +362,35 @@ Deno.test("Client Auth", async (t) => {
 
 	await t.step("getIdToken", async () => {
 		const { app, signIn } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		await signIn(authApp);
-		const idToken = await getIdToken(authApp);
+		initializeAuth(app);
+		await signIn(app);
+		const idToken = await getIdToken(app);
 		assert(idToken?.length ?? 0 > 0);
-		await signOut(authApp);
+		await signOut(app);
 	});
 
 	await t.step("getIdentity", async () => {
 		const { app, identity: john, signIn } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		await signIn(authApp);
-		const identity = await getIdentity(authApp);
+		initializeAuth(app);
+		await signIn(app);
+		const identity = await getIdentity(app);
 		assertEquals(identity, john);
-		await signOut(authApp);
+		await signOut(app);
 	});
 
 	await t.step("createAnonymousIdentity", async () => {
 		const { app } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		const result1 = await createAnonymousIdentity(authApp);
+		initializeAuth(app);
+		const result1 = await createAnonymousIdentity(app);
 		assertAuthenticationCeremonyResponseTokens(result1);
-		await signOut(authApp);
+		await signOut(app);
 	});
 
 	await t.step("createIdentity", async () => {
 		const { app, identityProvider } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
+		initializeAuth(app);
 		await createIdentity(
-			authApp,
+			app,
 			"email",
 			"jane@test.local",
 			"en",
@@ -405,14 +404,14 @@ Deno.test("Client Auth", async (t) => {
 
 	await t.step("createIdentity claims anonymous identity", async () => {
 		const { app, identityProvider } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		const result1 = await createAnonymousIdentity(authApp);
+		initializeAuth(app);
+		const result1 = await createAnonymousIdentity(app);
 		assertAuthenticationCeremonyResponseTokens(result1);
 		const idTokenPayload = decode(result1.id_token.split(".")[1]);
 		const idToken = JSON.parse(new TextDecoder().decode(idTokenPayload));
 		const anonymousIdentityId = `${idToken.sub}`;
 		await createIdentity(
-			authApp,
+			app,
 			"email",
 			"bob@test.local",
 			"en",
@@ -424,58 +423,58 @@ Deno.test("Client Auth", async (t) => {
 		assertEquals(identity1.identityId, anonymousIdentityId);
 		await assertRejects(() =>
 			createIdentity(
-				authApp,
+				app,
 				"email",
 				"foo@test.local",
 				"en",
 			)
 		);
-		await signOut(authApp);
+		await signOut(app);
 	});
 
 	await t.step("addIdentification", async () => {
 		const { app } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		await createAnonymousIdentity(authApp);
+		initializeAuth(app);
+		await createAnonymousIdentity(app);
 		await createIdentity(
-			authApp,
+			app,
 			"email",
 			"bob@test.local",
 			"en",
 		);
-		await addIdentification(authApp, "email", "nobody@test.local", "en");
+		await addIdentification(app, "email", "nobody@test.local", "en");
 		await assertRejects(() =>
-			addIdentification(authApp, "email", "john@test.local", "en")
+			addIdentification(app, "email", "john@test.local", "en")
 		);
-		await signOut(authApp);
+		await signOut(app);
 	});
 
 	await t.step("addChallenge", async () => {
 		const { app } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		await createAnonymousIdentity(authApp);
+		initializeAuth(app);
+		await createAnonymousIdentity(app);
 		await createIdentity(
-			authApp,
+			app,
 			"email",
 			"bob@test.local",
 			"en",
 		);
-		await addChallenge(authApp, "password", "blep", "en");
-		await assertRejects(() => addChallenge(authApp, "password", "blep", "en"));
-		await signOut(authApp);
+		await addChallenge(app, "password", "blep", "en");
+		await assertRejects(() => addChallenge(app, "password", "blep", "en"));
+		await signOut(app);
 	});
 
 	await t.step("refreshToken when needed", async () => {
 		const { app, signIn } = await initializeDummyServerApp();
-		const authApp = initializeAuth(app);
-		await signIn(authApp);
-		const idToken1 = await getIdToken(authApp);
+		initializeAuth(app);
+		await signIn(app);
+		const idToken1 = await getIdToken(app);
 		assert(idToken1);
 		await sleep(1200);
-		await getAuthenticationCeremony(authApp);
-		const idToken2 = await getIdToken(authApp);
+		await getAuthenticationCeremony(app);
+		const idToken2 = await getIdToken(app);
 		assert(idToken2);
 		assertNotEquals(idToken1, idToken2);
-		await signOut(authApp);
+		await signOut(app);
 	});
 });

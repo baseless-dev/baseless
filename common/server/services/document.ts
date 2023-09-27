@@ -1,6 +1,5 @@
 import {
 	DocumentAtomic,
-	type DocumentAtomicsResult,
 	type DocumentGetOptions,
 	type DocumentListOptions,
 	type DocumentListResult,

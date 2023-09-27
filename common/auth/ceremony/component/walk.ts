@@ -1,11 +1,9 @@
 import {
 	type AuthenticationCeremonyComponent,
 	type AuthenticationCeremonyComponentChallenge,
-	type AuthenticationCeremonyComponentChoice,
 	type AuthenticationCeremonyComponentConditional,
 	type AuthenticationCeremonyComponentDone,
 	type AuthenticationCeremonyComponentIdentification,
-	type AuthenticationCeremonyComponentSequence,
 	isAuthenticationCeremonyComponentChoice,
 	isAuthenticationCeremonyComponentSequence,
 } from "../ceremony.ts";

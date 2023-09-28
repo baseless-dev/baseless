@@ -3,7 +3,7 @@ import {
 	type AuthenticationCeremonyResponse,
 } from "../common/auth/ceremony/response.ts";
 import { EventEmitter } from "../common/system/event_emitter.ts";
-import { App, isApp } from "./app.ts";
+import { type App, isApp } from "./app.ts";
 import { throwIfApiError } from "./errors.ts";
 import {
 	assertSendIdentificationValidationCodeResponse,

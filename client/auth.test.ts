@@ -391,8 +391,8 @@ Deno.test("Client Auth", async (t) => {
 		initializeAuth(app);
 		await createIdentity(
 			app,
-			"email",
-			"jane@test.local",
+			[{ id: "email", value: "jane@test.local" }],
+			[],
 			"en",
 		);
 		const identity1 = await identityProvider.matchIdentification(
@@ -400,6 +400,7 @@ Deno.test("Client Auth", async (t) => {
 			"jane@test.local",
 		);
 		assertEquals(identity1.confirmed, false);
+		await signOut(app);
 	});
 
 	await t.step("createIdentity claims anonymous identity", async () => {
@@ -412,8 +413,8 @@ Deno.test("Client Auth", async (t) => {
 		const anonymousIdentityId = `${idToken.sub}`;
 		await createIdentity(
 			app,
-			"email",
-			"bob@test.local",
+			[{ id: "email", value: "bob@test.local" }],
+			[],
 			"en",
 		);
 		const identity1 = await identityProvider.matchIdentification(
@@ -424,8 +425,8 @@ Deno.test("Client Auth", async (t) => {
 		await assertRejects(() =>
 			createIdentity(
 				app,
-				"email",
-				"foo@test.local",
+				[{ id: "email", value: "foo@test.local" }],
+				[],
 				"en",
 			)
 		);
@@ -438,8 +439,8 @@ Deno.test("Client Auth", async (t) => {
 		await createAnonymousIdentity(app);
 		await createIdentity(
 			app,
-			"email",
-			"bob@test.local",
+			[{ id: "email", value: "bob@test.local" }],
+			[],
 			"en",
 		);
 		await addIdentification(app, "email", "nobody@test.local", "en");
@@ -455,8 +456,8 @@ Deno.test("Client Auth", async (t) => {
 		await createAnonymousIdentity(app);
 		await createIdentity(
 			app,
-			"email",
-			"bob@test.local",
+			[{ id: "email", value: "bob@test.local" }],
+			[],
 			"en",
 		);
 		await addChallenge(app, "password", "blep", "en");

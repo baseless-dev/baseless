@@ -24,8 +24,8 @@ export class CloudFlareCounterProvider implements CounterProvider {
 		const doStud = this.#do.get(doId);
 		const expireAt = expiration
 			? expiration instanceof Date
-				? expiration.getTime() >> 0
-				: (expiration + new Date().getTime()) >> 0
+				? expiration.getTime()
+				: expiration + new Date().getTime()
 			: undefined;
 		const response = await doStud.fetch("https://example.com/increment", {
 			method: "POST",

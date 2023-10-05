@@ -10,6 +10,7 @@ import {
 } from "../errors.ts";
 import {
 	type AuthenticationCeremonyComponent,
+	type AuthenticationCeremonyComponentDone,
 	isAuthenticationCeremonyComponent,
 } from "./ceremony.ts";
 import {
@@ -37,7 +38,7 @@ export type AuthenticationCeremonyResponseState<
 > = {
 	state: AuthenticationCeremonyState;
 	done: false;
-	component: Component;
+	component: Exclude<Component, AuthenticationCeremonyComponentDone>;
 	first: boolean;
 	last: boolean;
 };
@@ -47,7 +48,7 @@ export type AuthenticationCeremonyResponseEncryptedState<
 > = {
 	encryptedState: string;
 	done: false;
-	component: Component;
+	component: Exclude<Component, AuthenticationCeremonyComponentDone>;
 	first: boolean;
 	last: boolean;
 };

@@ -250,6 +250,15 @@ export function initializeAuth(app: App): App {
 	return app;
 }
 
+export function fetchWithTokens(
+	app: App,
+	input: RequestInfo | URL,
+	init?: RequestInit,
+): Promise<Response> {
+	assertInitializedAuth(app);
+	return getAuth(app).fetchWithTokens(input, init);
+}
+
 export function getPersistence(app: App): Persistence {
 	assertInitializedAuth(app);
 	return getAuth(app).persistence;
@@ -465,14 +474,14 @@ export async function createAnonymousIdentity(
 
 export async function createIdentity(
 	app: App,
-	identificationType: string,
-	identification: string,
+	identifications: Array<{ id: string; value: string }>,
+	challenges: Array<{ id: string; value: string }>,
 	locale: string,
-): Promise<void> {
+): Promise<AuthenticationCeremonyResponseTokens | undefined> {
 	const auth = getAuth(app);
 	const body = JSON.stringify({
-		identificationType,
-		identification,
+		identifications,
+		challenges,
 		locale,
 	});
 	const resp = await auth.fetchWithTokens(
@@ -481,6 +490,10 @@ export async function createIdentity(
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
+	if (isAuthenticationCeremonyResponseTokens(result.data)) {
+		auth.tokens = result.data;
+		return result.data;
+	}
 }
 
 export async function addIdentification(

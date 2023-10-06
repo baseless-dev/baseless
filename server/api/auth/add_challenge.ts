@@ -1,4 +1,3 @@
-import { IdentityChallengeExistsError } from "../../../client/errors.ts";
 import {
 	HighRiskActionTimeWindowExpiredError,
 	UnauthorizedError,
@@ -25,13 +24,6 @@ export async function addChallenge(
 	if (!challenge) {
 		throw new IdentityChallengeCreateError();
 	}
-	const identityChallenge = await context.identity.getChallenge(
-		identityId,
-		challengeType,
-	).catch((_) => undefined);
-	if (identityChallenge) {
-		throw new IdentityChallengeExistsError();
-	}
 	if (
 		context.tokenData.lastAuthorizationTime >=
 			Date.now() / 1000 + context.config.auth.highRiskActionTimeWindow
@@ -39,16 +31,20 @@ export async function addChallenge(
 		throw new HighRiskActionTimeWindowExpiredError();
 	}
 	try {
+		const identity = await context.identity.get(identityId);
 		const meta = await context.identity.getChallengeMeta(
 			challengeType,
 			challenge,
 		);
-		await context.identity.createChallenge({
-			identityId,
+		if (identity.challenges[challengeType]) {
+			throw new IdentityChallengeCreateError();
+		}
+		identity.challenges[challengeType] = {
 			type: challengeType,
 			confirmed: false,
 			meta,
-		});
+		};
+		await context.identity.update(identity);
 		await context.identity.sendChallengeValidationCode(
 			identityId,
 			challengeType,

@@ -129,14 +129,18 @@ export class AuthenticationService implements IAuthenticationService {
 			throw new AuthenticationMissingIdentificatorError();
 		}
 
-		const identityIdentification = await this.#context.identity
-			.matchIdentification(type, identification);
+		const identity = await this.#context.identity.getByIdentification(
+			type,
+			identification,
+		);
+		const identityIdentification = identity.identifications[type];
 		if (!identityIdentification.confirmed) {
 			throw new AuthenticationIdentityIdentificationNotConfirmedError();
 		}
 
 		const identifyResult = await identificator.identify({
 			context: this.#context,
+			identityId: identity.id,
 			identityIdentification,
 			identification,
 		});
@@ -146,7 +150,7 @@ export class AuthenticationService implements IAuthenticationService {
 		}
 		const newState = {
 			choices: [...state.choices, type],
-			identity: identityIdentification.identityId,
+			identity: identity.id,
 		};
 		const newResult = await this.getAuthenticationCeremony(newState);
 		return newResult;
@@ -210,10 +214,8 @@ export class AuthenticationService implements IAuthenticationService {
 			throw new AuthenticationMissingChallengerError();
 		}
 
-		const identityChallenge = await this.#context.identity.getChallenge(
-			state.identity,
-			step.id,
-		);
+		const identity = await this.#context.identity.get(state.identity);
+		const identityChallenge = identity.challenges[step.id];
 		if (!identityChallenge.confirmed) {
 			throw new AuthenticationIdentityChallengeNotConfirmedError();
 		}
@@ -221,6 +223,7 @@ export class AuthenticationService implements IAuthenticationService {
 		if (
 			!await challenger.verify({
 				context: this.#context,
+				identityId: identity.id,
 				identityChallenge,
 				challenge,
 			})

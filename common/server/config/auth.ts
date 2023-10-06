@@ -11,7 +11,7 @@ import {
 	type AuthenticationIdenticator,
 	isAuthenticationIdenticator,
 } from "../../auth/identicator.ts";
-import type { Identity } from "../../identity/identity.ts";
+import type { ID } from "../../identity/identity.ts";
 import type { IContext } from "../context.ts";
 import { extract } from "../../auth/ceremony/component/extract.ts";
 import { simplify } from "../../auth/ceremony/component/simplify.ts";
@@ -54,7 +54,7 @@ export type AuthenticationConfiguration = {
 export type AuthenticationHandler = (
 	context: IContext,
 	request: Request,
-	identity: Identity,
+	identity: ID,
 ) => void | Promise<void>;
 export type AuthenticationViewPrompParams = {
 	request: Request;

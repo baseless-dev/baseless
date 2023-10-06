@@ -13,12 +13,12 @@ export async function sendIdentificationValidationCode(
 		const identification = data.identification?.toString() ?? "";
 		// TODO default locale
 		const locale = data.locale?.toString() ?? "en";
-		const identityIdentification = await context.identity.matchIdentification(
+		const identity = await context.identity.getByIdentification(
 			type,
 			identification,
 		);
 		await context.identity.sendIdentificationValidationCode(
-			identityIdentification.identityId,
+			identity.id,
 			type,
 			locale,
 		);

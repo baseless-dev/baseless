@@ -22,7 +22,9 @@ export async function deleteChallenge(
 		throw new HighRiskActionTimeWindowExpiredError();
 	}
 	try {
-		await context.identity.deleteChallenge(identityId, challengeType);
+		const identity = await context.identity.get(identityId);
+		delete identity.challenges[challengeType];
+		await context.identity.update(identity);
 	} catch (_error) {
 		throw new IdentityChallengeDeleteError();
 	}

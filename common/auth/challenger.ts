@@ -1,5 +1,6 @@
 import type { IdentityChallenge } from "../identity/challenge.ts";
 import type { IContext } from "../server/context.ts";
+import type { AutoId } from "../system/autoid.ts";
 import {
 	type AuthenticationCeremonyComponentChallenge,
 	isAuthenticationCeremonyComponentChallenge,
@@ -14,11 +15,13 @@ export type AuthenticationChallengerConfigureIdentityChallengeOptions = {
 export type AuthenticationChallengerSendChallengeOptions = {
 	context: IContext;
 	locale: string;
+	identityId: AutoId;
 	identityChallenge: IdentityChallenge;
 };
 
 export type AuthenticationChallengerVerifyOptions = {
 	context: IContext;
+	identityId: AutoId;
 	identityChallenge: IdentityChallenge;
 	challenge: string;
 };

@@ -2,7 +2,9 @@ import {
 	HighRiskActionTimeWindowExpiredError,
 	UnauthorizedError,
 } from "../../../common/auth/errors.ts";
-import { IdentityIdentificationUpdateError } from "../../../common/identity/errors.ts";
+import {
+	IdentityIdentificationUpdateError,
+} from "../../../common/identity/errors.ts";
 import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 
@@ -31,19 +33,15 @@ export async function updateIdentification(
 		throw new HighRiskActionTimeWindowExpiredError();
 	}
 	try {
-		const existingIdentification = await context.identity.getIdentification(
-			identification,
-			identificationType,
-		);
-		if (existingIdentification.identityId !== identityId) {
+		const identity = await context.identity.get(identityId);
+		if (!identity.identifications[identificationType]) {
 			throw new IdentityIdentificationUpdateError();
 		}
-		await context.identity.updateIdentification({
-			...existingIdentification,
-			type: identificationType,
+		Object.assign(identity.identifications[identificationType], {
 			identification,
 			confirmed: false,
 		});
+		await context.identity.update(identity);
 		await context.identity.sendIdentificationValidationCode(
 			identityId,
 			identificationType,

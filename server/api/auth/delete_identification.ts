@@ -22,10 +22,9 @@ export async function deleteIdentification(
 		throw new HighRiskActionTimeWindowExpiredError();
 	}
 	try {
-		await context.identity.deleteIdentification(
-			identityId,
-			identificationType,
-		);
+		const identity = await context.identity.get(identityId);
+		delete identity.identifications[identificationType];
+		await context.identity.update(identity);
 	} catch (_error) {
 		throw new IdentityIdentificationDeleteError();
 	}

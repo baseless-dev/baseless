@@ -1,4 +1,3 @@
-import type { IdentityChallenge } from "../common/identity/challenge.ts";
 import type {
 	// deno-lint-ignore no-unused-vars
 	IdentityChallengeCreateError,
@@ -25,9 +24,6 @@ import type {
 	// deno-lint-ignore no-unused-vars
 	IdentityUpdateError,
 } from "../common/identity/errors.ts";
-// deno-lint-ignore no-unused-vars
-import type { MessageSendError } from "../common/message/errors.ts";
-import type { IdentityIdentification } from "../common/identity/identification.ts";
 import type { Identity } from "../common/identity/identity.ts";
 import type { AutoId } from "../common/system/autoid.ts";
 
@@ -41,10 +37,17 @@ export interface IdentityProvider {
 	get(identityId: AutoId): Promise<Identity>;
 
 	/**
+	 * @throws {IdentityNotFoundError}
+	 */
+	getByIdentification(type: string, identification: string): Promise<Identity>;
+
+	/**
 	 * @throws {IdentityCreateError}
 	 */
 	create(
-		meta: Record<string, unknown>,
+		meta: Identity["meta"],
+		identifications: Identity["identifications"],
+		challenges: Identity["challenges"],
 	): Promise<Identity>;
 
 	/**
@@ -58,78 +61,4 @@ export interface IdentityProvider {
 	 * @throws {IdentityDeleteError}
 	 */
 	delete(identityId: AutoId): Promise<void>;
-
-	listIdentification(
-		identityId: AutoId,
-	): Promise<string[]>;
-
-	/**
-	 * @throws {IdentityIdentificationNotFoundError}
-	 */
-	matchIdentification(
-		type: string,
-		identification: string,
-	): Promise<IdentityIdentification>;
-
-	/**
-	 * @throws {IdentityIdentificationNotFoundError}
-	 */
-	getIdentification(
-		identityId: AutoId,
-		type: string,
-	): Promise<IdentityIdentification>;
-
-	/**
-	 * @throws {IdentityIdentificationCreateError}
-	 */
-	createIdentification(
-		identityIdentification: IdentityIdentification,
-	): Promise<void>;
-
-	/**
-	 * @throws {IdentityIdentificationUpdateError}
-	 */
-	updateIdentification(
-		identityIdentification: IdentityIdentification,
-	): Promise<void>;
-
-	/**
-	 * @throws {IdentityIdentificationDeleteError}
-	 */
-	deleteIdentification(
-		identityId: AutoId,
-		type: string,
-	): Promise<void>;
-
-	listChallenge(identityId: AutoId): Promise<string[]>;
-
-	/**
-	 * @throws {IdentityChallengeNotFoundError}
-	 */
-	getChallenge(
-		identityId: AutoId,
-		type: string,
-	): Promise<IdentityChallenge>;
-
-	/**
-	 * @throws {IdentityChallengeCreateError}
-	 */
-	createChallenge(
-		identityChallenge: IdentityChallenge,
-	): Promise<void>;
-
-	/**
-	 * @throws {IdentityChallengeUpdateError}
-	 */
-	updateChallenge(
-		identityChallenge: IdentityChallenge,
-	): Promise<void>;
-
-	/**
-	 * @throws {IdentityChallengeDeleteError}
-	 */
-	deleteChallenge(
-		identityId: AutoId,
-		type: string,
-	): Promise<void>;
 }

@@ -25,8 +25,6 @@ export type DummyServerHelpers = {
 	otp: ReturnType<typeof OTPLoggerAuthentificationChallenger>;
 	totp: ReturnType<typeof TOTPAuthentificationChallenger>;
 	createIdentity: DocumentIdentityProvider["create"];
-	createIdentification: DocumentIdentityProvider["createIdentification"];
-	createChallenge: DocumentIdentityProvider["createChallenge"];
 } & typeof h;
 
 export type DummyServerResult = {
@@ -85,11 +83,8 @@ export default async function makeDummyServer(
 		password,
 		otp,
 		totp,
-		createIdentity: (meta) => identityProvider.create(meta),
-		createIdentification: (identityIdentification) =>
-			identityProvider.createIdentification(identityIdentification),
-		createChallenge: (identityChallenge) =>
-			identityProvider.createChallenge(identityChallenge),
+		createIdentity: (meta, identifications, challenges) =>
+			identityProvider.create(meta, identifications, challenges),
 	};
 
 	await configurator?.(helpers);

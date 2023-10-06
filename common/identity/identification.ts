@@ -1,9 +1,6 @@
-import { type AutoId, isAutoId } from "../system/autoid.ts";
 import { InvalidIdentityIdentificationError } from "./errors.ts";
-import { IDENTITY_AUTOID_PREFIX } from "./identity.ts";
 
 export type IdentityIdentification = {
-	identityId: AutoId;
 	type: string;
 	identification: string;
 	confirmed: boolean;
@@ -13,8 +10,7 @@ export type IdentityIdentification = {
 export function isIdentityIdentification(
 	value: unknown,
 ): value is IdentityIdentification {
-	return !!value && typeof value === "object" && "identityId" in value &&
-		isAutoId(value.identityId, IDENTITY_AUTOID_PREFIX) && "type" in value &&
+	return !!value && typeof value === "object" && "type" in value &&
 		typeof value.type === "string" && "identification" in value &&
 		typeof value.identification === "string" && "confirmed" in value &&
 		typeof value.confirmed === "boolean" && "meta" in value &&

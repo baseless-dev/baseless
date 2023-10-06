@@ -1,5 +1,6 @@
 import { UnauthorizedError } from "../../../common/auth/errors.ts";
 import type { SendChallengeValidationCodeResponse } from "../../../common/auth/send_challenge_validation_code_response.ts";
+import { IdentityChallengeNotFoundError } from "../../../common/identity/errors.ts";
 import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 
@@ -17,12 +18,13 @@ export async function sendChallengeValidationCode(
 		const type = data.type?.toString() ?? "";
 		// TODO default locale
 		const locale = data.locale?.toString() ?? "en";
-		const identityChallenge = await context.identity.getChallenge(
-			identityId,
-			type,
-		);
+		const identity = await context.identity.get(identityId);
+		const identityChallenge = identity.challenges[type];
+		if (!identityChallenge) {
+			throw new IdentityChallengeNotFoundError();
+		}
 		await context.identity.sendChallengeValidationCode(
-			identityChallenge.identityId,
+			identity.id,
 			type,
 			locale,
 		);

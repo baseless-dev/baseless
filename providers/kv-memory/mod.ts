@@ -55,7 +55,7 @@ export class MemoryKVProvider implements KVProvider {
 		assertItem(item);
 		return {
 			key,
-			...item,
+			...structuredClone(item),
 		};
 	}
 

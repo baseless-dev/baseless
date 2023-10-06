@@ -1,6 +1,7 @@
 import type { IdentityIdentification } from "../identity/identification.ts";
 import type { Message } from "../message/message.ts";
 import type { IContext } from "../server/context.ts";
+import type { AutoId } from "../system/autoid.ts";
 import {
 	type AuthenticationCeremonyComponentIdentification,
 	isAuthenticationCeremonyComponentIdentification,
@@ -9,6 +10,7 @@ import { InvalidAuthenticationIdenticatorError } from "./errors.ts";
 
 export type AuthenticationIdenticatorIdentifyOptions = {
 	context: IContext;
+	identityId: AutoId;
 	identityIdentification: IdentityIdentification;
 	identification: string;
 };

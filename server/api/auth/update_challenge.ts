@@ -28,25 +28,16 @@ export async function updateChallenge(
 		throw new HighRiskActionTimeWindowExpiredError();
 	}
 	try {
-		const existingChallenge = await context.identity.getChallenge(
-			identityId,
-			challengeType,
-		);
-		if (existingChallenge.identityId !== identityId) {
+		const identity = await context.identity.get(identityId);
+		if (!identity.challenges[challengeType]) {
 			throw new IdentityChallengeUpdateError();
 		}
 		const meta = await context.identity.getChallengeMeta(
 			challengeType,
 			challenge,
 		);
-		await context.identity.updateChallenge({
-			...existingChallenge,
-			meta: {
-				...existingChallenge.meta,
-				meta,
-			},
-			confirmed: false,
-		});
+		identity.challenges[challengeType].meta = meta;
+		await context.identity.update(identity);
 		await context.identity.sendChallengeValidationCode(
 			identityId,
 			challengeType,

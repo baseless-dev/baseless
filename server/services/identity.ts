@@ -6,38 +6,17 @@ import {
 	AuthenticationSendIdentificationChallengeError,
 	AuthenticationSendValidationCodeError,
 } from "../../common/auth/errors.ts";
+import type { IdentityChallenge } from "../../common/identity/challenge.ts";
 import {
-	assertIdentityChallenge,
-	type IdentityChallenge,
-} from "../../common/identity/challenge.ts";
-import {
-	IdentityChallengeCreateError,
-	// deno-lint-ignore no-unused-vars
-	IdentityChallengeDeleteError,
-	// deno-lint-ignore no-unused-vars
-	IdentityChallengeNotFoundError,
-	// deno-lint-ignore no-unused-vars
-	IdentityChallengeUpdateError,
 	// deno-lint-ignore no-unused-vars
 	IdentityCreateError,
 	// deno-lint-ignore no-unused-vars
 	IdentityDeleteError,
 	// deno-lint-ignore no-unused-vars
-	IdentityIdentificationCreateError,
-	// deno-lint-ignore no-unused-vars
-	IdentityIdentificationDeleteError,
-	// deno-lint-ignore no-unused-vars
-	IdentityIdentificationNotFoundError,
-	IdentityIdentificationUpdateError,
-	// deno-lint-ignore no-unused-vars
 	IdentityNotFoundError,
 	// deno-lint-ignore no-unused-vars
 	IdentityUpdateError,
 } from "../../common/identity/errors.ts";
-import {
-	assertIdentityIdentification,
-	type IdentityIdentification,
-} from "../../common/identity/identification.ts";
 import {
 	type Identity,
 	IDENTITY_AUTOID_PREFIX,
@@ -66,8 +45,15 @@ export class IdentityService implements IIdentityService {
 	/**
 	 * @throws {IdentityNotFoundError}
 	 */
-	get(id: AutoId): Promise<Identity> {
-		return this.#identityProvider.get(id);
+	get(identityId: AutoId): Promise<Identity> {
+		return this.#identityProvider.get(identityId);
+	}
+
+	/**
+	 * @throws {IdentityNotFoundError}
+	 */
+	getByIdentification(type: string, identification: string): Promise<Identity> {
+		return this.#identityProvider.getByIdentification(type, identification);
 	}
 
 	/**
@@ -75,9 +61,11 @@ export class IdentityService implements IIdentityService {
 	 */
 	create(
 		meta: Record<string, unknown>,
+		identifications: Identity["identifications"],
+		challenges: Identity["challenges"],
 	): Promise<Identity> {
 		// TODO life cycle hooks
-		return this.#identityProvider.create(meta);
+		return this.#identityProvider.create(meta, identifications, challenges);
 	}
 
 	/**
@@ -93,97 +81,9 @@ export class IdentityService implements IIdentityService {
 	/**
 	 * @throws {IdentityDeleteError}
 	 */
-	delete(id: AutoId): Promise<void> {
+	delete(identityId: AutoId): Promise<void> {
 		// TODO life cycle hooks
-		return this.#identityProvider.delete(id);
-	}
-
-	listIdentification(
-		id: AutoId,
-	): Promise<string[]> {
-		return this.#identityProvider.listIdentification(id);
-	}
-
-	/**
-	 * @throws {IdentityIdentificationNotFoundError}
-	 */
-	getIdentification(id: AutoId, type: string): Promise<IdentityIdentification> {
-		return this.#identityProvider.getIdentification(id, type);
-	}
-
-	/**
-	 * @throws {IdentityIdentificationNotFoundError}
-	 */
-	matchIdentification(
-		type: string,
-		identification: string,
-	): Promise<IdentityIdentification> {
-		return this.#identityProvider.matchIdentification(type, identification);
-	}
-
-	/**
-	 * @throws {AuthenticationRateLimitedError}
-	 * @throws {IdentityIdentificationCreateError}
-	 */
-	async createIdentification(
-		identityIdentification: IdentityIdentification,
-	): Promise<void> {
-		const key =
-			`/auth/identification/${identityIdentification.type}:${identityIdentification.identification}`;
-		const result = await this.#context.counter.increment(key, 1, 5 * 60 * 1000);
-		if (result > 1) {
-			throw new AuthenticationRateLimitedError();
-		}
-		// TODO life cycle hooks
-		return this.#identityProvider.createIdentification(
-			identityIdentification,
-		);
-	}
-
-	/**
-	 * @throws {IdentityIdentificationUpdateError}
-	 */
-	updateIdentification(
-		identityIdentification: IdentityIdentification,
-	): Promise<void> {
-		try {
-			assertIdentityIdentification(identityIdentification);
-			// TODO life cycle hooks
-			return this.#identityProvider.updateIdentification(
-				identityIdentification,
-			);
-		} catch (_error) {
-			// skip
-		}
-		throw new IdentityIdentificationUpdateError();
-	}
-
-	/**
-	 * @throws {IdentityIdentificationDeleteError}
-	 */
-	deleteIdentification(
-		id: AutoId,
-		type: string,
-	): Promise<void> {
-		// TODO life cycle hooks
-		return this.#identityProvider.deleteIdentification(
-			id,
-			type,
-		);
-	}
-
-	listChallenge(id: AutoId): Promise<string[]> {
-		return this.#identityProvider.listChallenge(id);
-	}
-
-	/**
-	 * @throws {IdentityChallengeNotFoundError}
-	 */
-	getChallenge(
-		id: AutoId,
-		type: string,
-	): Promise<IdentityChallenge> {
-		return this.#identityProvider.getChallenge(id, type);
+		return this.#identityProvider.delete(identityId);
 	}
 
 	/**
@@ -205,53 +105,6 @@ export class IdentityService implements IIdentityService {
 	}
 
 	/**
-	 * @throws {IdentityChallengeCreateError}
-	 */
-	createChallenge(
-		identityChallenge: IdentityChallenge,
-	): Promise<void> {
-		try {
-			assertIdentityChallenge(identityChallenge);
-			// TODO life cycle hooks
-			return this.#identityProvider.createChallenge(
-				identityChallenge,
-			);
-		} catch (_error) {
-			// skip
-		}
-		throw new IdentityChallengeCreateError();
-	}
-
-	/**
-	 * @throws {IdentityChallengeCreateError}
-	 */
-	updateChallenge(
-		identityChallenge: IdentityChallenge,
-	): Promise<void> {
-		try {
-			assertIdentityChallenge(identityChallenge);
-			// TODO life cycle hooks
-			return this.#identityProvider.updateChallenge(
-				identityChallenge,
-			);
-		} catch (_error) {
-			// skip
-		}
-		throw new IdentityChallengeCreateError();
-	}
-
-	/**
-	 * @throws {IdentityChallengeDeleteError}
-	 */
-	deleteChallenge(
-		id: AutoId,
-		type: string,
-	): Promise<void> {
-		// TODO life cycle hooks
-		return this.#identityProvider.deleteChallenge(id, type);
-	}
-
-	/**
 	 * @throws {MessageSendError}
 	 */
 	public async broadcastMessage(
@@ -261,18 +114,9 @@ export class IdentityService implements IIdentityService {
 		try {
 			assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
 			assertMessage(message);
-			const identificationTypes = await this.#identityProvider
-				.listIdentification(
-					identityId,
-				);
-			const identifications = await Promise.all(
-				identificationTypes.map((type) =>
-					this.#identityProvider.getIdentification(identityId, type)
-				),
-			);
-			const confirmedIdentifications = identifications.filter((i) =>
-				i.confirmed
-			);
+			const identity = await this.#identityProvider.get(identityId);
+			const confirmedIdentifications = Object.values(identity.identifications)
+				.filter((i) => i.confirmed);
 			const sendMessages = confirmedIdentifications.reduce(
 				(messages, identityIdentification) => {
 					const identicator = this.#context.config.auth.identificators
@@ -309,15 +153,14 @@ export class IdentityService implements IIdentityService {
 		try {
 			assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
 			assertMessage(message);
+			const identity = await this.#identityProvider.get(identityId);
 			const identicator = this.#context.config.auth.identificators
 				.get(
 					identificationType,
 				);
 			if (identicator && identicator.sendMessage) {
-				const identityIdentification = await this.getIdentification(
-					identityId,
-					identificationType,
-				);
+				const identityIdentification =
+					identity.identifications[identificationType];
 				if (identityIdentification) {
 					return identicator.sendMessage({
 						context: this.#context,
@@ -347,7 +190,6 @@ export class IdentityService implements IIdentityService {
 		if (!identificator) {
 			throw new AuthenticationSendValidationCodeError();
 		}
-
 		if (identificator.sendMessage) {
 			if (identificator.rateLimit.interval) {
 				const { interval, count } = identificator.rateLimit;
@@ -363,31 +205,23 @@ export class IdentityService implements IIdentityService {
 					throw new AuthenticationRateLimitedError();
 				}
 			}
+			const identity = await this.#identityProvider.get(identityId);
+			const identityIdentification = identity.identifications[type];
+			if (!identityIdentification) {
+				throw new AuthenticationSendValidationCodeError();
+			}
 			const code = otp({ digits: 6 });
 			await this.#context.kv.put(
 				["auth", "validationcode", identityId, type],
 				code,
 				{ expiration: 1000 * 60 * 5 },
 			);
-
-			const identityIdentificationTypes = await this.#context.identity
-				.listIdentification(identityId);
-			const identityIdentifications = await Promise.all(
-				identityIdentificationTypes.map((type) =>
-					this.#context.identity.getIdentification(identityId, type)
-				),
-			);
-			const identityIdentification = identityIdentifications.find((ii) =>
-				ii.type === type
-			);
-			if (identityIdentification) {
-				// TODO actual message from locale
-				await identificator.sendMessage({
-					context: this.#context,
-					identityIdentification,
-					message: { text: code },
-				});
-			}
+			// TODO actual message from locale
+			await identificator.sendMessage({
+				context: this.#context,
+				identityIdentification,
+				message: { text: code },
+			});
 		}
 	}
 
@@ -417,16 +251,8 @@ export class IdentityService implements IIdentityService {
 				throw new AuthenticationRateLimitedError();
 			}
 
-			const identityIdentificationTypes = await this.#context.identity
-				.listIdentification(identityId);
-			const identityIdentifications = await Promise.all(
-				identityIdentificationTypes.map((type) =>
-					this.#context.identity.getIdentification(identityId, type)
-				),
-			);
-			const identityIdentification = identityIdentifications.find((ii) =>
-				ii.type === type
-			);
+			const identity = await this.#identityProvider.get(identityId);
+			const identityIdentification = identity.identifications[type];
 			if (!identityIdentification) {
 				throw new AuthenticationConfirmValidationCodeError();
 			}
@@ -435,10 +261,11 @@ export class IdentityService implements IIdentityService {
 				["auth", "validationcode", identityId, type],
 			).catch((_) => undefined);
 			if (savedCode?.value === code) {
-				await this.#context.identity.updateIdentification({
+				identity.identifications[type] = {
 					...identityIdentification,
 					confirmed: true,
-				});
+				};
+				await this.#context.identity.update(identity);
 				return;
 			}
 		} catch (inner) {
@@ -461,12 +288,10 @@ export class IdentityService implements IIdentityService {
 			throw new AuthenticationSendIdentificationChallengeError();
 		}
 
-		const identityChallenge = await this.#context.identity.getChallenge(
-			identityId,
-			type,
-		);
+		const identity = await this.#identityProvider.get(identityId);
+		const identityChallenge = identity.challenges[type];
 		if (!identityChallenge) {
-			throw new AuthenticationSendIdentificationChallengeError();
+			throw new AuthenticationSendValidationCodeError();
 		}
 
 		if (challenger.sendChallenge) {
@@ -485,6 +310,7 @@ export class IdentityService implements IIdentityService {
 				}
 			}
 			await challenger.sendChallenge({
+				identityId: identity.id,
 				identityChallenge,
 				context: this.#context,
 				locale,
@@ -504,24 +330,24 @@ export class IdentityService implements IIdentityService {
 			throw new AuthenticationConfirmValidationCodeError();
 		}
 
-		const identityChallenge = await this.#context.identity.getChallenge(
-			identityId,
-			type,
-		);
+		const identity = await this.#identityProvider.get(identityId);
+		const identityChallenge = identity.challenges[type];
 		if (!identityChallenge) {
 			throw new AuthenticationConfirmValidationCodeError();
 		}
 
 		const result = await challenger.verify({
+			identityId: identity.id,
 			identityChallenge,
 			context: this.#context,
 			challenge: answer,
 		});
 		if (result) {
-			await this.#context.identity.updateChallenge({
+			identity.challenges[type] = {
 				...identityChallenge,
 				confirmed: true,
-			});
+			};
+			await this.#context.identity.update(identity);
 			return;
 		}
 		throw new AuthenticationConfirmValidationCodeError();

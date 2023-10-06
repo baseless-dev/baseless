@@ -37,7 +37,7 @@ import { setGlobalLogHandler } from "../common/system/logger.ts";
 import { assertSendIdentificationChallengeResponse } from "../common/auth/send_identification_challenge_response.ts";
 import { assertAuthenticationCeremonyResponseTokens } from "../common/auth/ceremony/response.ts";
 import { decode } from "../common/encoding/base64.ts";
-import type { Identity } from "../common/identity/identity.ts";
+import type { ID } from "../common/identity/identity.ts";
 import { autoid } from "../common/system/autoid.ts";
 import makeDummyServer, {
 	type DummyServerResult,
@@ -48,12 +48,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 Deno.test("Client Auth", async (t) => {
 	const initializeDummyServerApp = async (): Promise<
 		{
-			identity: Identity;
+			identity: ID;
 			app: App;
 			signIn: (app: App) => Promise<void>;
 		} & DummyServerResult
 	> => {
-		let john: Identity;
+		let john: ID;
 		const result = await makeDummyServer(
 			async (
 				{
@@ -64,8 +64,6 @@ Deno.test("Client Auth", async (t) => {
 					password,
 					otp,
 					createIdentity,
-					createIdentification,
-					createChallenge,
 				},
 			) => {
 				config.auth()
@@ -73,29 +71,32 @@ Deno.test("Client Auth", async (t) => {
 					.setAllowAnonymousIdentity(true)
 					.setCeremony(oneOf(sequence(email, password), sequence(email, otp)))
 					.setExpirations({ accessToken: 1_000, refreshToken: 4_000 });
-				john = await createIdentity({});
-				await createIdentification({
-					identityId: john.id,
-					type: "email",
-					identification: "john@test.local",
-					confirmed: true,
-					meta: {},
-				});
-				await createChallenge({
-					identityId: john.id,
-					type: "password",
-					meta: await password.configureIdentityChallenge(
-						// deno-lint-ignore no-explicit-any
-						{ challenge: "123" } as any,
-					),
-					confirmed: true,
-				});
-				await createChallenge({
-					identityId: john.id,
-					type: "otp",
-					meta: {},
-					confirmed: true,
-				});
+				john = await createIdentity(
+					{},
+					{
+						"email": {
+							type: "email",
+							identification: "john@test.local",
+							confirmed: true,
+							meta: {},
+						},
+					},
+					{
+						"password": {
+							type: "password",
+							meta: await password.configureIdentityChallenge(
+								// deno-lint-ignore no-explicit-any
+								{ challenge: "123" } as any,
+							),
+							confirmed: true,
+						},
+						"otp": {
+							type: "otp",
+							meta: {},
+							confirmed: true,
+						},
+					},
+				);
 			},
 		);
 
@@ -343,9 +344,10 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("onAuthStateChange", async () => {
-		const { app, identity: john, signIn } = await initializeDummyServerApp();
+		const { app, identity, signIn } = await initializeDummyServerApp();
+		const john = { id: identity.id, meta: identity.meta };
 		initializeAuth(app);
-		const changes: (Identity | undefined)[] = [];
+		const changes: (ID | undefined)[] = [];
 		const unsubscribe = onAuthStateChange(app, (identity) => {
 			changes.push(identity);
 		});
@@ -370,11 +372,12 @@ Deno.test("Client Auth", async (t) => {
 	});
 
 	await t.step("getIdentity", async () => {
-		const { app, identity: john, signIn } = await initializeDummyServerApp();
+		const { app, identity, signIn } = await initializeDummyServerApp();
+		const john = { id: identity.id, meta: identity.meta };
 		initializeAuth(app);
 		await signIn(app);
-		const identity = await getIdentity(app);
-		assertEquals(identity, john);
+		const id1 = await getIdentity(app);
+		assertEquals(id1, john);
 		await signOut(app);
 	});
 
@@ -395,11 +398,11 @@ Deno.test("Client Auth", async (t) => {
 			[],
 			"en",
 		);
-		const identity1 = await identityProvider.matchIdentification(
+		const identity1 = await identityProvider.getByIdentification(
 			"email",
 			"jane@test.local",
 		);
-		assertEquals(identity1.confirmed, false);
+		assertEquals(identity1.identifications["email"].confirmed, false);
 		await signOut(app);
 	});
 
@@ -417,11 +420,11 @@ Deno.test("Client Auth", async (t) => {
 			[],
 			"en",
 		);
-		const identity1 = await identityProvider.matchIdentification(
+		const identity1 = await identityProvider.getByIdentification(
 			"email",
 			"bob@test.local",
 		);
-		assertEquals(identity1.identityId, anonymousIdentityId);
+		assertEquals(identity1.id, anonymousIdentityId);
 		await assertRejects(() =>
 			createIdentity(
 				app,
@@ -437,12 +440,6 @@ Deno.test("Client Auth", async (t) => {
 		const { app } = await initializeDummyServerApp();
 		initializeAuth(app);
 		await createAnonymousIdentity(app);
-		await createIdentity(
-			app,
-			[{ id: "email", value: "bob@test.local" }],
-			[],
-			"en",
-		);
 		await addIdentification(app, "email", "nobody@test.local", "en");
 		await assertRejects(() =>
 			addIdentification(app, "email", "john@test.local", "en")

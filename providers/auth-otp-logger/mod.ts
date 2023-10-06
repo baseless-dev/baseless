@@ -31,22 +31,20 @@ export function OTPLoggerAuthentificationChallenger(
 		digits: options.digits ?? 6,
 		rateLimit: { count: 0, interval: 0 },
 		async sendChallenge(
-			{ identityChallenge, context }:
-				AuthenticationChallengerSendChallengeOptions,
+			{ identityId, context }: AuthenticationChallengerSendChallengeOptions,
 		): Promise<void> {
 			const code = otp(options);
-			await context.kv.put(["otp-logger", identityChallenge.identityId], code, {
+			await context.kv.put(["otp-logger", identityId], code, {
 				expiration: ttl,
 			});
 			// TODO template?
 			logger[logMethod](code);
 		},
 		async verify(
-			{ challenge, identityChallenge, context }:
-				AuthenticationChallengerVerifyOptions,
+			{ challenge, identityId, context }: AuthenticationChallengerVerifyOptions,
 		): Promise<boolean> {
 			const code = await context.kv.get(
-				["otp-logger", identityChallenge.identityId],
+				["otp-logger", identityId],
 			);
 			return code.value === challenge;
 		},

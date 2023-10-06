@@ -12,12 +12,12 @@ export async function confirmIdentificationValidationCode(
 		const type = data.type?.toString() ?? "";
 		const identification = data.identification?.toString() ?? "";
 		const code = data.code?.toString() ?? "";
-		const identityIdentification = await context.identity.matchIdentification(
+		const identity = await context.identity.getByIdentification(
 			type,
 			identification,
 		);
 		await context.identity.confirmIdentificationValidationCode(
-			identityIdentification.identityId,
+			identity.id,
 			type,
 			code,
 		);

@@ -35,7 +35,7 @@ export class MemoryDocumentProvider extends DocumentProvider {
 		if (!document) {
 			throw new DocumentNotFoundError();
 		}
-		return document as Document<Data>;
+		return structuredClone(document) as Document<Data>;
 	}
 
 	// deno-lint-ignore require-await
@@ -48,7 +48,7 @@ export class MemoryDocumentProvider extends DocumentProvider {
 			const keyString = keyPathToKeyString(key);
 			const document = this.#storage.get(keyString);
 			if (document) {
-				documents.push(document as Document<Data>);
+				documents.push(structuredClone(document) as Document<Data>);
 			}
 		}
 		return documents;

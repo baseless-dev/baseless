@@ -34,58 +34,65 @@ export async function createIdentity(
 	assertTypeId(identifications);
 	assertTypeId(challenges);
 
-	let identity: Identity | undefined;
 	try {
 		// Claim anonymous identity or create new one
 		if (context.tokenData) {
-			const identityIdentifications = await context.identity.listIdentification(
+			const identity = await context.identity.get(
 				context.tokenData.sessionData.identityId,
 			);
-			if (identityIdentifications.length === 0) {
-				identity = await context.identity.get(
-					context.tokenData.sessionData.identityId,
-				);
-			} else {
+			if (Object.keys(identity.identifications).length > 0) {
 				throw new IdentityCreateError();
 			}
+			for (const { id, value } of identifications) {
+				identity.identifications[id] = {
+					type: id,
+					identification: value,
+					meta: {},
+					confirmed: false,
+				};
+			}
+			for (const { id, value } of challenges) {
+				const challenger = context.config.auth.challengers.get(id);
+				if (!challenger) throw new IdentityCreateError();
+				identity.challenges[id] = {
+					type: id,
+					meta: await challenger?.configureIdentityChallenge?.({
+						context,
+						challenge: value,
+					}) ?? {},
+					confirmed: false,
+				};
+			}
+			await context.identity.update(identity);
 		} else {
-			identity = await context.identity.create({});
-		}
-		for (const { id, value } of identifications) {
-			const identificator = context.config.auth.identificators.get(id);
-			if (!identificator) throw new IdentityCreateError();
-			await context.identity.createIdentification({
-				identityId: identity.id,
-				type: id,
-				identification: value,
-				meta: {},
-				confirmed: false,
-			});
-			await context.identity.sendIdentificationValidationCode(
-				identity.id,
-				id,
-				locale,
+			const identityMeta = {};
+			const identityIdentifications: Identity["identifications"] = {};
+			const identityChallenges: Identity["challenges"] = {};
+			for (const { id, value } of identifications) {
+				identityIdentifications[id] = {
+					type: id,
+					identification: value,
+					meta: {},
+					confirmed: false,
+				};
+			}
+			for (const { id, value } of challenges) {
+				const challenger = context.config.auth.challengers.get(id);
+				if (!challenger) throw new IdentityCreateError();
+				identityChallenges[id] = {
+					type: id,
+					meta: await challenger?.configureIdentityChallenge?.({
+						context,
+						challenge: value,
+					}) ?? {},
+					confirmed: false,
+				};
+			}
+			const identity = await context.identity.create(
+				identityMeta,
+				identityIdentifications,
+				identityChallenges,
 			);
-		}
-		for (const { id, value } of challenges) {
-			const challenger = context.config.auth.challengers.get(id);
-			if (!challenger) throw new IdentityCreateError();
-			await context.identity.createChallenge({
-				identityId: identity.id,
-				type: id,
-				meta: await challenger?.configureIdentityChallenge?.({
-					context,
-					challenge: value,
-				}) ?? {},
-				confirmed: false,
-			});
-			// await context.identity.sendIdentificationValidationCode(
-			// 	identity.id,
-			// 	id,
-			// 	locale,
-			// );
-		}
-		if (!context.tokenData) {
 			// TODO longer tokens expiration?
 			const sessionData = await context.session.create(
 				identity.id,
@@ -108,17 +115,6 @@ export async function createIdentity(
 			};
 		}
 	} catch (_error) {
-		if (identity) {
-			for (const { id } of identifications) {
-				await context.identity.deleteIdentification(
-					identity.id,
-					id,
-				).catch((_) => {});
-			}
-			if (!context.tokenData) {
-				await context.identity.delete(identity.id).catch((_) => {});
-			}
-		}
 		throw new IdentityCreateError();
 	}
 }

@@ -248,15 +248,23 @@ if (diagnostics.length) {
 
 for (const file of browserResult.getFiles()) {
 	const filePath = file.filePath.replace(/\.js(\.map)?$/, ".mjs$1");
+	const fileText = file.text.replace(
+		/(\/\/# sourceMappingURL=.*).js.map/g,
+		"$1.mjs.map",
+	);
 	// TODO replace .js to .mjs in { files } from .mjs.map
 	await Deno.mkdir(dirname(filePath), { recursive: true });
-	await Deno.writeTextFile(filePath, file.text);
+	await Deno.writeTextFile(filePath, fileText);
 }
 for (const file of nodeResult.getFiles()) {
 	const filePath = file.filePath.replace(/\.js(\.map)?$/, ".mjs$1");
+	const fileText = file.text.replace(
+		/(\/\/# sourceMappingURL=.*).js.map/g,
+		"$1.mjs.map",
+	);
 	// TODO replace .js to .mjs in { files } from .mjs.map
 	await Deno.mkdir(dirname(filePath), { recursive: true });
-	await Deno.writeTextFile(filePath, file.text);
+	await Deno.writeTextFile(filePath, fileText);
 }
 for (const file of typesResult.getFiles()) {
 	await Deno.mkdir(dirname(file.filePath), { recursive: true });

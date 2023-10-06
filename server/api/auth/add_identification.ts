@@ -31,13 +31,17 @@ export async function addIdentification(
 		throw new HighRiskActionTimeWindowExpiredError();
 	}
 	try {
-		await context.identity.createIdentification({
-			identityId,
+		const identity = await context.identity.get(identityId);
+		if (identity.identifications[identificationType]) {
+			throw new IdentityIdentificationCreateError();
+		}
+		identity.identifications[identificationType] = {
 			type: identificationType,
 			identification,
 			meta: {},
 			confirmed: false,
-		});
+		};
+		await context.identity.update(identity);
 		await context.identity.sendIdentificationValidationCode(
 			identityId,
 			identificationType,

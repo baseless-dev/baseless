@@ -1,5 +1,3 @@
-import type { IdentityChallenge } from "../../identity/challenge.ts";
-import type { IdentityIdentification } from "../../identity/identification.ts";
 import type { Identity } from "../../identity/identity.ts";
 import type { AutoId } from "../../system/autoid.ts";
 import {
@@ -28,9 +26,8 @@ import {
 	// deno-lint-ignore no-unused-vars
 	IdentityUpdateError,
 } from "../../identity/errors.ts";
-// deno-lint-ignore no-unused-vars
-import type { MessageSendError } from "../../message/errors.ts";
 import type { Message } from "../../message/message.ts";
+import type { IdentityChallenge } from "../../identity/challenge.ts";
 
 export interface IIdentityService {
 	/**
@@ -39,10 +36,17 @@ export interface IIdentityService {
 	get(identityId: AutoId): Promise<Identity>;
 
 	/**
+	 * @throws {IdentityNotFoundError}
+	 */
+	getByIdentification(type: string, identification: string): Promise<Identity>;
+
+	/**
 	 * @throws {IdentityCreateError}
 	 */
 	create(
 		meta: Record<string, unknown>,
+		identifications: Identity["identifications"],
+		challenges: Identity["challenges"],
 	): Promise<Identity>;
 
 	/**
@@ -55,60 +59,7 @@ export interface IIdentityService {
 	/**
 	 * @throws {IdentityDeleteError}
 	 */
-	delete(id: AutoId): Promise<void>;
-
-	listIdentification(
-		identityId: AutoId,
-	): Promise<string[]>;
-
-	/**
-	 * @throws {IdentityIdentificationNotFoundError}
-	 */
-	getIdentification(
-		identityId: AutoId,
-		type: string,
-	): Promise<IdentityIdentification>;
-
-	/**
-	 * @throws {IdentityIdentificationNotFoundError}
-	 */
-	matchIdentification(
-		type: string,
-		identification: string,
-	): Promise<IdentityIdentification>;
-
-	/**
-	 * @throws {AuthenticationRateLimitedError}
-	 * @throws {IdentityIdentificationCreateError}
-	 */
-	createIdentification(
-		identityIdentification: IdentityIdentification,
-	): Promise<void>;
-
-	/**
-	 * @throws {IdentityIdentificationUpdateError}
-	 */
-	updateIdentification(
-		identityIdentification: IdentityIdentification,
-	): Promise<void>;
-
-	/**
-	 * @throws {IdentityIdentificationDeleteError}
-	 */
-	deleteIdentification(
-		identityId: AutoId,
-		type: string,
-	): Promise<void>;
-
-	listChallenge(identityId: AutoId): Promise<string[]>;
-
-	/**
-	 * @throws {IdentityChallengeNotFoundError}
-	 */
-	getChallenge(
-		identityId: AutoId,
-		type: string,
-	): Promise<IdentityChallenge>;
+	delete(identityId: AutoId): Promise<void>;
 
 	/**
 	 * @throws {IdentityChallengeCreateError}
@@ -117,28 +68,6 @@ export interface IIdentityService {
 		type: string,
 		challenge: string,
 	): Promise<IdentityChallenge["meta"]>;
-
-	/**
-	 * @throws {IdentityChallengeCreateError}
-	 */
-	createChallenge(
-		identityChallenge: IdentityChallenge,
-	): Promise<void>;
-
-	/**
-	 * @throws {IdentityChallengeUpdateError}
-	 */
-	updateChallenge(
-		identityChallenge: IdentityChallenge,
-	): Promise<void>;
-
-	/**
-	 * @throws {IdentityChallengeDeleteError}
-	 */
-	deleteChallenge(
-		identityId: AutoId,
-		type: string,
-	): Promise<void>;
 
 	/**
 	 * @throws {MessageSendError}

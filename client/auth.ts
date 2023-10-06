@@ -34,7 +34,11 @@ import {
 	assertSendChallengeValidationCodeResponse,
 	type SendChallengeValidationCodeResponse,
 } from "../common/auth/send_challenge_validation_code_response.ts";
-import { assertIdentity, type Identity } from "../common/identity/identity.ts";
+import {
+	assertID,
+	assertIdentity,
+	type ID,
+} from "../common/identity/identity.ts";
 import type { getComponentAtPath } from "../common/auth/ceremony/component/get_component_at_path.ts";
 import type { AuthenticationCeremonyComponentConditional } from "../common/auth/ceremony/ceremony.ts";
 
@@ -46,7 +50,7 @@ class AuthApp {
 	#expireTimeout?: number;
 	#persistence: Persistence;
 	#storage: Storage;
-	#onAuthStateChange: EventEmitter<[Identity | undefined]>;
+	#onAuthStateChange: EventEmitter<[ID | undefined]>;
 
 	constructor(
 		app: App,
@@ -61,7 +65,7 @@ class AuthApp {
 		this.#storage = this.#persistence === "local"
 			? globalThis.localStorage
 			: globalThis.sessionStorage;
-		this.#onAuthStateChange = new EventEmitter<[Identity | undefined]>();
+		this.#onAuthStateChange = new EventEmitter<[ID | undefined]>();
 
 		const tokensString = this.#storage.getItem(
 			`baseless_${app.clientId}_tokens`,
@@ -121,7 +125,7 @@ class AuthApp {
 		return this.#storage;
 	}
 
-	get onAuthStateChange(): EventEmitter<[Identity | undefined]> {
+	get onAuthStateChange(): EventEmitter<[ID | undefined]> {
 		return this.#onAuthStateChange;
 	}
 
@@ -140,7 +144,7 @@ class AuthApp {
 				atob(id_token.split(".").at(1)!),
 			);
 			const identity = { id: identityId, meta };
-			assertIdentity(identity);
+			assertID(identity);
 			const { exp: accessTokenExp = Number.MAX_VALUE } = JSON.parse(
 				atob(access_token.split(".").at(1)!),
 			);
@@ -271,7 +275,7 @@ export function setPersistence(app: App, persistence: Persistence): void {
 
 export function onAuthStateChange(
 	app: App,
-	listener: (identity: Identity | undefined) => void,
+	listener: (identity: ID | undefined) => void,
 ): () => void {
 	assertInitializedAuth(app);
 	return getAuth(app).onAuthStateChange.listen(listener);
@@ -445,7 +449,7 @@ export function getIdToken(app: App): string | undefined {
 	return auth.tokens?.id_token;
 }
 
-export function getIdentity(app: App): Identity | undefined {
+export function getIdentity(app: App): ID | undefined {
 	const id_token = getIdToken(app);
 	if (!id_token) {
 		return undefined;
@@ -453,7 +457,7 @@ export function getIdentity(app: App): Identity | undefined {
 	const [, payload] = id_token.split(".");
 	const { sub, meta } = JSON.parse(atob(payload));
 	const identity = { id: sub, meta };
-	assertIdentity(identity);
+	assertID(identity);
 	return identity;
 }
 

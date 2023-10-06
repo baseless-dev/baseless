@@ -1,5 +1,17 @@
+export class InvalidIDError extends Error {
+	name = "InvalidIDError" as const;
+}
 export class InvalidIdentityError extends Error {
 	name = "InvalidIdentityError" as const;
+}
+export class InvalidIdentityIdentificationsError extends Error {
+	name = "InvalidIdentityIdentificationsError" as const;
+}
+export class InvalidIdentityMetaError extends Error {
+	name = "InvalidIdentityMetaError" as const;
+}
+export class InvalidIdentityChallengesError extends Error {
+	name = "InvalidIdentityChallengesError" as const;
 }
 export class InvalidIdentityIdentificationError extends Error {
 	name = "InvalidIdentityIdentificationError" as const;

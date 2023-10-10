@@ -134,9 +134,9 @@ export class AuthenticationService implements IAuthenticationService {
 			identification,
 		);
 		const identityIdentification = identity.identifications[type];
-		if (!identityIdentification.confirmed) {
-			throw new AuthenticationIdentityIdentificationNotConfirmedError();
-		}
+		// if (!identityIdentification.confirmed) {
+		// 	throw new AuthenticationIdentityIdentificationNotConfirmedError();
+		// }
 
 		const identifyResult = await identificator.identify({
 			context: this.#context,
@@ -216,9 +216,9 @@ export class AuthenticationService implements IAuthenticationService {
 
 		const identity = await this.#context.identity.get(state.identity);
 		const identityChallenge = identity.challenges[step.id];
-		if (!identityChallenge.confirmed) {
-			throw new AuthenticationIdentityChallengeNotConfirmedError();
-		}
+		// if (!identityChallenge.confirmed) {
+		// 	throw new AuthenticationIdentityChallengeNotConfirmedError();
+		// }
 
 		if (
 			!await challenger.verify({

@@ -1,4 +1,9 @@
-export type AutoId = string;
+declare const ERROR: unique symbol;
+
+export type AutoId = string & {
+	[ERROR]:
+		"AutoId is an opaque type. Use autoid(), isAutoId() and assertAutoId() to generate or validate AutoIds.";
+};
 
 const AutoIdSize = 40;
 const AutoIdChars =
@@ -18,7 +23,7 @@ export function autoid(prefix = ""): AutoId {
 	for (let i = 0; i < AutoIdSize; ++i) {
 		result += AutoIdChars.charAt(buffer[i] % AutoIdCharsLength);
 	}
-	return result;
+	return result as AutoId;
 }
 
 export class AutoIdGenerator {
@@ -53,7 +58,7 @@ export class AutoIdGenerator {
 		for (let i = 0; i < AutoIdSize; ++i) {
 			autoid += AutoIdChars.charAt(buffer[i] % AutoIdCharsLength);
 		}
-		return autoid;
+		return autoid as AutoId;
 	}
 }
 

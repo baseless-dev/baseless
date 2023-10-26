@@ -16,11 +16,10 @@ export function EmailAuthentificationIdenticator(
 		prompt: "email",
 		rateLimit: { count: 0, interval: 0 },
 		async sendMessage(
-			{ message, identityIdentification }:
-				AuthenticationIdenticatorSendMessageOptions,
+			{ message, identityId }: AuthenticationIdenticatorSendMessageOptions,
 		): Promise<void> {
 			await messageProvider.send({
-				recipient: identityIdentification.identification,
+				recipient: identityId,
 				...message,
 			});
 		},

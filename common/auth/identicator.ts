@@ -17,6 +17,7 @@ export type AuthenticationIdenticatorIdentifyOptions = {
 
 export type AuthenticationIdenticatorSendMessageOptions = {
 	context: IContext;
+	identityId: AutoId;
 	identityIdentification: IdentityIdentification;
 	message: Omit<Message, "recipient">;
 };

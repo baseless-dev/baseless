@@ -435,13 +435,16 @@ export async function confirmIdentificationValidationCode(
 
 export async function signOut(app: App): Promise<void> {
 	const auth = getAuth(app);
-	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/signOut`,
-		{ method: "POST" },
-	);
-	const result = await resp.json();
-	throwIfApiError(result);
-	auth.tokens = undefined;
+	try {
+		const resp = await auth.fetchWithTokens(
+			`${app.apiEndpoint}/auth/signOut`,
+			{ method: "POST" },
+		);
+		const result = await resp.json();
+		throwIfApiError(result);
+	} finally {
+		auth.tokens = undefined;
+	}
 }
 
 export function getIdToken(app: App): string | undefined {

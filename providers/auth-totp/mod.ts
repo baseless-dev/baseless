@@ -45,12 +45,17 @@ export function TOTPAuthentificationChallenger(
 				"key" in identityChallenge.meta &&
 				typeof identityChallenge.meta.key === "string"
 			) {
-				const code = await totp({
-					...options,
-					key: identityChallenge.meta.key,
-					time: Date.now() / 1000,
-				});
-				return code === challenge;
+				for (const offset of [-30, 0, 30]) {
+					const code = await totp({
+						...options,
+						key: identityChallenge.meta.key,
+						time: Date.now() / 1000 + offset,
+					});
+					if (code === challenge) {
+						return true;
+					}
+				}
+				return false;
 			}
 			return false;
 		},

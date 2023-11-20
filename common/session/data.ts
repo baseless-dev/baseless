@@ -2,7 +2,7 @@ import { IDENTITY_AUTOID_PREFIX } from "../identity/identity.ts";
 import { type AutoId, isAutoId } from "../system/autoid.ts";
 import { InvalidSessionDataError } from "./errors.ts";
 
-export const SESSION_AUTOID_PREFIX = "ses-";
+export const SESSION_AUTOID_PREFIX = "ses_";
 
 export type SessionData = {
 	id: AutoId;

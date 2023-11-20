@@ -17,7 +17,7 @@ export async function refreshTokens(
 				context.config.auth.security.keys.publicKey,
 			);
 			const { sub: sessionId, scope } = payload;
-			assertAutoId(sessionId, "ses-");
+			assertAutoId(sessionId, "ses_");
 			const sessionData = await context.session.get(sessionId);
 			const identity = await context.identity.get(sessionData.identityId);
 			await context.session.update(

@@ -3,7 +3,7 @@ import { autoid, AutoIdGenerator, AutoIdStream } from "./autoid.ts";
 
 Deno.test("AutoID", async (t) => {
 	await t.step("autoid", () => {
-		assert(autoid().length === 40);
+		assert(autoid().length === 20);
 		assert(autoid() !== autoid());
 	});
 
@@ -14,9 +14,9 @@ Deno.test("AutoID", async (t) => {
 		const id2 = gen.read();
 		await gen.write([0, 1, 2]);
 		const id3 = gen.read();
-		assert(id1.length === 40);
-		assert(id2.length === 40);
-		assert(id3.length === 40);
+		assert(id1.length === 20);
+		assert(id2.length === 20);
+		assert(id3.length === 20);
 		assert(id2 !== id1);
 		assert(id3 !== id1);
 		assert(id3 !== id2);
@@ -30,9 +30,9 @@ Deno.test("AutoID", async (t) => {
 		const id2 = stream.read();
 		await writer.write([0, 1, 2]);
 		const id3 = stream.read();
-		assert(id1.length === 40);
-		assert(id2.length === 40);
-		assert(id3.length === 40);
+		assert(id1.length === 20);
+		assert(id2.length === 20);
+		assert(id3.length === 20);
 		assert(id2 !== id1);
 		assert(id3 !== id1);
 		assert(id3 !== id2);

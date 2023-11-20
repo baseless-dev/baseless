@@ -5,11 +5,12 @@ export type AutoId = string & {
 		"AutoId is an opaque type. Use autoid(), isAutoId() and assertAutoId() to generate or validate AutoIds.";
 };
 
-const AutoIdSize = 40;
+const AutoIdSize = 20;
 const AutoIdChars =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const AutoIdCharsLength = AutoIdChars.length;
 const AutoIdRegExp = new RegExp(`^[${AutoIdChars}]{${AutoIdSize}}$`);
+const AutoIdBuffer = new Uint8Array(AutoIdSize);
 
 /**
  * Generate an AutoId
@@ -18,10 +19,10 @@ const AutoIdRegExp = new RegExp(`^[${AutoIdChars}]{${AutoIdSize}}$`);
  */
 export function autoid(prefix = ""): AutoId {
 	let result = prefix;
-	const buffer = new Uint8Array(AutoIdSize);
-	crypto.getRandomValues(buffer);
+
+	crypto.getRandomValues(AutoIdBuffer);
 	for (let i = 0; i < AutoIdSize; ++i) {
-		result += AutoIdChars.charAt(buffer[i] % AutoIdCharsLength);
+		result += AutoIdChars.charAt(AutoIdBuffer[i] % AutoIdCharsLength);
 	}
 	return result as AutoId;
 }
@@ -45,7 +46,6 @@ export class AutoIdGenerator {
 
 	read(): AutoId {
 		let autoid = this.#prefix;
-		const buffer = new Uint8Array(AutoIdSize);
 		const rand = sfc32(
 			this.#hash[0],
 			this.#hash[1],
@@ -53,10 +53,10 @@ export class AutoIdGenerator {
 			this.#hash[3],
 		);
 		for (let i = 0; i < AutoIdSize; ++i) {
-			buffer[i] = rand();
+			AutoIdBuffer[i] = rand();
 		}
 		for (let i = 0; i < AutoIdSize; ++i) {
-			autoid += AutoIdChars.charAt(buffer[i] % AutoIdCharsLength);
+			autoid += AutoIdChars.charAt(AutoIdBuffer[i] % AutoIdCharsLength);
 		}
 		return autoid as AutoId;
 	}

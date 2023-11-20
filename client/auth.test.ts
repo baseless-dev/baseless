@@ -62,6 +62,7 @@ Deno.test("Client Auth", async (t) => {
 					sequence,
 					email,
 					password,
+					passwordChallenger,
 					otp,
 					createIdentity,
 				},
@@ -84,7 +85,7 @@ Deno.test("Client Auth", async (t) => {
 					{
 						"password": {
 							type: "password",
-							meta: await password.configureIdentityChallenge(
+							meta: await passwordChallenger.configureIdentityChallenge(
 								// deno-lint-ignore no-explicit-any
 								{ challenge: "123" } as any,
 							),

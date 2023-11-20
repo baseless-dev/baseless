@@ -1,35 +1,32 @@
 import { encode } from "../../common/encoding/base64.ts";
-import type {
+import {
 	AuthenticationChallenger,
-	AuthenticationChallengerConfigureIdentityChallengeOptions,
-	AuthenticationChallengerVerifyOptions,
+	type AuthenticationChallengerConfigureIdentityChallengeOptions,
+	type AuthenticationChallengerSendChallengeOptions,
+	type AuthenticationChallengerVerifyOptions,
 } from "../../common/auth/challenger.ts";
-import type { IdentityChallenge } from "../../common/identity/challenge.ts";
 
-// deno-lint-ignore explicit-function-return-type
-export function PasswordAuthentificationChallenger(id: string) {
-	async function hashPassword(password: string): Promise<string> {
+export default class PasswordAuthentificationChallenger
+	extends AuthenticationChallenger {
+	async #hashPassword(password: string): Promise<string> {
 		return encode(
 			await crypto.subtle.digest("SHA-512", new TextEncoder().encode(password)),
 		);
 	}
-	return {
-		kind: "challenge",
-		id,
-		prompt: "password",
-		rateLimit: { count: 0, interval: 0 },
-		async configureIdentityChallenge(
-			{ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions,
-		): Promise<IdentityChallenge["meta"]> {
-			const hash = await hashPassword(challenge);
-			return { hash };
-		},
-		async verify(
-			{ challenge, identityChallenge }: AuthenticationChallengerVerifyOptions,
-		): Promise<boolean> {
-			const hash = await hashPassword(challenge);
-			return "hash" in identityChallenge.meta &&
-				identityChallenge.meta.hash === hash;
-		},
-	} satisfies AuthenticationChallenger;
+	async configureIdentityChallenge(
+		{ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions,
+	): Promise<Record<string, unknown>> {
+		const hash = await this.#hashPassword(challenge);
+		return { hash };
+	}
+	async sendChallenge(
+		_options: AuthenticationChallengerSendChallengeOptions,
+	): Promise<void> {}
+	async verify(
+		{ challenge, identityChallenge }: AuthenticationChallengerVerifyOptions,
+	): Promise<boolean> {
+		const hash = await this.#hashPassword(challenge);
+		return "hash" in identityChallenge.meta &&
+			identityChallenge.meta.hash === hash;
+	}
 }

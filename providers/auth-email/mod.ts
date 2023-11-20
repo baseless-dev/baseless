@@ -1,34 +1,32 @@
-import type {
+import {
 	AuthenticationIdenticator,
-	AuthenticationIdenticatorIdentifyOptions,
-	AuthenticationIdenticatorSendMessageOptions,
+	type AuthenticationIdenticatorIdentifyOptions,
+	type AuthenticationIdenticatorSendMessageOptions,
 } from "../../common/auth/identicator.ts";
 import type { MessageProvider } from "../message.ts";
 
-// deno-lint-ignore explicit-function-return-type
-export function EmailAuthentificationIdenticator(
-	id: string,
-	messageProvider: MessageProvider,
-) {
-	return {
-		kind: "identification",
-		id,
-		prompt: "email",
-		rateLimit: { count: 0, interval: 0 },
-		async sendMessage(
-			{ message, identityId }: AuthenticationIdenticatorSendMessageOptions,
-		): Promise<void> {
-			await messageProvider.send({
-				recipient: identityId,
-				...message,
-			});
-		},
-		// deno-lint-ignore require-await
-		async identify(
-			{ identityIdentification, identification }:
-				AuthenticationIdenticatorIdentifyOptions,
-		): Promise<boolean> {
-			return identityIdentification.identification === identification;
-		},
-	} satisfies AuthenticationIdenticator;
+export default class EmailAuthentificationIdenticator
+	extends AuthenticationIdenticator {
+	#messageProvider: MessageProvider;
+	constructor(
+		messageProvider: MessageProvider,
+	) {
+		super();
+		this.#messageProvider = messageProvider;
+	}
+	// deno-lint-ignore require-await
+	async identify(
+		{ identityIdentification, identification }:
+			AuthenticationIdenticatorIdentifyOptions,
+	): Promise<boolean | URL> {
+		return identityIdentification.identification === identification;
+	}
+	async sendMessage(
+		{ message, identityId }: AuthenticationIdenticatorSendMessageOptions,
+	): Promise<void> {
+		await this.#messageProvider.send({
+			recipient: identityId,
+			...message,
+		});
+	}
 }

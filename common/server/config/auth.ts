@@ -3,14 +3,8 @@ import {
 	assertAuthenticationCeremonyComponent,
 	type AuthenticationCeremonyComponent,
 } from "../../auth/ceremony/ceremony.ts";
-import {
-	type AuthenticationChallenger,
-	isAuthenticationChallenger,
-} from "../../auth/challenger.ts";
-import {
-	type AuthenticationIdenticator,
-	isAuthenticationIdenticator,
-} from "../../auth/identicator.ts";
+import { type AuthenticationChallenger } from "../../auth/challenger.ts";
+import { type AuthenticationIdenticator } from "../../auth/identicator.ts";
 import type { ID } from "../../identity/identity.ts";
 import type { IContext } from "../context.ts";
 import { extract } from "../../auth/ceremony/component/extract.ts";
@@ -70,7 +64,8 @@ export class AuthenticationConfigurationBuilder {
 	#securitySalt?: string;
 	#allowAnonymousIdentity?: boolean;
 	#ceremony?: AuthenticationCeremonyComponent;
-	#components = new Set<AuthenticationCeremonyComponent>();
+	#identificators = new Map<string, AuthenticationIdenticator>();
+	#challengers = new Map<string, AuthenticationChallenger>();
 	#onCreateIdentityHandler?: AuthenticationHandler;
 	#onUpdateIdentityHandler?: AuthenticationHandler;
 	#onDeleteIdentityHandler?: AuthenticationHandler;
@@ -160,15 +155,28 @@ export class AuthenticationConfigurationBuilder {
 	}
 
 	/**
-	 * Defines an authentication ceremony component
-	 * @param component The authentication ceremony component
+	 * Defines an authentication identicator
+	 * @param component The authentication identicator
 	 * @returns The builder
 	 */
-	public addCeremonyComponent(
-		component: AuthenticationCeremonyComponent,
+	public addIdenticator(
+		id: string,
+		identicator: AuthenticationIdenticator,
 	): this {
-		assertAuthenticationCeremonyComponent(component);
-		this.#components.add(component);
+		this.#identificators.set(id, identicator);
+		return this;
+	}
+
+	/**
+	 * Defines an authentication challenger
+	 * @param component The authentication challenger
+	 * @returns The builder
+	 */
+	public addChallenger(
+		id: string,
+		challenger: AuthenticationChallenger,
+	): this {
+		this.#challengers.set(id, challenger);
 		return this;
 	}
 
@@ -226,14 +234,6 @@ export class AuthenticationConfigurationBuilder {
 		if (!this.#securitySalt) {
 			throw new Error(`Authentication salt is needed.`);
 		}
-		const ceremonyComponents = extract(this.#ceremony);
-		ceremonyComponents.push(...this.#components);
-		const identificatorCompoenents = ceremonyComponents.filter(
-			isAuthenticationIdenticator,
-		);
-		const challengerComponents = ceremonyComponents.filter(
-			isAuthenticationChallenger,
-		);
 		return {
 			enabled: this.#enabled,
 			security: {
@@ -257,8 +257,8 @@ export class AuthenticationConfigurationBuilder {
 			allowAnonymousIdentity: this.#allowAnonymousIdentity ?? false,
 			highRiskActionTimeWindow: this.#highRiskActionTimeWindow ?? 60 * 5,
 			ceremony: simplify(sequence(this.#ceremony, { kind: "done" as const })),
-			identificators: new Map(identificatorCompoenents.map((c) => [c.id, c])),
-			challengers: new Map(challengerComponents.map((c) => [c.id, c])),
+			identificators: new Map(this.#identificators),
+			challengers: new Map(this.#challengers),
 			onCreateIdentity: this.#onCreateIdentityHandler,
 			onUpdateIdentity: this.#onUpdateIdentityHandler,
 			onDeleteIdentity: this.#onDeleteIdentityHandler,

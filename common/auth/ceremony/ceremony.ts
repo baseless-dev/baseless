@@ -24,6 +24,7 @@ export interface AuthenticationCeremonyComponentIdentificationOAuth2 {
 	readonly kind: "identification";
 	readonly id: string;
 	readonly prompt: "oauth2";
+	readonly authorizationUrl: string;
 }
 export type AuthenticationCeremonyComponentIdentification =
 	| AuthenticationCeremonyComponentIdentificationEmail

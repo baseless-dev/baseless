@@ -3,6 +3,7 @@ import type { AuthenticationTokens } from "../../../common/auth/tokens.ts";
 import type { IContext } from "../../../common/server/context.ts";
 import { assertAutoId } from "../../../common/system/autoid.ts";
 import { createTokens } from "./create_tokens.ts";
+import { SESSION_AUTOID_PREFIX } from "../../../common/session/data.ts";
 
 export async function refreshTokens(
 	request: Request,
@@ -17,7 +18,7 @@ export async function refreshTokens(
 				context.config.auth.security.keys.publicKey,
 			);
 			const { sub: sessionId, scope } = payload;
-			assertAutoId(sessionId, "ses_");
+			assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
 			const sessionData = await context.session.get(sessionId);
 			const identity = await context.identity.get(sessionData.identityId);
 			await context.session.update(

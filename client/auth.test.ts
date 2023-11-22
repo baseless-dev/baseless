@@ -46,6 +46,7 @@ import makeDummyServer, {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 Deno.test("Client Auth", async (t) => {
+	let cachedKeys: any;
 	const initializeDummyServerApp = async (): Promise<
 		{
 			identity: ID;
@@ -65,11 +66,18 @@ Deno.test("Client Auth", async (t) => {
 					passwordChallenger,
 					otp,
 					createIdentity,
+					generateKeyPair,
 				},
 			) => {
+				if (!cachedKeys) {
+					cachedKeys = await generateKeyPair("PS512");
+				}
+				const { publicKey, privateKey } = cachedKeys;
 				config.auth()
 					.setEnabled(true)
 					.setAllowAnonymousIdentity(true)
+					.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
+					.setSecuritySalt("foobar")
 					.setCeremony(oneOf(sequence(email, password), sequence(email, otp)))
 					.setExpirations({ accessToken: 1_000, refreshToken: 4_000 });
 				john = await createIdentity(

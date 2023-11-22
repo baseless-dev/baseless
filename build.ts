@@ -30,6 +30,14 @@ const importMap: Map<string, { browser: string; node: string }> = new Map([
 			"https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/runtime/generate.js",
 		node: "jose",
 	}],
+	["https://deno.land/x/jose@v4.13.1/key/export.ts", {
+		browser: "https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/key/export.js",
+		node: "jose",
+	}],
+	["https://deno.land/x/jose@v4.13.1/key/import.ts", {
+		browser: "https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/key/import.js",
+		node: "jose",
+	}],
 	["https://deno.land/x/jose@v4.13.1/types.d.ts", {
 		browser: "https://deno.land/x/jose@v4.13.1/types.d.ts",
 		node: "jose",

@@ -1,12 +1,12 @@
 import type { IdentityIdentification } from "../identity/identification.ts";
+import type { Identity } from "../identity/identity.ts";
 import type { Message } from "../message/message.ts";
 import type { IContext } from "../server/context.ts";
 import type { AutoId } from "../system/autoid.ts";
 
 export type AuthenticationIdenticatorIdentifyOptions = {
 	context: IContext;
-	identityId: AutoId;
-	identityIdentification: IdentityIdentification;
+	type: string;
 	identification: string;
 };
 
@@ -29,7 +29,7 @@ export abstract class AuthenticationIdenticator {
 	};
 	abstract identify(
 		options: AuthenticationIdenticatorIdentifyOptions,
-	): Promise<boolean | URL>;
+	): Promise<Identity>;
 	abstract sendMessage(
 		options: AuthenticationIdenticatorSendMessageOptions,
 	): Promise<void>;

@@ -129,25 +129,11 @@ export class AuthenticationService implements IAuthenticationService {
 			throw new AuthenticationMissingIdentificatorError();
 		}
 
-		const identity = await this.#context.identity.getByIdentification(
+		const identity = await identificator.identify({
+			context: this.#context,
 			type,
 			identification,
-		);
-		const identityIdentification = identity.identifications[type];
-		// if (!identityIdentification.confirmed) {
-		// 	throw new AuthenticationIdentityIdentificationNotConfirmedError();
-		// }
-
-		const identifyResult = await identificator.identify({
-			context: this.#context,
-			identityId: identity.id,
-			identityIdentification,
-			identification,
 		});
-		if (identifyResult instanceof URL) {
-			throw "Not Implemented";
-			//return { done: false, redirect: identifyResult };
-		}
 		const newState = {
 			choices: [...state.choices, type],
 			identity: identity.id,

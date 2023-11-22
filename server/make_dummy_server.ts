@@ -21,6 +21,14 @@ import type {
 	AuthenticationCeremonyComponentChallenge,
 	AuthenticationCeremonyComponentIdentification,
 } from "../common/auth/ceremony/ceremony.ts";
+import {
+	importPKCS8,
+	importSPKI,
+} from "https://deno.land/x/jose@v4.13.1/key/import.ts";
+import {
+	exportPKCS8,
+	exportSPKI,
+} from "https://deno.land/x/jose@v4.13.1/key/export.ts";
 
 export type DummyServerHelpers = {
 	config: ConfigurationBuilder;
@@ -33,6 +41,11 @@ export type DummyServerHelpers = {
 	totp: AuthenticationCeremonyComponentChallenge;
 	totpChallenger: TOTPAuthentificationChallenger;
 	createIdentity: DocumentIdentityProvider["create"];
+	generateKeyPair: typeof generateKeyPair;
+	importPKCS8: typeof importPKCS8;
+	importSPKI: typeof importSPKI;
+	exportPKCS8: typeof exportPKCS8;
+	exportSPKI: typeof exportSPKI;
 } & typeof h;
 
 export type DummyServerResult = {
@@ -51,8 +64,6 @@ export type DummyServerResult = {
 	sessionProvider: SessionProvider;
 };
 
-let cachedKeys: Awaited<ReturnType<typeof generateKeyPair>> | undefined;
-
 export default async function makeDummyServer(): Promise<DummyServerResult>;
 export default async function makeDummyServer(
 	configurator: (helpers: DummyServerHelpers) => void | Promise<void>,
@@ -61,10 +72,6 @@ export default async function makeDummyServer(
 	configurator?: (helpers: DummyServerHelpers) => void | Promise<void>,
 ): Promise<DummyServerResult> {
 	const config = new ConfigurationBuilder();
-	if (!cachedKeys) {
-		cachedKeys = await generateKeyPair("PS512");
-	}
-	const { publicKey, privateKey } = cachedKeys;
 	const assetProvider = new MemoryAssetProvider();
 	const counterProvider = new MemoryCounterProvider();
 	const kvProvider = new MemoryKVProvider();
@@ -107,8 +114,6 @@ export default async function makeDummyServer(
 	});
 
 	config.auth()
-		.setSecurityKeys({ algo: "PS512", publicKey, privateKey })
-		.setSecuritySalt("foobar")
 		.addIdenticator("email", emailIdenticator)
 		.addChallenger("password", passwordChallenger)
 		.addChallenger("otp", otpChallenger)
@@ -127,6 +132,11 @@ export default async function makeDummyServer(
 		totpChallenger,
 		createIdentity: (meta, identifications, challenges) =>
 			identityProvider.create(meta, identifications, challenges),
+		generateKeyPair,
+		importPKCS8,
+		importSPKI,
+		exportPKCS8,
+		exportSPKI,
 	};
 
 	await configurator?.(helpers);

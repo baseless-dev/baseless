@@ -3,6 +3,8 @@ import {
 	type AuthenticationIdenticatorIdentifyOptions,
 	type AuthenticationIdenticatorSendMessageOptions,
 } from "../../common/auth/identicator.ts";
+import { IdentityNotFoundError } from "../../common/identity/errors.ts";
+import type { Identity } from "../../common/identity/identity.ts";
 import type { MessageProvider } from "../message.ts";
 
 export default class EmailAuthentificationIdenticator
@@ -14,12 +16,18 @@ export default class EmailAuthentificationIdenticator
 		super();
 		this.#messageProvider = messageProvider;
 	}
-	// deno-lint-ignore require-await
 	async identify(
-		{ identityIdentification, identification }:
-			AuthenticationIdenticatorIdentifyOptions,
-	): Promise<boolean | URL> {
-		return identityIdentification.identification === identification;
+		{ type, identification, context }: AuthenticationIdenticatorIdentifyOptions,
+	): Promise<Identity> {
+		const identity = await context.identity.getByIdentification(
+			type,
+			identification,
+		);
+		const identityIdentification = identity.identifications[type];
+		if (identityIdentification.identification !== identification) {
+			throw new IdentityNotFoundError();
+		}
+		return identity;
 	}
 	async sendMessage(
 		{ message, identityId }: AuthenticationIdenticatorSendMessageOptions,

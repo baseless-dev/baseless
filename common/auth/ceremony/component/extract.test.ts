@@ -17,11 +17,13 @@ Deno.test("extract", () => {
 		kind: "identification" as const,
 		id: "github",
 		prompt: "oauth2" as const,
+		authorizationUrl: "",
 	};
 	const google = {
 		kind: "identification" as const,
 		id: "google",
 		prompt: "oauth2" as const,
+		authorizationUrl: "",
 	};
 	assertEquals(extract(email), [email]);
 	assertEquals(

@@ -1,4 +1,4 @@
-import { type IContext } from "../../../server/context.ts";
+import type { IContext } from "../../../server/context.ts";
 import {
 	type AuthenticationCeremonyComponent,
 	type AuthenticationCeremonyComponentChoice,
@@ -8,7 +8,7 @@ import {
 	isAuthenticationCeremonyComponentConditional,
 	isAuthenticationCeremonyComponentSequence,
 } from "../ceremony.ts";
-import { type AuthenticationCeremonyState } from "../state.ts";
+import type { AuthenticationCeremonyState } from "../state.ts";
 import { oneOf, sequence } from "./helpers.ts";
 
 export type NonConditionalAuthenticationCeremonyComponent =

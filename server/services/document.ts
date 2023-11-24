@@ -1,10 +1,10 @@
 import type { Document, DocumentKey } from "../../common/document/document.ts";
-import { type IDocumentService } from "../../common/server/services/document.ts";
-import {
+import type { IDocumentService } from "../../common/server/services/document.ts";
+import type {
 	DocumentAtomic,
-	type DocumentGetOptions,
-	type DocumentListOptions,
-	type DocumentListResult,
+	DocumentGetOptions,
+	DocumentListOptions,
+	DocumentListResult,
 	DocumentProvider,
 } from "../../providers/document.ts";
 

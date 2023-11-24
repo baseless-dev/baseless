@@ -1,7 +1,7 @@
 import {
 	assertDocument,
-	Document,
-	DocumentKey,
+	type Document,
+	type DocumentKey,
 	isDocument,
 } from "../../common/document/document.ts";
 import {
@@ -11,10 +11,10 @@ import {
 import { createLogger } from "../../common/system/logger.ts";
 import {
 	DocumentAtomic,
-	DocumentAtomicsResult,
-	DocumentGetOptions,
-	DocumentListOptions,
-	DocumentListResult,
+	type DocumentAtomicsResult,
+	type DocumentGetOptions,
+	type DocumentListOptions,
+	type DocumentListResult,
 	DocumentProvider,
 } from "../document.ts";
 

@@ -1,4 +1,4 @@
-import { AutoId, isAutoId } from "../system/autoid.ts";
+import { type AutoId, isAutoId } from "../system/autoid.ts";
 import {
 	type Infer,
 	registry,

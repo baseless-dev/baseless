@@ -1,4 +1,4 @@
-import { KVProvider } from "./kv.ts";
+import type { KVProvider } from "./kv.ts";
 import {
 	assertEquals,
 	assertExists,

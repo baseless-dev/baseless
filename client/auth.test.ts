@@ -5,7 +5,7 @@ import {
 	assertRejects,
 	assertThrows,
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { App, initializeApp } from "./app.ts";
+import { type App, initializeApp } from "./app.ts";
 import {
 	addChallenge,
 	addIdentification,
@@ -32,7 +32,7 @@ import {
 import { oneOf } from "../common/auth/ceremony/component/helpers.ts";
 import { assertAuthenticationCeremonyResponseState } from "../common/auth/ceremony/response.ts";
 import { assertAuthenticationCeremonyResponseEncryptedState } from "../common/auth/ceremony/response.ts";
-import { Message } from "../common/message/message.ts";
+import type { Message } from "../common/message/message.ts";
 import { setGlobalLogHandler } from "../common/system/logger.ts";
 import { assertSendIdentificationChallengeResponse } from "../common/auth/send_identification_challenge_response.ts";
 import { assertAuthenticationCeremonyResponseTokens } from "../common/auth/ceremony/response.ts";

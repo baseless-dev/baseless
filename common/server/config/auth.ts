@@ -3,8 +3,8 @@ import {
 	assertAuthenticationCeremonyComponent,
 	type AuthenticationCeremonyComponent,
 } from "../../auth/ceremony/ceremony.ts";
-import { type AuthenticationChallenger } from "../../auth/challenger.ts";
-import { type AuthenticationIdenticator } from "../../auth/identicator.ts";
+import type { AuthenticationChallenger } from "../../auth/challenger.ts";
+import type { AuthenticationIdenticator } from "../../auth/identicator.ts";
 import type { ID } from "../../identity/identity.ts";
 import type { IContext } from "../context.ts";
 import { extract } from "../../auth/ceremony/component/extract.ts";

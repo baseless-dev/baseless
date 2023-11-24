@@ -22,12 +22,12 @@ import {
 	IDENTITY_AUTOID_PREFIX,
 } from "../../common/identity/identity.ts";
 import { assertMessage, type Message } from "../../common/message/message.ts";
-import { type IContext } from "../../common/server/context.ts";
-import { type IIdentityService } from "../../common/server/services/identity.ts";
+import type { IContext } from "../../common/server/context.ts";
+import type { IIdentityService } from "../../common/server/services/identity.ts";
 import { assertAutoId, type AutoId } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import { otp } from "../../common/system/otp.ts";
-import { type IdentityProvider } from "../../providers/identity.ts";
+import type { IdentityProvider } from "../../providers/identity.ts";
 
 export class IdentityService implements IIdentityService {
 	#logger = createLogger("identity-service");

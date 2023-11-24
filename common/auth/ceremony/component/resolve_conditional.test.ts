@@ -1,7 +1,7 @@
 import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import * as h from "./helpers.ts";
-import { type IContext } from "../../../server/context.ts";
-import { type AuthenticationCeremonyState } from "../state.ts";
+import type { IContext } from "../../../server/context.ts";
+import type { AuthenticationCeremonyState } from "../state.ts";
 import { resolveConditional } from "./resolve_conditional.ts";
 
 Deno.test("resolveConditional", async () => {

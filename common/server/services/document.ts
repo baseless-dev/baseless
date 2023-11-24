@@ -1,8 +1,8 @@
-import {
+import type {
 	DocumentAtomic,
-	type DocumentGetOptions,
-	type DocumentListOptions,
-	type DocumentListResult,
+	DocumentGetOptions,
+	DocumentListOptions,
+	DocumentListResult,
 } from "../../../providers/document.ts";
 import type { Document, DocumentKey } from "../../document/document.ts";
 

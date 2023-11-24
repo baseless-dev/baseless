@@ -1,6 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { MessageProvider } from "./message.ts";
-import { Message } from "../common/message/message.ts";
+import type { MessageProvider } from "./message.ts";
+import type { Message } from "../common/message/message.ts";
 import { type AutoId, autoid } from "../common/system/autoid.ts";
 
 export default async function testMessageProvider(

@@ -1,4 +1,4 @@
-import { DocumentProvider } from "./document.ts";
+import type { DocumentProvider } from "./document.ts";
 import {
 	assert,
 	assertEquals,

@@ -1,4 +1,4 @@
-import { type IContext } from "../../server/context.ts";
+import type { IContext } from "../../server/context.ts";
 import {
 	InvalidAuthenticationCeremonyComponentChallengeError,
 	InvalidAuthenticationCeremonyComponentChallengeOTPError,
@@ -13,7 +13,7 @@ import {
 	InvalidAuthenticationCeremonyComponentIdentificationOAuth2Error,
 	InvalidAuthenticationCeremonyComponentSequenceError,
 } from "../errors.ts";
-import { type AuthenticationCeremonyState } from "./state.ts";
+import type { AuthenticationCeremonyState } from "./state.ts";
 
 export interface AuthenticationCeremonyComponentIdentificationEmail {
 	readonly kind: "identification";

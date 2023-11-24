@@ -13,8 +13,8 @@ import {
 } from "../../common/identity/identity.ts";
 import { type AutoId, autoid } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { DocumentProvider } from "../document.ts";
-import { type IdentityProvider } from "../identity.ts";
+import type { DocumentProvider } from "../document.ts";
+import type { IdentityProvider } from "../identity.ts";
 
 export class DocumentIdentityProvider implements IdentityProvider {
 	#logger = createLogger("identity-document");

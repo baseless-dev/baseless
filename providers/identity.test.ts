@@ -6,7 +6,7 @@ import type { IdentityProvider } from "./identity.ts";
 import {
 	assertID,
 	assertIdentity,
-	Identity,
+	type Identity,
 	IDENTITY_AUTOID_PREFIX,
 } from "../common/identity/identity.ts";
 import { autoid } from "../common/system/autoid.ts";

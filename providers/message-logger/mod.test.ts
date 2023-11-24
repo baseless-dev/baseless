@@ -1,4 +1,4 @@
-import { Message } from "../../common/message/message.ts";
+import type { Message } from "../../common/message/message.ts";
 import { setGlobalLogHandler } from "../../common/system/logger.ts";
 import testMessageProvider from "../message.test.ts";
 import { LoggerMessageProvider } from "./mod.ts";

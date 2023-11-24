@@ -54,6 +54,6 @@ export default class OTPLoggerAuthentificationChallenger
 		const code = await context.kv.get(
 			["otp-logger", identityId],
 		);
-		return code.value === challenge;
+		return code.value === `${challenge}`;
 	}
 }

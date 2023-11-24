@@ -16,7 +16,7 @@ export default class PasswordAuthentificationChallenger
 	async configureIdentityChallenge(
 		{ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions,
 	): Promise<Record<string, unknown>> {
-		const hash = await this.#hashPassword(challenge);
+		const hash = await this.#hashPassword(`${challenge}`);
 		return { hash };
 	}
 	async sendChallenge(
@@ -25,7 +25,7 @@ export default class PasswordAuthentificationChallenger
 	async verify(
 		{ challenge, identityChallenge }: AuthenticationChallengerVerifyOptions,
 	): Promise<boolean> {
-		const hash = await this.#hashPassword(challenge);
+		const hash = await this.#hashPassword(`${challenge}`);
 		return "hash" in identityChallenge.meta &&
 			identityChallenge.meta.hash === hash;
 	}

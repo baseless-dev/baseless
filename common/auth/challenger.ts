@@ -4,7 +4,7 @@ import type { AutoId } from "../system/autoid.ts";
 
 export type AuthenticationChallengerConfigureIdentityChallengeOptions = {
 	context: IContext;
-	challenge: string;
+	challenge: unknown;
 };
 
 export type AuthenticationChallengerSendChallengeOptions = {
@@ -18,7 +18,7 @@ export type AuthenticationChallengerVerifyOptions = {
 	context: IContext;
 	identityId: AutoId;
 	identityChallenge: IdentityChallenge;
-	challenge: string;
+	challenge: unknown;
 };
 
 export type AuthenticationChallengerRateLimitOptions = {

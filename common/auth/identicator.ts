@@ -7,7 +7,7 @@ import type { AutoId } from "../system/autoid.ts";
 export type AuthenticationIdenticatorIdentifyOptions = {
 	context: IContext;
 	type: string;
-	identification: string;
+	identification: unknown;
 };
 
 export type AuthenticationIdenticatorSendMessageOptions = {

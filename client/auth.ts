@@ -319,7 +319,7 @@ export async function getAuthenticationCeremony(
 export async function submitAuthenticationIdentification(
 	app: App,
 	type: string,
-	identification: string,
+	identification: unknown,
 	state?: string,
 ): Promise<
 	AuthenticationCeremonyResponse<
@@ -353,7 +353,7 @@ export async function submitAuthenticationIdentification(
 export async function submitAuthenticationChallenge(
 	app: App,
 	type: string,
-	challenge: string,
+	challenge: unknown,
 	state: string,
 ): Promise<
 	AuthenticationCeremonyResponse<

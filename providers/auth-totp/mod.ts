@@ -26,13 +26,13 @@ export default class TOTPAuthenticationChallenger
 			const _ = await totp({
 				digits: 6,
 				period: 60,
-				key: challenge,
+				key: `${challenge}`,
 				time: Date.now(),
 			});
 		} catch (_error) {
 			throw new Error("Invalid TOTP key");
 		}
-		return { key: challenge };
+		return { key: `${challenge}` };
 	}
 	async sendChallenge(
 		_options: AuthenticationChallengerSendChallengeOptions,
@@ -50,7 +50,7 @@ export default class TOTPAuthenticationChallenger
 					key: identityChallenge.meta.key,
 					time: Date.now() / 1000 + offset,
 				});
-				if (code === challenge) {
+				if (code === `${challenge}`) {
 					return true;
 				}
 			}

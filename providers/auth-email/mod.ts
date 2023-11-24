@@ -19,6 +19,9 @@ export default class EmailAuthentificationIdenticator
 	async identify(
 		{ type, identification, context }: AuthenticationIdenticatorIdentifyOptions,
 	): Promise<Identity> {
+		if (typeof identification !== "string") {
+			throw new IdentityNotFoundError();
+		}
 		const identity = await context.identity.getByIdentification(
 			type,
 			identification,

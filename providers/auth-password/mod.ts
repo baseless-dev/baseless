@@ -5,13 +5,24 @@ import {
 	type AuthenticationChallengerSendChallengeOptions,
 	type AuthenticationChallengerVerifyOptions,
 } from "../../common/auth/challenger.ts";
+import type { AuthenticationCeremonyComponentChallenge } from "../../common/auth/ceremony/ceremony.ts";
 
 export default class PasswordAuthentificationChallenger
 	extends AuthenticationChallenger {
+	constructor(id: string) {
+		super(id);
+	}
 	async #hashPassword(password: string): Promise<string> {
 		return encode(
 			await crypto.subtle.digest("SHA-512", new TextEncoder().encode(password)),
 		);
+	}
+	ceremonyComponent(): AuthenticationCeremonyComponentChallenge {
+		return {
+			id: this.id,
+			kind: "challenge",
+			prompt: "password",
+		};
 	}
 	async configureIdentityChallenge(
 		{ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions,

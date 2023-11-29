@@ -6,26 +6,22 @@
 	"configurations": [
 		{
 			"request": "launch",
-			"name": "Launch hello-world",
+			"name": "Launch with-auth",
 			"type": "node",
-			"program": "${workspaceFolder}/examples/hello-world/server.ts",
-			"cwd": "${workspaceFolder}",
-			"runtimeExecutable": "/home/grenierdev/.deno/bin/deno",
+			"program": "${workspaceFolder}/examples/with-auth/main.ts",
+			"cwd": "${workspaceFolder}/examples/with-auth",
 			"env": {
 				"DENO_DIR": ".deno"
 			},
+			"envFile": "${workspaceFolder}/examples/with-auth/.env",
+			"runtimeExecutable": "/home/grenierdev/.deno/bin/deno",
 			"runtimeArgs": [
 				"run",
+				"-A",
 				"--unstable",
-				"--allow-env",
-				"--allow-read",
-				"--allow-write",
-				"--allow-net",
-				"--allow-sys",
 				"--inspect-wait"
 			],
-			"attachSimplePort": 9229,
-			"restart": true
+			"attachSimplePort": 9229
 		}
 	]
 }

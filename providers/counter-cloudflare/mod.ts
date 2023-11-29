@@ -6,6 +6,10 @@ import { createLogger } from "../../common/system/logger.ts";
 import type { CounterProvider } from "../counter.ts";
 /// <reference types="https://esm.sh/v132/@cloudflare/workers-types@4.20230914.0/index.d.ts" />
 
+function keyPathToKeyString(key: string[]): string {
+	return key.map((p) => p.replaceAll("/", "\\/")).join("/");
+}
+
 export class CloudFlareCounterProvider implements CounterProvider {
 	#logger = createLogger("counter-cloudflare");
 	#do: DurableObjectNamespace;
@@ -16,11 +20,12 @@ export class CloudFlareCounterProvider implements CounterProvider {
 	}
 
 	async increment(
-		key: string,
+		key: string[],
 		amount: number,
 		expiration?: number | Date,
 	): Promise<number> {
-		const doId = this.#do.idFromName(key);
+		const keyString = keyPathToKeyString(key);
+		const doId = this.#do.idFromName(keyString);
 		const doStud = this.#do.get(doId);
 		const expireAt = expiration
 			? expiration instanceof Date
@@ -39,8 +44,9 @@ export class CloudFlareCounterProvider implements CounterProvider {
 		return counter;
 	}
 
-	async reset(key: string): Promise<void> {
-		const doId = this.#do.idFromName(key);
+	async reset(key: string[]): Promise<void> {
+		const keyString = keyPathToKeyString(key);
+		const doId = this.#do.idFromName(keyString);
 		const doStud = this.#do.get(doId);
 		const response = await doStud.fetch("https://example.com/reset")
 			.catch(() => undefined);

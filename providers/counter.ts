@@ -14,7 +14,7 @@ export interface CounterProvider {
 	 * @throws {CounterIncrementError}
 	 */
 	increment(
-		key: string,
+		key: string[],
 		amount: number,
 		expiration?: number | Date,
 	): Promise<number>;
@@ -23,5 +23,5 @@ export interface CounterProvider {
 	 * Reset counter for key
 	 * @throws {CounterResetError}
 	 */
-	reset(key: string): Promise<void>;
+	reset(key: string[]): Promise<void>;
 }

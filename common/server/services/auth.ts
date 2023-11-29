@@ -18,7 +18,7 @@ export interface IAuthenticationService {
 	submitAuthenticationIdentification(
 		state: AuthenticationCeremonyState,
 		type: string,
-		identification: string,
+		identification: unknown,
 		subject: string,
 	): Promise<
 		AuthenticationCeremonyResponse<
@@ -32,7 +32,7 @@ export interface IAuthenticationService {
 	submitAuthenticationChallenge(
 		state: AuthenticationCeremonyState,
 		type: string,
-		challenge: string,
+		challenge: unknown,
 		subject: string,
 	): Promise<
 		AuthenticationCeremonyResponse<

@@ -80,44 +80,28 @@ export default async function makeDummyServer(
 	const identityProvider = new DocumentIdentityProvider(identityDocument);
 	const sessionKV = new MemoryKVProvider();
 	const sessionProvider = new KVSessionProvider(sessionKV);
-	const email: AuthenticationCeremonyComponentIdentification = {
-		kind: "identification",
-		id: "email",
-		prompt: "email",
-	};
 	const emailIdenticator = new EmailAuthentificationIdenticator(
+		"email",
 		new LoggerMessageProvider(),
 	);
-	const password: AuthenticationCeremonyComponentChallenge = {
-		kind: "challenge",
-		id: "password",
-		prompt: "password",
-	};
-	const passwordChallenger = new PasswordAuthentificationChallenger();
-	const otp: AuthenticationCeremonyComponentChallenge = {
-		kind: "challenge",
-		id: "otp",
-		prompt: "otp",
+	const email = emailIdenticator.ceremonyComponent();
+	const passwordChallenger = new PasswordAuthentificationChallenger("password");
+	const password = passwordChallenger.ceremonyComponent();
+	const otpChallenger = new OTPLoggerAuthentificationChallenger("otp", {
 		digits: 6,
-	};
-	const otpChallenger = new OTPLoggerAuthentificationChallenger({ digits: 6 });
-	const totp: AuthenticationCeremonyComponentChallenge = {
-		kind: "challenge",
-		id: "totp",
-		prompt: "totp",
-		digits: 6,
-		timeout: 60,
-	};
-	const totpChallenger = new TOTPAuthentificationChallenger({
+	});
+	const otp = otpChallenger.ceremonyComponent();
+	const totpChallenger = new TOTPAuthentificationChallenger("totp", {
 		digits: 6,
 		period: 60,
 	});
+	const totp = totpChallenger.ceremonyComponent();
 
 	config.auth()
-		.addIdenticator("email", emailIdenticator)
-		.addChallenger("password", passwordChallenger)
-		.addChallenger("otp", otpChallenger)
-		.addChallenger("totp", totpChallenger);
+		.addIdenticator(emailIdenticator)
+		.addChallenger(passwordChallenger)
+		.addChallenger(otpChallenger)
+		.addChallenger(totpChallenger);
 
 	const helpers: DummyServerHelpers = {
 		config,

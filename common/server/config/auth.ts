@@ -160,10 +160,9 @@ export class AuthenticationConfigurationBuilder {
 	 * @returns The builder
 	 */
 	public addIdenticator(
-		id: string,
 		identicator: AuthenticationIdenticator,
 	): this {
-		this.#identificators.set(id, identicator);
+		this.#identificators.set(identicator.id, identicator);
 		return this;
 	}
 
@@ -173,10 +172,9 @@ export class AuthenticationConfigurationBuilder {
 	 * @returns The builder
 	 */
 	public addChallenger(
-		id: string,
 		challenger: AuthenticationChallenger,
 	): this {
-		this.#challengers.set(id, challenger);
+		this.#challengers.set(challenger.id, challenger);
 		return this;
 	}
 

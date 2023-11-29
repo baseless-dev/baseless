@@ -1,3 +1,4 @@
+import type { AuthenticationCeremonyComponentIdentification } from "../../common/auth/ceremony/ceremony.ts";
 import {
 	AuthenticationIdenticator,
 	type AuthenticationIdenticatorIdentifyOptions,
@@ -11,10 +12,18 @@ export default class EmailAuthentificationIdenticator
 	extends AuthenticationIdenticator {
 	#messageProvider: MessageProvider;
 	constructor(
+		id: string,
 		messageProvider: MessageProvider,
 	) {
-		super();
+		super(id);
 		this.#messageProvider = messageProvider;
+	}
+	ceremonyComponent(): AuthenticationCeremonyComponentIdentification {
+		return {
+			id: this.id,
+			kind: "identification",
+			prompt: "email",
+		};
 	}
 	async identify(
 		{ type, identification, context }: AuthenticationIdenticatorIdentifyOptions,

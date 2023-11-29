@@ -10,7 +10,7 @@ export interface ICounterService {
 	 * @throws {CounterIncrementError}
 	 */
 	increment(
-		key: string,
+		key: string[],
 		amount: number,
 		expiration: number | Date,
 	): Promise<number>;
@@ -18,5 +18,5 @@ export interface ICounterService {
 	/**
 	 * @throws {CounterResetError}
 	 */
-	reset(key: string): Promise<void>;
+	reset(key: string[]): Promise<void>;
 }

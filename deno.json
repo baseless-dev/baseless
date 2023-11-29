@@ -29,7 +29,7 @@
 		"test:fast": "DENO_DIR=.deno deno test -A --unstable --parallel --fail-fast",
 		"coverage": "DENO_DIR=.deno deno coverage coverage"
 	},
-	"exclude": ["examples/", ".deno/", "npm/", "coverage/"],
+	"exclude": [".deno/", "npm/", "coverage/"],
 	"lint": {
 		"rules": {
 			"tags": ["recommended"],

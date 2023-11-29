@@ -1,6 +1,10 @@
 import { CacheMap } from "../../common/collections/cachemap.ts";
 import type { CounterProvider } from "../counter.ts";
 
+function keyPathToKeyString(key: string[]): string {
+	return key.map((p) => p.replaceAll("/", "\\/")).join("/");
+}
+
 export class MemoryCounterProvider implements CounterProvider {
 	#keys: CacheMap<string, number>;
 	constructor() {
@@ -8,19 +12,21 @@ export class MemoryCounterProvider implements CounterProvider {
 	}
 
 	increment(
-		key: string,
+		key: string[],
 		amount: number,
 		expiration?: number | Date,
 	): Promise<number> {
-		amount += this.#keys.get(key) ?? 0;
+		const keyString = keyPathToKeyString(key);
+		amount += this.#keys.get(keyString) ?? 0;
 		if (amount > 0) {
-			this.#keys.set(key, amount, expiration);
+			this.#keys.set(keyString, amount, expiration);
 		}
 		return Promise.resolve(amount);
 	}
 
-	reset(key: string): Promise<void> {
-		this.#keys.delete(key);
+	reset(key: string[]): Promise<void> {
+		const keyString = keyPathToKeyString(key);
+		this.#keys.delete(keyString);
 		return Promise.resolve();
 	}
 }

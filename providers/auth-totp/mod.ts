@@ -1,3 +1,4 @@
+import type { AuthenticationCeremonyComponentChallenge } from "../../common/auth/ceremony/ceremony.ts";
 import {
 	AuthenticationChallenger,
 	type AuthenticationChallengerConfigureIdentityChallengeOptions,
@@ -14,10 +15,19 @@ import {
 export default class TOTPAuthenticationChallenger
 	extends AuthenticationChallenger {
 	#options: Omit<TOTPOptions, "key">;
-	constructor(options: Omit<TOTPOptions, "key">) {
-		super();
+	constructor(id: string, options: Omit<TOTPOptions, "key">) {
+		super(id);
 		assertTOTPOptions({ ...options, key: "" });
 		this.#options = options;
+	}
+	ceremonyComponent(): AuthenticationCeremonyComponentChallenge {
+		return {
+			id: this.id,
+			kind: "challenge",
+			prompt: "totp",
+			digits: 6,
+			timeout: 60,
+		};
 	}
 	async configureIdentityChallenge(
 		{ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions,

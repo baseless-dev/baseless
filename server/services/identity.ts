@@ -196,8 +196,13 @@ export class IdentityService implements IIdentityService {
 			if (identificator.rateLimit.interval) {
 				const { interval, count } = identificator.rateLimit;
 				const slidingWindow = Math.round(Date.now() / interval * 1000);
-				const counterKey =
-					`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
+				const counterKey = [
+					"auth",
+					"sendvalidationcode",
+					identityId,
+					type,
+					slidingWindow.toString(),
+				];
 				const counter = await this.#context.counter.increment(
 					counterKey,
 					1,
@@ -243,8 +248,13 @@ export class IdentityService implements IIdentityService {
 			const counterLimit = this.#context.config.auth.security.rateLimit
 				.confirmVerificationCodeCount;
 			const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
-			const counterKey =
-				`/auth/sendvalidationcode/${identityId}/${type}/${slidingWindow}`;
+			const counterKey = [
+				"auth",
+				"sendvalidationcode",
+				identityId,
+				type,
+				slidingWindow.toString(),
+			];
 			const counter = await this.#context.counter.increment(
 				counterKey,
 				1,
@@ -301,8 +311,13 @@ export class IdentityService implements IIdentityService {
 			if (challenger.rateLimit.interval) {
 				const { interval, count } = challenger.rateLimit;
 				const slidingWindow = Math.round(Date.now() / interval * 1000);
-				const counterKey =
-					`/auth/sendchallenge/${identityId}/${type}/${slidingWindow}`;
+				const counterKey = [
+					"auth",
+					"sendchallenge",
+					identityId,
+					type,
+					slidingWindow.toString(),
+				];
 				const counter = await this.#context.counter.increment(
 					counterKey,
 					1,

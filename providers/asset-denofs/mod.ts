@@ -1,6 +1,5 @@
 import {
 	extname,
-	fromFileUrl,
 	join,
 	normalize,
 	resolve,
@@ -14,7 +13,7 @@ export class DenoFSAssetProvider implements AssetProvider {
 	#rootDir: string;
 
 	constructor(rootDir: string) {
-		this.#rootDir = resolve(fromFileUrl(rootDir));
+		this.#rootDir = resolve(rootDir);
 	}
 
 	async fetch(request: Request): Promise<Response> {

@@ -17,7 +17,7 @@ export async function submitAuthenticationChallenge(
 ): Promise<AuthenticationCeremonyResponse> {
 	const data = await getJsonData(request);
 	const type = data?.type?.toString() ?? "";
-	const challenge = data?.challenge?.toString() ?? "";
+	const challenge = data?.challenge;
 	const encryptedState = data?.state?.toString() ?? "";
 	const state = await decryptEncryptedAuthenticationCeremonyState(
 		encryptedState,

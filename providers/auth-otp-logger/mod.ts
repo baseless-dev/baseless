@@ -1,3 +1,4 @@
+import type { AuthenticationCeremonyComponentChallenge } from "../../common/auth/ceremony/ceremony.ts";
 import {
 	AuthenticationChallenger,
 	type AuthenticationChallengerConfigureIdentityChallengeOptions,
@@ -22,15 +23,25 @@ export default class OTPLoggerAuthentificationChallenger
 	#logMethod: typeof LogLevelMethod[keyof typeof LogLevelMethod];
 	#logger = createLogger("auth-otp-logger");
 	constructor(
+		id: string,
 		options: OTPOptions,
 		ttl = 60 * 1000,
 		logLevel = LogLevel.INFO,
 	) {
-		super();
+		super(id);
 		assertOTPOptions(options);
 		this.#options = options;
 		this.#ttl = ttl;
 		this.#logMethod = LogLevelMethod[logLevel];
+	}
+	ceremonyComponent(): AuthenticationCeremonyComponentChallenge {
+		return {
+			id: this.id,
+			kind: "challenge",
+			prompt: "otp",
+			digits: this.#options.digits ?? 6,
+			timeout: this.#ttl,
+		};
 	}
 	// deno-lint-ignore require-await
 	async configureIdentityChallenge(

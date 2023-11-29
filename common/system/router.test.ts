@@ -110,3 +110,28 @@ Deno.test("route params", async () => {
 		`{"id":"456"}`,
 	);
 });
+
+Deno.test("preflight", async () => {
+	const router = new RouterBuilder()
+		.get("/foo", () => new Response("bar"))
+		.post("/foo", () => new Response("bar"))
+		.build();
+
+	assertEquals(
+		await router.process(
+			new Request("http://test.local/foo", {
+				method: "OPTIONS",
+				headers: { Origin: "https://test.local:8081" },
+			}),
+			{},
+		).then((r) => [r.status, Object.fromEntries(r.headers)]),
+		[
+			204,
+			{
+				"access-control-allow-headers": "*",
+				"access-control-allow-methods": "GET, POST",
+				"access-control-allow-origin": "test.local:8081",
+			},
+		],
+	);
+});

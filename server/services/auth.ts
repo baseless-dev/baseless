@@ -83,7 +83,7 @@ export class AuthenticationService implements IAuthenticationService {
 	async submitAuthenticationIdentification(
 		state: AuthenticationCeremonyState,
 		type: string,
-		identification: string,
+		identification: unknown,
 		subject: string,
 	): Promise<
 		AuthenticationCeremonyResponse<
@@ -97,7 +97,12 @@ export class AuthenticationService implements IAuthenticationService {
 			this.#context.config.auth.security.rateLimit.identificationInterval *
 			1000;
 		const slidingWindow = Math.round(Date.now() / counterInterval);
-		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
+		const counterKey = [
+			"auth",
+			"identification",
+			subject,
+			slidingWindow.toString(),
+		];
 		if (
 			await this.#context.counter.increment(counterKey, 1, counterInterval) >
 				this.#context.config.auth.security.rateLimit.identificationCount
@@ -149,7 +154,7 @@ export class AuthenticationService implements IAuthenticationService {
 	async submitAuthenticationChallenge(
 		state: AuthenticationCeremonyState,
 		type: string,
-		challenge: string,
+		challenge: unknown,
 		subject: string,
 	): Promise<
 		AuthenticationCeremonyResponse<
@@ -166,7 +171,12 @@ export class AuthenticationService implements IAuthenticationService {
 		const counterLimit =
 			this.#context.config.auth.security.rateLimit.identificationCount;
 		const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
-		const counterKey = `/auth/identification/${subject}/${slidingWindow}`;
+		const counterKey = [
+			"auth",
+			"identification",
+			subject,
+			slidingWindow.toString(),
+		];
 		const counter = await this.#context.counter.increment(
 			counterKey,
 			1,

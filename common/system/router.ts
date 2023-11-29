@@ -357,13 +357,29 @@ export class Router<Args extends unknown[]> {
 					return Promise.resolve(
 						handler(request, result.pathname.groups, ...args),
 					);
+				} else if (method === "OPTIONS") {
+					const origin = request.headers.get("Origin");
+					return Promise.resolve(
+						new Response(null, {
+							status: 204,
+							headers: {
+								"Access-Control-Allow-Origin": origin
+									? new URL(origin).host
+									: "*",
+								"Access-Control-Allow-Methods": Array.from(endpoints.keys())
+									.join(", "),
+								"Access-Control-Allow-Headers": "*",
+							},
+						}),
+					);
+				} else {
+					return Promise.resolve(
+						new Response(null, {
+							status: 405,
+							headers: { Allow: Array.from(endpoints.keys()).join(", ") },
+						}),
+					);
 				}
-				return Promise.resolve(
-					new Response(null, {
-						status: 405,
-						headers: { Allow: Array.from(endpoints.keys()).join(", ") },
-					}),
-				);
 			}
 		}
 		return Promise.resolve(new Response(null, { status: 404 }));

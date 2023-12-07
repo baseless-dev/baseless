@@ -5,8 +5,7 @@ export default class GithubAuthentificationIdenticator
 	constructor(id: string, options: { clientId: string; clientSecret: string }) {
 		super(id, {
 			...options,
-			authorizationUrl:
-				"https://github.com/login/oauth/authorize?scope=https%3A%2F%2Fwww%2Egoogleapis%2Ecom%2Fauth%2Fuserinfo%2Eprofile",
+			authorizationUrl: "https://github.com/login/oauth/authorize",
 			tokenUrl: "https://github.com/login/oauth/access_token",
 		});
 	}

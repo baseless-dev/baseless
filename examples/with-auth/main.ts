@@ -10,7 +10,6 @@ import {
 } from "../../common/system/logger.ts";
 import { DenoFSAssetProvider } from "../../providers/asset-denofs/mod.ts";
 import EmailAuthentificationIdenticator from "../../providers/auth-email/mod.ts";
-import OAuth2AuthentificationIdenticator from "../../providers/auth-oauth2/mod.ts";
 import OTPLoggerAuthentificationChallenger from "../../providers/auth-otp-logger/mod.ts";
 import PasswordAuthentificationChallenger from "../../providers/auth-password/mod.ts";
 import TOTPAuthentificationChallenger from "../../providers/auth-totp/mod.ts";

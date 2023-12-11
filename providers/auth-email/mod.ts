@@ -1,15 +1,18 @@
-import type { AuthenticationCeremonyComponentIdentification } from "../../common/auth/ceremony/ceremony.ts";
+import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony/ceremony.ts";
 import {
-	AuthenticationIdenticator,
-	type AuthenticationIdenticatorIdentifyOptions,
-	type AuthenticationIdenticatorSendMessageOptions,
-} from "../../common/auth/identicator.ts";
+	AuthenticationComponent,
+	AuthenticationComponentGetIdentityComponentIdentificationOptions,
+	AuthenticationComponentGetIdentityComponentMetaOptions,
+	AuthenticationComponentSendMessageOptions,
+	AuthenticationComponentSendPromptOptions,
+	AuthenticationComponentVerifyPromptOptions,
+} from "../../common/auth/component.ts";
 import { IdentityNotFoundError } from "../../common/identity/errors.ts";
 import type { Identity } from "../../common/identity/identity.ts";
 import type { MessageProvider } from "../message.ts";
 
-export default class EmailAuthentificationIdenticator
-	extends AuthenticationIdenticator {
+export default class EmailAuthentificationComponent
+	extends AuthenticationComponent {
 	#messageProvider: MessageProvider;
 	constructor(
 		id: string,
@@ -18,35 +21,48 @@ export default class EmailAuthentificationIdenticator
 		super(id);
 		this.#messageProvider = messageProvider;
 	}
-	ceremonyComponent(): AuthenticationCeremonyComponentIdentification {
+	getCeremonyComponent(): AuthenticationCeremonyComponent {
 		return {
+			kind: "prompt",
 			id: this.id,
-			kind: "identification",
 			prompt: "email",
+			options: {},
 		};
 	}
-	async identify(
-		{ type, identification, context }: AuthenticationIdenticatorIdentifyOptions,
-	): Promise<Identity> {
-		if (typeof identification !== "string") {
+	// deno-lint-ignore require-await
+	async getIdentityComponentIdentification(
+		{ value }: AuthenticationComponentGetIdentityComponentIdentificationOptions,
+	): Promise<string> {
+		return `${value}`;
+	}
+	// deno-lint-ignore require-await
+	async getIdentityComponentMeta(
+		_options: AuthenticationComponentGetIdentityComponentMetaOptions,
+	): Promise<Record<string, unknown>> {
+		return {};
+	}
+	async sendPrompt(
+		_options: AuthenticationComponentSendPromptOptions,
+	): Promise<void> {}
+
+	async verifyPrompt(
+		{ context, value }: AuthenticationComponentVerifyPromptOptions,
+	): Promise<boolean | Identity> {
+		if (typeof value !== "string") {
 			throw new IdentityNotFoundError();
 		}
 		const identity = await context.identity.getByIdentification(
-			type,
-			identification,
+			this.id,
+			value,
 		);
-		const identityIdentification = identity.identifications[type];
-		if (identityIdentification.identification !== identification) {
-			throw new IdentityNotFoundError();
-		}
 		return identity;
 	}
 	async sendMessage(
-		{ message, identityId }: AuthenticationIdenticatorSendMessageOptions,
+		{ message, identity }: AuthenticationComponentSendMessageOptions,
 	): Promise<void> {
 		await this.#messageProvider.send({
-			recipient: identityId,
 			...message,
+			recipient: identity.id,
 		});
 	}
 }

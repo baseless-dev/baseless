@@ -5,8 +5,7 @@ import {
 } from "../../common/identity/errors.ts";
 import {
 	assertIdentity,
-	assertIdentityChallenges,
-	assertIdentityIdentifications,
+	assertIdentityComponents,
 	assertIdentityMeta,
 	type Identity,
 	IDENTITY_AUTOID_PREFIX,
@@ -72,12 +71,10 @@ export class DocumentIdentityProvider implements IdentityProvider {
 
 	async create(
 		meta: Identity["meta"],
-		identifications: Identity["identifications"],
-		challenges: Identity["challenges"],
+		components: Identity["components"],
 	): Promise<Identity> {
 		assertIdentityMeta(meta);
-		assertIdentityIdentifications(identifications);
-		assertIdentityChallenges(challenges);
+		assertIdentityComponents(components);
 
 		try {
 			const id = autoid(IDENTITY_AUTOID_PREFIX);
@@ -89,26 +86,27 @@ export class DocumentIdentityProvider implements IdentityProvider {
 				], {
 					id,
 					meta,
-					identifications,
-					challenges,
+					components,
 				});
-			for (const [type, identification] of Object.entries(identifications)) {
-				atomic.notExists([
-					this.#prefix,
-					"identifications",
-					type,
-					identification.identification,
-				]);
-				atomic.set([
-					this.#prefix,
-					"identifications",
-					type,
-					identification.identification,
-				], id);
+			for (const [compoentnId, component] of Object.entries(components)) {
+				if (component.identification) {
+					atomic.notExists([
+						this.#prefix,
+						"identifications",
+						compoentnId,
+						component.identification,
+					]);
+					atomic.set([
+						this.#prefix,
+						"identifications",
+						compoentnId,
+						component.identification,
+					], id);
+				}
 			}
 
 			await atomic.commit();
-			return { id, meta, identifications, challenges };
+			return { id, meta, components };
 		} catch (_error) {
 			throw new IdentityCreateError();
 		}
@@ -135,42 +133,42 @@ export class DocumentIdentityProvider implements IdentityProvider {
 
 			// Upsert identifications
 			for (
-				const [type, identification] of Object.entries(identity.identifications)
+				const [compoentnId, component] of Object.entries(identity.components)
 			) {
-				const oldIdentification = oldIdentity.identifications[type];
-				if (oldIdentification) {
-					Object.assign(identification, {
-						...identification,
-						identification: oldIdentification.identification,
+				const oldComponent = oldIdentity.components[compoentnId];
+				if (oldComponent) {
+					Object.assign(component, {
+						...component,
+						identification: oldComponent.identification,
 					});
-				} else {
+				} else if (component.identification) {
 					atomic.notExists([
 						this.#prefix,
 						"identifications",
-						type,
-						identification.identification,
+						compoentnId,
+						component.identification,
 					]);
 					atomic.set([
 						this.#prefix,
 						"identifications",
-						type,
-						identification.identification,
+						compoentnId,
+						component.identification,
 					], identity.id);
 				}
 			}
 			// Delete old identifications
 			for (
-				const [type, identification] of Object.entries(
-					oldIdentity.identifications,
+				const [compoentnId, component] of Object.entries(
+					oldIdentity.components,
 				)
 			) {
-				const newIdentification = identity.identifications[type];
-				if (!newIdentification) {
+				const newIdentification = identity.components[compoentnId];
+				if (!newIdentification && component.identification) {
 					atomic.delete([
 						this.#prefix,
 						"identifications",
-						type,
-						identification.identification,
+						compoentnId,
+						component.identification,
 					]);
 				}
 			}
@@ -200,15 +198,18 @@ export class DocumentIdentityProvider implements IdentityProvider {
 				.match([this.#prefix, "identities", identity.id], versionstamp)
 				.delete([this.#prefix, "identities", identity.id]);
 			for (
-				const [type, identification] of Object.entries(identity.identifications)
+				const [compoentnId, component] of Object.entries(identity.components)
 			) {
-				atomic.delete([
-					this.#prefix,
-					"identifications",
-					type,
-					identification.identification,
-				]);
+				if (component.identification) {
+					atomic.delete([
+						this.#prefix,
+						"identifications",
+						compoentnId,
+						component.identification,
+					]);
+				}
 			}
+			await atomic.commit();
 		} catch (_error) {
 			throw new IdentityDeleteError();
 		}

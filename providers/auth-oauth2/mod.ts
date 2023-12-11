@@ -1,19 +1,22 @@
-import type { AuthenticationCeremonyComponentIdentification } from "../../common/auth/ceremony/ceremony.ts";
+import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony/ceremony.ts";
 import {
-	AuthenticationIdenticator,
-	type AuthenticationIdenticatorIdentifyOptions,
-	type AuthenticationIdenticatorSendMessageOptions,
-} from "../../common/auth/identicator.ts";
+	AuthenticationComponent,
+	AuthenticationComponentGetIdentityComponentIdentificationOptions,
+	AuthenticationComponentGetIdentityComponentMetaOptions,
+	AuthenticationComponentSendPromptOptions,
+	AuthenticationComponentVerifyPromptOptions,
+} from "../../common/auth/component.ts";
 import { IdentityNotFoundError } from "../../common/identity/errors.ts";
 import type { Identity } from "../../common/identity/identity.ts";
 
-export default abstract class OAuth2AuthentificationIdenticator
-	extends AuthenticationIdenticator {
+export default abstract class OAuth2AuthentificationComponent
+	extends AuthenticationComponent {
 	#authorizationUrl: URL;
 	#tokenUrl: URL;
 	#clientId: string;
 	#clientSecret: string;
 	#scope?: string;
+
 	constructor(
 		id: string,
 		options: {
@@ -31,33 +34,52 @@ export default abstract class OAuth2AuthentificationIdenticator
 		this.#clientSecret = options.clientSecret;
 		this.#scope = options.scope;
 	}
-	ceremonyComponent(): AuthenticationCeremonyComponentIdentification {
+
+	getCeremonyComponent(): AuthenticationCeremonyComponent {
 		const authorizationUrl = new URL(this.#authorizationUrl);
 		authorizationUrl.searchParams.set("response_type", "code");
 		authorizationUrl.searchParams.set("client_id", this.#clientId);
 		authorizationUrl.searchParams.set("scope", this.#scope ?? "");
 		return {
+			kind: "prompt",
 			id: this.id,
-			kind: "identification",
 			prompt: "oauth2",
-			authorizationUrl: authorizationUrl.toString(),
+			options: {
+				authorizationUrl: authorizationUrl.toString(),
+			},
 		};
 	}
+	// deno-lint-ignore require-await
+	async getIdentityComponentIdentification(
+		{ value }: AuthenticationComponentGetIdentityComponentIdentificationOptions,
+	): Promise<string> {
+		return `${value}`;
+	}
+	// deno-lint-ignore require-await
+	async getIdentityComponentMeta(
+		_options: AuthenticationComponentGetIdentityComponentMetaOptions,
+	): Promise<Record<string, unknown>> {
+		return {};
+	}
+	async sendPrompt(
+		_options: AuthenticationComponentSendPromptOptions,
+	): Promise<void> {}
+
 	abstract retrieveIdentification(access_token: string): Promise<string>;
 
-	async identify(
-		{ type, identification, context }: AuthenticationIdenticatorIdentifyOptions,
-	): Promise<Identity> {
+	async verifyPrompt(
+		{ context, value }: AuthenticationComponentVerifyPromptOptions,
+	): Promise<boolean | Identity> {
 		if (
-			!identification || typeof identification !== "object" ||
-			!("code" in identification && typeof identification.code === "string") ||
-			!("redirect_uri" in identification &&
-				typeof identification.redirect_uri === "string") ||
-			!("state" in identification && typeof identification.state === "string")
+			!value || typeof value !== "object" ||
+			!("code" in value && typeof value.code === "string") ||
+			!("redirect_uri" in value &&
+				typeof value.redirect_uri === "string") ||
+			!("state" in value && typeof value.state === "string")
 		) {
 			throw new IdentityNotFoundError();
 		}
-		const { code, redirect_uri, state } = identification;
+		const { code, redirect_uri } = value;
 
 		const url = new URL(this.#tokenUrl);
 		const headers = new Headers({
@@ -73,19 +95,17 @@ export default abstract class OAuth2AuthentificationIdenticator
 		body.set("redirect_uri", redirect_uri);
 
 		const response = await fetch(url, { method: "POST", headers, body });
+		// deno-lint-ignore no-explicit-any
 		const { access_token } = await response.json() as any;
 		try {
-			const id = await this.retrieveIdentification(access_token);
+			const identification = await this.retrieveIdentification(access_token);
 			const identity = await context.identity.getByIdentification(
-				type,
-				id,
+				this.id,
+				identification,
 			);
 			return identity;
 		} catch (_error) {
 			throw new IdentityNotFoundError();
 		}
 	}
-	async sendMessage(
-		_options: AuthenticationIdenticatorSendMessageOptions,
-	): Promise<void> {}
 }

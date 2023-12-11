@@ -1,19 +1,22 @@
 import type { AuthenticationCeremonyResponseTokens } from "../../../common/auth/ceremony/response.ts";
-import { IdentityCreateError } from "../../../common/identity/errors.ts";
+import {
+	IdentityComponentNotFoundError,
+	IdentityCreateError,
+} from "../../../common/identity/errors.ts";
 import type { Identity } from "../../../common/identity/identity.ts";
 import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 import { createTokens } from "./create_tokens.ts";
 
-function assertTypeId(
+function assertIdentityComponentIdIdentification(
 	value: unknown,
-): asserts value is Array<{ id: string; value: string }> {
+): asserts value is Array<{ id: string; prompt: unknown }> {
 	if (
 		!value || !Array.isArray(value) ||
 		!value.every((item) =>
 			!!item && typeof item === "object" &&
 			"id" in item && typeof item.id === "string" &&
-			"value" in item && typeof item.value === "string"
+			"prompt" in item && item.prompt
 		)
 	) {
 		throw new IdentityCreateError();
@@ -26,73 +29,50 @@ export async function createIdentity(
 	context: IContext,
 ): Promise<AuthenticationCeremonyResponseTokens | undefined> {
 	const data = await getJsonData(request);
-	const identifications = data?.identifications ?? [];
-	const challenges = data?.challenges ?? [];
+	const components = data?.components ?? [];
 	// TODO default locale
-	const locale = data?.locale?.toString() ?? "en";
+	const _locale = data?.locale?.toString() ?? "en";
 
-	assertTypeId(identifications);
-	assertTypeId(challenges);
+	assertIdentityComponentIdIdentification(components);
 
+	const identityComponents: Identity["components"] = {};
+	for (const { id, prompt } of components) {
+		const identityComponent = context.config.auth.components.get(id);
+		if (!identityComponent) {
+			throw new IdentityComponentNotFoundError();
+		}
+		identityComponents[id] = {
+			id: id,
+			identification: identityComponent.getIdentityComponentIdentification
+				? await identityComponent
+					.getIdentityComponentIdentification({
+						context,
+						value: prompt,
+					})
+				: undefined,
+			meta: await identityComponent
+				.getIdentityComponentMeta({
+					context,
+					value: prompt,
+				}),
+			confirmed: false,
+		};
+	}
 	try {
 		// Claim anonymous identity or create new one
 		if (context.tokenData) {
 			const identity = await context.identity.get(
 				context.tokenData.sessionData.identityId,
 			);
-			if (Object.keys(identity.identifications).length > 0) {
+			if (Object.keys(identity.components).length > 0) {
 				throw new IdentityCreateError();
 			}
-			for (const { id, value } of identifications) {
-				identity.identifications[id] = {
-					type: id,
-					identification: value,
-					meta: {},
-					confirmed: false,
-				};
-			}
-			for (const { id, value } of challenges) {
-				const challenger = context.config.auth.challengers.get(id);
-				if (!challenger) throw new IdentityCreateError();
-				identity.challenges[id] = {
-					type: id,
-					meta: await challenger?.configureIdentityChallenge?.({
-						context,
-						challenge: value,
-					}) ?? {},
-					confirmed: false,
-				};
+			for (const { id } of components) {
+				identity.components[id] = identityComponents[id];
 			}
 			await context.identity.update(identity);
 		} else {
-			const identityMeta = {};
-			const identityIdentifications: Identity["identifications"] = {};
-			const identityChallenges: Identity["challenges"] = {};
-			for (const { id, value } of identifications) {
-				identityIdentifications[id] = {
-					type: id,
-					identification: value,
-					meta: {},
-					confirmed: false,
-				};
-			}
-			for (const { id, value } of challenges) {
-				const challenger = context.config.auth.challengers.get(id);
-				if (!challenger) throw new IdentityCreateError();
-				identityChallenges[id] = {
-					type: id,
-					meta: await challenger?.configureIdentityChallenge?.({
-						context,
-						challenge: value,
-					}) ?? {},
-					confirmed: false,
-				};
-			}
-			const identity = await context.identity.create(
-				identityMeta,
-				identityIdentifications,
-				identityChallenges,
-			);
+			const identity = await context.identity.create({}, identityComponents);
 			// TODO longer tokens expiration?
 			const sessionData = await context.session.create(
 				identity.id,

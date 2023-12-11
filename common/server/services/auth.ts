@@ -15,24 +15,10 @@ export interface IAuthenticationService {
 		>
 	>;
 
-	submitAuthenticationIdentification(
+	submitAuthenticationPrompt(
 		state: AuthenticationCeremonyState,
-		type: string,
-		identification: unknown,
-		subject: string,
-	): Promise<
-		AuthenticationCeremonyResponse<
-			Exclude<
-				ReturnType<typeof getComponentAtPath>,
-				AuthenticationCeremonyComponentConditional | undefined
-			>
-		>
-	>;
-
-	submitAuthenticationChallenge(
-		state: AuthenticationCeremonyState,
-		type: string,
-		challenge: unknown,
+		id: string,
+		prompt: unknown,
 		subject: string,
 	): Promise<
 		AuthenticationCeremonyResponse<

@@ -1,10 +1,11 @@
-import type { AuthenticationCeremonyComponentChallenge } from "../../common/auth/ceremony/ceremony.ts";
+import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony/ceremony.ts";
 import {
-	AuthenticationChallenger,
-	type AuthenticationChallengerConfigureIdentityChallengeOptions,
-	type AuthenticationChallengerSendChallengeOptions,
-	type AuthenticationChallengerVerifyOptions,
-} from "../../common/auth/challenger.ts";
+	AuthenticationComponent,
+	AuthenticationComponentGetIdentityComponentMetaOptions,
+	AuthenticationComponentSendPromptOptions,
+	AuthenticationComponentVerifyPromptOptions,
+} from "../../common/auth/component.ts";
+import type { Identity } from "../../common/identity/identity.ts";
 import {
 	createLogger,
 	LogLevel,
@@ -16,8 +17,8 @@ import {
 	type OTPOptions,
 } from "../../common/system/otp.ts";
 
-export default class OTPLoggerAuthentificationChallenger
-	extends AuthenticationChallenger {
+export default class OTPLoggerAuthentificationComponent
+	extends AuthenticationComponent {
 	#options: OTPOptions;
 	#ttl: number;
 	#logMethod: typeof LogLevelMethod[keyof typeof LogLevelMethod];
@@ -34,37 +35,42 @@ export default class OTPLoggerAuthentificationChallenger
 		this.#ttl = ttl;
 		this.#logMethod = LogLevelMethod[logLevel];
 	}
-	ceremonyComponent(): AuthenticationCeremonyComponentChallenge {
+	getCeremonyComponent(): AuthenticationCeremonyComponent {
 		return {
+			kind: "prompt",
 			id: this.id,
-			kind: "challenge",
 			prompt: "otp",
-			digits: this.#options.digits ?? 6,
-			timeout: this.#ttl,
+			options: {
+				digits: this.#options.digits ?? 6,
+				timeout: this.#ttl,
+			},
 		};
 	}
 	// deno-lint-ignore require-await
-	async configureIdentityChallenge(
-		_options: AuthenticationChallengerConfigureIdentityChallengeOptions,
+	async getIdentityComponentMeta(
+		_options: AuthenticationComponentGetIdentityComponentMetaOptions,
 	): Promise<Record<string, unknown>> {
 		return {};
 	}
-	async sendChallenge(
-		{ identityId, context }: AuthenticationChallengerSendChallengeOptions,
+	async sendPrompt(
+		{ context, identity }: AuthenticationComponentSendPromptOptions,
 	): Promise<void> {
 		const code = otp(this.#options);
-		await context.kv.put(["otp-logger", identityId], code, {
+		await context.kv.put(["otp-logger", identity.id], code, {
 			expiration: this.#ttl,
 		});
 		// TODO template?
 		this.#logger[this.#logMethod](code);
 	}
-	async verify(
-		{ challenge, identityId, context }: AuthenticationChallengerVerifyOptions,
-	): Promise<boolean> {
+	async verifyPrompt(
+		{ context, identity, value }: AuthenticationComponentVerifyPromptOptions,
+	): Promise<boolean | Identity> {
+		if (!identity) {
+			return false;
+		}
 		const code = await context.kv.get(
-			["otp-logger", identityId],
+			["otp-logger", identity.identity.id],
 		);
-		return code.value === `${challenge}`;
+		return code.value === `${value}`;
 	}
 }

@@ -11,7 +11,7 @@ export async function createAnonymousIdentity(
 	if (!context.config.auth.allowAnonymousIdentity) {
 		throw new AnonymousIdentityNotAllowedError();
 	}
-	const identity = await context.identity.create({}, {}, {});
+	const identity = await context.identity.create({}, {});
 	// TODO longer tokens expiration?
 	const sessionData = await context.session.create(
 		identity.id,

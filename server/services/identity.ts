@@ -1,33 +1,16 @@
 import { MessageSendError } from "../../client/errors.ts";
 import {
 	AuthenticationConfirmValidationCodeError,
-	AuthenticationMissingChallengerError,
 	AuthenticationRateLimitedError,
-	AuthenticationSendIdentificationChallengeError,
 	AuthenticationSendValidationCodeError,
 } from "../../common/auth/errors.ts";
-import type { IdentityChallenge } from "../../common/identity/challenge.ts";
-import {
-	// deno-lint-ignore no-unused-vars
-	IdentityCreateError,
-	// deno-lint-ignore no-unused-vars
-	IdentityDeleteError,
-	// deno-lint-ignore no-unused-vars
-	IdentityNotFoundError,
-	// deno-lint-ignore no-unused-vars
-	IdentityUpdateError,
-} from "../../common/identity/errors.ts";
-import {
-	type Identity,
-	IDENTITY_AUTOID_PREFIX,
-} from "../../common/identity/identity.ts";
-import { assertMessage, type Message } from "../../common/message/message.ts";
+import type { Identity } from "../../common/identity/identity.ts";
 import type { IContext } from "../../common/server/context.ts";
 import type { IIdentityService } from "../../common/server/services/identity.ts";
-import { assertAutoId, type AutoId } from "../../common/system/autoid.ts";
+import { type AutoId, autoid } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import { otp } from "../../common/system/otp.ts";
 import type { IdentityProvider } from "../../providers/identity.ts";
+import type { Message } from "../../common/message/message.ts";
 
 export class IdentityService implements IIdentityService {
 	#logger = createLogger("identity-service");
@@ -42,35 +25,22 @@ export class IdentityService implements IIdentityService {
 		this.#context = context;
 	}
 
-	/**
-	 * @throws {IdentityNotFoundError}
-	 */
 	get(identityId: AutoId): Promise<Identity> {
 		return this.#identityProvider.get(identityId);
 	}
 
-	/**
-	 * @throws {IdentityNotFoundError}
-	 */
 	getByIdentification(type: string, identification: string): Promise<Identity> {
 		return this.#identityProvider.getByIdentification(type, identification);
 	}
 
-	/**
-	 * @throws {IdentityCreateError}
-	 */
 	create(
 		meta: Record<string, unknown>,
-		identifications: Identity["identifications"],
-		challenges: Identity["challenges"],
+		components: Identity["components"],
 	): Promise<Identity> {
 		// TODO life cycle hooks
-		return this.#identityProvider.create(meta, identifications, challenges);
+		return this.#identityProvider.create(meta, components);
 	}
 
-	/**
-	 * @throws {IdentityUpdateError}
-	 */
 	update(
 		identity: Identity,
 	): Promise<void> {
@@ -78,129 +48,97 @@ export class IdentityService implements IIdentityService {
 		return this.#identityProvider.update(identity);
 	}
 
-	/**
-	 * @throws {IdentityDeleteError}
-	 */
 	delete(identityId: AutoId): Promise<void> {
 		// TODO life cycle hooks
 		return this.#identityProvider.delete(identityId);
 	}
 
-	/**
-	 * @throws {IdentityChallengeCreateError}
-	 */
-	async getChallengeMeta(
-		type: string,
-		challenge: string,
-	): Promise<IdentityChallenge["meta"]> {
-		const challenger = this.#context.config.auth.challengers.get(type);
-		if (!challenger) {
-			throw new AuthenticationMissingChallengerError();
-		}
-		const meta = await challenger.configureIdentityChallenge?.({
-			context: this.#context,
-			challenge,
-		});
-		return meta ?? {};
-	}
-
-	/**
-	 * @throws {MessageSendError}
-	 */
 	public async broadcastMessage(
 		identityId: AutoId,
+		component: string,
 		message: Omit<Message, "recipient">,
 	): Promise<void> {
-		try {
-			assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
-			assertMessage(message);
-			const identity = await this.#identityProvider.get(identityId);
-			const confirmedIdentifications = Object.values(identity.identifications)
-				.filter((i) => i.confirmed);
-			const sendMessages = confirmedIdentifications.reduce(
-				(messages, identityIdentification) => {
-					const identicator = this.#context.config.auth.identificators
-						.get(
-							identityIdentification.type,
-						);
-					if (identicator && identicator.sendMessage) {
-						messages.push(
-							identicator.sendMessage({
-								context: this.#context,
-								identityId: identity.id,
-								identityIdentification,
-								message,
-							}),
-						);
-					}
-					return messages;
-				},
-				[] as Promise<void>[],
-			);
-			await Promise.allSettled(sendMessages);
-		} catch (_error) {
-			throw new MessageSendError();
-		}
+		// try {
+		// 	assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
+		// 	assertMessage(message);
+		// 	const identity = await this.#identityProvider.get(identityId);
+		// 	const confirmedIdentifications = Object.values(identity.identifications)
+		// 		.filter((i) => i.confirmed);
+		// 	const sendMessages = confirmedIdentifications.reduce(
+		// 		(messages, identityIdentification) => {
+		// 			const identicator = this.#context.config.auth.identificators
+		// 				.get(
+		// 					identityIdentification.type,
+		// 				);
+		// 			if (identicator && identicator.sendMessage) {
+		// 				messages.push(
+		// 					identicator.sendMessage({
+		// 						context: this.#context,
+		// 						identityId: identity.id,
+		// 						identityIdentification,
+		// 						message,
+		// 					}),
+		// 				);
+		// 			}
+		// 			return messages;
+		// 		},
+		// 		[] as Promise<void>[],
+		// 	);
+		// 	await Promise.allSettled(sendMessages);
+		// } catch (_error) {
+		throw new MessageSendError();
+		// }
 	}
 
-	/**
-	 * @throws {MessageSendError}
-	 */
 	async sendMessage(
 		identityId: AutoId,
-		identificationType: string,
+		component: string,
 		message: Omit<Message, "recipient">,
 	): Promise<void> {
-		try {
-			assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
-			assertMessage(message);
-			const identity = await this.#identityProvider.get(identityId);
-			const identicator = this.#context.config.auth.identificators
-				.get(
-					identificationType,
-				);
-			if (identicator && identicator.sendMessage) {
-				const identityIdentification =
-					identity.identifications[identificationType];
-				if (identityIdentification) {
-					return identicator.sendMessage({
-						context: this.#context,
-						identityId: identity.id,
-						identityIdentification,
-						message,
-					});
-				}
-			}
-		} catch (_error) {
-			// skip
-		}
+		// try {
+		// 	assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
+		// 	assertMessage(message);
+		// 	const identity = await this.#identityProvider.get(identityId);
+		// 	const identicator = this.#context.config.auth.identificators
+		// 		.get(
+		// 			identificationType,
+		// 		);
+		// 	if (identicator && identicator.sendMessage) {
+		// 		const identityIdentification =
+		// 			identity.identifications[identificationType];
+		// 		if (identityIdentification) {
+		// 			return identicator.sendMessage({
+		// 				context: this.#context,
+		// 				identityId: identity.id,
+		// 				identityIdentification,
+		// 				message,
+		// 			});
+		// 		}
+		// 	}
+		// } catch (_error) {
+		// 	// skip
+		// }
 		throw new MessageSendError();
 	}
 
-	/**
-	 * @throws {AuthenticationRateLimitedError}
-	 * @throws {AuthenticationSendValidationCodeError}
-	 */
-	async sendIdentificationValidationCode(
+	async sendComponentValidationCode(
 		identityId: AutoId,
-		type: string,
+		component: string,
 		_locale: string,
 	): Promise<void> {
-		const identificator = this.#context.config.auth.identificators.get(
-			type,
-		);
-		if (!identificator) {
+		const authComponent = this.#context.config.auth.components.get(component);
+		if (!authComponent) {
 			throw new AuthenticationSendValidationCodeError();
 		}
-		if (identificator.sendMessage) {
-			if (identificator.rateLimit.interval) {
-				const { interval, count } = identificator.rateLimit;
+		if (authComponent.sendMessage) {
+			if (authComponent.rateLimit.interval) {
+				const { interval, count } = authComponent.rateLimit;
 				const slidingWindow = Math.round(Date.now() / interval * 1000);
 				const counterKey = [
 					"auth",
 					"sendvalidationcode",
 					identityId,
-					type,
+					component,
 					slidingWindow.toString(),
 				];
 				const counter = await this.#context.counter.increment(
@@ -213,160 +151,74 @@ export class IdentityService implements IIdentityService {
 				}
 			}
 			const identity = await this.#identityProvider.get(identityId);
-			const identityIdentification = identity.identifications[type];
-			if (!identityIdentification) {
+			const identityComponent = identity.components[component];
+			if (!identityComponent) {
 				throw new AuthenticationSendValidationCodeError();
 			}
-			const code = otp({ digits: 6 });
+			const code = autoid("code_");
 			await this.#context.kv.put(
-				["auth", "validationcode", identityId, type],
-				code,
+				["auth", "validationcode", code],
+				JSON.stringify({
+					identityId: identity.id,
+					componentId: component,
+				}),
 				{ expiration: 1000 * 60 * 5 },
 			);
 			// TODO actual message from locale
-			await identificator.sendMessage({
+			await authComponent.sendMessage({
 				context: this.#context,
-				identityId: identity.id,
-				identityIdentification,
+				identity,
+				identityComponent,
 				message: { text: code },
 			});
 		}
 	}
 
-	/**
-	 * @throws {AuthenticationRateLimitedError}
-	 * @throws {AuthenticationConfirmValidationCodeError}
-	 */
-	async confirmIdentificationValidationCode(
-		identityId: AutoId,
-		type: string,
-		code: string,
-	): Promise<void> {
+	async confirmComponentValidationCode(code: string): Promise<void> {
+		const counterInterval = this.#context.config.auth.security.rateLimit
+			.confirmVerificationCodeInterval;
+		const counterLimit = this.#context.config.auth.security.rateLimit
+			.confirmVerificationCodeCount;
+		const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
+		const counterKey = [
+			"auth",
+			"sendvalidationcode",
+			"remoteAddress",
+			this.#context.remoteAddress,
+			slidingWindow.toString(),
+		];
+		const counter = await this.#context.counter.increment(
+			counterKey,
+			1,
+			counterInterval,
+		);
+		if (counter > counterLimit) {
+			throw new AuthenticationRateLimitedError();
+		}
+
 		try {
-			const counterInterval = this.#context.config.auth.security.rateLimit
-				.confirmVerificationCodeInterval;
-			const counterLimit = this.#context.config.auth.security.rateLimit
-				.confirmVerificationCodeCount;
-			const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
-			const counterKey = [
+			const codeKey = await this.#context.kv.get([
 				"auth",
-				"sendvalidationcode",
-				identityId,
-				type,
-				slidingWindow.toString(),
-			];
-			const counter = await this.#context.counter.increment(
-				counterKey,
-				1,
-				counterInterval,
-			);
-			if (counter > counterLimit) {
-				throw new AuthenticationRateLimitedError();
-			}
+				"validationcode",
+				code,
+			]);
+			const { identityId, componentId } = JSON.parse(codeKey.value);
 
 			const identity = await this.#identityProvider.get(identityId);
-			const identityIdentification = identity.identifications[type];
-			if (!identityIdentification) {
+			const identityComponent = identity.components[componentId];
+			if (!identityComponent) {
 				throw new AuthenticationConfirmValidationCodeError();
 			}
-
-			const savedCode = await this.#context.kv.get(
-				["auth", "validationcode", identityId, type],
-			).catch((_) => undefined);
-			if (savedCode?.value === code) {
-				identity.identifications[type] = {
-					...identityIdentification,
-					confirmed: true,
-				};
-				await this.#context.identity.update(identity);
-				return;
-			}
-		} catch (inner) {
-			this.#logger.error(
-				`Failed to confirm identification validation code, got ${inner}`,
-			);
-		}
-		throw new AuthenticationConfirmValidationCodeError();
-	}
-
-	async sendChallengeValidationCode(
-		identityId: AutoId,
-		type: string,
-		locale: string,
-	): Promise<void> {
-		const challenger = this.#context.config.auth.challengers.get(
-			type,
-		);
-		if (!challenger) {
-			throw new AuthenticationSendIdentificationChallengeError();
-		}
-
-		const identity = await this.#identityProvider.get(identityId);
-		const identityChallenge = identity.challenges[type];
-		if (!identityChallenge) {
-			throw new AuthenticationSendValidationCodeError();
-		}
-
-		if (challenger.sendChallenge) {
-			if (challenger.rateLimit.interval) {
-				const { interval, count } = challenger.rateLimit;
-				const slidingWindow = Math.round(Date.now() / interval * 1000);
-				const counterKey = [
-					"auth",
-					"sendchallenge",
-					identityId,
-					type,
-					slidingWindow.toString(),
-				];
-				const counter = await this.#context.counter.increment(
-					counterKey,
-					1,
-					interval,
-				);
-				if (counter > count) {
-					throw new AuthenticationRateLimitedError();
-				}
-			}
-			await challenger.sendChallenge({
-				identityId: identity.id,
-				identityChallenge,
-				context: this.#context,
-				locale,
-			});
-		}
-	}
-
-	async confirmChallengeValidationCode(
-		identityId: AutoId,
-		type: string,
-		answer: string,
-	): Promise<void> {
-		const challenger = this.#context.config.auth.challengers.get(
-			type,
-		);
-		if (!challenger) {
-			throw new AuthenticationConfirmValidationCodeError();
-		}
-
-		const identity = await this.#identityProvider.get(identityId);
-		const identityChallenge = identity.challenges[type];
-		if (!identityChallenge) {
-			throw new AuthenticationConfirmValidationCodeError();
-		}
-
-		const result = await challenger.verify({
-			identityId: identity.id,
-			identityChallenge,
-			context: this.#context,
-			challenge: answer,
-		});
-		if (result) {
-			identity.challenges[type] = {
-				...identityChallenge,
+			identity.components[componentId] = {
+				...identityComponent,
 				confirmed: true,
 			};
 			await this.#context.identity.update(identity);
 			return;
+		} catch (inner) {
+			this.#logger.error(
+				`Failed to confirm identification validation code, got ${inner}`,
+			);
 		}
 		throw new AuthenticationConfirmValidationCodeError();
 	}

@@ -17,7 +17,7 @@ export default async function testIdentityProvider(
 ): Promise<void> {
 	let identity: Identity;
 	await t.step("create", async () => {
-		identity = await ip.create({ foo: "bar" }, {}, {});
+		identity = await ip.create({ foo: "bar" }, {});
 		assertID(identity);
 		assertEquals(identity.meta, { foo: "bar" });
 	});
@@ -37,14 +37,13 @@ export default async function testIdentityProvider(
 			ip.update({
 				id: autoid(IDENTITY_AUTOID_PREFIX),
 				meta: {},
-				identifications: {},
-				challenges: {},
+				components: {},
 			})
 		);
 	});
 
 	await t.step("delete", async () => {
-		const id2 = await ip.create({ bar: "foo" }, {}, {});
+		const id2 = await ip.create({ bar: "foo" }, {});
 		await ip.delete(id2.id);
 		// await assertRejects(() => ip.delete(id2.id));
 		// await assertRejects(() => ip.get(id2.id));

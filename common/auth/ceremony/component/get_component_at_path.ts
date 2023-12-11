@@ -1,8 +1,7 @@
 import {
 	type AuthenticationCeremonyComponent,
 	type AuthenticationCeremonyComponentChoice,
-	isAuthenticationCeremonyComponentChallenge,
-	isAuthenticationCeremonyComponentIdentification,
+	isAuthenticationCeremonyComponentPrompt,
 } from "../ceremony.ts";
 import { oneOf } from "./helpers.ts";
 import walk, { type WalkedAuthenticationCeremonyComponent } from "./walk.ts";
@@ -19,10 +18,7 @@ export function getComponentAtPath(
 	const joinedPath = path.join("/");
 	for (const [comp, parents] of walk(component)) {
 		const currentPath = parents.map((c) => {
-			if (
-				isAuthenticationCeremonyComponentIdentification(c) ||
-				isAuthenticationCeremonyComponentChallenge(c)
-			) {
+			if (isAuthenticationCeremonyComponentPrompt(c)) {
 				return c.id;
 			}
 		}).filter(Boolean).join("/");

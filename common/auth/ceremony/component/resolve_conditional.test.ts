@@ -3,17 +3,20 @@ import * as h from "./helpers.ts";
 import type { IContext } from "../../../server/context.ts";
 import type { AuthenticationCeremonyState } from "../state.ts";
 import { resolveConditional } from "./resolve_conditional.ts";
+import type { AuthenticationCeremonyComponentPrompt } from "../ceremony.ts";
 
 Deno.test("resolveConditional", async () => {
-	const email = {
-		kind: "identification" as const,
+	const email: AuthenticationCeremonyComponentPrompt = {
+		kind: "prompt",
 		id: "email",
-		prompt: "email" as const,
+		prompt: "email",
+		options: {},
 	};
-	const password = {
-		kind: "challenge" as const,
+	const password: AuthenticationCeremonyComponentPrompt = {
+		kind: "prompt",
 		id: "password",
-		prompt: "password" as const,
+		prompt: "password",
+		options: {},
 	};
 	const conditional = h.iif(() => {
 		return h.sequence(email, password);

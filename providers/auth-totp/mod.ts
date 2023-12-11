@@ -1,66 +1,71 @@
-import type { AuthenticationCeremonyComponentChallenge } from "../../common/auth/ceremony/ceremony.ts";
+import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony/ceremony.ts";
 import {
-	AuthenticationChallenger,
-	type AuthenticationChallengerConfigureIdentityChallengeOptions,
-	type AuthenticationChallengerSendChallengeOptions,
-	type AuthenticationChallengerVerifyOptions,
-} from "../../common/auth/challenger.ts";
-import type { IdentityChallenge } from "../../common/identity/challenge.ts";
+	AuthenticationComponent,
+	AuthenticationComponentGetIdentityComponentMetaOptions,
+	AuthenticationComponentSendPromptOptions,
+	AuthenticationComponentVerifyPromptOptions,
+} from "../../common/auth/component.ts";
+import type { Identity } from "../../common/identity/identity.ts";
 import {
 	assertTOTPOptions,
 	totp,
 	type TOTPOptions,
 } from "../../common/system/otp.ts";
 
-export default class TOTPAuthenticationChallenger
-	extends AuthenticationChallenger {
+export default class TOTPAuthenticationComponent
+	extends AuthenticationComponent {
 	#options: Omit<TOTPOptions, "key">;
 	constructor(id: string, options: Omit<TOTPOptions, "key">) {
 		super(id);
 		assertTOTPOptions({ ...options, key: "" });
 		this.#options = options;
 	}
-	ceremonyComponent(): AuthenticationCeremonyComponentChallenge {
+	getCeremonyComponent(): AuthenticationCeremonyComponent {
 		return {
+			kind: "prompt",
 			id: this.id,
-			kind: "challenge",
 			prompt: "totp",
-			digits: 6,
-			timeout: 60,
+			options: {
+				digits: 6,
+				timeout: 60,
+			},
 		};
 	}
-	async configureIdentityChallenge(
-		{ challenge }: AuthenticationChallengerConfigureIdentityChallengeOptions,
+	async getIdentityComponentMeta(
+		{ value }: AuthenticationComponentGetIdentityComponentMetaOptions,
 	): Promise<Record<string, unknown>> {
 		try {
 			const _ = await totp({
 				digits: 6,
 				period: 60,
-				key: `${challenge}`,
+				key: `${value}`,
 				time: Date.now(),
 			});
 		} catch (_error) {
 			throw new Error("Invalid TOTP key");
 		}
-		return { key: `${challenge}` };
+		return { key: `${value}` };
 	}
-	async sendChallenge(
-		_options: AuthenticationChallengerSendChallengeOptions,
+	async sendPrompt(
+		_options: AuthenticationComponentSendPromptOptions,
 	): Promise<void> {}
-	async verify(
-		{ challenge, identityChallenge }: AuthenticationChallengerVerifyOptions,
-	): Promise<boolean> {
+	async verifyPrompt(
+		{ value, identity }: AuthenticationComponentVerifyPromptOptions,
+	): Promise<boolean | Identity> {
+		if (!identity) {
+			return false;
+		}
 		if (
-			"key" in identityChallenge.meta &&
-			typeof identityChallenge.meta.key === "string"
+			"key" in identity.component.meta &&
+			typeof identity.component.meta.key === "string"
 		) {
 			for (const offset of [-30, 0, 30]) {
 				const code = await totp({
 					...this.#options,
-					key: identityChallenge.meta.key,
+					key: identity.component.meta.key,
 					time: Date.now() / 1000 + offset,
 				});
-				if (code === `${challenge}`) {
+				if (code === `${value}`) {
 					return true;
 				}
 			}

@@ -5,7 +5,7 @@ import { WebCacheAssetProvider } from "./mod.ts";
 
 Deno.test("WebCacheAssetProvider", async (t) => {
 	const lap = new DenoFSAssetProvider(
-		fromFileUrl("../asset-denofs/tests"),
+		fromFileUrl(import.meta.resolve("../asset-denofs/tests")),
 	);
 	await caches.delete("baseless-asset-cache-test");
 	const ap = new WebCacheAssetProvider(

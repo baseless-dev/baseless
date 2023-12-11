@@ -1,10 +1,12 @@
-import { HighRiskActionTimeWindowExpiredError } from "../../../client/errors.ts";
+import {
+	HighRiskActionTimeWindowExpiredError,
+	IdentityComponentDeleteError,
+} from "../../../client/errors.ts";
 import { UnauthorizedError } from "../../../common/auth/errors.ts";
-import { IdentityChallengeDeleteError } from "../../../common/identity/errors.ts";
 import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 
-export async function deleteChallenge(
+export async function deleteComponent(
 	request: Request,
 	_params: Record<never, never>,
 	context: IContext,
@@ -14,7 +16,7 @@ export async function deleteChallenge(
 	}
 	const identityId = context.tokenData.sessionData.identityId;
 	const data = await getJsonData(request);
-	const challengeType = data?.challengeType?.toString() ?? "";
+	const component = data?.component?.toString() ?? "";
 	if (
 		context.tokenData.lastAuthorizationTime >=
 			Date.now() / 1000 + context.config.auth.highRiskActionTimeWindow
@@ -23,9 +25,9 @@ export async function deleteChallenge(
 	}
 	try {
 		const identity = await context.identity.get(identityId);
-		delete identity.challenges[challengeType];
+		delete identity.components[component];
 		await context.identity.update(identity);
 	} catch (_error) {
-		throw new IdentityChallengeDeleteError();
+		throw new IdentityComponentDeleteError();
 	}
 }

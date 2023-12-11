@@ -1,29 +1,32 @@
 import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import * as h from "./helpers.ts";
 import { extract } from "./extract.ts";
+import type { AuthenticationCeremonyComponentPrompt } from "../ceremony.ts";
 
 Deno.test("extract", () => {
-	const email = {
-		kind: "identification" as const,
+	const email: AuthenticationCeremonyComponentPrompt = {
+		kind: "prompt",
 		id: "email",
-		prompt: "email" as const,
+		prompt: "email",
+		options: {},
 	};
-	const password = {
-		kind: "challenge" as const,
+	const password: AuthenticationCeremonyComponentPrompt = {
+		kind: "prompt",
 		id: "password",
-		prompt: "password" as const,
+		prompt: "password",
+		options: {},
 	};
-	const github = {
-		kind: "identification" as const,
+	const github: AuthenticationCeremonyComponentPrompt = {
+		kind: "prompt",
 		id: "github",
-		prompt: "oauth2" as const,
-		authorizationUrl: "",
+		prompt: "oauth2",
+		options: {},
 	};
-	const google = {
-		kind: "identification" as const,
+	const google: AuthenticationCeremonyComponentPrompt = {
+		kind: "prompt",
 		id: "google",
-		prompt: "oauth2" as const,
-		authorizationUrl: "",
+		prompt: "oauth2",
+		options: {},
 	};
 	assertEquals(extract(email), [email]);
 	assertEquals(

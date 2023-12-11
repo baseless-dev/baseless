@@ -1,16 +1,11 @@
 import { type AutoId, isAutoId } from "../system/autoid.ts";
-import { type IdentityChallenge, isIdentityChallenge } from "./challenge.ts";
+import { type IdentityComponent, isIdentityComponent } from "./component.ts";
 import {
-	InvalidIdentityChallengesError,
+	InvalidIdentityComponentsError,
 	InvalidIdentityError,
-	InvalidIdentityIdentificationsError,
 	InvalidIdentityMetaError,
 	InvalidIDError,
 } from "./errors.ts";
-import {
-	type IdentityIdentification,
-	isIdentityIdentification,
-} from "./identification.ts";
 export const IDENTITY_AUTOID_PREFIX = "id_";
 
 export interface ID {
@@ -21,11 +16,7 @@ export interface ID {
 export interface Identity {
 	id: AutoId;
 	meta: Record<string, unknown>;
-	identifications: Record<
-		IdentityIdentification["type"],
-		IdentityIdentification
-	>;
-	challenges: Record<IdentityChallenge["type"], IdentityChallenge>;
+	components: Record<IdentityComponent["id"], IdentityComponent>;
 }
 
 export function isID(value: unknown): value is ID {
@@ -52,37 +43,23 @@ export function assertIdentityMeta(
 		throw new InvalidIdentityMetaError();
 	}
 }
-export function isIdentityIdentifications(
+export function isIdentityComponents(
 	value: unknown,
-): value is Identity["identifications"] {
+): value is Identity["components"] {
 	return !!value && typeof value === "object" &&
-		Object.values(value).every(isIdentityIdentification);
+		Object.values(value).every(isIdentityComponent);
 }
-export function assertIdentityIdentifications(
+export function assertIdentityComponents(
 	value: unknown,
-): asserts value is Identity["identifications"] {
-	if (!isIdentityIdentifications(value)) {
-		throw new InvalidIdentityIdentificationsError();
-	}
-}
-export function isIdentityChallenges(
-	value: unknown,
-): value is Identity["challenges"] {
-	return !!value && typeof value === "object" &&
-		Object.values(value).every(isIdentityChallenge);
-}
-export function assertIdentityChallenges(
-	value: unknown,
-): asserts value is Identity["challenges"] {
-	if (!isIdentityChallenges(value)) {
-		throw new InvalidIdentityChallengesError();
+): asserts value is Identity["components"] {
+	if (!isIdentityComponents(value)) {
+		throw new InvalidIdentityComponentsError();
 	}
 }
 export function isIdentity(value: unknown): value is ID {
 	return isID(value) &&
-		"identifications" in value &&
-		isIdentityIdentifications(value.identifications) &&
-		"challenges" in value && isIdentityChallenges(value.challenges);
+		"components" in value &&
+		isIdentityComponents(value.components);
 }
 export function assertIdentity(
 	value: unknown,

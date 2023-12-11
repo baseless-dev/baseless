@@ -9,9 +9,9 @@ import {
 	setGlobalLogHandler,
 } from "../../common/system/logger.ts";
 import { DenoFSAssetProvider } from "../../providers/asset-denofs/mod.ts";
-import EmailAuthentificationIdenticator from "../../providers/auth-email/mod.ts";
-import OTPLoggerAuthentificationChallenger from "../../providers/auth-otp-logger/mod.ts";
-import PasswordAuthentificationChallenger from "../../providers/auth-password/mod.ts";
+import EmailAuthentificationComponent from "../../providers/auth-email/mod.ts";
+import OTPLoggerAuthentificationComponent from "../../providers/auth-otp-logger/mod.ts";
+import PasswordAuthentificationComponent from "../../providers/auth-password/mod.ts";
 import TOTPAuthentificationChallenger from "../../providers/auth-totp/mod.ts";
 import { MemoryCounterProvider } from "../../providers/counter-memory/mod.ts";
 import { DenoKVDocumentProvider } from "../../providers/document-denokv/mod.ts";
@@ -39,12 +39,15 @@ const documentProvider = new DenoKVDocumentProvider(dbDocument);
 const identityProvider = new DocumentIdentityProvider(documentProvider);
 const sessionProvider = new KVSessionProvider(new DenoKVProvider(dbSession));
 
-const emailIdenticator = new EmailAuthentificationIdenticator(
+const emailIdenticator = new EmailAuthentificationComponent(
 	"email",
 	new LoggerMessageProvider(),
 );
-const passwordChallenger = new PasswordAuthentificationChallenger("password");
-const otpChallenger = new OTPLoggerAuthentificationChallenger("otp", {
+const passwordChallenger = new PasswordAuthentificationComponent(
+	"password",
+	"lesalt",
+);
+const otpChallenger = new OTPLoggerAuthentificationComponent("otp", {
 	digits: 6,
 });
 const totpChallenger = new TOTPAuthentificationChallenger("totp", {
@@ -60,12 +63,12 @@ const googleIdenticator = new GoogleAuthentificationIdenticator("google", {
 	clientSecret: Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "",
 });
 
-const email = emailIdenticator.ceremonyComponent();
-const password = passwordChallenger.ceremonyComponent();
-const otp = otpChallenger.ceremonyComponent();
-const totp = totpChallenger.ceremonyComponent();
-const github = githubIdenticator.ceremonyComponent();
-const google = googleIdenticator.ceremonyComponent();
+const email = emailIdenticator.getCeremonyComponent();
+const password = passwordChallenger.getCeremonyComponent();
+const otp = otpChallenger.getCeremonyComponent();
+const totp = totpChallenger.getCeremonyComponent();
+const github = githubIdenticator.getCeremonyComponent();
+const google = googleIdenticator.getCeremonyComponent();
 config.auth()
 	.setEnabled(true)
 	.setSecurityKeys({ publicKey, privateKey, algo: "PS512" })
@@ -83,12 +86,12 @@ config.auth()
 	// 	google,
 	// 	sequence(email, password, oneOf(otp, totp)),
 	// ))
-	.addIdenticator(emailIdenticator)
-	.addIdenticator(githubIdenticator)
-	.addIdenticator(googleIdenticator)
-	.addChallenger(passwordChallenger)
-	.addChallenger(otpChallenger)
-	.addChallenger(totpChallenger);
+	.addComponent(emailIdenticator)
+	.addComponent(githubIdenticator)
+	.addComponent(googleIdenticator)
+	.addComponent(passwordChallenger)
+	.addComponent(otpChallenger)
+	.addComponent(totpChallenger);
 
 if (
 	await identityProvider.getByIdentification("email", "john@doe").catch((_) =>
@@ -99,41 +102,41 @@ if (
 		{ displayName: "John Doe" },
 		{
 			email: {
-				type: "email",
+				id: "email",
 				identification: "john@doe",
 				confirmed: true,
 				meta: {},
 			},
 			github: {
-				type: "github",
+				id: "github",
 				identification: "2616923",
 				confirmed: true,
 				meta: {},
 			},
 			google: {
-				type: "google",
+				id: "google",
 				identification: "117789756285416284892",
 				confirmed: true,
 				meta: {},
 			},
-		},
-		{
 			password: {
-				type: "password",
-				meta: await passwordChallenger.configureIdentityChallenge(
-					{ challenge: "123" } as any,
+				id: "password",
+				meta: await passwordChallenger.getIdentityComponentMeta(
+					// deno-lint-ignore no-explicit-any
+					{ value: "123", context: {} as any },
 				),
 				confirmed: true,
 			},
 			otp: {
-				type: "otp",
+				id: "otp",
 				meta: {},
 				confirmed: true,
 			},
 			totp: {
-				type: "totp",
-				meta: await totpChallenger.configureIdentityChallenge(
-					{ challenge: generateKey() } as any,
+				id: "totp",
+				meta: await totpChallenger.getIdentityComponentMeta(
+					// deno-lint-ignore no-explicit-any
+					{ value: generateKey(), context: {} as any },
 				),
 				confirmed: true,
 			},

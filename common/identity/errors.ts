@@ -4,8 +4,8 @@ export class InvalidIDError extends Error {
 export class InvalidIdentityError extends Error {
 	name = "InvalidIdentityError" as const;
 }
-export class InvalidIdentityIdentificationsError extends Error {
-	name = "InvalidIdentityIdentificationsError" as const;
+export class InvalidIdentityComponentsError extends Error {
+	name = "InvalidIdentityComponentsError" as const;
 }
 export class InvalidIdentityMetaError extends Error {
 	name = "InvalidIdentityMetaError" as const;
@@ -13,8 +13,8 @@ export class InvalidIdentityMetaError extends Error {
 export class InvalidIdentityChallengesError extends Error {
 	name = "InvalidIdentityChallengesError" as const;
 }
-export class InvalidIdentityIdentificationError extends Error {
-	name = "InvalidIdentityIdentificationError" as const;
+export class InvalidIdentityComponentError extends Error {
+	name = "InvalidIdentityComponentError" as const;
 }
 export class InvalidIdentityChallengeError extends Error {
 	name = "InvalidIdentityChallengeError" as const;
@@ -34,33 +34,18 @@ export class IdentityUpdateError extends Error {
 export class IdentityDeleteError extends Error {
 	name = "IdentityDeleteError" as const;
 }
-export class IdentityIdentificationNotFoundError extends Error {
-	name = "IdentityIdentificationNotFoundError" as const;
+export class IdentityComponentNotFoundError extends Error {
+	name = "IdentityComponentNotFoundError" as const;
 }
-export class IdentityIdentificationCreateError extends Error {
-	name = "IdentityIdentificationCreateError" as const;
+export class IdentityComponentCreateError extends Error {
+	name = "IdentityComponentCreateError" as const;
 }
-export class IdentityIdentificationUpdateError extends Error {
-	name = "IdentityIdentificationUpdateError" as const;
+export class IdentityComponentUpdateError extends Error {
+	name = "IdentityComponentUpdateError" as const;
 }
-export class IdentityIdentificationDeleteError extends Error {
-	name = "IdentityIdentificationDeleteError" as const;
+export class IdentityComponentDeleteError extends Error {
+	name = "IdentityComponentDeleteError" as const;
 }
-export class IdentityIdentificationExistsError extends Error {
-	name = "IdentityIdentificationExistsError" as const;
-}
-export class IdentityChallengeNotFoundError extends Error {
-	name = "IdentityChallengeNotFoundError" as const;
-}
-export class IdentityChallengeExistsError extends Error {
-	name = "IdentityChallengeExistsError" as const;
-}
-export class IdentityChallengeCreateError extends Error {
-	name = "IdentityChallengeCreateError" as const;
-}
-export class IdentityChallengeUpdateError extends Error {
-	name = "IdentityChallengeUpdateError" as const;
-}
-export class IdentityChallengeDeleteError extends Error {
-	name = "IdentityChallengeDeleteError" as const;
+export class IdentityComponentExistsError extends Error {
+	name = "IdentityComponentExistsError" as const;
 }

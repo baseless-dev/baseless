@@ -4,24 +4,17 @@ import {
 } from "../../common/system/router.ts";
 import type { ApiResponse } from "../../common/api/response.ts";
 import type { IContext } from "../../common/server/context.ts";
-import { confirmIdentificationValidationCode } from "./auth/confirm_identification_validation_code.ts";
 import { getAuthenticationCeremony } from "./auth/get_authentication_ceremony.ts";
-import { sendIdentificationChallenge } from "./auth/send_identification_challenge.ts";
-import { sendIdentificationValidationCode } from "./auth/send_identification_validation_code.ts";
 import { signOut } from "./auth/sign_out.ts";
-import { submitAuthenticationChallenge } from "./auth/submit_authentication_challenge.ts";
-import { submitAuthenticationIdentification } from "./auth/submit_authentication_identification.ts";
 import { createAnonymousIdentity } from "./auth/create_anonymous_identity.ts";
 import { createIdentity } from "./auth/create_identity.ts";
-import { addIdentification } from "./auth/add_identification.ts";
-import { addChallenge } from "./auth/add_challenge.ts";
-import { confirmChallengeValidationCode } from "./auth/confirm_challenge_validation_code.ts";
-import { sendChallengeValidationCode } from "./auth/send_challenge_validation_code.ts";
 import { refreshTokens } from "./auth/refresh_tokens.ts";
-import { updateIdentification } from "./auth/update_identification.ts";
-import { updateChallenge } from "./auth/update_challenge.ts";
-import { deleteChallenge } from "./auth/delete_challenge.ts";
-import { deleteIdentification } from "./auth/delete_identification.ts";
+import { addComponent } from "./auth/add_component.ts";
+import { confirmComponentValidationCode } from "./auth/confirm_component_validation_code.ts";
+import { deleteComponent } from "./auth/delete_component.ts";
+import { sendComponentValidationCode } from "./auth/send_component_validation_code.ts";
+import { submitAuthenticationPrompt } from "./auth/submit_authentication_prompt.ts";
+import { updateComponent } from "./auth/update_component.ts";
 
 function json<Params extends Record<string, string | undefined>, Result>(
 	handler: (
@@ -54,45 +47,26 @@ function json<Params extends Record<string, string | undefined>, Result>(
 
 const authRouter = new RouterBuilder<[context: IContext]>();
 
-authRouter.get("/getAuthenticationCeremony", json(getAuthenticationCeremony));
-authRouter.post("/getAuthenticationCeremony", json(getAuthenticationCeremony));
+authRouter.post("/addComponent", json(addComponent));
 authRouter.post(
-	"/submitAuthenticationIdentification",
-	json(submitAuthenticationIdentification),
+	"/confirmComponentValidationCode",
+	json(confirmComponentValidationCode),
 );
-authRouter.post(
-	"/submitAuthenticationChallenge",
-	json(submitAuthenticationChallenge),
-);
-authRouter.post(
-	"/sendIdentificationChallenge",
-	json(sendIdentificationChallenge),
-);
-authRouter.post(
-	"/sendIdentificationValidationCode",
-	json(sendIdentificationValidationCode),
-);
-authRouter.post(
-	"/confirmIdentificationValidationCode",
-	json(confirmIdentificationValidationCode),
-);
-authRouter.post("/signOut", json(signOut));
 authRouter.post("/createAnonymousIdentity", json(createAnonymousIdentity));
 authRouter.post("/createIdentity", json(createIdentity));
-authRouter.post("/addIdentification", json(addIdentification));
-authRouter.post("/addChallenge", json(addChallenge));
-authRouter.post(
-	"/sendChallengeValidationCode",
-	json(sendChallengeValidationCode),
-);
-authRouter.post(
-	"/confirmChallengeValidationCode",
-	json(confirmChallengeValidationCode),
-);
-authRouter.post("/updateIdentification", json(updateIdentification));
-authRouter.post("/updateChallenge", json(updateChallenge));
-authRouter.post("/deleteIdentification", json(deleteIdentification));
-authRouter.post("/deleteChallenge", json(deleteChallenge));
+authRouter.post("/deleteComponent", json(deleteComponent));
+authRouter.get("/getAuthenticationCeremony", json(getAuthenticationCeremony));
+authRouter.post("/getAuthenticationCeremony", json(getAuthenticationCeremony));
 authRouter.post("/refreshTokens", json(refreshTokens));
+authRouter.post(
+	"/sendComponentValidationCode",
+	json(sendComponentValidationCode),
+);
+authRouter.post("/signOut", json(signOut));
+authRouter.post(
+	"/submitAuthenticationPrompt",
+	json(submitAuthenticationPrompt),
+);
+authRouter.post("/updateComponent", json(updateComponent));
 
 export default authRouter;

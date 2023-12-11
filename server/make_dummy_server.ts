@@ -1,9 +1,9 @@
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/runtime/generate.ts";
 import { ConfigurationBuilder } from "../common/server/config/config.ts";
 import { MemoryAssetProvider } from "../providers/asset-memory/mod.ts";
-import EmailAuthentificationIdenticator from "../providers/auth-email/mod.ts";
-import PasswordAuthentificationChallenger from "../providers/auth-password/mod.ts";
-import OTPLoggerAuthentificationChallenger from "../providers/auth-otp-logger/mod.ts";
+import EmailAuthentificationComponent from "../providers/auth-email/mod.ts";
+import PasswordAuthentificationComponent from "../providers/auth-password/mod.ts";
+import OTPLoggerAuthentificationComponent from "../providers/auth-otp-logger/mod.ts";
 import TOTPAuthentificationChallenger from "../providers/auth-totp/mod.ts";
 import { MemoryCounterProvider } from "../providers/counter-memory/mod.ts";
 import { DocumentIdentityProvider } from "../providers/identity-document/mod.ts";
@@ -17,10 +17,6 @@ import type { CounterProvider } from "../providers/counter.ts";
 import type { IdentityProvider } from "../providers/identity.ts";
 import type { SessionProvider } from "../providers/session.ts";
 import { MemoryDocumentProvider } from "../providers/document-memory/mod.ts";
-import type {
-	AuthenticationCeremonyComponentChallenge,
-	AuthenticationCeremonyComponentIdentification,
-} from "../common/auth/ceremony/ceremony.ts";
 import {
 	importPKCS8,
 	importSPKI,
@@ -29,16 +25,19 @@ import {
 	exportPKCS8,
 	exportSPKI,
 } from "https://deno.land/x/jose@v4.13.1/key/export.ts";
+import type {
+	AuthenticationCeremonyComponent,
+} from "../common/auth/ceremony/ceremony.ts";
 
 export type DummyServerHelpers = {
 	config: ConfigurationBuilder;
-	email: AuthenticationCeremonyComponentIdentification;
-	emailIdenticator: EmailAuthentificationIdenticator;
-	password: AuthenticationCeremonyComponentChallenge;
-	passwordChallenger: PasswordAuthentificationChallenger;
-	otp: AuthenticationCeremonyComponentChallenge;
-	otpChallenger: OTPLoggerAuthentificationChallenger;
-	totp: AuthenticationCeremonyComponentChallenge;
+	email: AuthenticationCeremonyComponent;
+	emailIdenticator: EmailAuthentificationComponent;
+	password: AuthenticationCeremonyComponent;
+	passwordChallenger: PasswordAuthentificationComponent;
+	otp: AuthenticationCeremonyComponent;
+	otpChallenger: OTPLoggerAuthentificationComponent;
+	totp: AuthenticationCeremonyComponent;
 	totpChallenger: TOTPAuthentificationChallenger;
 	createIdentity: DocumentIdentityProvider["create"];
 	generateKeyPair: typeof generateKeyPair;
@@ -50,13 +49,13 @@ export type DummyServerHelpers = {
 
 export type DummyServerResult = {
 	server: Server;
-	email: AuthenticationCeremonyComponentIdentification;
-	emailIdenticator: EmailAuthentificationIdenticator;
-	password: AuthenticationCeremonyComponentChallenge;
-	passwordChallenger: PasswordAuthentificationChallenger;
-	otp: AuthenticationCeremonyComponentChallenge;
-	otpChallenger: OTPLoggerAuthentificationChallenger;
-	totp: AuthenticationCeremonyComponentChallenge;
+	email: AuthenticationCeremonyComponent;
+	emailIdenticator: EmailAuthentificationComponent;
+	password: AuthenticationCeremonyComponent;
+	passwordChallenger: PasswordAuthentificationComponent;
+	otp: AuthenticationCeremonyComponent;
+	otpChallenger: OTPLoggerAuthentificationComponent;
+	totp: AuthenticationCeremonyComponent;
 	totpChallenger: TOTPAuthentificationChallenger;
 	assetProvider: AssetProvider;
 	counterProvider: CounterProvider;
@@ -80,28 +79,31 @@ export default async function makeDummyServer(
 	const identityProvider = new DocumentIdentityProvider(identityDocument);
 	const sessionKV = new MemoryKVProvider();
 	const sessionProvider = new KVSessionProvider(sessionKV);
-	const emailIdenticator = new EmailAuthentificationIdenticator(
+	const emailIdenticator = new EmailAuthentificationComponent(
 		"email",
 		new LoggerMessageProvider(),
 	);
-	const email = emailIdenticator.ceremonyComponent();
-	const passwordChallenger = new PasswordAuthentificationChallenger("password");
-	const password = passwordChallenger.ceremonyComponent();
-	const otpChallenger = new OTPLoggerAuthentificationChallenger("otp", {
+	const email = emailIdenticator.getCeremonyComponent();
+	const passwordChallenger = new PasswordAuthentificationComponent(
+		"password",
+		"lesalt",
+	);
+	const password = passwordChallenger.getCeremonyComponent();
+	const otpChallenger = new OTPLoggerAuthentificationComponent("otp", {
 		digits: 6,
 	});
-	const otp = otpChallenger.ceremonyComponent();
+	const otp = otpChallenger.getCeremonyComponent();
 	const totpChallenger = new TOTPAuthentificationChallenger("totp", {
 		digits: 6,
 		period: 60,
 	});
-	const totp = totpChallenger.ceremonyComponent();
+	const totp = totpChallenger.getCeremonyComponent();
 
 	config.auth()
-		.addIdenticator(emailIdenticator)
-		.addChallenger(passwordChallenger)
-		.addChallenger(otpChallenger)
-		.addChallenger(totpChallenger);
+		.addComponent(emailIdenticator)
+		.addComponent(passwordChallenger)
+		.addComponent(otpChallenger)
+		.addComponent(totpChallenger);
 
 	const helpers: DummyServerHelpers = {
 		config,
@@ -114,8 +116,8 @@ export default async function makeDummyServer(
 		otpChallenger,
 		totp,
 		totpChallenger,
-		createIdentity: (meta, identifications, challenges) =>
-			identityProvider.create(meta, identifications, challenges),
+		createIdentity: (meta, components) =>
+			identityProvider.create(meta, components),
 		generateKeyPair,
 		importPKCS8,
 		importSPKI,

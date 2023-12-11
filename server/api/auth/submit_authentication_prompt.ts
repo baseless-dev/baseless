@@ -10,14 +10,14 @@ import { createTokens } from "./create_tokens.ts";
 import { decryptEncryptedAuthenticationCeremonyState } from "./decrypt_encrypted_authentication_ceremony_state.ts";
 import { encryptAuthenticationCeremonyState } from "./encrypt_authentication_ceremony_state.ts";
 
-export async function submitAuthenticationIdentification(
+export async function submitAuthenticationPrompt(
 	request: Request,
 	_params: Record<never, never>,
 	context: IContext,
 ): Promise<AuthenticationCeremonyResponse> {
 	const data = await getJsonData(request);
-	const type = data?.type?.toString() ?? "";
-	const identification = data?.identification;
+	const component = data?.component?.toString() ?? "";
+	const prompt = data?.prompt as unknown;
 	const encryptedState = data?.state?.toString() ?? "";
 	const state = await decryptEncryptedAuthenticationCeremonyState(
 		encryptedState,
@@ -26,10 +26,10 @@ export async function submitAuthenticationIdentification(
 	const subject = isAuthenticationCeremonyStateIdentified(state)
 		? state.identity
 		: context.remoteAddress;
-	const result = await context.auth.submitAuthenticationIdentification(
+	const result = await context.auth.submitAuthenticationPrompt(
 		state,
-		type,
-		identification,
+		component,
+		prompt,
 		subject,
 	);
 	if (isAuthenticationCeremonyResponseDone(result)) {

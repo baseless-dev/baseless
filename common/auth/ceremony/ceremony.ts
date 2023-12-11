@@ -1,61 +1,20 @@
 import type { IContext } from "../../server/context.ts";
 import {
-	InvalidAuthenticationCeremonyComponentChallengeError,
-	InvalidAuthenticationCeremonyComponentChallengeOTPError,
-	InvalidAuthenticationCeremonyComponentChallengePasswordError,
-	InvalidAuthenticationCeremonyComponentChallengeTOTPError,
 	InvalidAuthenticationCeremonyComponentChoiceError,
 	InvalidAuthenticationCeremonyComponentConditionalError,
 	InvalidAuthenticationCeremonyComponentDoneError,
 	InvalidAuthenticationCeremonyComponentError,
-	InvalidAuthenticationCeremonyComponentIdentificationEmailError,
-	InvalidAuthenticationCeremonyComponentIdentificationError,
-	InvalidAuthenticationCeremonyComponentIdentificationOAuth2Error,
+	InvalidAuthenticationCeremonyComponentPromptError,
 	InvalidAuthenticationCeremonyComponentSequenceError,
 } from "../errors.ts";
 import type { AuthenticationCeremonyState } from "./state.ts";
 
-export interface AuthenticationCeremonyComponentIdentificationEmail {
-	readonly kind: "identification";
+export interface AuthenticationCeremonyComponentPrompt {
+	readonly kind: "prompt";
 	readonly id: string;
-	readonly prompt: "email";
+	readonly prompt: "email" | "oauth2" | "password" | "otp" | "totp";
+	readonly options: Record<string, unknown>;
 }
-export interface AuthenticationCeremonyComponentIdentificationOAuth2 {
-	readonly kind: "identification";
-	readonly id: string;
-	readonly prompt: "oauth2";
-	readonly authorizationUrl: string;
-}
-export type AuthenticationCeremonyComponentIdentification =
-	| AuthenticationCeremonyComponentIdentificationEmail
-	| AuthenticationCeremonyComponentIdentificationOAuth2;
-
-export interface AuthenticationCeremonyComponentChallengePassword {
-	readonly kind: "challenge";
-	readonly id: string;
-	readonly prompt: "password";
-}
-
-export interface AuthenticationCeremonyComponentChallengeOTP {
-	readonly kind: "challenge";
-	readonly id: string;
-	readonly prompt: "otp";
-	readonly digits: number;
-	readonly timeout?: number;
-}
-
-export interface AuthenticationCeremonyComponentChallengeTOTP {
-	readonly kind: "challenge";
-	readonly id: string;
-	readonly prompt: "totp";
-	readonly digits: number;
-	readonly timeout: number;
-}
-
-export type AuthenticationCeremonyComponentChallenge =
-	| AuthenticationCeremonyComponentChallengePassword
-	| AuthenticationCeremonyComponentChallengeOTP
-	| AuthenticationCeremonyComponentChallengeTOTP;
 
 export interface AuthenticationCeremonyComponentSequence<
 	Component extends AuthenticationCeremonyComponent =
@@ -84,70 +43,19 @@ export interface AuthenticationCeremonyComponentDone {
 	kind: "done";
 }
 export type AuthenticationCeremonyComponent =
-	| AuthenticationCeremonyComponentIdentification
-	| AuthenticationCeremonyComponentChallenge
+	| AuthenticationCeremonyComponentPrompt
 	| AuthenticationCeremonyComponentSequence<AuthenticationCeremonyComponent>
 	| AuthenticationCeremonyComponentChoice<AuthenticationCeremonyComponent>
 	| AuthenticationCeremonyComponentConditional
 	| AuthenticationCeremonyComponentDone;
 
-export function isAuthenticationCeremonyComponentIdentificationEmail(
+export function isAuthenticationCeremonyComponentPrompt(
 	value: unknown,
-): value is AuthenticationCeremonyComponentIdentificationEmail {
+): value is AuthenticationCeremonyComponentPrompt {
 	return !!value && typeof value === "object" && "kind" in value &&
-		value.kind === "identification" && "id" in value &&
-		typeof value.id === "string" && "prompt" in value &&
-		value.prompt === "email";
-}
-export function isAuthenticationCeremonyComponentIdentificationOAuth2(
-	value: unknown,
-): value is AuthenticationCeremonyComponentIdentificationOAuth2 {
-	return !!value && typeof value === "object" && "kind" in value &&
-		value.kind === "identification" && "id" in value &&
-		typeof value.id === "string" && "prompt" in value &&
-		value.prompt === "oauth2";
-}
-export function isAuthenticationCeremonyComponentIdentification(
-	value: unknown,
-): value is AuthenticationCeremonyComponentIdentification {
-	return isAuthenticationCeremonyComponentIdentificationEmail(value) ||
-		isAuthenticationCeremonyComponentIdentificationOAuth2(value);
-}
-export function isAuthenticationCeremonyComponentChallengePassword(
-	value: unknown,
-): value is AuthenticationCeremonyComponentChallengePassword {
-	return !!value && typeof value === "object" && "kind" in value &&
-		value.kind === "challenge" && "id" in value &&
-		typeof value.id === "string" && "prompt" in value &&
-		value.prompt === "password";
-}
-export function isAuthenticationCeremonyComponentChallengeOTP(
-	value: unknown,
-): value is AuthenticationCeremonyComponentChallengeOTP {
-	return !!value && typeof value === "object" && "kind" in value &&
-		value.kind === "challenge" && "id" in value &&
-		typeof value.id === "string" && "prompt" in value &&
-		value.prompt === "otp" && "digits" in value &&
-		typeof value.digits ===
-			"number" &&
-		(!("timeout" in value) || typeof value.timeout === "number");
-}
-export function isAuthenticationCeremonyComponentChallengeTOTP(
-	value: unknown,
-): value is AuthenticationCeremonyComponentChallengeOTP {
-	return !!value && typeof value === "object" && "kind" in value &&
-		value.kind === "challenge" && "id" in value &&
-		typeof value.id === "string" && "prompt" in value &&
-		value.prompt === "totp" && "digits" in value &&
-		typeof value.digits === "number" && "timeout" in value &&
-		typeof value.timeout === "number";
-}
-export function isAuthenticationCeremonyComponentChallenge(
-	value: unknown,
-): value is AuthenticationCeremonyComponentChallenge {
-	return isAuthenticationCeremonyComponentChallengePassword(value) ||
-		isAuthenticationCeremonyComponentChallengeOTP(value) ||
-		isAuthenticationCeremonyComponentChallengeTOTP(value);
+		value.kind === "prompt" && "id" in value &&
+		typeof value.id === "string" && "options" in value &&
+		typeof value.options === "object";
 }
 export function isAuthenticationCeremonyComponentSequence(
 	value: unknown,
@@ -185,60 +93,17 @@ export function isAuthenticationCeremonyComponentDone(
 export function isAuthenticationCeremonyComponent(
 	value: unknown,
 ): value is AuthenticationCeremonyComponent {
-	return isAuthenticationCeremonyComponentIdentification(value) ||
-		isAuthenticationCeremonyComponentChallenge(value) ||
+	return isAuthenticationCeremonyComponentPrompt(value) ||
 		isAuthenticationCeremonyComponentSequence(value) ||
 		isAuthenticationCeremonyComponentChoice(value) ||
 		isAuthenticationCeremonyComponentConditional(value) ||
 		isAuthenticationCeremonyComponentDone(value);
 }
-export function assertAuthenticationCeremonyComponentIdentificationEmail(
+export function assertAuthenticationCeremonyComponentPrompt(
 	value: unknown,
-): asserts value is AuthenticationCeremonyComponentIdentificationEmail {
-	if (!isAuthenticationCeremonyComponentIdentificationEmail(value)) {
-		throw new InvalidAuthenticationCeremonyComponentIdentificationEmailError();
-	}
-}
-export function assertAuthenticationCeremonyComponentIdentificationOAuth2(
-	value: unknown,
-): asserts value is AuthenticationCeremonyComponentIdentificationOAuth2 {
-	if (!isAuthenticationCeremonyComponentIdentificationOAuth2(value)) {
-		throw new InvalidAuthenticationCeremonyComponentIdentificationOAuth2Error();
-	}
-}
-export function assertAuthenticationCeremonyComponentIdentification(
-	value: unknown,
-): asserts value is AuthenticationCeremonyComponentIdentification {
-	if (!isAuthenticationCeremonyComponentIdentification(value)) {
-		throw new InvalidAuthenticationCeremonyComponentIdentificationError();
-	}
-}
-export function assertAuthenticationCeremonyComponentChallengePassword(
-	value: unknown,
-): asserts value is AuthenticationCeremonyComponentChallengePassword {
-	if (!isAuthenticationCeremonyComponentChallengePassword(value)) {
-		throw new InvalidAuthenticationCeremonyComponentChallengePasswordError();
-	}
-}
-export function assertAuthenticationCeremonyComponentChallengeOTP(
-	value: unknown,
-): asserts value is AuthenticationCeremonyComponentChallengeOTP {
-	if (!isAuthenticationCeremonyComponentChallengeOTP(value)) {
-		throw new InvalidAuthenticationCeremonyComponentChallengeOTPError();
-	}
-}
-export function assertAuthenticationCeremonyComponentChallengeTOTP(
-	value: unknown,
-): asserts value is AuthenticationCeremonyComponentChallengeTOTP {
-	if (!isAuthenticationCeremonyComponentChallengeTOTP(value)) {
-		throw new InvalidAuthenticationCeremonyComponentChallengeTOTPError();
-	}
-}
-export function assertAuthenticationCeremonyComponentChallenge(
-	value: unknown,
-): asserts value is AuthenticationCeremonyComponentChallenge {
-	if (!isAuthenticationCeremonyComponentChallenge(value)) {
-		throw new InvalidAuthenticationCeremonyComponentChallengeError();
+): asserts value is AuthenticationCeremonyComponentPrompt {
+	if (!isAuthenticationCeremonyComponentPrompt(value)) {
+		throw new InvalidAuthenticationCeremonyComponentPromptError();
 	}
 }
 export function assertAuthenticationCeremonyComponentSequence(

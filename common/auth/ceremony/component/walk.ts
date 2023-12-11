@@ -1,9 +1,8 @@
 import {
 	type AuthenticationCeremonyComponent,
-	type AuthenticationCeremonyComponentChallenge,
 	type AuthenticationCeremonyComponentConditional,
 	type AuthenticationCeremonyComponentDone,
-	type AuthenticationCeremonyComponentIdentification,
+	type AuthenticationCeremonyComponentPrompt,
 	isAuthenticationCeremonyComponentChoice,
 	isAuthenticationCeremonyComponentSequence,
 } from "../ceremony.ts";
@@ -12,8 +11,7 @@ import { isLeaf } from "./is_leaf.ts";
 import { simplify } from "./simplify.ts";
 
 export type WalkedAuthenticationCeremonyComponent =
-	| AuthenticationCeremonyComponentIdentification
-	| AuthenticationCeremonyComponentChallenge
+	| AuthenticationCeremonyComponentPrompt
 	| AuthenticationCeremonyComponentConditional
 	| AuthenticationCeremonyComponentDone;
 

@@ -6,10 +6,6 @@ import { EventEmitter } from "../common/system/event_emitter.ts";
 import { type App, isApp } from "./app.ts";
 import { throwIfApiError } from "./errors.ts";
 import {
-	assertSendIdentificationValidationCodeResponse,
-	type SendIdentificationValidationCodeResponse,
-} from "../common/auth/send_identification_validation_code_response.ts";
-import {
 	assertConfirmIdentificationValidationCodeResponse,
 	type ConfirmIdentificationValidationCodeResponse,
 } from "../common/auth/confirm_identification_validation_code_response.ts";
@@ -26,19 +22,7 @@ import {
 	assertAuthenticationTokens,
 	type AuthenticationTokens,
 } from "../common/auth/tokens.ts";
-import {
-	assertConfirmChallengeValidationCodeResponse,
-	type ConfirmChallengeValidationCodeResponse,
-} from "../common/auth/confirm_challenge_validation_code_response.ts";
-import {
-	assertSendChallengeValidationCodeResponse,
-	type SendChallengeValidationCodeResponse,
-} from "../common/auth/send_challenge_validation_code_response.ts";
-import {
-	assertID,
-	assertIdentity,
-	type ID,
-} from "../common/identity/identity.ts";
+import { assertID, type ID } from "../common/identity/identity.ts";
 import type { getComponentAtPath } from "../common/auth/ceremony/component/get_component_at_path.ts";
 import type { AuthenticationCeremonyComponentConditional } from "../common/auth/ceremony/ceremony.ts";
 
@@ -316,10 +300,10 @@ export async function getAuthenticationCeremony(
 	return result.data as any;
 }
 
-export async function submitAuthenticationIdentification(
+export async function submitAuthenticationPrompt(
 	app: App,
-	type: string,
-	identification: unknown,
+	component: string,
+	prompt: unknown,
 	state?: string,
 ): Promise<
 	AuthenticationCeremonyResponse<
@@ -332,12 +316,12 @@ export async function submitAuthenticationIdentification(
 	assertInitializedAuth(app);
 	const auth = getAuth(app);
 	const body = JSON.stringify({
-		type,
-		identification,
+		component,
+		prompt,
 		...(state ? { state } : undefined),
 	});
 	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/submitAuthenticationIdentification`,
+		`${app.apiEndpoint}/auth/submitAuthenticationPrompt`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
@@ -350,46 +334,16 @@ export async function submitAuthenticationIdentification(
 	return result.data as any;
 }
 
-export async function submitAuthenticationChallenge(
+export async function sendComponentValidationCode(
 	app: App,
-	type: string,
-	challenge: unknown,
-	state: string,
-): Promise<
-	AuthenticationCeremonyResponse<
-		Exclude<
-			ReturnType<typeof getComponentAtPath>,
-			AuthenticationCeremonyComponentConditional | undefined
-		>
-	>
-> {
-	assertInitializedAuth(app);
-	const auth = getAuth(app);
-	const body = JSON.stringify({ type, challenge, state });
-	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/submitAuthenticationChallenge`,
-		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
-	);
-	const result = await resp.json();
-	throwIfApiError(result);
-	assertAuthenticationCeremonyResponse(result.data);
-	if (isAuthenticationCeremonyResponseTokens(result.data)) {
-		getAuth(app).tokens = result.data;
-	}
-	// deno-lint-ignore no-explicit-any
-	return result.data as any;
-}
-
-export async function sendIdentificationChallenge(
-	app: App,
-	type: string,
-	state: string,
+	component: string,
+	state?: string,
 ): Promise<SendIdentificationChallengeResponse> {
 	assertInitializedAuth(app);
 	const auth = getAuth(app);
-	const body = JSON.stringify({ type, state });
+	const body = JSON.stringify({ component, state });
 	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/sendIdentificationChallenge`,
+		`${app.apiEndpoint}/auth/sendComponentValidationCode`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
@@ -398,33 +352,14 @@ export async function sendIdentificationChallenge(
 	return result.data;
 }
 
-export async function sendIdentificationValidationCode(
+export async function confirmComponentValidationCode(
 	app: App,
-	type: string,
-	identification: string,
-): Promise<SendIdentificationValidationCodeResponse> {
-	const auth = getAuth(app);
-	const body = JSON.stringify({ type, identification });
-	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/sendIdentificationValidationCode`,
-		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
-	);
-	const result = await resp.json();
-	throwIfApiError(result);
-	assertSendIdentificationValidationCodeResponse(result.data);
-	return result.data;
-}
-
-export async function confirmIdentificationValidationCode(
-	app: App,
-	type: string,
-	identification: string,
 	code: string,
 ): Promise<ConfirmIdentificationValidationCodeResponse> {
 	const auth = getAuth(app);
-	const body = JSON.stringify({ type, identification, code });
+	const body = JSON.stringify({ code });
 	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/confirmIdentificationValidationCode`,
+		`${app.apiEndpoint}/auth/confirmComponentValidationCode`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
@@ -481,14 +416,12 @@ export async function createAnonymousIdentity(
 
 export async function createIdentity(
 	app: App,
-	identifications: Array<{ id: string; value: string }>,
-	challenges: Array<{ id: string; value: string }>,
+	components: Array<{ id: string; prompt: unknown }>,
 	locale: string,
 ): Promise<AuthenticationCeremonyResponseTokens | undefined> {
 	const auth = getAuth(app);
 	const body = JSON.stringify({
-		identifications,
-		challenges,
+		components,
 		locale,
 	});
 	const resp = await auth.fetchWithTokens(
@@ -503,152 +436,58 @@ export async function createIdentity(
 	}
 }
 
-export async function addIdentification(
+export async function addComponent(
 	app: App,
-	identificationType: string,
-	identification: string,
+	component: string,
+	prompt: unknown,
 	locale: string,
 ): Promise<void> {
 	const auth = getAuth(app);
 	const body = JSON.stringify({
-		identificationType,
-		identification,
+		component,
+		prompt,
 		locale,
 	});
 	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/addIdentification`,
+		`${app.apiEndpoint}/auth/addComponent`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
 }
 
-export async function addChallenge(
+export async function updateComponent(
 	app: App,
-	challengeType: string,
-	challenge: string,
+	component: string,
+	prompt: unknown,
 	locale: string,
 ): Promise<void> {
 	const auth = getAuth(app);
 	const body = JSON.stringify({
-		challengeType,
-		challenge,
+		component,
+		prompt,
 		locale,
 	});
 	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/addChallenge`,
+		`${app.apiEndpoint}/auth/updateComponent`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
 }
 
-export async function sendChallengeValidationCode(
+export async function deleteComponent(
 	app: App,
-	type: string,
-): Promise<SendChallengeValidationCodeResponse> {
-	const auth = getAuth(app);
-	const body = JSON.stringify({ type });
-	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/sendChallengeValidationCode`,
-		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
-	);
-	const result = await resp.json();
-	throwIfApiError(result);
-	assertSendChallengeValidationCodeResponse(result.data);
-	return result.data;
-}
-
-export async function confirmChallengeValidationCode(
-	app: App,
-	type: string,
-	answer: string,
-): Promise<ConfirmChallengeValidationCodeResponse> {
-	const auth = getAuth(app);
-	const body = JSON.stringify({
-		type,
-		answer,
-	});
-	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/confirmChallengeValidationCode`,
-		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
-	);
-	const result = await resp.json();
-	throwIfApiError(result);
-	assertConfirmChallengeValidationCodeResponse(result.data);
-	return result.data;
-}
-
-export async function updateIdentification(
-	app: App,
-	identificationType: string,
-	identification: string,
+	component: string,
 	locale: string,
 ): Promise<void> {
 	const auth = getAuth(app);
 	const body = JSON.stringify({
-		identificationType,
-		identification,
+		component,
 		locale,
 	});
 	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/updateIdentification`,
-		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
-	);
-	const result = await resp.json();
-	throwIfApiError(result);
-}
-
-export async function updateChallenge(
-	app: App,
-	challengeType: string,
-	challenge: string,
-	locale: string,
-): Promise<void> {
-	const auth = getAuth(app);
-	const body = JSON.stringify({
-		challengeType,
-		challenge,
-		locale,
-	});
-	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/updateChallenge`,
-		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
-	);
-	const result = await resp.json();
-	throwIfApiError(result);
-}
-
-export async function deleteIdentification(
-	app: App,
-	identificationType: string,
-	locale: string,
-): Promise<void> {
-	const auth = getAuth(app);
-	const body = JSON.stringify({
-		identificationType,
-		locale,
-	});
-	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/deleteIdentification`,
-		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
-	);
-	const result = await resp.json();
-	throwIfApiError(result);
-}
-
-export async function deleteChallenge(
-	app: App,
-	challengeType: string,
-	locale: string,
-): Promise<void> {
-	const auth = getAuth(app);
-	const body = JSON.stringify({
-		challengeType,
-		locale,
-	});
-	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/auth/deleteChallenge`,
+		`${app.apiEndpoint}/auth/deleteComponent`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();

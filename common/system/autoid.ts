@@ -5,30 +5,30 @@ export type AutoId = string & {
 		"AutoId is an opaque type. Use autoid(), isAutoId() and assertAutoId() to generate or validate AutoIds.";
 };
 
-const AutoIdSize = 20;
 const AutoIdChars =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const AutoIdCharsLength = AutoIdChars.length;
-const AutoIdRegExp = new RegExp(`^[${AutoIdChars}]{${AutoIdSize}}$`);
-const AutoIdBuffer = new Uint8Array(AutoIdSize);
+const DefaultAutidLength = 20;
 
 /**
  * Generate an AutoId
  * @param prefix The prefix for the AutoId
  * @returns An AutoId
  */
-export function autoid(prefix = ""): AutoId {
+export function autoid(prefix = "", length = DefaultAutidLength): AutoId {
 	let result = prefix;
 
-	crypto.getRandomValues(AutoIdBuffer);
-	for (let i = 0; i < AutoIdSize; ++i) {
-		result += AutoIdChars.charAt(AutoIdBuffer[i] % AutoIdCharsLength);
+	const buffer = new Uint8Array(length);
+	crypto.getRandomValues(buffer);
+	for (let i = 0; i < length; ++i) {
+		result += AutoIdChars.charAt(buffer[i] % AutoIdCharsLength);
 	}
 	return result as AutoId;
 }
 
 export class AutoIdGenerator {
 	#prefix: string;
+	#length: number;
 	#hash: [number, number, number, number] = [
 		1779033703,
 		3144134277,
@@ -36,8 +36,9 @@ export class AutoIdGenerator {
 		2773480762,
 	];
 
-	constructor(prefix = "") {
+	constructor(prefix = "", length = DefaultAutidLength) {
 		this.#prefix = prefix;
+		this.#length = length;
 	}
 
 	write(chunk: ArrayLike<number>): void {
@@ -52,11 +53,12 @@ export class AutoIdGenerator {
 			this.#hash[2],
 			this.#hash[3],
 		);
-		for (let i = 0; i < AutoIdSize; ++i) {
-			AutoIdBuffer[i] = rand();
+		const buffer = new Uint8Array(this.#length);
+		for (let i = 0; i < this.#length; ++i) {
+			buffer[i] = rand();
 		}
-		for (let i = 0; i < AutoIdSize; ++i) {
-			autoid += AutoIdChars.charAt(AutoIdBuffer[i] % AutoIdCharsLength);
+		for (let i = 0; i < this.#length; ++i) {
+			autoid += AutoIdChars.charAt(buffer[i] % AutoIdCharsLength);
 		}
 		return autoid as AutoId;
 	}
@@ -138,10 +140,15 @@ function sfc32(a: number, b: number, c: number, d: number): () => number {
 	};
 }
 
-export function isAutoId(value?: unknown, prefix = ""): value is AutoId {
+export function isAutoId(
+	value?: unknown,
+	prefix = "",
+	length = DefaultAutidLength,
+): value is AutoId {
 	const pl = prefix.length;
 	return !!value && typeof value === "string" &&
-		value.startsWith(prefix) && AutoIdRegExp.test(value.substring(pl));
+		value.startsWith(prefix) &&
+		new RegExp(`^[${AutoIdChars}]{${length}}$`).test(value.substring(pl));
 }
 
 /**

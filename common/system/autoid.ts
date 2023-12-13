@@ -6,16 +6,32 @@ export type AutoId = string & {
 };
 
 const AutoIdChars =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	"ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 const AutoIdCharsLength = AutoIdChars.length;
-const DefaultAutidLength = 20;
+const DefaultAutidLength = 22;
+const AutoIdBuffer = new Uint8Array(DefaultAutidLength);
 
 /**
  * Generate an AutoId
  * @param prefix The prefix for the AutoId
  * @returns An AutoId
  */
-export function autoid(prefix = "", length = DefaultAutidLength): AutoId {
+export function autoid(prefix = ""): AutoId {
+	let result = prefix;
+
+	crypto.getRandomValues(AutoIdBuffer);
+	for (let i = 0; i < DefaultAutidLength; ++i) {
+		result += AutoIdChars.charAt(AutoIdBuffer[i] % AutoIdCharsLength);
+	}
+	return result as AutoId;
+}
+
+/**
+ * Generate an Variable AutoId
+ * @param prefix The prefix for the AutoId
+ * @returns An AutoId
+ */
+export function vautoid(prefix = "", length = DefaultAutidLength): AutoId {
 	let result = prefix;
 
 	const buffer = new Uint8Array(length);

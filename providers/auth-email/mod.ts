@@ -1,12 +1,11 @@
 import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony/ceremony.ts";
 import {
 	AuthenticationComponent,
-	AuthenticationComponentGetIdentityComponentIdentificationOptions,
 	AuthenticationComponentGetIdentityComponentMetaOptions,
 	AuthenticationComponentSendMessageOptions,
-	AuthenticationComponentSendPromptOptions,
 	AuthenticationComponentVerifyPromptOptions,
 } from "../../common/auth/component.ts";
+import type { IdentityComponent } from "../../common/identity/component.ts";
 import { IdentityNotFoundError } from "../../common/identity/errors.ts";
 import type { Identity } from "../../common/identity/identity.ts";
 import type { MessageProvider } from "../message.ts";
@@ -30,21 +29,11 @@ export default class EmailAuthentificationComponent
 		};
 	}
 	// deno-lint-ignore require-await
-	async getIdentityComponentIdentification(
-		{ value }: AuthenticationComponentGetIdentityComponentIdentificationOptions,
-	): Promise<string> {
-		return `${value}`;
-	}
-	// deno-lint-ignore require-await
 	async getIdentityComponentMeta(
-		_options: AuthenticationComponentGetIdentityComponentMetaOptions,
-	): Promise<Record<string, unknown>> {
-		return {};
+		{ value }: AuthenticationComponentGetIdentityComponentMetaOptions,
+	): Promise<Pick<IdentityComponent, "identification" | "meta">> {
+		return { identification: `${value}`, meta: {} };
 	}
-	async sendPrompt(
-		_options: AuthenticationComponentSendPromptOptions,
-	): Promise<void> {}
-
 	async verifyPrompt(
 		{ context, value }: AuthenticationComponentVerifyPromptOptions,
 	): Promise<boolean | Identity> {

@@ -3,6 +3,7 @@ import {
 	AuthenticationConfirmValidationCodeError,
 	AuthenticationRateLimitedError,
 	AuthenticationSendValidationCodeError,
+	AuthenticationSendValidationPromptError,
 } from "../../common/auth/errors.ts";
 import type { Identity } from "../../common/identity/identity.ts";
 import type { IContext } from "../../common/server/context.ts";
@@ -119,6 +120,49 @@ export class IdentityService implements IIdentityService {
 		// 	// skip
 		// }
 		throw new MessageSendError();
+	}
+
+	async sendComponentPrompt(
+		identityId: AutoId,
+		component: string,
+		locale: string,
+	): Promise<void> {
+		const authComponent = this.#context.config.auth.components.get(component);
+		if (!authComponent) {
+			throw new AuthenticationSendValidationPromptError();
+		}
+		if (authComponent.sendPrompt) {
+			if (authComponent.rateLimit.interval) {
+				const { interval, count } = authComponent.rateLimit;
+				const slidingWindow = Math.round(Date.now() / interval * 1000);
+				const counterKey = [
+					"auth",
+					"sendprompt",
+					identityId,
+					component,
+					slidingWindow.toString(),
+				];
+				const counter = await this.#context.counter.increment(
+					counterKey,
+					1,
+					interval,
+				);
+				if (counter > count) {
+					throw new AuthenticationRateLimitedError();
+				}
+			}
+			const identity = await this.#identityProvider.get(identityId);
+			const identityComponent = identity.components[component];
+			if (!identityComponent) {
+				throw new AuthenticationSendValidationCodeError();
+			}
+			await authComponent.sendPrompt({
+				context: this.#context,
+				identity,
+				identityComponent,
+				locale,
+			});
+		}
 	}
 
 	async sendComponentValidationCode(

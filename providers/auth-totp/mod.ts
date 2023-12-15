@@ -2,9 +2,9 @@ import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony
 import {
 	AuthenticationComponent,
 	AuthenticationComponentGetIdentityComponentMetaOptions,
-	AuthenticationComponentSendPromptOptions,
 	AuthenticationComponentVerifyPromptOptions,
 } from "../../common/auth/component.ts";
+import type { IdentityComponent } from "../../common/identity/component.ts";
 import type { Identity } from "../../common/identity/identity.ts";
 import {
 	assertTOTPOptions,
@@ -33,7 +33,7 @@ export default class TOTPAuthenticationComponent
 	}
 	async getIdentityComponentMeta(
 		{ value }: AuthenticationComponentGetIdentityComponentMetaOptions,
-	): Promise<Record<string, unknown>> {
+	): Promise<Pick<IdentityComponent, "identification" | "meta">> {
 		try {
 			const _ = await totp({
 				digits: 6,
@@ -44,11 +44,8 @@ export default class TOTPAuthenticationComponent
 		} catch (_error) {
 			throw new Error("Invalid TOTP key");
 		}
-		return { key: `${value}` };
+		return { meta: { key: `${value}` } };
 	}
-	async sendPrompt(
-		_options: AuthenticationComponentSendPromptOptions,
-	): Promise<void> {}
 	async verifyPrompt(
 		{ value, identity }: AuthenticationComponentVerifyPromptOptions,
 	): Promise<boolean | Identity> {

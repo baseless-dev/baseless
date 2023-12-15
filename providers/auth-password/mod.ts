@@ -2,11 +2,11 @@ import { encode } from "../../common/encoding/base64.ts";
 import {
 	AuthenticationComponent,
 	AuthenticationComponentGetIdentityComponentMetaOptions,
-	AuthenticationComponentSendPromptOptions,
 	AuthenticationComponentVerifyPromptOptions,
 } from "../../common/auth/component.ts";
 import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony/ceremony.ts";
 import type { Identity } from "../../common/identity/identity.ts";
+import type { IdentityComponent } from "../../common/identity/component.ts";
 
 export default class PasswordAuthentificationComponent
 	extends AuthenticationComponent {
@@ -33,13 +33,10 @@ export default class PasswordAuthentificationComponent
 	}
 	async getIdentityComponentMeta(
 		{ value }: AuthenticationComponentGetIdentityComponentMetaOptions,
-	): Promise<Record<string, unknown>> {
+	): Promise<Pick<IdentityComponent, "identification" | "meta">> {
 		const hash = await this.#hashPassword(`${value}`);
-		return { hash };
+		return { meta: { hash } };
 	}
-	async sendPrompt(
-		_options: AuthenticationComponentSendPromptOptions,
-	): Promise<void> {}
 	async verifyPrompt(
 		{ value, identity }: AuthenticationComponentVerifyPromptOptions,
 	): Promise<boolean | Identity> {

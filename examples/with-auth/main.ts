@@ -12,7 +12,7 @@ import { DenoFSAssetProvider } from "../../providers/asset-denofs/mod.ts";
 import EmailAuthentificationComponent from "../../providers/auth-email/mod.ts";
 import OTPLoggerAuthentificationComponent from "../../providers/auth-otp-logger/mod.ts";
 import PasswordAuthentificationComponent from "../../providers/auth-password/mod.ts";
-import TOTPAuthentificationChallenger from "../../providers/auth-totp/mod.ts";
+import TOTPAuthentificationComponent from "../../providers/auth-totp/mod.ts";
 import { MemoryCounterProvider } from "../../providers/counter-memory/mod.ts";
 import { DenoKVDocumentProvider } from "../../providers/document-denokv/mod.ts";
 import { DocumentIdentityProvider } from "../../providers/identity-document/mod.ts";
@@ -43,30 +43,32 @@ const emailIdenticator = new EmailAuthentificationComponent(
 	"email",
 	new LoggerMessageProvider(),
 );
-const passwordChallenger = new PasswordAuthentificationComponent(
+const passwordComponent = new PasswordAuthentificationComponent(
 	"password",
 	"lesalt",
 );
-const otpChallenger = new OTPLoggerAuthentificationComponent("otp", {
+const otpComponent = new OTPLoggerAuthentificationComponent("otp", {
 	digits: 6,
 });
-const totpChallenger = new TOTPAuthentificationChallenger("totp", {
+const totpComponent = new TOTPAuthentificationComponent("totp", {
 	digits: 6,
 	period: 60,
 });
 const githubIdenticator = new GithubAuthentificationIdenticator("github", {
 	clientId: Deno.env.get("GITHUB_CLIENT_ID") ?? "",
 	clientSecret: Deno.env.get("GITHUB_CLIENT_SECRET") ?? "",
+	redirectUrl: "http://localhost:8080/login",
 });
 const googleIdenticator = new GoogleAuthentificationIdenticator("google", {
 	clientId: Deno.env.get("GOOGLE_CLIENT_ID") ?? "",
 	clientSecret: Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "",
+	redirectUrl: "http://localhost:8080/login",
 });
 
 const email = emailIdenticator.getCeremonyComponent();
-const password = passwordChallenger.getCeremonyComponent();
-const otp = otpChallenger.getCeremonyComponent();
-const totp = totpChallenger.getCeremonyComponent();
+const password = passwordComponent.getCeremonyComponent();
+const otp = otpComponent.getCeremonyComponent();
+const totp = totpComponent.getCeremonyComponent();
 const github = githubIdenticator.getCeremonyComponent();
 const google = googleIdenticator.getCeremonyComponent();
 config.auth()
@@ -89,9 +91,9 @@ config.auth()
 	.addComponent(emailIdenticator)
 	.addComponent(githubIdenticator)
 	.addComponent(googleIdenticator)
-	.addComponent(passwordChallenger)
-	.addComponent(otpChallenger)
-	.addComponent(totpChallenger);
+	.addComponent(passwordComponent)
+	.addComponent(otpComponent)
+	.addComponent(totpComponent);
 
 if (
 	await identityProvider.getByIdentification("email", "john@doe").catch((_) =>
@@ -121,11 +123,11 @@ if (
 			},
 			password: {
 				id: "password",
-				meta: await passwordChallenger.getIdentityComponentMeta(
+				confirmed: true,
+				...await passwordComponent.getIdentityComponentMeta(
 					// deno-lint-ignore no-explicit-any
 					{ value: "123", context: {} as any },
 				),
-				confirmed: true,
 			},
 			otp: {
 				id: "otp",
@@ -134,11 +136,11 @@ if (
 			},
 			totp: {
 				id: "totp",
-				meta: await totpChallenger.getIdentityComponentMeta(
+				confirmed: true,
+				...await totpComponent.getIdentityComponentMeta(
 					// deno-lint-ignore no-explicit-any
 					{ value: generateKey(), context: {} as any },
 				),
-				confirmed: true,
 			},
 		},
 	);

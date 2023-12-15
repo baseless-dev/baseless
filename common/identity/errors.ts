@@ -10,14 +10,8 @@ export class InvalidIdentityComponentsError extends Error {
 export class InvalidIdentityMetaError extends Error {
 	name = "InvalidIdentityMetaError" as const;
 }
-export class InvalidIdentityChallengesError extends Error {
-	name = "InvalidIdentityChallengesError" as const;
-}
 export class InvalidIdentityComponentError extends Error {
 	name = "InvalidIdentityComponentError" as const;
-}
-export class InvalidIdentityChallengeError extends Error {
-	name = "InvalidIdentityChallengeError" as const;
 }
 export class IdentityNotFoundError extends Error {
 	name = "IdentityNotFoundError" as const;

@@ -4,7 +4,7 @@ import { MemoryAssetProvider } from "../providers/asset-memory/mod.ts";
 import EmailAuthentificationComponent from "../providers/auth-email/mod.ts";
 import PasswordAuthentificationComponent from "../providers/auth-password/mod.ts";
 import OTPLoggerAuthentificationComponent from "../providers/auth-otp-logger/mod.ts";
-import TOTPAuthentificationChallenger from "../providers/auth-totp/mod.ts";
+import TOTPAuthentificationComponent from "../providers/auth-totp/mod.ts";
 import { MemoryCounterProvider } from "../providers/counter-memory/mod.ts";
 import { DocumentIdentityProvider } from "../providers/identity-document/mod.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
@@ -34,11 +34,11 @@ export type DummyServerHelpers = {
 	email: AuthenticationCeremonyComponent;
 	emailIdenticator: EmailAuthentificationComponent;
 	password: AuthenticationCeremonyComponent;
-	passwordChallenger: PasswordAuthentificationComponent;
+	passwordComponent: PasswordAuthentificationComponent;
 	otp: AuthenticationCeremonyComponent;
-	otpChallenger: OTPLoggerAuthentificationComponent;
+	otpComponent: OTPLoggerAuthentificationComponent;
 	totp: AuthenticationCeremonyComponent;
-	totpChallenger: TOTPAuthentificationChallenger;
+	totpComponent: TOTPAuthentificationComponent;
 	createIdentity: DocumentIdentityProvider["create"];
 	generateKeyPair: typeof generateKeyPair;
 	importPKCS8: typeof importPKCS8;
@@ -52,11 +52,11 @@ export type DummyServerResult = {
 	email: AuthenticationCeremonyComponent;
 	emailIdenticator: EmailAuthentificationComponent;
 	password: AuthenticationCeremonyComponent;
-	passwordChallenger: PasswordAuthentificationComponent;
+	passwordComponent: PasswordAuthentificationComponent;
 	otp: AuthenticationCeremonyComponent;
-	otpChallenger: OTPLoggerAuthentificationComponent;
+	otpComponent: OTPLoggerAuthentificationComponent;
 	totp: AuthenticationCeremonyComponent;
-	totpChallenger: TOTPAuthentificationChallenger;
+	totpComponent: TOTPAuthentificationComponent;
 	assetProvider: AssetProvider;
 	counterProvider: CounterProvider;
 	identityProvider: IdentityProvider;
@@ -84,26 +84,26 @@ export default async function makeDummyServer(
 		new LoggerMessageProvider(),
 	);
 	const email = emailIdenticator.getCeremonyComponent();
-	const passwordChallenger = new PasswordAuthentificationComponent(
+	const passwordComponent = new PasswordAuthentificationComponent(
 		"password",
 		"lesalt",
 	);
-	const password = passwordChallenger.getCeremonyComponent();
-	const otpChallenger = new OTPLoggerAuthentificationComponent("otp", {
+	const password = passwordComponent.getCeremonyComponent();
+	const otpComponent = new OTPLoggerAuthentificationComponent("otp", {
 		digits: 6,
 	});
-	const otp = otpChallenger.getCeremonyComponent();
-	const totpChallenger = new TOTPAuthentificationChallenger("totp", {
+	const otp = otpComponent.getCeremonyComponent();
+	const totpComponent = new TOTPAuthentificationComponent("totp", {
 		digits: 6,
 		period: 60,
 	});
-	const totp = totpChallenger.getCeremonyComponent();
+	const totp = totpComponent.getCeremonyComponent();
 
 	config.auth()
 		.addComponent(emailIdenticator)
-		.addComponent(passwordChallenger)
-		.addComponent(otpChallenger)
-		.addComponent(totpChallenger);
+		.addComponent(passwordComponent)
+		.addComponent(otpComponent)
+		.addComponent(totpComponent);
 
 	const helpers: DummyServerHelpers = {
 		config,
@@ -111,11 +111,11 @@ export default async function makeDummyServer(
 		email,
 		emailIdenticator,
 		password,
-		passwordChallenger,
+		passwordComponent,
 		otp,
-		otpChallenger,
+		otpComponent,
 		totp,
-		totpChallenger,
+		totpComponent,
 		createIdentity: (meta, components) =>
 			identityProvider.create(meta, components),
 		generateKeyPair,
@@ -140,11 +140,11 @@ export default async function makeDummyServer(
 		email,
 		emailIdenticator,
 		password,
-		passwordChallenger,
+		passwordComponent,
 		otp,
-		otpChallenger,
+		otpComponent,
 		totp,
-		totpChallenger,
+		totpComponent,
 		assetProvider,
 		counterProvider,
 		identityProvider,

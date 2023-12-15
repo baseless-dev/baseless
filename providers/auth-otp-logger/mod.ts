@@ -1,7 +1,6 @@
 import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony/ceremony.ts";
 import {
 	AuthenticationComponent,
-	AuthenticationComponentGetIdentityComponentMetaOptions,
 	AuthenticationComponentSendPromptOptions,
 	AuthenticationComponentVerifyPromptOptions,
 } from "../../common/auth/component.ts";
@@ -45,12 +44,6 @@ export default class OTPLoggerAuthentificationComponent
 				timeout: this.#ttl,
 			},
 		};
-	}
-	// deno-lint-ignore require-await
-	async getIdentityComponentMeta(
-		_options: AuthenticationComponentGetIdentityComponentMetaOptions,
-	): Promise<Record<string, unknown>> {
-		return {};
 	}
 	async sendPrompt(
 		{ context, identity }: AuthenticationComponentSendPromptOptions,

@@ -6,9 +6,9 @@ export type AutoId = string & {
 };
 
 const AutoIdChars =
-	"ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const AutoIdCharsLength = AutoIdChars.length;
-const DefaultAutidLength = 22;
+const DefaultAutidLength = 20;
 const AutoIdBuffer = new Uint8Array(DefaultAutidLength);
 
 /**

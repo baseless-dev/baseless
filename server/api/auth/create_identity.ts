@@ -43,19 +43,12 @@ export async function createIdentity(
 		}
 		identityComponents[id] = {
 			id: id,
-			identification: identityComponent.getIdentityComponentIdentification
-				? await identityComponent
-					.getIdentityComponentIdentification({
-						context,
-						value: prompt,
-					})
-				: undefined,
-			meta: await identityComponent
-				.getIdentityComponentMeta({
-					context,
-					value: prompt,
-				}),
+			meta: {},
 			confirmed: false,
+			...await identityComponent.getIdentityComponentMeta?.({
+				context,
+				value: prompt,
+			}),
 		};
 	}
 	try {

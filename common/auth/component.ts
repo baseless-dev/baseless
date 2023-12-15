@@ -9,11 +9,6 @@ export type AuthenticationComponentRateLimit = {
 	readonly count: number;
 };
 
-export type AuthenticationComponentGetIdentityComponentIdentificationOptions = {
-	context: IContext;
-	value: unknown;
-};
-
 export type AuthenticationComponentGetIdentityComponentMetaOptions = {
 	context: IContext;
 	value: unknown;
@@ -54,13 +49,10 @@ export abstract class AuthenticationComponent {
 	}
 
 	abstract getCeremonyComponent(): AuthenticationCeremonyComponent;
-	getIdentityComponentIdentification?(
-		options: AuthenticationComponentGetIdentityComponentIdentificationOptions,
-	): Promise<string>;
-	abstract getIdentityComponentMeta(
+	getIdentityComponentMeta?(
 		options: AuthenticationComponentGetIdentityComponentMetaOptions,
-	): Promise<IdentityComponent["meta"]>;
-	abstract sendPrompt(
+	): Promise<Pick<IdentityComponent, "identification" | "meta">>;
+	sendPrompt?(
 		options: AuthenticationComponentSendPromptOptions,
 	): Promise<void>;
 	abstract verifyPrompt(

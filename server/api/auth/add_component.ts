@@ -9,7 +9,7 @@ import {
 import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 
-export async function addComponent(
+export async function addIdentityComponent(
 	request: Request,
 	_params: Record<never, never>,
 	context: IContext,
@@ -43,18 +43,12 @@ export async function addComponent(
 	}
 	identity.components[component] = {
 		id: "prompt",
-		identification: identityComponent.getIdentityComponentIdentification
-			? await identityComponent
-				.getIdentityComponentIdentification({
-					context,
-					value: prompt,
-				})
-			: "",
-		meta: await identityComponent.getIdentityComponentMeta({
+		meta: {},
+		confirmed: false,
+		...await identityComponent.getIdentityComponentMeta?.({
 			context,
 			value: prompt,
 		}),
-		confirmed: false,
 	};
 	try {
 		await context.identity.update(identity);

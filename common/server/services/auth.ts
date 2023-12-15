@@ -15,7 +15,7 @@ export interface IAuthenticationService {
 		>
 	>;
 
-	submitAuthenticationPrompt(
+	submitComponentPrompt(
 		state: AuthenticationCeremonyState,
 		id: string,
 		prompt: unknown,

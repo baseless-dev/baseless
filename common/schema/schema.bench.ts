@@ -4,14 +4,14 @@ import { autoid, isAutoId } from "../system/autoid.ts";
 import { assertSchema, s } from "./mod.ts";
 import z from "npm:zod";
 
-const identityChallengeSchema = s.object({
+const identityComponentSchema = s.object({
 	id: s.autoid(IDENTITY_AUTOID_PREFIX),
 	identification: s.string(),
 	confirmed: s.boolean(),
 	meta: s.record(s.unknown()),
 }, ["identification"]);
 
-const identityChallengeZodSchema = z.object({
+const identityComponentZodSchema = z.object({
 	id: z.string().refine((v) => isAutoId(v, IDENTITY_AUTOID_PREFIX)),
 	identification: z.string().optional(),
 	confirmed: z.boolean(),
@@ -31,7 +31,7 @@ Deno.bench(
 	{ group: "define", baseline: true },
 	() => {
 		// deno-lint-ignore no-unused-vars
-		const identityChallengeSchema = s.object({
+		const identityComponentSchema = s.object({
 			id: s.autoid(IDENTITY_AUTOID_PREFIX),
 			identification: s.string(),
 			confirmed: s.boolean(),
@@ -45,7 +45,7 @@ Deno.bench(
 	{ group: "define" },
 	() => {
 		// deno-lint-ignore no-unused-vars
-		const identityChallengeZodSchema = z.object({
+		const identityComponentSchema = z.object({
 			id: z.string().refine((v) => isAutoId(v, IDENTITY_AUTOID_PREFIX)),
 			identification: z.string(),
 			confirmed: z.boolean(),
@@ -62,13 +62,13 @@ Deno.bench("assert with hand crafted function", {
 });
 
 Deno.bench("assert with baseless schema", { group: "assert" }, () => {
-	assertSchema(identityChallengeSchema, data);
+	assertSchema(identityComponentSchema, data);
 });
 
 Deno.bench(
 	"assert with zod schema",
 	{ group: "assert" },
 	() => {
-		identityChallengeZodSchema.parse(data);
+		identityComponentZodSchema.parse(data);
 	},
 );

@@ -75,7 +75,7 @@ export class AuthenticationService implements IAuthenticationService {
 		return { done: false, component: result, first, last, state };
 	}
 
-	async submitAuthenticationPrompt(
+	async submitComponentPrompt(
 		state: AuthenticationCeremonyState,
 		id: string,
 		value: unknown,

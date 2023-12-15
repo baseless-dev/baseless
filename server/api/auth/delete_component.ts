@@ -6,7 +6,7 @@ import { UnauthorizedError } from "../../../common/auth/errors.ts";
 import type { IContext } from "../../../common/server/context.ts";
 import { getJsonData } from "../get_json_data.ts";
 
-export async function deleteComponent(
+export async function deleteIdentityComponent(
 	request: Request,
 	_params: Record<never, never>,
 	context: IContext,

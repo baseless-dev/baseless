@@ -23,6 +23,11 @@ export interface IIdentityService {
 		component: string,
 		message: Omit<Message, "recipient">,
 	): Promise<void>;
+	sendComponentPrompt(
+		identityId: AutoId,
+		component: string,
+		locale: string,
+	): Promise<void>;
 	sendComponentValidationCode(
 		identityId: AutoId,
 		component: string,

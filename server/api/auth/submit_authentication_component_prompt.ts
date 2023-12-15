@@ -10,7 +10,7 @@ import { createTokens } from "./create_tokens.ts";
 import { decryptEncryptedAuthenticationCeremonyState } from "./decrypt_encrypted_authentication_ceremony_state.ts";
 import { encryptAuthenticationCeremonyState } from "./encrypt_authentication_ceremony_state.ts";
 
-export async function submitAuthenticationPrompt(
+export async function submitAuthenticationComponentPrompt(
 	request: Request,
 	_params: Record<never, never>,
 	context: IContext,
@@ -26,7 +26,7 @@ export async function submitAuthenticationPrompt(
 	const subject = isAuthenticationCeremonyStateIdentified(state)
 		? state.identity
 		: context.remoteAddress;
-	const result = await context.auth.submitAuthenticationPrompt(
+	const result = await context.auth.submitComponentPrompt(
 		state,
 		component,
 		prompt,

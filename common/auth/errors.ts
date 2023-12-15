@@ -51,8 +51,8 @@ export class AuthenticationInvalidStepError extends Error {
 export class AuthenticationRateLimitedError extends Error {
 	name = "AuthenticationRateLimitedError" as const;
 }
-export class AuthenticationCeremonyComponentChallengeFailedError extends Error {
-	name = "AuthenticationCeremonyComponentChallengeFailedError" as const;
+export class AuthenticationSendValidationPromptError extends Error {
+	name = "AuthenticationSendValidationPromptError" as const;
 }
 export class AuthenticationSendValidationCodeError extends Error {
 	name = "AuthenticationSendValidationCodeError" as const;
@@ -60,25 +60,17 @@ export class AuthenticationSendValidationCodeError extends Error {
 export class AuthenticationConfirmValidationCodeError extends Error {
 	name = "AuthenticationConfirmValidationCodeError" as const;
 }
-export class InvalidSendIdentificationValidationCodeResponseError
-	extends Error {
-	name = "InvalidSendIdentificationValidationCodeResponseError" as const;
+export class InvalidSendComponentValidationCodeResponseError extends Error {
+	name = "InvalidSendComponentValidationCodeResponseError" as const;
 }
-export class InvalidConfirmIdentificationValidationCodeResponseError
-	extends Error {
-	name = "InvalidConfirmIdentificationValidationCodeResponseError" as const;
+export class InvalidConfirmComponentValidationCodeResponseError extends Error {
+	name = "InvalidConfirmComponentValidationCodeResponseError" as const;
 }
-export class AuthenticationSendIdentificationChallengeError extends Error {
-	name = "AuthenticationSendIdentificationChallengeError" as const;
-}
-export class InvalidSendIdentificationChallengeResponseError extends Error {
-	name = "InvalidSendIdentificationChallengeResponseError" as const;
+export class InvalidSendComponentPromptResponseError extends Error {
+	name = "InvalidSendComponentPromptResponseError" as const;
 }
 export class AuthenticationMissingIdentificatorError extends Error {
 	name = "AuthenticationMissingIdentificatorError" as const;
-}
-export class AuthenticationMissingChallengerError extends Error {
-	name = "AuthenticationMissingChallengerError" as const;
 }
 export class InvalidAuthenticationTokensError extends Error {
 	name = "InvalidAuthenticationTokensError" as const;
@@ -88,19 +80,6 @@ export class UnauthorizedError extends Error {
 }
 export class AnonymousIdentityNotAllowedError extends Error {
 	name = "AnonymousIdentityNotAllowedError" as const;
-}
-export class InvalidSendChallengeValidationCodeResponseError extends Error {
-	name = "InvalidSendChallengeValidationCodeResponseError" as const;
-}
-export class InvalidConfirmChallengeValidationCodeResponseError extends Error {
-	name = "InvalidConfirmChallengeValidationCodeResponseError" as const;
-}
-export class AuthenticationIdentityIdentificationNotConfirmedError
-	extends Error {
-	name = "AuthenticationIdentityIdentificationNotConfirmedError" as const;
-}
-export class AuthenticationIdentityChallengeNotConfirmedError extends Error {
-	name = "AuthenticationIdentityChallengeNotConfirmedError" as const;
 }
 export class HighRiskActionTimeWindowExpiredError extends Error {
 	name = "HighRiskActionTimeWindowExpiredError" as const;

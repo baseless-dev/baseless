@@ -10,36 +10,34 @@ export async function refreshTokens(
 	_params: Record<never, never>,
 	context: IContext,
 ): Promise<AuthenticationTokens> {
-	if (request.method === "POST") {
-		const refreshToken = request.headers.get("X-Refresh-Token");
-		if (refreshToken) {
-			const { payload } = await jwtVerify(
-				refreshToken,
-				context.config.auth.security.keys.publicKey,
-			);
-			const { sub: sessionId, scope } = payload;
-			assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
-			const sessionData = await context.session.get(sessionId);
-			const identity = await context.identity.get(sessionData.identityId);
-			await context.session.update(
-				sessionData,
-				context.config.auth.expirations.refreshToken,
-			);
-			const { access_token, id_token } = await createTokens(
-				identity,
-				sessionData,
-				context.config.auth.security.keys.algo,
-				context.config.auth.security.keys.privateKey,
-				context.config.auth.expirations.accessToken,
-				context.config.auth.expirations.refreshToken,
-				`${scope}`,
-			);
-			return {
-				access_token,
-				id_token,
-				refresh_token: refreshToken,
-			};
-		}
+	const refreshToken = request.headers.get("X-Refresh-Token");
+	if (refreshToken) {
+		const { payload } = await jwtVerify(
+			refreshToken,
+			context.config.auth.security.keys.publicKey,
+		);
+		const { sub: sessionId, scope } = payload;
+		assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
+		const sessionData = await context.session.get(sessionId);
+		const identity = await context.identity.get(sessionData.identityId);
+		await context.session.update(
+			sessionData,
+			context.config.auth.expirations.refreshToken,
+		);
+		const { access_token, id_token } = await createTokens(
+			identity,
+			sessionData,
+			context.config.auth.security.keys.algo,
+			context.config.auth.security.keys.privateKey,
+			context.config.auth.expirations.accessToken,
+			context.config.auth.expirations.refreshToken,
+			`${scope}`,
+		);
+		return {
+			access_token,
+			id_token,
+			refresh_token: refreshToken,
+		};
 	}
 	throw new Error("unimplemented");
 }

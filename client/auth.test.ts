@@ -7,10 +7,10 @@ import {
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { type App, initializeApp } from "./app.ts";
 import {
-	addComponent,
+	addIdentityComponent,
 	assertInitializedAuth,
 	assertPersistence,
-	confirmComponentValidationCode,
+	confirmIdentityComponentValidationCode,
 	createAnonymousIdentity,
 	createIdentity,
 	getAuthenticationCeremony,
@@ -19,12 +19,12 @@ import {
 	getPersistence,
 	initializeAuth,
 	onAuthStateChange,
-	sendComponentValidationCode,
+	sendAuthenticationComponentPrompt,
+	sendIdentityComponentValidationCode,
 	setPersistence,
 	signOut,
-	submitAuthenticationPrompt,
+	submitAuthenticationComponentPrompt,
 } from "./auth.ts";
-import { oneOf } from "../common/auth/ceremony/component/helpers.ts";
 import { assertAuthenticationCeremonyResponseState } from "../common/auth/ceremony/response.ts";
 import { assertAuthenticationCeremonyResponseEncryptedState } from "../common/auth/ceremony/response.ts";
 import type { Message } from "../common/message/message.ts";
@@ -36,6 +36,7 @@ import { assertAutoId, autoid } from "../common/system/autoid.ts";
 import makeDummyServer, {
 	type DummyServerResult,
 } from "../server/make_dummy_server.ts";
+import { assertSendComponentPromptResponse } from "../common/auth/send_component_prompt_response.ts";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -58,7 +59,7 @@ Deno.test("Client Auth", async (t) => {
 					sequence,
 					email,
 					password,
-					passwordChallenger,
+					passwordComponent,
 					otp,
 					createIdentity,
 					generateKeyPair,
@@ -86,11 +87,11 @@ Deno.test("Client Auth", async (t) => {
 						},
 						"password": {
 							id: "password",
-							meta: await passwordChallenger.getIdentityComponentMeta(
+							confirmed: true,
+							...await passwordComponent.getIdentityComponentMeta(
 								// deno-lint-ignore no-explicit-any
 								{ value: "123", context: {} as any },
 							),
-							confirmed: true,
 						},
 						"otp": {
 							id: "otp",
@@ -120,13 +121,13 @@ Deno.test("Client Auth", async (t) => {
 			identity: john!,
 			app,
 			signIn: async (app) => {
-				const result = await submitAuthenticationPrompt(
+				const result = await submitAuthenticationComponentPrompt(
 					app,
 					"email",
 					"john@test.local",
 				);
 				assertAuthenticationCeremonyResponseEncryptedState(result);
-				await submitAuthenticationPrompt(
+				await submitAuthenticationComponentPrompt(
 					app,
 					"password",
 					"123",
@@ -173,7 +174,7 @@ Deno.test("Client Auth", async (t) => {
 		);
 	});
 
-	await t.step("sendComponentValidationCode", async () => {
+	await t.step("sendIdentityComponentValidationCode", async () => {
 		const { app, signIn } = await initializeDummyServerApp();
 		initializeAuth(app);
 		await signIn(app);
@@ -183,7 +184,7 @@ Deno.test("Client Auth", async (t) => {
 				messages.push({ ns, lvl, message: JSON.parse(msg)! });
 			}
 		});
-		const result = await sendComponentValidationCode(
+		const result = await sendIdentityComponentValidationCode(
 			app,
 			"email",
 			undefined,
@@ -194,7 +195,7 @@ Deno.test("Client Auth", async (t) => {
 		await signOut(app);
 	});
 
-	await t.step("confirmComponentValidationCode", async () => {
+	await t.step("confirmIdentityComponentValidationCode", async () => {
 		const { app, signIn } = await initializeDummyServerApp();
 		initializeAuth(app);
 		await signIn(app);
@@ -204,7 +205,7 @@ Deno.test("Client Auth", async (t) => {
 				messages.push({ ns, lvl, message: JSON.parse(msg)! });
 			}
 		});
-		const sendResult = await sendComponentValidationCode(
+		const sendResult = await sendIdentityComponentValidationCode(
 			app,
 			"email",
 			"john@test.local",
@@ -212,7 +213,7 @@ Deno.test("Client Auth", async (t) => {
 		setGlobalLogHandler(() => {});
 		assertEquals(sendResult.sent, true);
 		const validationCode = messages[0]?.message.text;
-		const confirmResult = await confirmComponentValidationCode(
+		const confirmResult = await confirmIdentityComponentValidationCode(
 			app,
 			validationCode,
 		);
@@ -220,42 +221,58 @@ Deno.test("Client Auth", async (t) => {
 		await signOut(app);
 	});
 
-	await t.step("submitAuthenticationPrompt", async () => {
-		const { app, password, otp } = await initializeDummyServerApp();
-		initializeAuth(app);
-		const result = await submitAuthenticationPrompt(
-			app,
-			"email",
-			"john@test.local",
-		);
-		assertAuthenticationCeremonyResponseEncryptedState(result);
-		assertEquals(result.first, false);
-		assertEquals(result.last, false);
-		assertEquals(
-			result.component,
-			JSON.parse(JSON.stringify(oneOf(password, otp))),
-		);
-		await assertRejects(() =>
-			submitAuthenticationPrompt(app, "email", "unknown@test.local")
-		);
-	});
-
-	await t.step("submitAuthenticationChallenge", async () => {
+	await t.step("submitAuthenticationComponentPrompt", async () => {
 		const { app } = await initializeDummyServerApp();
 		initializeAuth(app);
-		const result1 = await submitAuthenticationPrompt(
+		const result1 = await submitAuthenticationComponentPrompt(
 			app,
 			"email",
 			"john@test.local",
 		);
 		assertAuthenticationCeremonyResponseEncryptedState(result1);
-		const result2 = await submitAuthenticationPrompt(
+		assertEquals(result1.first, false);
+		assertEquals(result1.last, false);
+		const result2 = await submitAuthenticationComponentPrompt(
 			app,
 			"password",
 			"123",
 			result1.encryptedState,
 		);
 		assertAuthenticationCeremonyResponseTokens(result2);
+		await signOut(app);
+	});
+
+	await t.step("sendAuthenticationComponentPrompt", async () => {
+		const { app } = await initializeDummyServerApp();
+		initializeAuth(app);
+		const result1 = await submitAuthenticationComponentPrompt(
+			app,
+			"email",
+			"john@test.local",
+		);
+		assertAuthenticationCeremonyResponseEncryptedState(result1);
+		const messages: { ns: string; lvl: string; message: string }[] = [];
+		setGlobalLogHandler((ns, lvl, msg) => {
+			if (ns === "auth-otp-logger") {
+				messages.push({ ns, lvl, message: msg! });
+			}
+		});
+		const result2 = await sendAuthenticationComponentPrompt(
+			app,
+			"otp",
+			result1.encryptedState,
+		);
+		assertSendComponentPromptResponse(result2);
+		const challengeCode = messages.pop()?.message ?? "";
+		assertEquals(challengeCode.length, 6);
+		setGlobalLogHandler(() => {});
+		const result3 = await submitAuthenticationComponentPrompt(
+			app,
+			"otp",
+			challengeCode,
+			result1.encryptedState,
+		);
+		assertAuthenticationCeremonyResponseTokens(result3);
 		await signOut(app);
 	});
 
@@ -357,13 +374,13 @@ Deno.test("Client Auth", async (t) => {
 		await signOut(app);
 	});
 
-	await t.step("addComponent", async () => {
+	await t.step("addIdentityComponent", async () => {
 		const { app } = await initializeDummyServerApp();
 		initializeAuth(app);
 		await createAnonymousIdentity(app);
-		await addComponent(app, "email", "nobody@test.local", "en");
+		await addIdentityComponent(app, "email", "nobody@test.local", "en");
 		await assertRejects(() =>
-			addComponent(app, "email", "john@test.local", "en")
+			addIdentityComponent(app, "email", "john@test.local", "en")
 		);
 		await signOut(app);
 	});

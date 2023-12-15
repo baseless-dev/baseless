@@ -2,7 +2,14 @@ import OAuth2AuthentificationComponent from "./mod.ts";
 
 export default class GoogleAuthentificationIdenticator
 	extends OAuth2AuthentificationComponent {
-	constructor(id: string, options: { clientId: string; clientSecret: string }) {
+	constructor(
+		id: string,
+		options: {
+			clientId: string;
+			clientSecret: string;
+			redirectUrl: string | URL;
+		},
+	) {
 		super(id, {
 			...options,
 			authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",

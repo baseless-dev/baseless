@@ -29,6 +29,7 @@ export function autoid(prefix = ""): AutoId {
 /**
  * Generate an Variable AutoId
  * @param prefix The prefix for the AutoId
+ * @param length The length of the AutoId
  * @returns An AutoId
  */
 export function vautoid(prefix = "", length = DefaultAutidLength): AutoId {

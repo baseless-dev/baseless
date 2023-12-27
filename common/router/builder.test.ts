@@ -7,13 +7,10 @@ Deno.test("example", () => {
 			"/login",
 			(_req, ctx) => Response.json(ctx.body),
 			{
-				body: t.Referenceable(
-					"auth/usercreds",
-					t.Object({ username: t.String(), password: t.String() }, [
-						"username",
-						"password",
-					]),
-				),
+				body: t.Object({ username: t.String(), password: t.String() }, [
+					"username",
+					"password",
+				]),
 			},
 		);
 
@@ -23,6 +20,23 @@ Deno.test("example", () => {
 			(_req, ctx) => {
 				ctx.params.id;
 				return Response.json({ ok: true });
+			},
+		)
+		.patch(
+			"/users/:id",
+			(_req, ctx) => {
+				ctx.params.id;
+				ctx.body.username;
+				return Response.json({ ok: true });
+			},
+			{
+				body: t.Object({
+					username: t.String(),
+					age: t.Number({ minimum: 14 }),
+					displayName: t.String(),
+				}, [
+					"username",
+				]),
 			},
 		)
 		.get(
@@ -36,10 +50,6 @@ Deno.test("example", () => {
 			},
 		)
 		.use(auth);
-
-	type usersBody = t.Infer<typeof app["routes"]["/users/:id"]["GET"]["params"]>;
-	type fooBody = t.Infer<typeof app["routes"]["/foo"]["GET"]["query"]>;
-	type loginBody = t.Infer<typeof app["routes"]["/login"]["POST"]["body"]>;
 
 	console.log(Deno.inspect(app.routes, { depth: 10 }));
 });

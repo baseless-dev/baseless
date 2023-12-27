@@ -1,11 +1,12 @@
-import type {
-	ExtractParamsAsSchema,
-	Handler,
-	InputSchema,
-	Pretty,
-	RouteBase,
+import {
+	type ExtractParams,
+	type ExtractParamsAsSchema,
+	ExtractParamsAsSchemaRuntime,
+	type Handler,
+	type InputSchema,
+	type Pretty,
+	type RouteBase,
 } from "./types.ts";
-import * as t from "../schema/mod.ts";
 
 export class Builder<
 	Args extends unknown[] = [],
@@ -21,7 +22,11 @@ export class Builder<
 	#add(method: any, path: any, handler: any, schemas?: any): void {
 		const routes: RouteBase = this.#routes;
 		routes[path] ??= {};
-		routes[path][method] = { handler, schemas };
+		const params = ExtractParamsAsSchemaRuntime(path);
+		routes[path][method] = {
+			handler,
+			schemas: { ...schemas, ...(params ? { params } : {}) },
+		};
 		this.#routes = routes as Routes;
 	}
 
@@ -48,7 +53,7 @@ export class Builder<
 		const Path extends string,
 		const RouteHandler extends Handler<
 			Args,
-			{ params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>
 		>,
 	>(path: Path, handler: RouteHandler): Builder<
 		Args,
@@ -68,7 +73,8 @@ export class Builder<
 		const RouteSchema extends InputSchema,
 		const RouteHandler extends Handler<
 			Args,
-			RouteSchema & { params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>,
+			RouteSchema
 		>,
 	>(path: Path, handler: RouteHandler, schemas: RouteSchema): Builder<
 		Args,
@@ -97,7 +103,7 @@ export class Builder<
 		const Path extends string,
 		const RouteHandler extends Handler<
 			Args,
-			{ params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>
 		>,
 	>(path: Path, handler: RouteHandler): Builder<
 		Args,
@@ -117,7 +123,8 @@ export class Builder<
 		const RouteSchema extends InputSchema,
 		const RouteHandler extends Handler<
 			Args,
-			RouteSchema & { params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>,
+			RouteSchema
 		>,
 	>(path: Path, handler: RouteHandler, schemas: RouteSchema): Builder<
 		Args,
@@ -146,7 +153,7 @@ export class Builder<
 		const Path extends string,
 		const RouteHandler extends Handler<
 			Args,
-			{ params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>
 		>,
 	>(path: Path, handler: RouteHandler): Builder<
 		Args,
@@ -166,7 +173,8 @@ export class Builder<
 		const RouteSchema extends InputSchema,
 		const RouteHandler extends Handler<
 			Args,
-			RouteSchema & { params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>,
+			RouteSchema
 		>,
 	>(path: Path, handler: RouteHandler, schemas: RouteSchema): Builder<
 		Args,
@@ -195,7 +203,7 @@ export class Builder<
 		const Path extends string,
 		const RouteHandler extends Handler<
 			Args,
-			{ params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>
 		>,
 	>(path: Path, handler: RouteHandler): Builder<
 		Args,
@@ -215,7 +223,8 @@ export class Builder<
 		const RouteSchema extends InputSchema,
 		const RouteHandler extends Handler<
 			Args,
-			RouteSchema & { params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>,
+			RouteSchema
 		>,
 	>(path: Path, handler: RouteHandler, schemas: RouteSchema): Builder<
 		Args,
@@ -244,7 +253,7 @@ export class Builder<
 		const Path extends string,
 		const RouteHandler extends Handler<
 			Args,
-			{ params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>
 		>,
 	>(path: Path, handler: RouteHandler): Builder<
 		Args,
@@ -264,7 +273,8 @@ export class Builder<
 		const RouteSchema extends InputSchema,
 		const RouteHandler extends Handler<
 			Args,
-			RouteSchema & { params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>,
+			RouteSchema
 		>,
 	>(path: Path, handler: RouteHandler, schemas: RouteSchema): Builder<
 		Args,
@@ -293,7 +303,7 @@ export class Builder<
 		const Path extends string,
 		const RouteHandler extends Handler<
 			Args,
-			{ params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>
 		>,
 	>(path: Path, handler: RouteHandler): Builder<
 		Args,
@@ -313,7 +323,8 @@ export class Builder<
 		const RouteSchema extends InputSchema,
 		const RouteHandler extends Handler<
 			Args,
-			RouteSchema & { params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>,
+			RouteSchema
 		>,
 	>(path: Path, handler: RouteHandler, schemas: RouteSchema): Builder<
 		Args,
@@ -342,7 +353,7 @@ export class Builder<
 		const Path extends string,
 		const RouteHandler extends Handler<
 			Args,
-			{ params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>
 		>,
 	>(path: Path, handler: RouteHandler): Builder<
 		Args,
@@ -362,7 +373,8 @@ export class Builder<
 		const RouteSchema extends InputSchema,
 		const RouteHandler extends Handler<
 			Args,
-			RouteSchema & { params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>,
+			RouteSchema
 		>,
 	>(path: Path, handler: RouteHandler, schemas: RouteSchema): Builder<
 		Args,
@@ -391,7 +403,7 @@ export class Builder<
 		const Path extends string,
 		const RouteHandler extends Handler<
 			Args,
-			{ params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>
 		>,
 	>(path: Path, handler: RouteHandler): Builder<
 		Args,
@@ -411,7 +423,8 @@ export class Builder<
 		const RouteSchema extends InputSchema,
 		const RouteHandler extends Handler<
 			Args,
-			RouteSchema & { params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>,
+			RouteSchema
 		>,
 	>(path: Path, handler: RouteHandler, schemas: RouteSchema): Builder<
 		Args,
@@ -440,7 +453,7 @@ export class Builder<
 		const Path extends string,
 		const RouteHandler extends Handler<
 			Args,
-			{ params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>
 		>,
 	>(path: Path, handler: RouteHandler): Builder<
 		Args,
@@ -460,7 +473,8 @@ export class Builder<
 		const RouteSchema extends InputSchema,
 		const RouteHandler extends Handler<
 			Args,
-			RouteSchema & { params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>,
+			RouteSchema
 		>,
 	>(path: Path, handler: RouteHandler, schemas: RouteSchema): Builder<
 		Args,
@@ -489,7 +503,7 @@ export class Builder<
 		const Path extends string,
 		const RouteHandler extends Handler<
 			Args,
-			{ params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>
 		>,
 	>(path: Path, handler: RouteHandler): Builder<
 		Args,
@@ -533,7 +547,8 @@ export class Builder<
 		const RouteSchema extends InputSchema,
 		const RouteHandler extends Handler<
 			Args,
-			RouteSchema & { params: ExtractParamsAsSchema<Path> }
+			ExtractParams<Path>,
+			RouteSchema
 		>,
 	>(path: Path, handler: RouteHandler, schemas: RouteSchema): Builder<
 		Args,

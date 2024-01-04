@@ -9,10 +9,7 @@ export function dynamicRouter(routes: Routes): Router {
 				path.replace(/(^\/+)/, "").replace(
 					/:(\w+)(\??)/g,
 					(_, param, optional) => {
-						if (optional === "?") {
-							return `(?<${param}>\\w+)?`;
-						}
-						return `(?<${param}>\\w+)`;
+						return `(?<${param}>\\w+)${optional}`;
 					},
 				)
 			}$`,

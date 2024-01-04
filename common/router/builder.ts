@@ -1,33 +1,39 @@
+import { compileRouter } from "./compiled_router.ts";
+import { dynamicRouter } from "./dynamic_router.ts";
+import { parseRST } from "./rst.ts";
 import {
 	type ExtractParams,
 	type ExtractParamsAsSchema,
 	ExtractParamsAsSchemaRuntime,
 	type Handler,
 	type InputSchema,
+	Method,
 	type Pretty,
-	type RouteBase,
+	type Router,
+	type Routes,
+	RoutesEndpoint,
 } from "./types.ts";
 
 export class Builder<
 	Args extends unknown[] = [],
 	// deno-lint-ignore ban-types
-	Routes extends RouteBase = {},
+	LocalRoutes extends Routes = {},
 > {
-	#routes: Routes = {} as Routes;
-	get routes(): Routes {
+	#routes: LocalRoutes = {} as LocalRoutes;
+	get routes(): LocalRoutes {
 		return this.#routes;
 	}
 
 	// deno-lint-ignore no-explicit-any
 	#add(method: any, path: any, handler: any, schemas?: any): void {
-		const routes: RouteBase = this.#routes;
-		routes[path] ??= {};
+		const routes: Routes = this.#routes;
+		routes[path] ??= {} as RoutesEndpoint;
 		const params = ExtractParamsAsSchemaRuntime(path);
-		routes[path][method] = {
+		routes[path][method as Method] = {
 			handler,
 			schemas: { ...schemas, ...(params ? { params } : {}) },
 		};
-		this.#routes = routes as Routes;
+		this.#routes = routes as LocalRoutes;
 	}
 
 	// deno-lint-ignore ban-types
@@ -40,8 +46,10 @@ export class Builder<
 			& TBuilder["routes"]
 		>
 	> {
-		for (const [path, methods] of Object.entries(builder.routes as RouteBase)) {
-			for (const [method, { handler, schemas }] of Object.entries(methods)) {
+		for (const [path, methods] of Object.entries(builder.routes as Routes)) {
+			for (
+				const [method, { handler, schemas }] of Object.entries(methods)
+			) {
 				this.#add(method, path, handler, schemas);
 			}
 		}
@@ -627,5 +635,13 @@ export class Builder<
 		this.#add("TRACE", path, handler, schemas);
 		// deno-lint-ignore no-explicit-any
 		return this as any;
+	}
+
+	build(tryCompile = true): Router {
+		const rst = parseRST(this.#routes);
+		if (tryCompile && "eval" in globalThis) {
+			return compileRouter(rst);
+		}
+		return dynamicRouter(this.#routes);
 	}
 }

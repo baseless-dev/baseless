@@ -15,10 +15,12 @@ import {
 	type Schema,
 } from "./types.ts";
 
+export function CheckJIT(schema: Schema, value: unknown): value is unknown;
 export function CheckJIT<TSchema extends Schema>(
 	schema: TSchema,
 	value: unknown,
-): value is Infer<TSchema> {
+): value is Infer<TSchema>;
+export function CheckJIT(schema: Schema, value: unknown): boolean {
 	if ("type" in schema && schema.type === "null") {
 		return value === null;
 	}
@@ -197,12 +199,15 @@ export function Code(schema: Schema, value = "value"): string {
 		return [
 			`typeof ${value} === "object"`,
 			...schema.required?.map((key) => `"${key}" in ${value}`) ?? [],
-			...Object.entries(schema.properties).map(([key, propSchema]) =>
-				(schema.required?.includes(key) === false
-					? `"${key}" in ${value} && `
-					: "") +
-				Code(propSchema, `${value}["${key}"]`)
-			),
+			...Object.entries(schema.properties).map(([key, propSchema]) => {
+				const isRequired = schema.required?.includes(key) === true;
+				// deno-fmt-ignore
+				return (
+					(!isRequired ? `(!("${key}" in ${value}) || (` : ``) +
+					Code(propSchema, `${value}["${key}"]`) + 
+					(!isRequired ? `))` : ``)
+				);
+			}),
 		].filter((f) => f).join(" && ");
 	}
 	if (isRecordSchema(schema)) {
@@ -252,17 +257,29 @@ export function Compile<TSchema extends Schema>(
 	return compiledSchema as (value: unknown) => value is Infer<TSchema>;
 }
 
+export function Check(schema: Schema, value: unknown): value is unknown;
 export function Check<TSchema extends Schema>(
 	schema: TSchema,
 	value: unknown,
-): value is Infer<TSchema> {
+): value is Infer<TSchema>;
+export function Check(
+	schema: Schema,
+	value: unknown,
+): boolean {
 	return Compile(schema)(value);
 }
-
+export function Assert(
+	schema: Schema,
+	value: unknown,
+): asserts value is unknown;
 export function Assert<TSchema extends Schema>(
 	schema: TSchema,
 	value: unknown,
-): asserts value is Infer<TSchema> {
+): asserts value is Infer<TSchema>;
+export function Assert(
+	schema: Schema,
+	value: unknown,
+): void {
 	if (!Check(schema, value)) {
 		throw new Error("Assertion failed!");
 	}

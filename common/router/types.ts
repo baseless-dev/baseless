@@ -82,14 +82,12 @@ export type Handler<
 	...args: Args
 ) => Promise<Response> | Response;
 
-export type RouteBase = {
-	[path: string]: {
-		[method: string]: {
-			handler: Handler;
-			schemas: RouteSchema;
-		};
-	};
+export type RoutesHandler = {
+	handler: Handler;
+	schemas: RouteSchema;
 };
+export type RoutesEndpoint = Record<string, RoutesHandler>;
+export type Routes = Record<string, RoutesEndpoint>;
 
 export interface InputSchema {
 	body?: t.Schema;
@@ -102,4 +100,46 @@ export interface RouteSchema {
 	query?: t.Schema;
 	params?: t.Schema;
 	response?: t.Schema;
+}
+
+export type Router = (
+	request: Request,
+) => Promise<[Response, Array<PromiseLike<unknown>>]>;
+
+export type RouteSegmentConst = {
+	kind: "const";
+	value: string;
+	children: RouteSegment[];
+};
+export type RouteSegmentParamRequired = {
+	kind: "param";
+	name: string;
+	optional: true;
+	children: RouteSegment[];
+};
+export type RouteSegmentParamOptional = {
+	kind: "param";
+	name: string;
+	optional: false;
+	children: (RouteSegmentParamOptional | RouteSegmentHandler)[];
+};
+export type RouteSegmentHandler = { kind: "handler"; methods: RoutesEndpoint };
+export type RouteSegment =
+	| RouteSegmentConst
+	| RouteSegmentParamRequired
+	| RouteSegmentParamOptional
+	| RouteSegmentHandler;
+
+export function isRouteSegmentSimilar(
+	a: RouteSegment,
+	b: RouteSegment,
+): boolean {
+	if (a.kind === "const" && b.kind === "const") {
+		return a.value === b.value;
+	} else if (a.kind === "param" && b.kind === "param") {
+		return a.name === b.name && a.optional === b.optional;
+	} else if (a.kind === "handler" && b.kind === "handler") {
+		return true;
+	}
+	return false;
 }

@@ -1,10 +1,10 @@
-import { Builder } from "./builder.ts";
+import { Router } from "./router.ts";
 import * as t from "../schema/types.ts";
 import { assertObjectMatch } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import { parseRST } from "./rst.ts";
 import { getRouterCode } from "./compiled_router.ts";
 
-const auth = new Builder()
+const auth = new Router()
 	.post(
 		"/login",
 		(_req, ctx) => Response.json(ctx.body),
@@ -16,7 +16,7 @@ const auth = new Builder()
 		},
 	);
 
-const app = new Builder()
+const app = new Router()
 	.get(
 		"/users/:id",
 		(_req, ctx) => {
@@ -79,29 +79,29 @@ Deno.test("route", async () => {
 Deno.test("compile", () => {
 	{
 		const rst = parseRST({
-			"/users/:id/comments/:comment?": {
-				GET: { handler: () => Response.error(), schemas: {} },
+			"/:word": {
+				GET: { handler: () => Response.error(), definition: {} },
+			},
+			"/users/:id/:comment": {
+				GET: { handler: () => Response.error(), definition: {} },
 			},
 		});
 		const { code } = getRouterCode(rst);
 		// console.log(code);
-		debugger;
 	}
 });
 
 async function extractResponse(
-	handler: Promise<[Response, PromiseLike<any>[]]>,
+	handler: Promise<Response>,
 ): Promise<{
 	status: number;
 	headers: Record<string, string>;
 	body: string;
-	waitUntil: PromiseLike<any>[];
 }> {
-	const [r, w] = await handler;
+	const r = await handler;
 	return {
 		status: r.status,
 		headers: Object.fromEntries(r.headers),
 		body: await r.text(),
-		waitUntil: w,
 	};
 }

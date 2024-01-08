@@ -1,31 +1,38 @@
 import { Check } from "../schema/schema.ts";
-import type { Handler, Router, RouteSchema, RouteSegment } from "./types.ts";
+import type {
+	Handler,
+	OperationDefinition,
+	RequestHandler,
+	RouteSegment,
+} from "./types.ts";
 
-export function compileRouter(rst: RouteSegment[]): Router {
+export function compileRouter<Args extends unknown[] = []>(
+	rst: RouteSegment[],
+): RequestHandler<Args> {
 	const { code, handlers, schemas } = getRouterCode(rst);
 	return Function("data", code)({ handlers, schemas, Check });
 }
 
 export function getRouterCode(
 	rst: RouteSegment[],
-): { code: string; handlers: Handler[]; schemas: RouteSchema[] } {
+): { code: string; handlers: Handler[]; schemas: OperationDefinition[] } {
 	const handlers: Handler[] = [];
-	const schemas: RouteSchema[] = [];
+	const schemas: OperationDefinition[] = [];
 
 	// deno-fmt-ignore
 	const code = `const { handlers, schemas, Check } = data;
-	return async function router(request) {
+	return async function router(request, ...args) {
 	  try {
 	    const url = new URL(request.url);
 	    const segments = url.pathname.slice(1).split("/");
 	    const method = request.method.toUpperCase();
 	    const params = {};
-      
-	    ${rst.map(segment => codeForRouteSegment(segment, 0, handlers, schemas, 3)).join(`\n      `)}
-	    return [new Response(null, { status: 404 }), []];
+	    
+	    ${rst.map(segment => codeForRouteSegment(segment, 0, handlers, schemas, 2)).join(`\n    `)}
+	    return new Response(null, { status: 404 });
 	  } catch (error) {
 	    console.error(error);
-	    return [new Response(null, { status: 500 }), []];
+	    return new Response(null, { status: 500 });
 	  }
 	}`.replace(/\n\t*/g, `\n`);
 
@@ -36,7 +43,7 @@ function codeForRouteSegment(
 	segment: RouteSegment,
 	index: number,
 	handlers: Handler[],
-	schemas: RouteSchema[],
+	schemas: OperationDefinition[],
 	lvl = 0,
 ): string {
 	const eol = `\n` + "  ".repeat(lvl);
@@ -50,41 +57,39 @@ function codeForRouteSegment(
 					schemas,
 					lvl + 1,
 				)
-			).join(`${eol}  `)
-		}${eol}}${eol}${eol}`;
+			).join(``)
+		}${eol}}${eol}`;
 	} else if (segment.kind === "param") {
-		const ieol = eol + (segment.optional ? "" : "  ");
-		const ilvl = lvl + (segment.optional ? 0 : 1);
 		// deno-fmt-ignore
-		return `${!segment.optional ? `if (segments[${index}]) {` : ``}${ieol}params["${segment.name}"] = segments[${index}];${ieol}${
+		return `if (segments[${index}]) {${eol}  params["${segment.name}"] = segments[${index}];${eol}  ${
 			segment.children.map((segment) =>
 				codeForRouteSegment(
 					segment,
 					index + 1,
 					handlers,
 					schemas,
-					ilvl,
+					lvl + 1,
 				)
-			).join('')
-		}${ieol}delete params["${segment.name}"];${eol}${!segment.optional ? `}` : ``}${eol}`;
+			).join(`${eol}  `)
+		}${eol}  delete params["${segment.name}"];${eol}}${eol}`;
 	} else if (segment.kind === "handler") {
 		let first = true;
-		let code = ``;
-		for (const [method, handler] of Object.entries(segment.methods)) {
+		let code = `if (segments.length === ${index}) {${eol}  `;
+		for (const [method, handler] of Object.entries(segment.operations)) {
 			const id = handlers.length;
 			handlers.push(handler.handler);
-			schemas.push(handler.schemas);
+			schemas.push(handler.definition);
 			// deno-fmt-ignore
 			code += `${!first ? `else ` : ``}if (method === "${method}") {
 			  let body = {};
-			  ${handler.schemas.params
-				? `if (!Check(schemas[${id}].params, params)) { return [new Response(null, { status: 400 }), []] }`
+			  ${handler.definition.params
+				? `if (!Check(schemas[${id}].params, params)) { return new Response(null, { status: 400 }); }`
 				: ``}
 			  const query = Object.fromEntries(url.searchParams);
-			  ${handler.schemas.query
-				? `if (!Check(schemas[${id}].query, query)) { return [new Response(null, { status: 400 }), []] }`
+			  ${handler.definition.query
+				? `if (!Check(schemas[${id}].query, query)) { return new Response(null, { status: 400 }); }`
 				: ``}
-			  ${handler.schemas.body
+			  ${handler.definition.body
 			    ? `const contentType = request.headers.get("Content-Type")?.toLowerCase();
 				  if (contentType?.startsWith("application/json")) {
 				    body = await request.json();
@@ -99,38 +104,36 @@ function codeForRouteSegment(
 				      return body;
 				    }, {});
 				  }
-				  if (!Check(schemas[${id}].body, body)) { return [new Response(null, { status: 400 }), []] }`
+				  if (!Check(schemas[${id}].body, body)) { return new Response(null, { status: 400 }); }`
 			    : ``}
-			  const response = await handlers[${id}](request, { params, query, body });
-			  return [response, []];
-			}`.replace(/\n\t*/g, eol)+eol;
+			  return await handlers[${id}](request, { params, query, body }, ...args);
+			}`.replace(/\n\t*/g, eol+"  ")+eol+"  ";
 			first = false;
 		}
-		if (!("OPTIONS" in segment.methods)) {
+		if (!("OPTIONS" in segment.operations)) {
 			// deno-fmt-ignore
 			code += `else if (method === "OPTIONS") {
 			  const origin = request.headers.get("Origin");
-			  const response = new Response(null, {
+			  return new Response(null, {
 			    status: 204,
 			    headers: {
 			      "Access-Control-Allow-Origin": origin ? new URL(origin).host : "*",
-			      "Access-Control-Allow-Methods": "${Object.keys(segment.methods).join(", ")}, OPTIONS",
+			      "Access-Control-Allow-Methods": "${Object.keys(segment.operations).join(", ")}, OPTIONS",
 			      "Access-Control-Allow-Headers": "*",
 			    },
 			  });
-			  return [response, []];
-			}`.replace(/\n\t*/g, eol)+eol;
+			}`.replace(/\n\t*/g, eol+"  ")+eol+"  ";
 		}
 		if (!first) {
 			// deno-fmt-ignore
 			code += `else {
-			  const response = new Response(null, {
+			  return new Response(null, {
 			    status: 405,
-			    headers: { Allow: "${Object.keys(segment.methods).join(", ")}, OPTIONS" },
+			    headers: { Allow: "${Object.keys(segment.operations).join(", ")}, OPTIONS" },
 			  });
-			  return [response, []];
-			}`.replace(/\n\t*/g, eol)+eol;
+			}`.replace(/\n\t*/g, eol+"  ")+eol+"  ";
 		}
+		code += `${eol}}${eol}`;
 		return code;
 	}
 	return ``;

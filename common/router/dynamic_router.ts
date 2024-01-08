@@ -1,24 +1,24 @@
 import { Check } from "../schema/mod.ts";
-import type { Method, Router, Routes, RoutesEndpoint } from "./types.ts";
+import type { Method, Operations, RequestHandler, Routes } from "./types.ts";
 
-export function dynamicRouter(routes: Routes): Router {
-	const regexRoutes: Array<[RegExp, RoutesEndpoint]> = [];
+export function dynamicRouter<Args extends unknown[] = []>(
+	routes: Routes,
+): RequestHandler<Args> {
+	const regexRoutes: Array<[RegExp, Operations]> = [];
 	for (const [path, endpoints] of Object.entries(routes)) {
 		const regex = new RegExp(
 			`^/${
-				path.replace(/(^\/+)/, "").replace(
-					/:(\w+)(\??)/g,
-					(_, param, optional) => {
-						return `(?<${param}>\\w+)${optional}`;
-					},
-				)
+				path
+					.replace(/(^\/+|\/+$)/, "")
+					.replace(/:(\w+)/g, "(?<$1>\\w+)")
 			}$`,
 		);
 		regexRoutes.push([regex, endpoints]);
 	}
 	return async (
 		request: Request,
-	): Promise<[Response, Array<PromiseLike<unknown>>]> => {
+		...args: Args
+	): Promise<Response> => {
 		try {
 			const url = new URL(request.url);
 			const method = request.method.toUpperCase() as Method;
@@ -30,18 +30,18 @@ export function dynamicRouter(routes: Routes): Router {
 						const params = (match.groups ?? {}) as Record<string, never>;
 						let query = {};
 						let body = {};
-						if (endpoint.schemas.params) {
-							if (!Check(endpoint.schemas.params, params)) {
-								return [new Response(null, { status: 400 }), []];
+						if (endpoint.definition.params) {
+							if (!Check(endpoint.definition.params, params)) {
+								return new Response(null, { status: 400 });
 							}
 						}
-						if (endpoint.schemas.query) {
+						if (endpoint.definition.query) {
 							query = Object.fromEntries(url.searchParams);
-							if (!Check(endpoint.schemas.query, query)) {
-								return [new Response(null, { status: 400 }), []];
+							if (!Check(endpoint.definition.query, query)) {
+								return new Response(null, { status: 400 });
 							}
 						}
-						if (endpoint.schemas.body) {
+						if (endpoint.definition.body) {
 							const contentType = request.headers.get("Content-Type")
 								?.toLowerCase();
 							if (contentType?.startsWith("application/json")) {
@@ -58,19 +58,18 @@ export function dynamicRouter(routes: Routes): Router {
 									return body;
 								}, {} as Record<string, unknown>);
 							}
-							if (!Check(endpoint.schemas.body, body)) {
-								return [new Response(null, { status: 400 }), []];
+							if (!Check(endpoint.definition.body, body)) {
+								return new Response(null, { status: 400 });
 							}
 						}
-						const response = await endpoint.handler(request, {
+						return await endpoint.handler(request, {
 							params,
 							query,
 							body,
 						});
-						return [response, []];
 					} else if (method === "OPTIONS") {
 						const origin = request.headers.get("Origin");
-						const response = new Response(null, {
+						return new Response(null, {
 							status: 204,
 							headers: {
 								"Access-Control-Allow-Origin": origin
@@ -82,20 +81,18 @@ export function dynamicRouter(routes: Routes): Router {
 								"Access-Control-Allow-Headers": "*",
 							},
 						});
-						return [response, []];
 					} else {
-						const response = new Response(null, {
+						return new Response(null, {
 							status: 405,
 							headers: { Allow: Object.keys(endpoints).join(", ") },
 						});
-						return [response, []];
 					}
 				}
 			}
-			return [new Response(null, { status: 404 }), []];
+			return new Response(null, { status: 404 });
 		} catch (error) {
 			console.error(error);
-			return [new Response(null, { status: 500 }), []];
+			return new Response(null, { status: 500 });
 		}
 	};
 }

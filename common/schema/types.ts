@@ -1,3 +1,5 @@
+import type { Pretty } from "../system/types.ts";
+
 // deno-lint-ignore-file
 export interface BaseSchema {
 	$id?: string;
@@ -329,9 +331,6 @@ function isSchema(value: unknown): value is Schema {
 		isRecordSchema(value) ||
 		isUnionSchema(value);
 }
-
-export type Pretty<U> = U extends infer O ? { [K in keyof O]: O[K] }
-	: never;
 
 export type Infer<T> = T extends NullSchema ? null
 	: T extends BooleanSchema ? boolean

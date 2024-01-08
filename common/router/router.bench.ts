@@ -1,7 +1,7 @@
-import { Builder } from "./builder.ts";
+import { Router } from "./router.ts";
 import * as t from "../schema/types.ts";
 
-const auth = new Builder()
+const auth = new Router()
 	.post(
 		"/login",
 		(_req, ctx) => Response.json(ctx.body),
@@ -13,7 +13,7 @@ const auth = new Builder()
 		},
 	);
 
-const app = new Builder()
+const app = new Router()
 	.get(
 		"/users/:id",
 		(_req, ctx) => {

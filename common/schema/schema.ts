@@ -90,7 +90,9 @@ export function CheckJIT(schema: Schema, value: unknown): boolean {
 	) {
 		return !!value && typeof value === "object" &&
 			(schema.required === undefined ||
-				schema.required.every((key) => key in value)) &&
+				schema.required.every((key) =>
+					key in value && (value as any)[key] !== undefined
+				)) &&
 			Object.entries(value).every(([key, value]) =>
 				key in schema.properties && CheckJIT(schema.properties[key], value)
 			);
@@ -203,7 +205,7 @@ export function Code(schema: Schema, value = "value"): string {
 				const isRequired = schema.required?.includes(key) === true;
 				// deno-fmt-ignore
 				return (
-					(!isRequired ? `(!("${key}" in ${value}) || (` : ``) +
+					(!isRequired ? `(!("${key}" in ${value}) || ${value}["${key}"] === undefined || (` : ``) +
 					Code(propSchema, `${value}["${key}"]`) + 
 					(!isRequired ? `))` : ``)
 				);

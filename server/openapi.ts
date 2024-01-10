@@ -148,7 +148,7 @@ function schemaToParameterObject(
 				in: location,
 				name,
 				required: objSchema.required?.includes(name) ?? false,
-				schema: { description: "Patate", ...s },
+				schema: s,
 			} as OpenAPIV3.ParameterObject;
 		});
 	}

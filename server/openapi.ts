@@ -1,8 +1,4 @@
-import type {
-	Method,
-	OperationDefinition,
-	Routes,
-} from "../common/router/types.ts";
+import type { Definition, Method, Routes } from "../common/router/types.ts";
 import { isObjectSchema, type Schema } from "../common/schema/types.ts";
 import { type BaselessContext, Router, t } from "./baseless.ts";
 import type { OpenAPIV3 } from "https://esm.sh/openapi-types@12.1.3";
@@ -61,7 +57,7 @@ function transformRoutesToOpenAPIV3Document(
 						"body",
 						"query",
 						"response",
-					] as (keyof OperationDefinition)[]
+					] as (keyof Definition)[]
 				) {
 					const schema = definition[key] as Schema;
 					if (
@@ -78,7 +74,7 @@ function transformRoutesToOpenAPIV3Document(
 		{} as OpenAPIV3.ComponentsObject,
 	);
 	const paths = Object.entries(routes).reduce((paths, [path, operations]) => {
-		path = path.replace(/:(\w+)\??/g, "{$1}");
+		path = path.replace(/\{\.\.\.(\w+)\}/g, "{$1}");
 		for (const [method, { definition }] of Object.entries(operations)) {
 			paths = {
 				...paths,
@@ -152,7 +148,7 @@ function schemaToParameterObject(
 				in: location,
 				name,
 				required: objSchema.required?.includes(name) ?? false,
-				schema: s,
+				schema: { description: "Patate", ...s },
 			} as OpenAPIV3.ParameterObject;
 		});
 	}

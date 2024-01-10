@@ -1,10 +1,18 @@
 import {
+	type Definition,
 	type Handler,
 	isRouteSegmentSimilar,
-	type OperationDefinition,
 	type Routes,
 	type RouteSegment,
+	RouteSegmentHandler,
+	RouteSegmentParam,
 } from "./types.ts";
+
+export class RestParameterNotLastError extends Error {
+	constructor() {
+		super("Rest parameter must be the last segment");
+	}
+}
 
 export function parseRST(
 	routes: Routes,
@@ -23,15 +31,28 @@ function parseSegment(
 	segments: string[],
 	method: string,
 	handler: Handler,
-	definition: OperationDefinition,
+	definition: Definition,
 ): RouteSegment {
 	if (segments.length === 0) {
 		return {
 			kind: "handler",
-			operations: { [method]: { handler, definition } },
+			definition: { [method]: { handler, definition } },
 		};
-	} else if (segments[0].startsWith(":")) {
-		const name = segments[0].slice(1);
+	} else if (segments[0].startsWith("{...") && segments[0].endsWith("}")) {
+		const name = segments[0].slice(4, -1);
+		if (segments.length > 1) {
+			throw new RestParameterNotLastError();
+		}
+		return {
+			kind: "rest",
+			name,
+			children: [{
+				kind: "handler",
+				definition: { [method]: { handler, definition } },
+			}],
+		};
+	} else if (segments[0].startsWith("{") && segments[0].endsWith("}")) {
+		const name = segments[0].slice(1, -1);
 		return {
 			kind: "param",
 			name,
@@ -57,17 +78,16 @@ function mergeSegments(segments: RouteSegment[]): RouteSegment[] {
 		if (!existingSegment) {
 			merged.push(segment);
 		} else if (
-			existingSegment.kind === "handler" &&
-			segment.kind === "handler"
+			existingSegment.kind === "handler" && segment.kind === "handler"
 		) {
-			Object.assign(existingSegment.operations, segment.operations);
-		} else if (
-			existingSegment.kind !== "handler" &&
-			segment.kind !== "handler"
-		) {
-			existingSegment.children = mergeSegments([
-				...existingSegment.children,
-				...segment.children,
+			Object.assign(
+				existingSegment.definition,
+				(segment as RouteSegmentHandler).definition,
+			);
+		} else {
+			(existingSegment as RouteSegmentParam).children = mergeSegments([
+				...(existingSegment as RouteSegmentParam).children,
+				...(segment as RouteSegmentParam).children,
 			]);
 		}
 	}

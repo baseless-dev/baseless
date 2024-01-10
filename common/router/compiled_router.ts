@@ -1,7 +1,8 @@
 import { Check } from "../schema/schema.ts";
+import { isObjectSchema } from "../schema/types.ts";
 import type {
+	Definition,
 	Handler,
-	OperationDefinition,
 	RequestHandler,
 	RouteSegment,
 } from "./types.ts";
@@ -9,18 +10,18 @@ import type {
 export function compileRouter<Args extends unknown[] = []>(
 	rst: RouteSegment[],
 ): RequestHandler<Args> {
-	const { code, handlers, schemas } = getRouterCode(rst);
-	return Function("data", code)({ handlers, schemas, Check });
+	const { code, handlers, definitions } = getRouterCode(rst);
+	return Function("data", code)({ handlers, definitions, Check });
 }
 
 export function getRouterCode(
 	rst: RouteSegment[],
-): { code: string; handlers: Handler[]; schemas: OperationDefinition[] } {
+): { code: string; handlers: Handler[]; definitions: Definition[] } {
 	const handlers: Handler[] = [];
-	const schemas: OperationDefinition[] = [];
+	const definitions: Definition[] = [];
 
 	// deno-fmt-ignore
-	const code = `const { handlers, schemas, Check } = data;
+	const code = `const { handlers, definitions, Check } = data;
 	return async function router(request, ...args) {
 	  try {
 	    const url = new URL(request.url);
@@ -28,7 +29,7 @@ export function getRouterCode(
 	    const method = request.method.toUpperCase();
 	    const params = {};
 	    
-	    ${rst.map(segment => codeForRouteSegment(segment, 0, handlers, schemas, 2)).join(`\n    `)}
+	    ${rst.map(segment => codeForRouteSegment(segment, 0, handlers, definitions, 2)).join(`\n    `)}
 	    return new Response(null, { status: 404 });
 	  } catch (error) {
 	    console.error(error);
@@ -36,15 +37,16 @@ export function getRouterCode(
 	  }
 	}`.replace(/\n\t*/g, `\n`);
 
-	return { code, handlers, schemas };
+	return { code, handlers, definitions };
 }
 
 function codeForRouteSegment(
 	segment: RouteSegment,
 	index: number,
 	handlers: Handler[],
-	schemas: OperationDefinition[],
+	definitions: Definition[],
 	lvl = 0,
+	catchRestParam = false,
 ): string {
 	const eol = `\n` + "  ".repeat(lvl);
 	if (segment.kind === "const") {
@@ -54,11 +56,25 @@ function codeForRouteSegment(
 					segment,
 					index + 1,
 					handlers,
-					schemas,
+					definitions,
 					lvl + 1,
 				)
 			).join(``)
 		}${eol}}${eol}`;
+	} else if (segment.kind === "rest") {
+		// deno-fmt-ignore
+		return `params["${segment.name}"] = segments.slice(${index});${eol}${
+			segment.children.map((segment) =>
+				codeForRouteSegment(
+					segment,
+					index + 1,
+					handlers,
+					definitions,
+					lvl,
+					true,
+				)
+			).join(`${eol}`)
+		}${eol}delete params["${segment.name}"];${eol}`;
 	} else if (segment.kind === "param") {
 		// deno-fmt-ignore
 		return `if (segments[${index}]) {${eol}  params["${segment.name}"] = segments[${index}];${eol}  ${
@@ -67,27 +83,35 @@ function codeForRouteSegment(
 					segment,
 					index + 1,
 					handlers,
-					schemas,
+					definitions,
 					lvl + 1,
 				)
 			).join(`${eol}  `)
 		}${eol}  delete params["${segment.name}"];${eol}}${eol}`;
 	} else if (segment.kind === "handler") {
 		let first = true;
-		let code = `if (segments.length === ${index}) {${eol}  `;
-		for (const [method, handler] of Object.entries(segment.operations)) {
+		const ieol = catchRestParam ? eol : `${eol}  `;
+		let code = ``;
+		if (!catchRestParam) {
+			code += `if (segments.length === ${index}) {${ieol}`;
+		}
+		for (const [method, handler] of Object.entries(segment.definition)) {
 			const id = handlers.length;
 			handlers.push(handler.handler);
-			schemas.push(handler.definition);
+			definitions.push(handler.definition);
 			// deno-fmt-ignore
 			code += `${!first ? `else ` : ``}if (method === "${method}") {
 			  let body = {};
+
+			  ${handler.definition.headers
+				? `const headers = Object.fromEntries(request.headers);\n  if (!Check(definitions[${id}].headers, headers)) { return new Response(null, { status: 400 }); }`
+				: ``}
 			  ${handler.definition.params
-				? `if (!Check(schemas[${id}].params, params)) { return new Response(null, { status: 400 }); }`
+				? `if (!Check(definitions[${id}].params, params)) { return new Response(null, { status: 400 }); }`
 				: ``}
 			  const query = Object.fromEntries(url.searchParams);
 			  ${handler.definition.query
-				? `if (!Check(schemas[${id}].query, query)) { return new Response(null, { status: 400 }); }`
+				? `if (!Check(definitions[${id}].query, query)) { return new Response(null, { status: 400 }); }`
 				: ``}
 			  ${handler.definition.body
 			    ? `const contentType = request.headers.get("Content-Type")?.toLowerCase();
@@ -104,13 +128,18 @@ function codeForRouteSegment(
 				      return body;
 				    }, {});
 				  }
-				  if (!Check(schemas[${id}].body, body)) { return new Response(null, { status: 400 }); }`
+				  if (!Check(definitions[${id}].body, body)) { return new Response(null, { status: 400 }); }`
 			    : ``}
 			  return await handlers[${id}](request, { params, query, body }, ...args);
-			}`.replace(/\n\t*/g, eol+"  ")+eol+"  ";
+			}`.replace(/\n\t*/g, ieol)+ieol;
 			first = false;
 		}
-		if (!("OPTIONS" in segment.operations)) {
+		if (!("OPTIONS" in segment.definition)) {
+			const headers = Object.values(segment.definition).map(({ definition }) =>
+				definition.headers
+			).filter(isObjectSchema).flatMap((schema) =>
+				Object.keys(schema.properties)
+			).map((name) => name.toUpperCase()).join(", ");
 			// deno-fmt-ignore
 			code += `else if (method === "OPTIONS") {
 			  const origin = request.headers.get("Origin");
@@ -118,22 +147,24 @@ function codeForRouteSegment(
 			    status: 204,
 			    headers: {
 			      "Access-Control-Allow-Origin": origin ? new URL(origin).host : "*",
-			      "Access-Control-Allow-Methods": "${Object.keys(segment.operations).join(", ")}, OPTIONS",
-			      "Access-Control-Allow-Headers": "*",
+			      "Access-Control-Allow-Methods": "${Object.keys(segment.definition).join(", ")}, OPTIONS",
+			      "Access-Control-Allow-Headers": "${headers}",
 			    },
 			  });
-			}`.replace(/\n\t*/g, eol+"  ")+eol+"  ";
+			}`.replace(/\n\t*/g, ieol)+ieol;
 		}
 		if (!first) {
 			// deno-fmt-ignore
 			code += `else {
 			  return new Response(null, {
 			    status: 405,
-			    headers: { Allow: "${Object.keys(segment.operations).join(", ")}, OPTIONS" },
+			    headers: { Allow: "${Object.keys(segment.definition).join(", ")}, OPTIONS" },
 			  });
-			}`.replace(/\n\t*/g, eol+"  ")+eol+"  ";
+			}`.replace(/\n\t*/g, ieol)+ieol;
 		}
-		code += `${eol}}${eol}`;
+		if (!catchRestParam) {
+			code += `${eol}}${eol}`;
+		}
 		return code;
 	}
 	return ``;

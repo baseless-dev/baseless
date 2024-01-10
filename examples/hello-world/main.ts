@@ -8,14 +8,21 @@ const { publicKey, privateKey } = await generateKeyPair("PS512");
 
 const app = baseless()
 	.get(
-		"/:world",
+		"/hello/{world}",
 		(_req, { params }) =>
 			new Response(`Hello, ${decodeURIComponent(params.world)}!`),
 		{
 			summary: "Hello World",
 			description: "Says hello to the world.",
 			response: {
-				200: t.String(),
+				200: {
+					description: "La salutation",
+					content: {
+						"text/plain": {
+							schema: t.String(),
+						},
+					},
+				},
 			},
 		},
 	)
@@ -29,7 +36,7 @@ const app = baseless()
 		version: "0.0.0-0",
 	}));
 
-const handle = app.build();
+const handle = await app.build();
 
 const abortController = new AbortController();
 

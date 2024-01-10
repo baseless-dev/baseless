@@ -3,6 +3,7 @@ import type { Pretty } from "../system/types.ts";
 // deno-lint-ignore-file
 export interface BaseSchema {
 	$id?: string;
+	description?: string;
 }
 
 export interface NullSchema extends BaseSchema {
@@ -300,6 +301,16 @@ export function Referenceable<const TSchema extends Schema>(
 	return {
 		...schema,
 		"$id": id,
+	};
+}
+
+export function Describe<const TSchema extends BaseSchema>(
+	description: string,
+	schema: TSchema,
+): TSchema {
+	return {
+		...schema,
+		description,
 	};
 }
 

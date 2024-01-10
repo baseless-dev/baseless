@@ -17,20 +17,23 @@ const auth = new Router()
 	);
 
 const app = new Router()
+	.get("/", () => Response.json({ get: "/" }), {
+		headers: t.Object({ "x-foo": t.String() }, ["x-foo"]),
+	})
 	.get(
-		"/users/:id",
+		"/users/{id}",
 		(_req, ctx) => {
 			return Response.json({ get: ctx.params.id });
 		},
 	)
 	.get(
-		"/users/:id/comments/:comment",
+		"/users/{id}/comments/{comment}",
 		(_req, ctx) => {
 			return Response.json({ get: ctx.params.comment });
 		},
 	)
 	.post(
-		"/users/:id",
+		"/users/{id}",
 		(_req, ctx) => {
 			return Response.json({ patch: ctx.params.id, body: ctx.body });
 		},
@@ -45,9 +48,19 @@ const app = new Router()
 		},
 	)
 	.use(auth);
-const router = app.build();
+
+const router = await app.build(false);
 
 Deno.test("route", async () => {
+	assertObjectMatch(
+		await extractResponse(router(
+			new Request("http://localhost:8080/", {
+				method: "GET",
+				headers: { "x-foo": "123" },
+			}),
+		)),
+		{ body: '{"get":"/"}' },
+	);
 	assertObjectMatch(
 		await extractResponse(router(
 			new Request("http://localhost:8080/users/123", { method: "GET" }),
@@ -79,15 +92,24 @@ Deno.test("route", async () => {
 Deno.test("compile", () => {
 	{
 		const rst = parseRST({
-			"/:word": {
+			"/": {
 				GET: { handler: () => Response.error(), definition: {} },
 			},
-			"/users/:id/:comment": {
+			"/{word}": {
+				GET: {
+					handler: () => Response.error(),
+					definition: { headers: t.Object({ "x-foo": t.Number() }) },
+				},
+			},
+			"/users/{id}/{comment}": {
+				GET: { handler: () => Response.error(), definition: {} },
+			},
+			"/{...paths}": {
 				GET: { handler: () => Response.error(), definition: {} },
 			},
 		});
 		const { code } = getRouterCode(rst);
-		// console.log(code);
+		console.log(code);
 	}
 });
 

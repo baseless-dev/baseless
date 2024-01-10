@@ -1,4 +1,4 @@
-import { Code } from "./schema.ts";
+import { Check, Code } from "./schema.ts";
 import * as t from "./types.ts";
 
 Deno.test("code gen", () => {
@@ -27,7 +27,7 @@ Deno.test("code gen", () => {
 	const shm2 = t.Object({
 		userid: t.String(),
 		commentid: t.String(),
-	});
+	}, ["userid"]);
 	console.log(shm2);
 	console.log(Code(shm2).toString());
 });

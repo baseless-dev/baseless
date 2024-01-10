@@ -30,14 +30,6 @@ export class Router<
 	#routes: TRoutes = {} as TRoutes;
 	#plugins: { [path: string]: Plugin<TArgs, Routes> } = {};
 
-	get routes(): TRoutes {
-		return this.#routes;
-	}
-
-	get plugins(): { [path: string]: Plugin<TArgs, Routes> } {
-		return this.#plugins;
-	}
-
 	#add(
 		method: Method,
 		path: string,
@@ -722,8 +714,8 @@ export class Router<
 		return this as any;
 	}
 
-	async build(tryCompile = true): Promise<RequestHandler<TArgs>> {
-		let routes: Routes = { ...this.#routes };
+	async getRoutes(): Promise<TRoutes> {
+		let routes: TRoutes = { ...this.#routes };
 		for (let [path, plugin] of Object.entries(this.#plugins)) {
 			if (plugin instanceof Function) {
 				plugin = plugin(routes);
@@ -731,7 +723,8 @@ export class Router<
 			if (plugin instanceof Promise) {
 				plugin = await plugin;
 			}
-			for (const [subPath, operations] of Object.entries(plugin.routes)) {
+			const pluginRoutes = await plugin.getRoutes();
+			for (const [subPath, operations] of Object.entries(pluginRoutes)) {
 				routes = {
 					...routes,
 					[`${path}${subPath}`]: {
@@ -741,6 +734,11 @@ export class Router<
 				};
 			}
 		}
+		return routes;
+	}
+
+	async build(tryCompile = true): Promise<RequestHandler<TArgs>> {
+		const routes = await this.getRoutes();
 		const rst = parseRST(routes);
 		if (tryCompile && "eval" in globalThis) {
 			return compileRouter<TArgs>(rst);

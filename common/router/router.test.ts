@@ -4,54 +4,55 @@ import { assertObjectMatch } from "https://deno.land/std@0.179.0/testing/asserts
 import { parseRST } from "./rst.ts";
 import { getRouterCode } from "./compiled_router.ts";
 
-const auth = new Router()
-	.post(
-		"/login",
-		(_req, ctx) => Response.json(ctx.body),
-		{
-			body: t.Object({ username: t.String(), password: t.String() }, [
-				"username",
-				"password",
-			]),
-		},
-	);
-
-const app = new Router()
-	.get("/", () => Response.json({ get: "/" }), {
-		headers: t.Object({ "x-foo": t.String() }, ["x-foo"]),
-	})
-	.get(
-		"/users/{id}",
-		(_req, ctx) => {
-			return Response.json({ get: ctx.params.id });
-		},
-	)
-	.get(
-		"/users/{id}/comments/{comment}",
-		(_req, ctx) => {
-			return Response.json({ get: ctx.params.comment });
-		},
-	)
-	.post(
-		"/users/{id}",
-		(_req, ctx) => {
-			return Response.json({ patch: ctx.params.id, body: ctx.body });
-		},
-		{
-			body: t.Object({
-				username: t.String(),
-				age: t.Number({ minimum: 14 }),
-				displayName: t.String(),
-			}, [
-				"username",
-			]),
-		},
-	)
-	.use(auth);
-
-const router = await app.build(false);
-
 Deno.test("route", async () => {
+	const auth = new Router()
+		.post(
+			"/login",
+			(_req, ctx) => Response.json(ctx.body),
+			{
+				body: t.Object({ username: t.String(), password: t.String() }, [
+					"username",
+					"password",
+				]),
+			},
+		);
+
+	const app = new Router()
+		.get("/", () => Response.json({ get: "/" }), {
+			headers: t.Object({ "x-foo": t.String() }, ["x-foo"]),
+		})
+		.get(
+			"/users/{id}",
+			(_req, ctx) => {
+				return Response.json({ get: ctx.params.id });
+			},
+		)
+		.get(
+			"/users/{id}/comments/{comment}",
+			(_req, ctx) => {
+				return Response.json({ get: ctx.params.comment });
+			},
+		)
+		.post(
+			"/users/{id}",
+			(_req, ctx) => {
+				return Response.json({ patch: ctx.params.id, body: ctx.body });
+			},
+			{
+				body: t.Object({
+					username: t.String(),
+					age: t.Number({ minimum: 14 }),
+					displayName: t.String(),
+				}, [
+					"username",
+				]),
+			},
+		)
+		.use(auth);
+
+	type result = keyof Awaited<ReturnType<typeof app.getRoutes>>;
+
+	const router = await app.build();
 	assertObjectMatch(
 		await extractResponse(router(
 			new Request("http://localhost:8080/", {

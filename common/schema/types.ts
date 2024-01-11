@@ -4,6 +4,8 @@ import type { Pretty } from "../system/types.ts";
 export interface BaseSchema {
 	$id?: string;
 	description?: string;
+	default?: unknown;
+	example?: unknown;
 }
 
 export interface NullSchema extends BaseSchema {
@@ -212,7 +214,7 @@ export interface ObjectSchema<
 > extends BaseSchema {
 	type: "object";
 	properties: TProperties;
-	required?: TRequired;
+	required: TRequired;
 }
 
 export function isObjectSchema<
@@ -305,12 +307,32 @@ export function Referenceable<const TSchema extends Schema>(
 }
 
 export function Describe<const TSchema extends BaseSchema>(
-	description: string,
+	value: string,
 	schema: TSchema,
 ): TSchema {
 	return {
 		...schema,
-		description,
+		description: value,
+	};
+}
+
+export function Default<const TSchema extends BaseSchema>(
+	value: unknown,
+	schema: TSchema,
+): TSchema {
+	return {
+		...schema,
+		default: value,
+	};
+}
+
+export function Example<const TSchema extends BaseSchema>(
+	value: unknown,
+	schema: TSchema,
+): TSchema {
+	return {
+		...schema,
+		example: value,
 	};
 }
 

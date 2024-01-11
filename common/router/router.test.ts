@@ -26,6 +26,9 @@ Deno.test("route", async () => {
 			(_req, ctx) => {
 				return Response.json({ get: ctx.params.id });
 			},
+			{
+				params: t.Object({ id: t.Describe("Le Id", t.String()) }, ["id"]),
+			},
 		)
 		.get(
 			"/users/{id}/comments/{comment}",

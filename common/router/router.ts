@@ -45,7 +45,7 @@ export class Router<
 				...routes[path],
 				[method]: {
 					handler,
-					definition: { ...definition, ...(params ? { params } : {}) },
+					definition: { ...(params ? { params } : {}), ...definition },
 				},
 			},
 		};
@@ -98,7 +98,7 @@ export class Router<
 	>;
 	connect<
 		const TPath extends string,
-		const TDefinition extends Omit<Definition, "params">,
+		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
 			TArgs,
 			ExtractPathParams<TPath>,
@@ -116,9 +116,7 @@ export class Router<
 				[path in TPath]: {
 					CONNECT: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 				};
 			}
@@ -153,7 +151,7 @@ export class Router<
 	>;
 	delete<
 		const TPath extends string,
-		const TDefinition extends Omit<Definition, "params">,
+		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
 			TArgs,
 			ExtractPathParams<TPath>,
@@ -171,9 +169,7 @@ export class Router<
 				[path in TPath]: {
 					DELETE: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 				};
 			}
@@ -208,7 +204,7 @@ export class Router<
 	>;
 	get<
 		const TPath extends string,
-		const TDefinition extends Omit<Definition, "params">,
+		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
 			TArgs,
 			ExtractPathParams<TPath>,
@@ -226,9 +222,7 @@ export class Router<
 				[path in TPath]: {
 					GET: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 				};
 			}
@@ -263,7 +257,7 @@ export class Router<
 	>;
 	head<
 		const TPath extends string,
-		const TDefinition extends Omit<Definition, "params">,
+		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
 			TArgs,
 			ExtractPathParams<TPath>,
@@ -281,9 +275,7 @@ export class Router<
 				[path in TPath]: {
 					HEAD: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 				};
 			}
@@ -318,7 +310,7 @@ export class Router<
 	>;
 	patch<
 		const TPath extends string,
-		const TDefinition extends Omit<Definition, "params">,
+		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
 			TArgs,
 			ExtractPathParams<TPath>,
@@ -336,9 +328,7 @@ export class Router<
 				[path in TPath]: {
 					PATCH: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 				};
 			}
@@ -373,7 +363,7 @@ export class Router<
 	>;
 	post<
 		const TPath extends string,
-		const TDefinition extends Omit<Definition, "params">,
+		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
 			TArgs,
 			ExtractPathParams<TPath>,
@@ -391,9 +381,7 @@ export class Router<
 				[path in TPath]: {
 					POST: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 				};
 			}
@@ -428,7 +416,7 @@ export class Router<
 	>;
 	put<
 		const TPath extends string,
-		const TDefinition extends Omit<Definition, "params">,
+		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
 			TArgs,
 			ExtractPathParams<TPath>,
@@ -446,9 +434,7 @@ export class Router<
 				[path in TPath]: {
 					PUT: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 				};
 			}
@@ -483,7 +469,7 @@ export class Router<
 	>;
 	options<
 		const TPath extends string,
-		const TDefinition extends Omit<Definition, "params">,
+		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
 			TArgs,
 			ExtractPathParams<TPath>,
@@ -501,9 +487,7 @@ export class Router<
 				[path in TPath]: {
 					OPTIONS: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 				};
 			}
@@ -538,7 +522,7 @@ export class Router<
 	>;
 	trace<
 		const TPath extends string,
-		const TDefinition extends Omit<Definition, "params">,
+		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
 			TArgs,
 			ExtractPathParams<TPath>,
@@ -556,9 +540,7 @@ export class Router<
 				[path in TPath]: {
 					TRACE: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 				};
 			}
@@ -625,7 +607,7 @@ export class Router<
 	>;
 	any<
 		const TPath extends string,
-		const TDefinition extends Omit<Definition, "params">,
+		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
 			TArgs,
 			ExtractPathParams<TPath>,
@@ -643,57 +625,39 @@ export class Router<
 				[path in TPath]: {
 					CONNECT: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 					DELETE: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 					HEAD: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 					GET: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 					PATCH: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 					POST: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 					PUT: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 					OPTIONS: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 					TRACE: {
 						handler: THandler;
-						definition: TDefinition & {
-							params: ExtractPathParamsAsSchema<TPath>;
-						};
+						definition: TDefinition;
 					};
 				};
 			}

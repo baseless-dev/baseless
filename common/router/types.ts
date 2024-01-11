@@ -12,6 +12,17 @@ export type ExtractPathParams<Value extends string> = Pretty<
 	& { [key in PathNamedParameter<Split<Value, "/">[number]>]: string }
 	& { [key in PathNamedRestParameter<Split<Value, "/">[number]>]: string[] }
 >;
+
+// deno-fmt-ignore
+type ExtractPathParamsFromSegments<T extends unknown[]> =
+	T extends [infer Head, ...infer Tail]
+		? [PathNamedParameter<Head>] extends [never]
+			? [PathNamedRestParameter<Head>] extends [never]
+				? [...ExtractPathParamsFromSegments<Tail>]
+				: [PathNamedRestParameter<Head>, ...ExtractPathParamsFromSegments<Tail>]
+			: [PathNamedParameter<Head>, ...ExtractPathParamsFromSegments<Tail>]
+		: [];
+
 export type ExtractPathParamsAsSchema<Value extends string> = t.ObjectSchema<
 	Pretty<
 		& { [key in PathNamedParameter<Split<Value, "/">[number]>]: t.StringSchema }
@@ -20,7 +31,8 @@ export type ExtractPathParamsAsSchema<Value extends string> = t.ObjectSchema<
 				t.StringSchema
 			>;
 		}
-	>
+	>,
+	ExtractPathParamsFromSegments<Split<Value, "/">>
 >;
 
 export function ExtractParamsAsSchemaRuntime<const Value extends string>(
@@ -66,14 +78,19 @@ export type Handler<
 	...args: TArgs
 ) => Promise<Response> | Response;
 
-export interface Definition {
+export interface Definition<
+	TParams extends t.ObjectSchema<any, any[]> = t.ObjectSchema<any, any[]>,
+	THeaders extends t.ObjectSchema<any, any[]> = t.ObjectSchema<any, any[]>,
+	TBody extends t.ObjectSchema<any, any[]> = t.ObjectSchema<any, any[]>,
+	TQuery extends t.ObjectSchema<any, any[]> = t.ObjectSchema<any, any[]>,
+> {
 	tags?: string[];
 	summary?: string;
 	description?: string;
-	params?: t.Schema;
-	headers?: t.Schema;
-	body?: t.Schema;
-	query?: t.Schema;
+	params?: TParams;
+	headers?: THeaders;
+	body?: TBody;
+	query?: TQuery;
 	response?: {
 		[status: number]: {
 			description?: string;

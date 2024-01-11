@@ -43,10 +43,10 @@ export default function auth(
 		...options,
 	};
 	return new Router<[BaselessContext]>()
-		.get("/auth/getAuthenticationCeremony", (_req, _input, ctx) => {
+		.get("/getAuthenticationCeremony", (_req, _input, ctx) => {
 			return Response.json(ctx.auth.getAuthenticationCeremony());
 		})
-		.post("/auth/getAuthenticationCeremony", async (_req, { body }, ctx) => {
+		.post("/getAuthenticationCeremony", async (_req, { body }, ctx) => {
 			const state = await decryptEncryptedAuthenticationCeremonyState(
 				body.state,
 				opts.keys.publicKey,

@@ -40,17 +40,19 @@ const app = baseless()
 			},
 		},
 	)
-	// .use(
-	// 	"/api/v1/auth",
-	// 	auth({
-	// 		keys: { publicKey, privateKey, algo: "PS512" },
-	// 		salt: autoid() as string,
-	// 		ceremonyComponent: c.sequence(),
-	// 	}),
-	// )
+	.use(
+		"/auth",
+		auth({
+			keys: { publicKey, privateKey, algo: "PS512" },
+			salt: autoid() as string,
+			ceremonyComponent: c.sequence(),
+		}),
+	)
 	.use(openapi({
 		title: "Hello World Documentation",
 		version: "0.0.0-0",
+	}, {
+		tags: ["Debug"],
 	}));
 
 const handle = await app.build();

@@ -1,4 +1,5 @@
-import type { Definition, Routes } from "../common/router/types.ts";
+import type { Routes } from "../common/router/types.ts";
+import { walk } from "../common/schema/schema.ts";
 import { isObjectSchema, type Schema } from "../common/schema/types.ts";
 import { type BaselessContext, Router, t } from "./baseless.ts";
 import type { OpenAPIV3 } from "https://esm.sh/openapi-types@12.1.3";
@@ -6,6 +7,11 @@ import type { OpenAPIV3 } from "https://esm.sh/openapi-types@12.1.3";
 // deno-lint-ignore explicit-function-return-type
 export default function openapi(
 	info: OpenAPIV3.InfoObject,
+	meta?: {
+		tags?: string[];
+		summary?: string;
+		description?: string;
+	},
 	servers: OpenAPIV3.ServerObject[] = [],
 ) {
 	return async (routes: Routes) => {
@@ -35,8 +41,10 @@ export default function openapi(
 					headers: { "content-type": "application/json" },
 				});
 			}, {
-				summary: `OpenAPI Documentation`,
-				description: `The OpenAPI documentation for this API`,
+				summary: meta?.summary ?? `OpenAPI Documentation`,
+				description: meta?.description ??
+					`The OpenAPI documentation for this API`,
+				tags: meta?.tags ?? ["OpenAPI"],
 				headers: t.Object({
 					Accept: t.Default(
 						"application/json",
@@ -87,33 +95,66 @@ export default function openapi(
 function transformRoutesToOpenAPIV3Document(
 	routes: Routes,
 ): Pick<OpenAPIV3.Document, "components" | "paths"> {
-	const components = Object.entries(routes).reduce(
-		(components, [_path, operations]) => {
-			// TODO: Make it recursive and search for all $id in schemas
-
-			// for (const [_method, { definition }] of Object.entries(operations)) {
-			// 	for (
-			// 		const key of [
-			// 			"params",
-			// 			"headers",
-			// 			"body",
-			// 			"query",
-			// 			"response",
-			// 		] as (keyof Definition)[]
-			// 	) {
-			// 		const schema = definition[key] as Schema;
-			// 		if (
-			// 			schema && isObjectSchema(schema) &&
-			// 			"$id" in schema && schema.$id
-			// 		) {
-			// 			components.schemas ??= {};
-			// 			components.schemas[schema.$id] = schema as any;
-			// 		}
-			// 	}
-			// }
-			return components;
-		},
-		{} as OpenAPIV3.ComponentsObject,
+	const components: OpenAPIV3.ComponentsObject = {};
+	routes = Object.fromEntries(
+		Object.entries(routes).map(([path, operations]) => [
+			path,
+			Object.fromEntries(
+				Object.entries(operations).map(([method, operation]) => [
+					method,
+					{
+						...operation,
+						definition: {
+							...operation.definition,
+							params: operation.definition.params &&
+								promoteSchemaComponents(
+									components,
+									operation.definition.params,
+								) as any,
+							headers: operation.definition.headers &&
+								promoteSchemaComponents(
+									components,
+									operation.definition.headers,
+								) as any,
+							body: operation.definition.body &&
+								promoteSchemaComponents(
+									components,
+									operation.definition.body,
+								) as any,
+							query: operation.definition.query &&
+								promoteSchemaComponents(
+									components,
+									operation.definition.query,
+								) as any,
+							response: operation.definition.response && Object.fromEntries(
+								Object.entries(operation.definition.response).map((
+									[status, response],
+								) => [
+									status,
+									{
+										...response,
+										content: response.content && Object.fromEntries(
+											Object.entries(response.content).map((
+												[contentType, content],
+											) => [
+												contentType,
+												{
+													...content,
+													schema: promoteSchemaComponents(
+														components,
+														content.schema,
+													) as any,
+												},
+											]),
+										),
+									},
+								]),
+							),
+						},
+					},
+				]),
+			),
+		]),
 	);
 	const paths = Object.entries(routes).reduce((paths, [path, operations]) => {
 		path = path.replace(/\{\.\.\.(\w+)\}/g, "{$1}");
@@ -125,18 +166,15 @@ function transformRoutesToOpenAPIV3Document(
 					[method.toLowerCase()]: {
 						summary: definition.summary,
 						description: definition.description,
+						tags: definition.tags,
 						parameters: [
-							...schemaToParameterObject(components, "path", definition.params),
-							...schemaToParameterObject(components, "query", definition.query),
-							...schemaToParameterObject(
-								components,
-								"header",
-								definition.headers,
-							),
+							...schemaToParameterObject("path", definition.params),
+							...schemaToParameterObject("query", definition.query),
+							...schemaToParameterObject("header", definition.headers),
 						],
 						...(definition.body
 							? {
-								requestBody: schemaToRequestBody(components, definition.body),
+								requestBody: schemaToRequestBody(definition.body),
 							}
 							: {}),
 						responses: {
@@ -157,46 +195,61 @@ function transformRoutesToOpenAPIV3Document(
 	};
 }
 
-function schemaToRequestBody(
+function promoteSchemaComponents(
 	components: OpenAPIV3.ComponentsObject,
 	schema: Schema,
+): Schema {
+	const iter = walk(schema);
+	let result = iter.next();
+	for (
+		let replacement = undefined;
+		!result.done;
+		result = iter.next(replacement), replacement = undefined
+	) {
+		const { $id, ...rest } = result.value;
+		if ($id) {
+			components.schemas ??= {};
+			components.schemas![$id] = promoteSchemaComponents(
+				components,
+				rest,
+			) as any;
+			replacement = t.Ref(`#/components/schemas/${$id}`);
+		}
+	}
+	return result.value;
+}
+
+function schemaToRequestBody(
+	schema: Schema,
 ): OpenAPIV3.ReferenceObject | OpenAPIV3.RequestBodyObject {
-	const s = schema.$id && components.schemas && schema.$id in components.schemas
-		? { $ref: `#/components/${schema.$id}` }
-		: schema as OpenAPIV3.SchemaObject;
 	return {
 		required: true,
 		content: {
 			"application/json": {
-				schema: s,
+				schema: schema as any,
 			},
 			"application/x-www-form-urlencoded": {
-				schema: s,
+				schema: schema as any,
 			},
 			"multipart/form-data": {
-				schema: s,
+				schema: schema as any,
 			},
 		},
 	};
 }
 
 function schemaToParameterObject(
-	components: OpenAPIV3.ComponentsObject,
 	location: "path" | "query" | "header" | "cookie",
 	schema?: Schema,
 ): OpenAPIV3.ParameterObject[] {
 	if (isObjectSchema(schema)) {
 		const objSchema = schema;
 		return Object.entries(schema.properties).map(([name, schema]) => {
-			const s =
-				schema.$id && components.schemas && schema.$id in components.schemas
-					? { $ref: `#/components/${schema.$id}` }
-					: schema as OpenAPIV3.SchemaObject;
 			return {
 				in: location,
 				name,
 				required: objSchema.required?.includes(name) ?? false,
-				schema: s,
+				schema,
 			} as OpenAPIV3.ParameterObject;
 		});
 	}

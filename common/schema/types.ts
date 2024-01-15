@@ -8,6 +8,19 @@ export interface BaseSchema {
 	example?: unknown;
 }
 
+export interface ReferenceSchema extends BaseSchema {
+	$ref: string;
+}
+
+export function isReferenceSchema(value: unknown): value is ReferenceSchema {
+	return !!value && typeof value === "object" && "$ref" in value &&
+		typeof value.$ref === "string";
+}
+
+export function Ref(reference: string): ReferenceSchema {
+	return { $ref: reference };
+}
+
 export interface NullSchema extends BaseSchema {
 	type: "null";
 }
@@ -337,6 +350,7 @@ export function Example<const TSchema extends BaseSchema>(
 }
 
 export type Schema =
+	| ReferenceSchema
 	| NullSchema
 	| BooleanSchema
 	| NumberSchema
@@ -351,7 +365,8 @@ export type Schema =
 	| UnionSchema;
 
 function isSchema(value: unknown): value is Schema {
-	return isNullSchema(value) ||
+	return isReferenceSchema(value) ||
+		isNullSchema(value) ||
 		isBooleanSchema(value) ||
 		isNumberSchema(value) ||
 		isStringSchema(value) ||

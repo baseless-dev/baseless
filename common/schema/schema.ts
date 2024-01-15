@@ -286,3 +286,46 @@ export function Assert(
 		throw new Error("Assertion failed!");
 	}
 }
+
+export function* walk(
+	schema: Schema,
+): Generator<Schema, Schema, Schema | false | undefined> {
+	const op = yield schema;
+	if (op === false) {
+		return schema;
+	} else if (op !== undefined) {
+		return yield* walk(op);
+	}
+	if (isArraySchema(schema)) {
+		return {
+			...schema,
+			items: yield* walk(schema.items),
+		};
+	} else if (isObjectSchema(schema)) {
+		const properties: typeof schema.properties = {};
+		for (const [key, propSchema] of Object.entries(schema.properties)) {
+			properties[key] = yield* walk(propSchema);
+		}
+		return {
+			...schema,
+			properties,
+		};
+	} else if (isRecordSchema(schema)) {
+		return {
+			...schema,
+			patternProperties: {
+				".*": yield* walk(schema.patternProperties[".*"]),
+			},
+		};
+	} else if (isUnionSchema(schema)) {
+		const oneOf = [];
+		for (const unionSchema of schema.oneOf) {
+			oneOf.push(yield* walk(unionSchema));
+		}
+		return {
+			...schema,
+			oneOf,
+		};
+	}
+	return schema;
+}

@@ -58,6 +58,11 @@ export default function auth(
 		}, {
 			summary: "Get the authentication ceremony from an encrypted state",
 			tags: ["Authentication"],
-			body: t.Object({ state: t.String() }, ["state"]),
+			body: t.Object({
+				state: t.Referenceable(
+					"AuthenticationEncryptedState",
+					t.Describe("An authentication encrypted state", t.String()),
+				),
+			}, ["state"]),
 		});
 }

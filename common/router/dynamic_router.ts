@@ -1,9 +1,13 @@
 import { Check } from "../schema/mod.ts";
+import type { MaybeCallable, MaybePromise } from "../system/types.ts";
 import type { Method, Operations, RequestHandler, Routes } from "./types.ts";
 
-export function dynamicRouter<Args extends unknown[] = []>(
+export function dynamicRouter(
 	routes: Routes,
-): RequestHandler<Args> {
+	decorations: Array<
+		MaybeCallable<MaybePromise<Record<string, unknown>>, [{ request: Request }]>
+	>,
+): RequestHandler {
 	throw "TODO!";
 	// const regexRoutes: Array<[RegExp, Operations]> = [];
 	// for (const [path, endpoints] of Object.entries(routes)) {

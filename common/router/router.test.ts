@@ -8,7 +8,7 @@ Deno.test("route", async () => {
 	const auth = new Router()
 		.post(
 			"/login",
-			(_req, ctx) => Response.json(ctx.body),
+			({ body }) => Response.json(body),
 			{
 				body: t.Object({ username: t.String(), password: t.String() }, [
 					"username",
@@ -18,13 +18,14 @@ Deno.test("route", async () => {
 		);
 
 	const app = new Router()
+		.use(auth)
 		.get("/", () => Response.json({ get: "/" }), {
 			headers: t.Object({ "x-foo": t.String() }, ["x-foo"]),
 		})
 		.get(
 			"/users/{id}",
-			(_req, ctx) => {
-				return Response.json({ get: ctx.params.id });
+			({ params }) => {
+				return Response.json({ get: params.id });
 			},
 			{
 				params: t.Object({ id: t.Describe("Le Id", t.String()) }, ["id"]),
@@ -32,14 +33,14 @@ Deno.test("route", async () => {
 		)
 		.get(
 			"/users/{id}/comments/{comment}",
-			(_req, ctx) => {
-				return Response.json({ get: ctx.params.comment });
+			({ params }) => {
+				return Response.json({ get: params.comment });
 			},
 		)
 		.post(
 			"/users/{id}",
-			(_req, ctx) => {
-				return Response.json({ patch: ctx.params.id, body: ctx.body });
+			({ params, body }) => {
+				return Response.json({ patch: params.id, body: body });
 			},
 			{
 				body: t.Object({
@@ -50,10 +51,9 @@ Deno.test("route", async () => {
 					"username",
 				]),
 			},
-		)
-		.use(auth);
+		);
 
-	type result = keyof Awaited<ReturnType<typeof app.getRoutes>>;
+	type result = keyof Awaited<ReturnType<typeof app.getFinalizedData>>[0];
 
 	const router = await app.build();
 	assertObjectMatch(

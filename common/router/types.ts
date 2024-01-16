@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import * as t from "../schema/types.ts";
 import type { Pretty, Split } from "../system/types.ts";
 
@@ -65,17 +66,17 @@ export type Method =
 	| "TRACE";
 
 export type Handler<
-	TArgs extends unknown[] = never,
+	TContext extends Record<string, unknown> = never,
 	TParams extends Record<string, string | string[]> = never,
 	TDefinition extends Definition = never,
 > = (
-	request: Request,
 	context: {
+		request: Request;
 		params: TParams;
+		headers: t.Infer<TDefinition["headers"]>;
 		query: t.Infer<TDefinition["query"]>;
 		body: t.Infer<TDefinition["body"]>;
-	},
-	...args: TArgs
+	} & TContext,
 ) => Promise<Response> | Response;
 
 export interface Definition<
@@ -115,9 +116,8 @@ export type Routes = {
 	[path: string]: Operations;
 };
 
-export type RequestHandler<Args extends unknown[]> = (
+export type RequestHandler = (
 	request: Request,
-	...args: Args
 ) => Promise<Response>;
 
 export type RouteSegmentConst = {

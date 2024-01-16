@@ -1,5 +1,6 @@
 import { Check } from "../schema/schema.ts";
 import { isObjectSchema } from "../schema/types.ts";
+import type { MaybeCallable, MaybePromise } from "../system/types.ts";
 import type {
 	Definition,
 	Handler,
@@ -7,11 +8,14 @@ import type {
 	RouteSegment,
 } from "./types.ts";
 
-export function compileRouter<Args extends unknown[] = []>(
+export function compileRouter(
 	rst: RouteSegment[],
-): RequestHandler<Args> {
+	decorations: Array<
+		MaybeCallable<MaybePromise<Record<string, unknown>>, [{ request: Request }]>
+	>,
+): RequestHandler {
 	const { code, handlers, definitions } = getRouterCode(rst);
-	return Function("data", code)({ handlers, definitions, Check });
+	return Function("data", code)({ handlers, definitions, decorations, Check });
 }
 
 export function getRouterCode(
@@ -21,9 +25,13 @@ export function getRouterCode(
 	const definitions: Definition[] = [];
 
 	// deno-fmt-ignore
-	const code = `const { handlers, definitions, Check } = data;
-	return async function router(request, ...args) {
+	const code = `const { handlers, definitions, decorations, Check } = data;
+	return async function router(request) {
 	  try {
+	    const context = {};
+	    for (const decoration of decorations) {
+	      Object.assign(context, decoration instanceof Promise || decoration instanceof Function ? await decoration({ request, ...context }) : decoration);
+	    }
 	    const url = new URL(request.url);
 	    const segments = url.pathname.slice(1).split("/");
 	    const method = request.method.toUpperCase();
@@ -102,9 +110,10 @@ function codeForRouteSegment(
 			// deno-fmt-ignore
 			code += `${!first ? `else ` : ``}if (method === "${method}") {
 			  let body = {};
+			  const headers = Object.fromEntries(request.headers);
 
 			  ${handler.definition.headers
-				? `const headers = Object.fromEntries(request.headers);\n  if (!Check(definitions[${id}].headers, headers)) { return new Response(null, { status: 400 }); }`
+				? `if (!Check(definitions[${id}].headers, headers)) { return new Response(null, { status: 400 }); }`
 				: ``}
 			  ${handler.definition.params
 				? `if (!Check(definitions[${id}].params, params)) { return new Response(null, { status: 400 }); }`
@@ -130,7 +139,7 @@ function codeForRouteSegment(
 				  }
 				  if (!Check(definitions[${id}].body, body)) { return new Response(null, { status: 400 }); }`
 			    : ``}
-			  return await handlers[${id}](request, { params, query, body }, ...args);
+			  return await handlers[${id}]({ request, params, headers, query, body, ...context });
 			}`.replace(/\n\t*/g, ieol)+ieol;
 			first = false;
 		}

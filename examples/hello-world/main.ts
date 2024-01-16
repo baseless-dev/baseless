@@ -1,4 +1,4 @@
-import baseless, { BaselessContext, c, t } from "../../server/baseless.ts";
+import { c, router, t } from "../../server/server.ts";
 import auth from "../../server/auth.ts";
 import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_key_pair.ts";
 import { autoid } from "../../common/system/autoid.ts";
@@ -6,10 +6,24 @@ import openapi from "../../server/openapi.ts";
 
 const { publicKey, privateKey } = await generateKeyPair("PS512");
 
-const app = baseless()
+const app = router()
+	.use(
+		"/auth",
+		auth({
+			keys: { publicKey, privateKey, algo: "PS512" },
+			salt: autoid() as string,
+			ceremonyComponent: c.sequence(),
+		}),
+	)
+	.use(openapi({
+		title: "Hello World Documentation",
+		version: "0.0.0-0",
+	}, {
+		tags: ["Debug"],
+	}))
 	.get(
 		"/hello/{world}",
-		(_req, { params, query }) =>
+		({ params, query }) =>
 			new Response(
 				`Hello, ${decodeURIComponent(params.world)}${query.exclamation ?? "!"}`,
 			),
@@ -39,25 +53,9 @@ const app = baseless()
 				},
 			},
 		},
-	)
-	.use(
-		"/auth",
-		auth({
-			keys: { publicKey, privateKey, algo: "PS512" },
-			salt: autoid() as string,
-			ceremonyComponent: c.sequence(),
-		}),
-	)
-	.use(openapi({
-		title: "Hello World Documentation",
-		version: "0.0.0-0",
-	}, {
-		tags: ["Debug"],
-	}));
+	);
 
 const handle = await app.build();
-
-type routes = keyof Awaited<ReturnType<typeof app.getRoutes>>;
 
 const abortController = new AbortController();
 
@@ -70,7 +68,10 @@ await Deno.serve({
 	hostname: "localhost",
 	signal: abortController.signal,
 }, async (req, info) => {
-	const res = await handle(req, {} as BaselessContext);
-	res.headers.set("Access-Control-Allow-Origin", "*");
+	const res = await handle(req);
+	res.headers.set(
+		"Access-Control-Allow-Origin",
+		req.headers.get("Origin") ?? "*",
+	);
 	return res;
 });

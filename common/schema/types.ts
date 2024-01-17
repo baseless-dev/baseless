@@ -1,4 +1,5 @@
 import type { Pretty } from "../system/types.ts";
+export * as t from "./types.ts";
 
 // deno-lint-ignore-file
 export interface BaseSchema {

@@ -8,12 +8,12 @@ import type {
 	RouteSegment,
 } from "./types.ts";
 
-export function compileRouter(
+export function compileRouter<TArgs extends unknown[]>(
 	rst: RouteSegment[],
 	decorations: Array<
 		MaybeCallable<MaybePromise<Record<string, unknown>>, [{ request: Request }]>
 	>,
-): RequestHandler {
+): RequestHandler<TArgs> {
 	const { code, handlers, definitions } = getRouterCode(rst);
 	return Function("data", code)({ handlers, definitions, decorations, Check });
 }
@@ -26,12 +26,8 @@ export function getRouterCode(
 
 	// deno-fmt-ignore
 	const code = `const { handlers, definitions, decorations, Check } = data;
-	return async function router(request) {
+	return async function router(request, ...args) {
 	  try {
-	    const context = {};
-	    for (const decoration of decorations) {
-	      Object.assign(context, decoration instanceof Promise || decoration instanceof Function ? await decoration({ request, ...context }) : decoration);
-	    }
 	    const url = new URL(request.url);
 	    const segments = url.pathname.slice(1).split("/");
 	    const method = request.method.toUpperCase();
@@ -139,7 +135,11 @@ function codeForRouteSegment(
 				  }
 				  if (!Check(definitions[${id}].body, body)) { return new Response(null, { status: 400 }); }`
 			    : ``}
-			  return await handlers[${id}]({ request, params, headers, query, body, ...context });
+			  const context = {};
+			  for (const decoration of decorations) {
+			    Object.assign(context, decoration instanceof Promise || decoration instanceof Function ? await decoration({ request, ...context }, ...args) : decoration);
+			  }
+			  return await handlers[${id}]({ request, params, headers, query, body, ...context }, ...args);
 			}`.replace(/\n\t*/g, ieol)+ieol;
 			first = false;
 		}

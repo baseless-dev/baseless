@@ -11,14 +11,14 @@ export async function deleteIdentityComponent(
 	_params: Record<never, never>,
 	context: IContext,
 ): Promise<void> {
-	if (!context.tokenData) {
+	if (!context.authenticationToken) {
 		throw new UnauthorizedError();
 	}
-	const identityId = context.tokenData.sessionData.identityId;
+	const identityId = context.authenticationToken.sessionData.identityId;
 	const data = await getJsonData(request);
 	const component = data?.component?.toString() ?? "";
 	if (
-		context.tokenData.lastAuthorizationTime >=
+		context.authenticationToken.lastAuthorizationTime >=
 			Date.now() / 1000 + context.config.auth.highRiskActionTimeWindow
 	) {
 		throw new HighRiskActionTimeWindowExpiredError();

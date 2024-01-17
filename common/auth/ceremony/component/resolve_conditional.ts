@@ -66,7 +66,7 @@ export async function resolveConditional(
 		isAuthenticationCeremonyComponentConditional(component)
 	) {
 		const result = await component.condition(context, state);
-		return resolveConditional(result, context, state);
+		return resolveConditional(component.components[result], context, state);
 	}
 	return component;
 }

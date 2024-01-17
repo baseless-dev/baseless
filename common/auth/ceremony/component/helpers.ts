@@ -26,7 +26,8 @@ export function oneOf(
 }
 
 export function iif(
+	components: AuthenticationCeremonyComponent[],
 	condition: AuthenticationCeremonyComponentConditional["condition"],
 ): AuthenticationCeremonyComponentConditional {
-	return { kind: "conditional", condition };
+	return { kind: "conditional", components, condition };
 }

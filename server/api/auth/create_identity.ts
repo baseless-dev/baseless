@@ -53,9 +53,9 @@ export async function createIdentity(
 	}
 	try {
 		// Claim anonymous identity or create new one
-		if (context.tokenData) {
+		if (context.authenticationToken) {
 			const identity = await context.identity.get(
-				context.tokenData.sessionData.identityId,
+				context.authenticationToken.sessionData.identityId,
 			);
 			if (Object.keys(identity.components).length > 0) {
 				throw new IdentityCreateError();

@@ -14,11 +14,11 @@ export async function updateIdentityComponent(
 	_params: Record<never, never>,
 	context: IContext,
 ): Promise<void> {
-	if (!context.tokenData) {
+	if (!context.authenticationToken) {
 		throw new UnauthorizedError();
 	}
 	// TODO need session iat to be "recent"
-	const identityId = context.tokenData.sessionData.identityId;
+	const identityId = context.authenticationToken.sessionData.identityId;
 	const data = await getJsonData(request);
 	const component = data?.component?.toString() ?? "";
 	const prompt = data?.identification?.toString();
@@ -28,7 +28,7 @@ export async function updateIdentityComponent(
 		throw new IdentityComponentUpdateError();
 	}
 	if (
-		context.tokenData.lastAuthorizationTime >=
+		context.authenticationToken.lastAuthorizationTime >=
 			Date.now() / 1000 + context.config.auth.highRiskActionTimeWindow
 	) {
 		throw new HighRiskActionTimeWindowExpiredError();

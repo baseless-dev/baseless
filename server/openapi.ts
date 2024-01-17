@@ -1,8 +1,9 @@
+import { Router } from "../common/router/router.ts";
 import type { Routes } from "../common/router/types.ts";
 import { walk } from "../common/schema/schema.ts";
 import { isObjectSchema, type Schema } from "../common/schema/types.ts";
-import { type BaselessContext, Router, t } from "./baseless.ts";
 import type { OpenAPIV3 } from "https://esm.sh/openapi-types@12.1.3";
+import * as t from "../common/schema/types.ts";
 
 // deno-lint-ignore explicit-function-return-type
 export default function openapi(
@@ -15,9 +16,9 @@ export default function openapi(
 	servers: OpenAPIV3.ServerObject[] = [],
 ) {
 	return async (routes: Routes) => {
-		const app = new Router<[BaselessContext]>()
-			.get("/openapi.json", (req, _input, _ctx) => {
-				if (req.headers.get("accept")?.includes("text/html")) {
+		const app = new Router()
+			.get("/openapi.json", ({ request }) => {
+				if (request.headers.get("accept")?.includes("text/html")) {
 					const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -78,7 +79,7 @@ export default function openapi(
 				},
 			});
 
-		routes = { ...routes, ...await app.getRoutes() };
+		routes = { ...routes, ...(await app.getFinalizedData())[0] };
 
 		const document: OpenAPIV3.Document = {
 			...transformRoutesToOpenAPIV3Document(routes),

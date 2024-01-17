@@ -32,12 +32,13 @@ export interface AuthenticationCeremonyComponentChoice<
 }
 export interface AuthenticationCeremonyComponentConditional {
 	kind: "conditional";
+	components: AuthenticationCeremonyComponent[];
 	condition: (
 		context?: IContext,
 		state?: AuthenticationCeremonyState,
 	) =>
-		| AuthenticationCeremonyComponent
-		| Promise<AuthenticationCeremonyComponent>;
+		| number
+		| Promise<number>;
 }
 export interface AuthenticationCeremonyComponentDone {
 	kind: "done";
@@ -81,8 +82,10 @@ export function isAuthenticationCeremonyComponentConditional(
 	value: unknown,
 ): value is AuthenticationCeremonyComponentConditional {
 	return !!value && typeof value === "object" && "kind" in value &&
-		value.kind === "conditional" && "condition" in value &&
-		typeof value.condition === "function";
+		value.kind === "conditional" && "components" in value &&
+		Array.isArray(value.components) &&
+		value.components.every(isAuthenticationCeremonyComponent) &&
+		"condition" in value && typeof value.condition === "function";
 }
 export function isAuthenticationCeremonyComponentDone(
 	value: unknown,

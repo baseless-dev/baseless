@@ -4,6 +4,7 @@ import {
 	AuthenticationInvalidStepError,
 	AuthenticationMissingIdentificatorError,
 	AuthenticationRateLimitedError,
+	InvalidAuthenticationCeremonyComponentError,
 } from "../../common/auth/errors.ts";
 import type { AuthenticationCeremonyResponse } from "../../common/auth/ceremony/response.ts";
 import {
@@ -50,6 +51,9 @@ export class AuthenticationService implements IAuthenticationService {
 			>
 		>
 	> {
+		if (!this.#context.config.auth) {
+			throw new InvalidAuthenticationCeremonyComponentError();
+		}
 		state ??= { choices: [] };
 		const step = await resolveConditional(
 			this.#context.config.auth.ceremony,
@@ -88,8 +92,10 @@ export class AuthenticationService implements IAuthenticationService {
 			>
 		>
 	> {
-		const counterInterval =
-			this.#context.config.auth.security.rateLimit.identificationInterval *
+		if (!this.#context.config.auth) {
+			throw new InvalidAuthenticationCeremonyComponentError();
+		}
+		const counterInterval = this.#context.config.auth.rateLimit.interval *
 			1000;
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = [
@@ -100,7 +106,7 @@ export class AuthenticationService implements IAuthenticationService {
 		];
 		if (
 			await this.#context.counter.increment(counterKey, 1, counterInterval) >
-				this.#context.config.auth.security.rateLimit.identificationCount
+				this.#context.config.auth.rateLimit.count
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -119,7 +125,9 @@ export class AuthenticationService implements IAuthenticationService {
 			throw new AuthenticationInvalidStepError();
 		}
 
-		const identificator = this.#context.config.auth.components.get(id);
+		const identificator = this.#context.config.auth.components.find((comp) =>
+			comp.id === id
+		);
 		if (!identificator) {
 			throw new AuthenticationMissingIdentificatorError();
 		}

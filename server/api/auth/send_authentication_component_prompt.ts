@@ -22,7 +22,7 @@ export async function sendAuthenticationComponentPrompt(
 		);
 		const identityId = isAuthenticationCeremonyStateIdentified(state)
 			? state.identity
-			: context.tokenData?.sessionData.identityId;
+			: context.authenticationToken?.sessionData.identityId;
 		if (!identityId) {
 			throw new UnauthorizedError();
 		}

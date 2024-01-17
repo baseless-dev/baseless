@@ -14,29 +14,33 @@ import {
 	type Routes,
 } from "./types.ts";
 
+export type ExtractArgsFromPlugin<TPlugin> = TPlugin extends
+	Plugin<infer TArgs, any, any> ? TArgs : never;
 export type ExtractContextFromPlugin<TPlugin> = TPlugin extends
-	Plugin<infer TDecoration, any> ? TDecoration : never;
+	Plugin<any, infer TContext, any> ? TContext : never;
 export type ExtractRoutesFromPlugin<TPlugin, TBase extends string> =
-	TPlugin extends Plugin<any, infer TRoutes>
+	TPlugin extends Plugin<any, any, infer TRoutes>
 		? { [Path in keyof TRoutes as `${TBase}${string & Path}`]: TRoutes[Path] }
 		: never;
 export type Plugin<
-	TDecoration extends Record<string, unknown>,
+	TArgs extends unknown[],
+	TContext extends {},
 	TRoutes extends Routes,
 > =
-	| Router<TDecoration, TRoutes>
-	| MaybeCallable<MaybePromise<Router<TDecoration, TRoutes>>, [Routes]>;
+	| Router<TArgs, TContext, TRoutes>
+	| MaybeCallable<MaybePromise<Router<TArgs, TContext, TRoutes>>, [Routes]>;
 
 export class Router<
-	TDecoration extends Record<string, unknown> = {},
+	TArgs extends unknown[] = [],
+	TDecoration extends {} = {},
 	// deno-lint-ignore ban-types
 	TRoutes extends Routes = {},
 > {
 	#decorations: Array<
-		MaybeCallable<MaybePromise<Record<string, unknown>>, [{ request: Request }]>
+		MaybeCallable<MaybePromise<{}>, [{ request: Request }]>
 	> = [];
 	#routes: TRoutes = {} as TRoutes;
-	#plugins: { [path: string]: Plugin<TDecoration, Routes> } = {};
+	#plugins: [path: string, plugin: Plugin<TArgs, TDecoration, Routes>][] = [];
 
 	#add(
 		method: Method,
@@ -60,26 +64,28 @@ export class Router<
 		this.#routes = routes as TRoutes;
 	}
 
-	decorate<const TNewDecoration extends Record<string, unknown>>(
+	decorate<const TNewDecoration>(
 		decoration: MaybeCallable<
 			MaybePromise<TNewDecoration>,
-			[{ request: Request } & TDecoration]
+			[{ request: Request } & TDecoration, ...TArgs]
 		>,
-	): Router<TDecoration & TNewDecoration, TRoutes> {
+	): Router<TArgs, TDecoration & TNewDecoration, TRoutes> {
 		this.#decorations.push(decoration as any);
 		return this as any;
 	}
 
 	use<
-		const TPlugin extends Plugin<any, any>,
+		const TPlugin extends Plugin<any, any, any>,
 	>(plugin: TPlugin): Router<
+		[...TArgs, ...ExtractArgsFromPlugin<TPlugin>],
 		Pretty<TDecoration & ExtractContextFromPlugin<TPlugin>>,
 		Pretty<TRoutes & ExtractRoutesFromPlugin<TPlugin, "">>
 	>;
 	use<
 		const TPath extends string,
-		const TPlugin extends Plugin<any, any>,
+		const TPlugin extends Plugin<any, any, any>,
 	>(path: TPath, plugin: TPlugin): Router<
+		[...TArgs, ...ExtractArgsFromPlugin<TPlugin>],
 		Pretty<TDecoration & ExtractContextFromPlugin<TPlugin>>,
 		Pretty<TRoutes & ExtractRoutesFromPlugin<TPlugin, TPath>>
 	>;
@@ -89,7 +95,7 @@ export class Router<
 			builder = path;
 			path = "";
 		}
-		this.#plugins[path] = builder;
+		this.#plugins.push([path, builder]);
 		// deno-lint-ignore no-explicit-any
 		return this as any;
 	}
@@ -101,6 +107,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -127,6 +134,7 @@ export class Router<
 		handler: THandler,
 		definition: TDefinition,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -154,6 +162,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -180,6 +189,7 @@ export class Router<
 		handler: THandler,
 		definition: TDefinition,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -207,6 +217,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -233,6 +244,7 @@ export class Router<
 		handler: THandler,
 		definition: TDefinition,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -260,6 +272,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -286,6 +299,7 @@ export class Router<
 		handler: THandler,
 		definition: TDefinition,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -313,6 +327,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -339,6 +354,7 @@ export class Router<
 		handler: THandler,
 		definition: TDefinition,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -366,6 +382,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -392,6 +409,7 @@ export class Router<
 		handler: THandler,
 		definition: TDefinition,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -419,6 +437,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -445,6 +464,7 @@ export class Router<
 		handler: THandler,
 		definition: TDefinition,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -472,6 +492,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -498,6 +519,7 @@ export class Router<
 		handler: THandler,
 		definition: TDefinition,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -525,6 +547,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -551,6 +574,7 @@ export class Router<
 		handler: THandler,
 		definition: TDefinition,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -578,6 +602,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -636,6 +661,7 @@ export class Router<
 		handler: THandler,
 		definition: TDefinition,
 	): Router<
+		TArgs,
 		TDecoration,
 		Pretty<
 			& TRoutes
@@ -701,7 +727,7 @@ export class Router<
 			routes: TRoutes,
 			decorations: Array<
 				MaybeCallable<
-					MaybePromise<Record<string, unknown>>,
+					MaybePromise<{}>,
 					[{ request: Request }]
 				>
 			>,
@@ -710,11 +736,11 @@ export class Router<
 		let routes: TRoutes = { ...this.#routes };
 		const decorations: Array<
 			MaybeCallable<
-				MaybePromise<Record<string, unknown>>,
+				MaybePromise<{}>,
 				[{ request: Request }]
 			>
 		> = [...this.#decorations];
-		for (let [path, plugin] of Object.entries(this.#plugins)) {
+		for (let [path, plugin] of this.#plugins) {
 			if (plugin instanceof Function) {
 				plugin = plugin(routes);
 			}
@@ -736,12 +762,12 @@ export class Router<
 		return [routes, decorations];
 	}
 
-	async build(tryCompile = true): Promise<RequestHandler> {
+	async build(tryCompile = true): Promise<RequestHandler<TArgs>> {
 		const [routes, decorations] = await this.getFinalizedData();
 		const rst = parseRST(routes);
 		if (tryCompile && "eval" in globalThis) {
-			return compileRouter(rst, decorations);
+			return compileRouter<TArgs>(rst, decorations);
 		}
-		return dynamicRouter(routes, decorations);
+		return dynamicRouter<TArgs>(routes, decorations);
 	}
 }

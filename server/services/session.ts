@@ -1,4 +1,3 @@
-import type { IContext } from "../../common/server/context.ts";
 import type { ISessionService } from "../../common/server/services/session.ts";
 import type { SessionData } from "../../common/session/data.ts";
 import {
@@ -16,14 +15,11 @@ import type { SessionProvider } from "../../providers/session.ts";
 
 export class SessionService implements ISessionService {
 	#sessionProvider: SessionProvider;
-	#context: IContext;
 
 	constructor(
 		sessionProvider: SessionProvider,
-		context: IContext,
 	) {
 		this.#sessionProvider = sessionProvider;
-		this.#context = context;
 	}
 
 	/**

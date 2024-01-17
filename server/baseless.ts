@@ -48,6 +48,8 @@ export type AuthenticationOptions = {
 	highRiskActionTimeWindow?: number;
 };
 
+// TODO: asset provider should not be required if auth is not enabled
+// TODO: identity and session provider should not be required if asset is not enabled
 export type BaselessOptions = {
 	providers: {
 		asset: AssetProvider;
@@ -158,6 +160,9 @@ export default function baseless(
 			};
 			return context;
 		});
+
+	// TODO: fix compiled router to allow for this
+	// .get("/{...path}", ({ request, asset }) => asset.fetch(request));
 
 	if (configuration.auth) {
 		app = app

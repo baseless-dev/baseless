@@ -24,5 +24,21 @@ export default function assetPlugin(
 			summary: "Static Asset",
 			description: "Fetches a static asset from the asset provider",
 			tags: ["Asset"],
+			response: {
+				200: {
+					description: "The asset's content",
+					content: {
+						"application/octet-stream": {
+							schema: {
+								type: "string",
+								format: "binary",
+							},
+						},
+					},
+				},
+				404: {
+					description: "The asset was not found",
+				},
+			},
 		});
 }

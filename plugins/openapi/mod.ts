@@ -1,12 +1,14 @@
-import { Router } from "../common/router/router.ts";
-import type { Routes } from "../common/router/types.ts";
-import { walk } from "../common/schema/schema.ts";
-import { isObjectSchema, type Schema } from "../common/schema/types.ts";
+import { Router } from "../../common/router/router.ts";
+import type { Routes } from "../../common/router/types.ts";
+import { walk } from "../../common/schema/schema.ts";
+import { isObjectSchema, type Schema } from "../../common/schema/types.ts";
 import type { OpenAPIV3 } from "https://esm.sh/openapi-types@12.1.3";
-import * as t from "../common/schema/types.ts";
+import * as t from "../../common/schema/types.ts";
+import { isArraySchema } from "../../common/schema/types.ts";
+import { isStringSchema } from "../../common/schema/types.ts";
 
 // deno-lint-ignore explicit-function-return-type
-export default function openapi(
+export default function openapiPlugin(
 	info: OpenAPIV3.InfoObject,
 	meta?: {
 		tags?: string[];
@@ -250,7 +252,9 @@ function schemaToParameterObject(
 				in: location,
 				name,
 				required: objSchema.required?.includes(name) ?? false,
-				schema,
+				schema: isArraySchema(schema) && isStringSchema(schema.items)
+					? t.String({ format: "path" })
+					: schema,
 			} as OpenAPIV3.ParameterObject;
 		});
 	}

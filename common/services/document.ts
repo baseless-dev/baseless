@@ -3,8 +3,8 @@ import type {
 	DocumentGetOptions,
 	DocumentListOptions,
 	DocumentListResult,
-} from "../../../providers/document.ts";
-import type { Document, DocumentKey } from "../../document/document.ts";
+} from "../../providers/document.ts";
+import type { Document, DocumentKey } from "../document/document.ts";
 
 export interface IDocumentService {
 	get<Data = unknown>(

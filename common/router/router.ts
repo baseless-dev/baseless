@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any ban-types
 import type { MaybeCallable, MaybePromise, Pretty } from "../system/types.ts";
 import { compileRouter } from "./compiled_router.ts";
 import { dynamicRouter } from "./dynamic_router.ts";
@@ -23,7 +24,7 @@ export type ExtractRoutesFromPlugin<TPlugin, TBase extends string> =
 		? { [Path in keyof TRoutes as `${TBase}${string & Path}`]: TRoutes[Path] }
 		: never;
 export type Plugin<
-	TArgs extends unknown[],
+	TArgs extends {},
 	TContext extends {},
 	TRoutes extends Routes,
 > =
@@ -31,16 +32,15 @@ export type Plugin<
 	| MaybeCallable<MaybePromise<Router<TArgs, TContext, TRoutes>>, [Routes]>;
 
 export class Router<
-	TArgs extends unknown[] = [],
-	TDecoration extends {} = {},
-	// deno-lint-ignore ban-types
+	TArgs extends {} = {},
+	TContext extends {} = {},
 	TRoutes extends Routes = {},
 > {
 	#decorations: Array<
 		MaybeCallable<MaybePromise<{}>, [{ request: Request }]>
 	> = [];
 	#routes: TRoutes = {} as TRoutes;
-	#plugins: [path: string, plugin: Plugin<TArgs, TDecoration, Routes>][] = [];
+	#plugins: [path: string, plugin: Plugin<TArgs, TContext, Routes>][] = [];
 
 	#add(
 		method: Method,
@@ -67,9 +67,9 @@ export class Router<
 	decorate<const TNewDecoration>(
 		decoration: MaybeCallable<
 			MaybePromise<TNewDecoration>,
-			[{ request: Request } & TDecoration, ...TArgs]
+			[{ request: Request } & TContext, TArgs]
 		>,
-	): Router<TArgs, TDecoration & TNewDecoration, TRoutes> {
+	): Router<TArgs, TContext & TNewDecoration, TRoutes> {
 		this.#decorations.push(decoration as any);
 		return this as any;
 	}
@@ -77,38 +77,36 @@ export class Router<
 	use<
 		const TPlugin extends Plugin<any, any, any>,
 	>(plugin: TPlugin): Router<
-		[...TArgs, ...ExtractArgsFromPlugin<TPlugin>],
-		Pretty<TDecoration & ExtractContextFromPlugin<TPlugin>>,
+		Pretty<TArgs & ExtractArgsFromPlugin<TPlugin>>,
+		Pretty<TContext & ExtractContextFromPlugin<TPlugin>>,
 		Pretty<TRoutes & ExtractRoutesFromPlugin<TPlugin, "">>
 	>;
 	use<
 		const TPath extends string,
 		const TPlugin extends Plugin<any, any, any>,
 	>(path: TPath, plugin: TPlugin): Router<
-		[...TArgs, ...ExtractArgsFromPlugin<TPlugin>],
-		Pretty<TDecoration & ExtractContextFromPlugin<TPlugin>>,
+		Pretty<TArgs & ExtractArgsFromPlugin<TPlugin>>,
+		Pretty<TContext & ExtractContextFromPlugin<TPlugin>>,
 		Pretty<TRoutes & ExtractRoutesFromPlugin<TPlugin, TPath>>
 	>;
-	// deno-lint-ignore no-explicit-any
 	use(path: any, builder?: any): any {
 		if (!(typeof path === "string")) {
 			builder = path;
 			path = "";
 		}
 		this.#plugins.push([path, builder]);
-		// deno-lint-ignore no-explicit-any
 		return this as any;
 	}
 
 	connect<
 		const TPath extends string,
-		const THandler extends Handler<TDecoration, ExtractPathParams<TPath>>,
+		const THandler extends Handler<TContext, ExtractPathParams<TPath>>,
 	>(
 		path: TPath,
 		handler: THandler,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -125,7 +123,7 @@ export class Router<
 		const TPath extends string,
 		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
-			TDecoration,
+			TContext,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -135,7 +133,7 @@ export class Router<
 		definition: TDefinition,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -148,22 +146,20 @@ export class Router<
 			}
 		>
 	>;
-	// deno-lint-ignore no-explicit-any
 	connect(path: any, handler: any, definition?: any): any {
 		this.#add("CONNECT", path, handler, definition);
-		// deno-lint-ignore no-explicit-any
 		return this as any;
 	}
 
 	delete<
 		const TPath extends string,
-		const THandler extends Handler<TDecoration, ExtractPathParams<TPath>>,
+		const THandler extends Handler<TContext, ExtractPathParams<TPath>>,
 	>(
 		path: TPath,
 		handler: THandler,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -180,7 +176,7 @@ export class Router<
 		const TPath extends string,
 		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
-			TDecoration,
+			TContext,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -190,7 +186,7 @@ export class Router<
 		definition: TDefinition,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -203,22 +199,20 @@ export class Router<
 			}
 		>
 	>;
-	// deno-lint-ignore no-explicit-any
 	delete(path: any, handler: any, definition?: any): any {
 		this.#add("DELETE", path, handler, definition);
-		// deno-lint-ignore no-explicit-any
 		return this as any;
 	}
 
 	get<
 		const TPath extends string,
-		const THandler extends Handler<TDecoration, ExtractPathParams<TPath>>,
+		const THandler extends Handler<TContext, ExtractPathParams<TPath>>,
 	>(
 		path: TPath,
 		handler: THandler,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -235,7 +229,7 @@ export class Router<
 		const TPath extends string,
 		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
-			TDecoration,
+			TContext,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -245,7 +239,7 @@ export class Router<
 		definition: TDefinition,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -258,22 +252,20 @@ export class Router<
 			}
 		>
 	>;
-	// deno-lint-ignore no-explicit-any
 	get(path: any, handler: any, definition?: any): any {
 		this.#add("GET", path, handler, definition);
-		// deno-lint-ignore no-explicit-any
 		return this as any;
 	}
 
 	head<
 		const TPath extends string,
-		const THandler extends Handler<TDecoration, ExtractPathParams<TPath>>,
+		const THandler extends Handler<TContext, ExtractPathParams<TPath>>,
 	>(
 		path: TPath,
 		handler: THandler,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -290,7 +282,7 @@ export class Router<
 		const TPath extends string,
 		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
-			TDecoration,
+			TContext,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -300,7 +292,7 @@ export class Router<
 		definition: TDefinition,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -313,22 +305,20 @@ export class Router<
 			}
 		>
 	>;
-	// deno-lint-ignore no-explicit-any
 	head(path: any, handler: any, definition?: any): any {
 		this.#add("HEAD", path, handler, definition);
-		// deno-lint-ignore no-explicit-any
 		return this as any;
 	}
 
 	patch<
 		const TPath extends string,
-		const THandler extends Handler<TDecoration, ExtractPathParams<TPath>>,
+		const THandler extends Handler<TContext, ExtractPathParams<TPath>>,
 	>(
 		path: TPath,
 		handler: THandler,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -345,7 +335,7 @@ export class Router<
 		const TPath extends string,
 		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
-			TDecoration,
+			TContext,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -355,7 +345,7 @@ export class Router<
 		definition: TDefinition,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -368,22 +358,20 @@ export class Router<
 			}
 		>
 	>;
-	// deno-lint-ignore no-explicit-any
 	patch(path: any, handler: any, definition?: any): any {
 		this.#add("PATCH", path, handler, definition);
-		// deno-lint-ignore no-explicit-any
 		return this as any;
 	}
 
 	post<
 		const TPath extends string,
-		const THandler extends Handler<TDecoration, ExtractPathParams<TPath>>,
+		const THandler extends Handler<TContext, ExtractPathParams<TPath>>,
 	>(
 		path: TPath,
 		handler: THandler,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -400,7 +388,7 @@ export class Router<
 		const TPath extends string,
 		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
-			TDecoration,
+			TContext,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -410,7 +398,7 @@ export class Router<
 		definition: TDefinition,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -423,22 +411,20 @@ export class Router<
 			}
 		>
 	>;
-	// deno-lint-ignore no-explicit-any
 	post(path: any, handler: any, definition?: any): any {
 		this.#add("POST", path, handler, definition);
-		// deno-lint-ignore no-explicit-any
 		return this as any;
 	}
 
 	put<
 		const TPath extends string,
-		const THandler extends Handler<TDecoration, ExtractPathParams<TPath>>,
+		const THandler extends Handler<TContext, ExtractPathParams<TPath>>,
 	>(
 		path: TPath,
 		handler: THandler,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -455,7 +441,7 @@ export class Router<
 		const TPath extends string,
 		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
-			TDecoration,
+			TContext,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -465,7 +451,7 @@ export class Router<
 		definition: TDefinition,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -478,22 +464,20 @@ export class Router<
 			}
 		>
 	>;
-	// deno-lint-ignore no-explicit-any
 	put(path: any, handler: any, definition?: any): any {
 		this.#add("PUT", path, handler, definition);
-		// deno-lint-ignore no-explicit-any
 		return this as any;
 	}
 
 	options<
 		const TPath extends string,
-		const THandler extends Handler<TDecoration, ExtractPathParams<TPath>>,
+		const THandler extends Handler<TContext, ExtractPathParams<TPath>>,
 	>(
 		path: TPath,
 		handler: THandler,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -510,7 +494,7 @@ export class Router<
 		const TPath extends string,
 		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
-			TDecoration,
+			TContext,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -520,7 +504,7 @@ export class Router<
 		definition: TDefinition,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -533,22 +517,20 @@ export class Router<
 			}
 		>
 	>;
-	// deno-lint-ignore no-explicit-any
 	options(path: any, handler: any, definition?: any): any {
 		this.#add("OPTIONS", path, handler, definition);
-		// deno-lint-ignore no-explicit-any
 		return this as any;
 	}
 
 	trace<
 		const TPath extends string,
-		const THandler extends Handler<TDecoration, ExtractPathParams<TPath>>,
+		const THandler extends Handler<TContext, ExtractPathParams<TPath>>,
 	>(
 		path: TPath,
 		handler: THandler,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -565,7 +547,7 @@ export class Router<
 		const TPath extends string,
 		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
-			TDecoration,
+			TContext,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -575,7 +557,7 @@ export class Router<
 		definition: TDefinition,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -588,22 +570,20 @@ export class Router<
 			}
 		>
 	>;
-	// deno-lint-ignore no-explicit-any
 	trace(path: any, handler: any, definition?: any): any {
 		this.#add("TRACE", path, handler, definition);
-		// deno-lint-ignore no-explicit-any
 		return this as any;
 	}
 
 	any<
 		const TPath extends string,
-		const THandler extends Handler<TDecoration, ExtractPathParams<TPath>>,
+		const THandler extends Handler<TContext, ExtractPathParams<TPath>>,
 	>(
 		path: TPath,
 		handler: THandler,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -652,7 +632,7 @@ export class Router<
 		const TPath extends string,
 		const TDefinition extends Definition<ExtractPathParamsAsSchema<TPath>>,
 		const THandler extends Handler<
-			TDecoration,
+			TContext,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -662,7 +642,7 @@ export class Router<
 		definition: TDefinition,
 	): Router<
 		TArgs,
-		TDecoration,
+		TContext,
 		Pretty<
 			& TRoutes
 			& {
@@ -707,7 +687,6 @@ export class Router<
 			}
 		>
 	>;
-	// deno-lint-ignore no-explicit-any
 	any(path: any, handler: any, definition?: any): any {
 		this.#add("CONNECT", path, handler, definition);
 		this.#add("DELETE", path, handler, definition);
@@ -718,7 +697,6 @@ export class Router<
 		this.#add("PUT", path, handler, definition);
 		this.#add("OPTIONS", path, handler, definition);
 		this.#add("TRACE", path, handler, definition);
-		// deno-lint-ignore no-explicit-any
 		return this as any;
 	}
 

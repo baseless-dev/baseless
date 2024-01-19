@@ -1,5 +1,5 @@
 import type { Document, DocumentKey } from "../../common/document/document.ts";
-import type { IDocumentService } from "../../common/server/services/document.ts";
+import type { IDocumentService } from "../../common/services/document.ts";
 import type {
 	DocumentAtomic,
 	DocumentGetOptions,

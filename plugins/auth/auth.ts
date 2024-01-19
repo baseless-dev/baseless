@@ -16,7 +16,6 @@ import {
 	isAuthenticationCeremonyStateIdentified,
 } from "../../common/auth/ceremony/state.ts";
 import {
-	type AuthenticationCeremonyComponentConditional,
 	type AuthenticationCeremonyComponentPrompt,
 	isAuthenticationCeremonyComponentChoice,
 	isAuthenticationCeremonyComponentDone,
@@ -26,19 +25,18 @@ import {
 	getComponentAtPath,
 } from "../../common/auth/ceremony/component/get_component_at_path.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import type { IContext } from "../../common/server/context.ts";
-import type { IAuthenticationService } from "../../common/server/services/auth.ts";
-import { resolveConditional } from "../../common/auth/ceremony/component/resolve_conditional.ts";
+import type { IAuthenticationService } from "../../common/services/auth.ts";
 import { Identity, isIdentity } from "../../common/identity/identity.ts";
+import type { AuthenticationOptions } from "./mod.ts";
 
 export class AuthenticationService implements IAuthenticationService {
 	#logger = createLogger("auth-service");
-	#context: IContext;
+	#options: AuthenticationOptions;
 
 	constructor(
-		context: IContext,
+		options: AuthenticationOptions,
 	) {
-		this.#context = context;
+		this.#options = options;
 	}
 
 	async getAuthenticationCeremony(
@@ -47,23 +45,12 @@ export class AuthenticationService implements IAuthenticationService {
 		AuthenticationCeremonyResponse<
 			Exclude<
 				ReturnType<typeof getComponentAtPath>,
-				AuthenticationCeremonyComponentConditional | undefined
+				undefined
 			>
 		>
 	> {
-		if (!this.#context.config.auth) {
-			throw new InvalidAuthenticationCeremonyComponentError();
-		}
 		state ??= { choices: [] };
-		const step = await resolveConditional(
-			this.#context.config.auth.ceremony,
-			this.#context,
-			state,
-		);
-		const result = getComponentAtPath(step, state.choices) as Exclude<
-			ReturnType<typeof getComponentAtPath>,
-			AuthenticationCeremonyComponentConditional
-		>;
+		const result = getComponentAtPath(this.#options.ceremony, state.choices);
 		if (!result || isAuthenticationCeremonyComponentDone(result)) {
 			if (isAuthenticationCeremonyStateIdentified(state)) {
 				return { done: true, identityId: state.identity };
@@ -73,7 +60,10 @@ export class AuthenticationService implements IAuthenticationService {
 		const last = isAuthenticationCeremonyComponentChoice(result)
 			? false
 			: isAuthenticationCeremonyResponseDone(
-				getComponentAtPath(step, [...state.choices, result.id]),
+				getComponentAtPath(this.#options.ceremony, [
+					...state.choices,
+					result.id,
+				]),
 			);
 		const first = state.choices.length === 0;
 		return { done: false, component: result, first, last, state };
@@ -88,15 +78,11 @@ export class AuthenticationService implements IAuthenticationService {
 		AuthenticationCeremonyResponse<
 			Exclude<
 				ReturnType<typeof getComponentAtPath>,
-				AuthenticationCeremonyComponentConditional | undefined
+				undefined
 			>
 		>
 	> {
-		if (!this.#context.config.auth) {
-			throw new InvalidAuthenticationCeremonyComponentError();
-		}
-		const counterInterval = this.#context.config.auth.rateLimit.interval *
-			1000;
+		const counterInterval = this.#options.rateLimit?.interval ?? 1000 * 60 * 5;
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = [
 			"auth",
@@ -105,8 +91,8 @@ export class AuthenticationService implements IAuthenticationService {
 			slidingWindow.toString(),
 		];
 		if (
-			await this.#context.counter.increment(counterKey, 1, counterInterval) >
-				this.#context.config.auth.rateLimit.count
+			await this.#options.counter.increment(counterKey, 1, counterInterval) >
+				(this.#options.rateLimit?.count ?? 5)
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
@@ -125,7 +111,7 @@ export class AuthenticationService implements IAuthenticationService {
 			throw new AuthenticationInvalidStepError();
 		}
 
-		const identificator = this.#context.config.auth.components.find((comp) =>
+		const identificator = this.#options.components.find((comp) =>
 			comp.id === id
 		);
 		if (!identificator) {
@@ -133,12 +119,11 @@ export class AuthenticationService implements IAuthenticationService {
 		}
 
 		const stateIdentity = isAuthenticationCeremonyStateIdentified(state)
-			? await this.#context.identity.get(state.identity)
+			? await this.#options.identity.get(state.identity)
 			: undefined;
 		const identityComponent = stateIdentity?.components[step.id];
 
 		const result = await identificator.verifyPrompt({
-			context: this.#context,
 			value,
 			identity: stateIdentity && identityComponent
 				? {

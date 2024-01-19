@@ -8,16 +8,20 @@ import {
 import type { IdentityComponent } from "../../common/identity/component.ts";
 import { IdentityNotFoundError } from "../../common/identity/errors.ts";
 import type { Identity } from "../../common/identity/identity.ts";
+import type { IdentityProvider } from "../identity.ts";
 import type { MessageProvider } from "../message.ts";
 
 export default class EmailAuthentificationComponent
 	extends AuthenticationComponent {
+	#identityProvider: IdentityProvider;
 	#messageProvider: MessageProvider;
 	constructor(
 		id: string,
+		identityProvider: IdentityProvider,
 		messageProvider: MessageProvider,
 	) {
 		super(id);
+		this.#identityProvider = identityProvider;
 		this.#messageProvider = messageProvider;
 	}
 	getCeremonyComponent(): AuthenticationCeremonyComponent {
@@ -35,12 +39,12 @@ export default class EmailAuthentificationComponent
 		return { identification: `${value}`, meta: {} };
 	}
 	async verifyPrompt(
-		{ context, value }: AuthenticationComponentVerifyPromptOptions,
+		{ value }: AuthenticationComponentVerifyPromptOptions,
 	): Promise<boolean | Identity> {
 		if (typeof value !== "string") {
 			throw new IdentityNotFoundError();
 		}
-		const identity = await context.identity.getByIdentification(
+		const identity = await this.#identityProvider.getByIdentification(
 			this.id,
 			value,
 		);

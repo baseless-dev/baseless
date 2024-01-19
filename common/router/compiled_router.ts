@@ -8,7 +8,7 @@ import type {
 	RouteSegment,
 } from "./types.ts";
 
-export function compileRouter<TArgs extends unknown[]>(
+export function compileRouter<TArgs extends {}>(
 	rst: RouteSegment[],
 	decorations: Array<
 		MaybeCallable<MaybePromise<Record<string, unknown>>, [{ request: Request }]>

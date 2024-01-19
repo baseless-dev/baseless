@@ -1,6 +1,6 @@
-import type { Identity } from "../../identity/identity.ts";
-import type { AutoId } from "../../system/autoid.ts";
-import type { Message } from "../../message/message.ts";
+import type { Identity } from "../identity/identity.ts";
+import type { AutoId } from "../system/autoid.ts";
+import type { Message } from "../message/message.ts";
 
 export interface IIdentityService {
 	get(identityId: AutoId): Promise<Identity>;

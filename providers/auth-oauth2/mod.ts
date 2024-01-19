@@ -7,9 +7,11 @@ import {
 import type { IdentityComponent } from "../../common/identity/component.ts";
 import { IdentityNotFoundError } from "../../common/identity/errors.ts";
 import type { Identity } from "../../common/identity/identity.ts";
+import type { IdentityProvider } from "../identity.ts";
 
 export default abstract class OAuth2AuthentificationComponent
 	extends AuthenticationComponent {
+	#identityProvider: IdentityProvider;
 	#authorizationUrl: URL;
 	#tokenUrl: URL;
 	#redirectUrl: URL;
@@ -19,6 +21,7 @@ export default abstract class OAuth2AuthentificationComponent
 
 	constructor(
 		id: string,
+		identityProvider: IdentityProvider,
 		options: {
 			authorizationUrl: string | URL;
 			tokenUrl: string | URL;
@@ -29,6 +32,7 @@ export default abstract class OAuth2AuthentificationComponent
 		},
 	) {
 		super(id);
+		this.#identityProvider = identityProvider;
 		this.#authorizationUrl = new URL(options.authorizationUrl.toString());
 		this.#tokenUrl = new URL(options.tokenUrl.toString());
 		this.#redirectUrl = new URL(options.redirectUrl.toString());
@@ -65,41 +69,40 @@ export default abstract class OAuth2AuthentificationComponent
 	}
 	abstract retrieveIdentification(access_token: string): Promise<string>;
 	async verifyPrompt(
-		{ context, value }: AuthenticationComponentVerifyPromptOptions,
+		{ value }: AuthenticationComponentVerifyPromptOptions,
 	): Promise<boolean | Identity> {
 		if (
-			!value || typeof value !== "object" ||
-			!("code" in value && typeof value.code === "string")
+			value && typeof value === "object" && "code" in value &&
+			typeof value.code === "string"
 		) {
-			throw new IdentityNotFoundError();
-		}
-		const { code } = value;
+			const { code } = value;
 
-		const url = new URL(this.#tokenUrl);
-		const headers = new Headers({
-			"Content-Type": "application/x-www-form-urlencoded",
-			"Accept": "application/json",
-			"Authorization": `Basic ${
-				btoa(`${this.#clientId}:${this.#clientSecret}`)
-			}`,
-		});
-		const body = new URLSearchParams();
-		body.set("grant_type", "authorization_code");
-		body.set("code", code);
-		body.set("redirect_uri", this.#redirectUrl.toString());
+			const url = new URL(this.#tokenUrl);
+			const headers = new Headers({
+				"Content-Type": "application/x-www-form-urlencoded",
+				"Accept": "application/json",
+				"Authorization": `Basic ${
+					btoa(`${this.#clientId}:${this.#clientSecret}`)
+				}`,
+			});
+			const body = new URLSearchParams();
+			body.set("grant_type", "authorization_code");
+			body.set("code", code);
+			body.set("redirect_uri", this.#redirectUrl.toString());
 
-		const response = await fetch(url, { method: "POST", headers, body });
-		// deno-lint-ignore no-explicit-any
-		const { access_token } = await response.json() as any;
-		try {
-			const identification = await this.retrieveIdentification(access_token);
-			const identity = await context.identity.getByIdentification(
-				this.id,
-				identification,
-			);
-			return identity;
-		} catch (_error) {
-			throw new IdentityNotFoundError();
+			const response = await fetch(url, { method: "POST", headers, body });
+			// deno-lint-ignore no-explicit-any
+			const { access_token } = await response.json() as any;
+			try {
+				const identification = await this.retrieveIdentification(access_token);
+				const identity = await this.#identityProvider.getByIdentification(
+					this.id,
+					identification,
+				);
+				return identity;
+			} catch (_error) {
+			}
 		}
+		throw new IdentityNotFoundError();
 	}
 }

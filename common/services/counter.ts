@@ -3,7 +3,7 @@ import type {
 	CounterIncrementError,
 	// deno-lint-ignore no-unused-vars
 	CounterResetError,
-} from "../../counter/errors.ts";
+} from "../counter/errors.ts";
 
 export interface ICounterService {
 	/**

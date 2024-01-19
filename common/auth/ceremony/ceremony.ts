@@ -1,13 +1,10 @@
-import type { IContext } from "../../server/context.ts";
 import {
 	InvalidAuthenticationCeremonyComponentChoiceError,
-	InvalidAuthenticationCeremonyComponentConditionalError,
 	InvalidAuthenticationCeremonyComponentDoneError,
 	InvalidAuthenticationCeremonyComponentError,
 	InvalidAuthenticationCeremonyComponentPromptError,
 	InvalidAuthenticationCeremonyComponentSequenceError,
 } from "../errors.ts";
-import type { AuthenticationCeremonyState } from "./state.ts";
 
 export interface AuthenticationCeremonyComponentPrompt {
 	readonly kind: "prompt";
@@ -30,16 +27,6 @@ export interface AuthenticationCeremonyComponentChoice<
 	kind: "choice";
 	components: Component[];
 }
-export interface AuthenticationCeremonyComponentConditional {
-	kind: "conditional";
-	components: AuthenticationCeremonyComponent[];
-	condition: (
-		context?: IContext,
-		state?: AuthenticationCeremonyState,
-	) =>
-		| number
-		| Promise<number>;
-}
 export interface AuthenticationCeremonyComponentDone {
 	kind: "done";
 }
@@ -47,7 +34,6 @@ export type AuthenticationCeremonyComponent =
 	| AuthenticationCeremonyComponentPrompt
 	| AuthenticationCeremonyComponentSequence<AuthenticationCeremonyComponent>
 	| AuthenticationCeremonyComponentChoice<AuthenticationCeremonyComponent>
-	| AuthenticationCeremonyComponentConditional
 	| AuthenticationCeremonyComponentDone;
 
 export function isAuthenticationCeremonyComponentPrompt(
@@ -78,15 +64,6 @@ export function isAuthenticationCeremonyComponentChoice(
 		Array.isArray(value.components) &&
 		value.components.every(isAuthenticationCeremonyComponent);
 }
-export function isAuthenticationCeremonyComponentConditional(
-	value: unknown,
-): value is AuthenticationCeremonyComponentConditional {
-	return !!value && typeof value === "object" && "kind" in value &&
-		value.kind === "conditional" && "components" in value &&
-		Array.isArray(value.components) &&
-		value.components.every(isAuthenticationCeremonyComponent) &&
-		"condition" in value && typeof value.condition === "function";
-}
 export function isAuthenticationCeremonyComponentDone(
 	value: unknown,
 ): value is AuthenticationCeremonyComponentDone {
@@ -99,7 +76,6 @@ export function isAuthenticationCeremonyComponent(
 	return isAuthenticationCeremonyComponentPrompt(value) ||
 		isAuthenticationCeremonyComponentSequence(value) ||
 		isAuthenticationCeremonyComponentChoice(value) ||
-		isAuthenticationCeremonyComponentConditional(value) ||
 		isAuthenticationCeremonyComponentDone(value);
 }
 export function assertAuthenticationCeremonyComponentPrompt(
@@ -125,13 +101,6 @@ export function assertAuthenticationCeremonyComponentChoice(
 > {
 	if (!isAuthenticationCeremonyComponentChoice(value)) {
 		throw new InvalidAuthenticationCeremonyComponentChoiceError();
-	}
-}
-export function assertAuthenticationCeremonyComponentConditional(
-	value: unknown,
-): asserts value is AuthenticationCeremonyComponentConditional {
-	if (!isAuthenticationCeremonyComponentConditional(value)) {
-		throw new InvalidAuthenticationCeremonyComponentConditionalError();
 	}
 }
 export function assertAuthenticationCeremonyComponentDone(

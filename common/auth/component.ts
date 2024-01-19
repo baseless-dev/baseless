@@ -1,7 +1,6 @@
 import type { IdentityComponent } from "../identity/component.ts";
 import type { Identity } from "../identity/identity.ts";
 import type { Message } from "../message/message.ts";
-import type { IContext } from "../server/context.ts";
 import type { AuthenticationCeremonyComponent } from "./ceremony/ceremony.ts";
 
 export type AuthenticationComponentRateLimit = {
@@ -10,12 +9,10 @@ export type AuthenticationComponentRateLimit = {
 };
 
 export type AuthenticationComponentGetIdentityComponentMetaOptions = {
-	context: IContext;
 	value: unknown;
 };
 
 export type AuthenticationComponentVerifyPromptOptions = {
-	context: IContext;
 	value: unknown;
 	identity?: {
 		identity: Identity;
@@ -24,14 +21,12 @@ export type AuthenticationComponentVerifyPromptOptions = {
 };
 
 export type AuthenticationComponentSendPromptOptions = {
-	context: IContext;
 	locale: string;
 	identity: Identity;
 	identityComponent: IdentityComponent;
 };
 
 export type AuthenticationComponentSendMessageOptions = {
-	context: IContext;
 	identity: Identity;
 	identityComponent: IdentityComponent;
 	message: Omit<Message, "recipient">;

@@ -116,9 +116,9 @@ export type Routes = {
 	[path: string]: Operations;
 };
 
-export type RequestHandler<TArgs extends unknown[]> = (
+export type RequestHandler<TArgs extends {}> = (
 	request: Request,
-	...args: TArgs
+	args: TArgs,
 ) => Promise<Response>;
 
 export type RouteSegmentConst = {

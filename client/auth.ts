@@ -16,7 +16,6 @@ import {
 } from "../common/auth/tokens.ts";
 import { assertID, type ID } from "../common/identity/identity.ts";
 import type { getComponentAtPath } from "../common/auth/ceremony/component/get_component_at_path.ts";
-import type { AuthenticationCeremonyComponentConditional } from "../common/auth/ceremony/ceremony.ts";
 import {
 	assertSendComponentPromptResponse,
 	type SendComponentPromptResponse,
@@ -276,7 +275,7 @@ export async function getAuthenticationCeremony(
 	AuthenticationCeremonyResponse<
 		Exclude<
 			ReturnType<typeof getComponentAtPath>,
-			AuthenticationCeremonyComponentConditional | undefined
+			undefined
 		>
 	>
 > {
@@ -313,7 +312,7 @@ export async function submitAuthenticationComponentPrompt(
 	AuthenticationCeremonyResponse<
 		Exclude<
 			ReturnType<typeof getComponentAtPath>,
-			AuthenticationCeremonyComponentConditional | undefined
+			undefined
 		>
 	>
 > {

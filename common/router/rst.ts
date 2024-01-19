@@ -96,20 +96,19 @@ function mergeSegments(segments: RouteSegment[]): RouteSegment[] {
 }
 
 export function routeSegmentSorter(a: RouteSegment, b: RouteSegment): number {
-	if (a.kind === "const" && b.kind === "const") {
-		return a.value.localeCompare(b.value);
-	} else if (a.kind === "param" && b.kind === "param") {
-		return a.name.localeCompare(b.name);
-	} else if (a.kind === "handler" && b.kind === "handler") {
-		return 0;
-	} else if (a.kind === "handler") {
-		return 1;
-	} else if (b.kind === "handler") {
-		return -1;
-	} else if (a.kind === "param" && b.kind === "const") {
-		return 1;
-	} else if (a.kind === "const" && b.kind === "param") {
-		return -1;
-	}
-	return 0;
+	const ka = a.kind === "const"
+		? `0:${a.value}`
+		: a.kind === "param"
+		? `1:${a.name}`
+		: a.kind === "rest"
+		? `2:${a.name}`
+		: `3`;
+	const kb = b.kind === "const"
+		? `0:${b.value}`
+		: b.kind === "param"
+		? `1:${b.name}`
+		: b.kind === "rest"
+		? `2:${b.name}`
+		: `3`;
+	return ka.localeCompare(kb);
 }

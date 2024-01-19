@@ -1,4 +1,4 @@
-import type { ISessionService } from "../../common/server/services/session.ts";
+import type { ISessionService } from "../../common/services/session.ts";
 import type { SessionData } from "../../common/session/data.ts";
 import {
 	// deno-lint-ignore no-unused-vars

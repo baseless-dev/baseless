@@ -16,10 +16,6 @@ export class InvalidAuthenticationCeremonyComponentPromptError extends Error {
 export class InvalidAuthenticationCeremonyComponentChoiceError extends Error {
 	name = "InvalidAuthenticationCeremonyComponentChoiceError" as const;
 }
-export class InvalidAuthenticationCeremonyComponentConditionalError
-	extends Error {
-	name = "InvalidAuthenticationCeremonyComponentConditionalError" as const;
-}
 export class InvalidAuthenticationCeremonyComponentSequenceError extends Error {
 	name = "InvalidAuthenticationCeremonyComponentSequenceError" as const;
 }

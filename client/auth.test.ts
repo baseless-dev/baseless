@@ -89,8 +89,7 @@ Deno.test("Client Auth", async (t) => {
 							id: "password",
 							confirmed: true,
 							...await passwordComponent.getIdentityComponentMeta(
-								// deno-lint-ignore no-explicit-any
-								{ value: "123", context: {} as any },
+								{ value: "123" },
 							),
 						},
 						"otp": {

@@ -1,6 +1,5 @@
 import {
 	type AuthenticationCeremonyComponent,
-	type AuthenticationCeremonyComponentConditional,
 	type AuthenticationCeremonyComponentDone,
 	type AuthenticationCeremonyComponentPrompt,
 	isAuthenticationCeremonyComponentChoice,
@@ -12,7 +11,6 @@ import { simplify } from "./simplify.ts";
 
 export type WalkedAuthenticationCeremonyComponent =
 	| AuthenticationCeremonyComponentPrompt
-	| AuthenticationCeremonyComponentConditional
 	| AuthenticationCeremonyComponentDone;
 
 export default function* walk(

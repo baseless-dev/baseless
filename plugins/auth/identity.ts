@@ -6,32 +6,32 @@ import {
 	AuthenticationSendValidationPromptError,
 } from "../../common/auth/errors.ts";
 import type { Identity } from "../../common/identity/identity.ts";
-import type { IContext } from "../../common/server/context.ts";
-import type { IIdentityService } from "../../common/server/services/identity.ts";
+import type { IIdentityService } from "../../common/services/identity.ts";
 import { type AutoId, autoid } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import type { IdentityProvider } from "../../providers/identity.ts";
 import type { Message } from "../../common/message/message.ts";
+import type { Context } from "./context.ts";
+import type { AuthenticationOptions } from "./mod.ts";
 
 export class IdentityService implements IIdentityService {
 	#logger = createLogger("identity-service");
-	#identityProvider: IdentityProvider;
-	#context: IContext;
+	#context: Context;
+	#options: AuthenticationOptions;
 
 	constructor(
-		identityProvider: IdentityProvider,
-		context: IContext,
+		options: AuthenticationOptions,
+		context: Context,
 	) {
-		this.#identityProvider = identityProvider;
 		this.#context = context;
+		this.#options = options;
 	}
 
 	get(identityId: AutoId): Promise<Identity> {
-		return this.#identityProvider.get(identityId);
+		return this.#options.identity.get(identityId);
 	}
 
 	getByIdentification(type: string, identification: string): Promise<Identity> {
-		return this.#identityProvider.getByIdentification(type, identification);
+		return this.#options.identity.getByIdentification(type, identification);
 	}
 
 	create(
@@ -39,19 +39,19 @@ export class IdentityService implements IIdentityService {
 		components: Identity["components"],
 	): Promise<Identity> {
 		// TODO life cycle hooks
-		return this.#identityProvider.create(meta, components);
+		return this.#options.identity.create(meta, components);
 	}
 
 	update(
 		identity: Identity,
 	): Promise<void> {
 		// TODO life cycle hooks
-		return this.#identityProvider.update(identity);
+		return this.#options.identity.update(identity);
 	}
 
 	delete(identityId: AutoId): Promise<void> {
 		// TODO life cycle hooks
-		return this.#identityProvider.delete(identityId);
+		return this.#options.identity.delete(identityId);
 	}
 
 	public async broadcastMessage(
@@ -62,12 +62,12 @@ export class IdentityService implements IIdentityService {
 		// try {
 		// 	assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
 		// 	assertMessage(message);
-		// 	const identity = await this.#identityProvider.get(identityId);
+		// 	const identity = await this.#options.identity.get(identityId);
 		// 	const confirmedIdentifications = Object.values(identity.identifications)
 		// 		.filter((i) => i.confirmed);
 		// 	const sendMessages = confirmedIdentifications.reduce(
 		// 		(messages, identityIdentification) => {
-		// 			const identicator = this.#context.config.auth.identificators
+		// 			const identicator = this.#options.identificators
 		// 				.get(
 		// 					identityIdentification.type,
 		// 				);
@@ -99,8 +99,8 @@ export class IdentityService implements IIdentityService {
 		// try {
 		// 	assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
 		// 	assertMessage(message);
-		// 	const identity = await this.#identityProvider.get(identityId);
-		// 	const identicator = this.#context.config.auth.identificators
+		// 	const identity = await this.#options.identity.get(identityId);
+		// 	const identicator = this.#options.identificators
 		// 		.get(
 		// 			identificationType,
 		// 		);
@@ -124,10 +124,12 @@ export class IdentityService implements IIdentityService {
 
 	async sendComponentPrompt(
 		identityId: AutoId,
-		component: string,
+		componentId: string,
 		locale: string,
 	): Promise<void> {
-		const authComponent = this.#context.config.auth.components.get(component);
+		const authComponent = this.#options.components.find((comp) =>
+			comp.id === componentId
+		);
 		if (!authComponent) {
 			throw new AuthenticationSendValidationPromptError();
 		}
@@ -139,10 +141,10 @@ export class IdentityService implements IIdentityService {
 					"auth",
 					"sendprompt",
 					identityId,
-					component,
+					componentId,
 					slidingWindow.toString(),
 				];
-				const counter = await this.#context.counter.increment(
+				const counter = await this.#options.counter.increment(
 					counterKey,
 					1,
 					interval,
@@ -151,8 +153,8 @@ export class IdentityService implements IIdentityService {
 					throw new AuthenticationRateLimitedError();
 				}
 			}
-			const identity = await this.#identityProvider.get(identityId);
-			const identityComponent = identity.components[component];
+			const identity = await this.#options.identity.get(identityId);
+			const identityComponent = identity.components[componentId];
 			if (!identityComponent) {
 				throw new AuthenticationSendValidationCodeError();
 			}
@@ -167,10 +169,12 @@ export class IdentityService implements IIdentityService {
 
 	async sendComponentValidationCode(
 		identityId: AutoId,
-		component: string,
+		componentId: string,
 		_locale: string,
 	): Promise<void> {
-		const authComponent = this.#context.config.auth.components.get(component);
+		const authComponent = this.#options.components.find((comp) =>
+			comp.id === componentId
+		);
 		if (!authComponent) {
 			throw new AuthenticationSendValidationCodeError();
 		}
@@ -182,10 +186,10 @@ export class IdentityService implements IIdentityService {
 					"auth",
 					"sendvalidationcode",
 					identityId,
-					component,
+					componentId,
 					slidingWindow.toString(),
 				];
-				const counter = await this.#context.counter.increment(
+				const counter = await this.#options.counter.increment(
 					counterKey,
 					1,
 					interval,
@@ -194,17 +198,17 @@ export class IdentityService implements IIdentityService {
 					throw new AuthenticationRateLimitedError();
 				}
 			}
-			const identity = await this.#identityProvider.get(identityId);
-			const identityComponent = identity.components[component];
+			const identity = await this.#options.identity.get(identityId);
+			const identityComponent = identity.components[componentId];
 			if (!identityComponent) {
 				throw new AuthenticationSendValidationCodeError();
 			}
 			const code = autoid("code_");
-			await this.#context.kv.put(
+			await this.#options.kv.put(
 				["auth", "validationcode", code],
 				JSON.stringify({
 					identityId: identity.id,
-					componentId: component,
+					componentId: componentId,
 				}),
 				{ expiration: 1000 * 60 * 5 },
 			);
@@ -219,10 +223,10 @@ export class IdentityService implements IIdentityService {
 	}
 
 	async confirmComponentValidationCode(code: string): Promise<void> {
-		const counterInterval = this.#context.config.auth.security.rateLimit
-			.confirmVerificationCodeInterval;
-		const counterLimit = this.#context.config.auth.security.rateLimit
-			.confirmVerificationCodeCount;
+		const counterInterval = this.#options.rateLimit
+			?.interval ?? 1000 * 60 * 5;
+		const counterLimit = this.#options.rateLimit
+			?.count ?? 5;
 		const slidingWindow = Math.round(Date.now() / counterInterval * 1000);
 		const counterKey = [
 			"auth",
@@ -231,7 +235,7 @@ export class IdentityService implements IIdentityService {
 			this.#context.remoteAddress,
 			slidingWindow.toString(),
 		];
-		const counter = await this.#context.counter.increment(
+		const counter = await this.#options.counter.increment(
 			counterKey,
 			1,
 			counterInterval,
@@ -241,14 +245,14 @@ export class IdentityService implements IIdentityService {
 		}
 
 		try {
-			const codeKey = await this.#context.kv.get([
+			const codeKey = await this.#options.kv.get([
 				"auth",
 				"validationcode",
 				code,
 			]);
 			const { identityId, componentId } = JSON.parse(codeKey.value);
 
-			const identity = await this.#identityProvider.get(identityId);
+			const identity = await this.#options.identity.get(identityId);
 			const identityComponent = identity.components[componentId];
 			if (!identityComponent) {
 				throw new AuthenticationConfirmValidationCodeError();

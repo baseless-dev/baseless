@@ -62,12 +62,14 @@ Deno.test("route", async () => {
 				method: "GET",
 				headers: { "x-foo": "123" },
 			}),
+			{},
 		)),
 		{ body: '{"get":"/"}' },
 	);
 	assertObjectMatch(
 		await extractResponse(router(
 			new Request("http://localhost:8080/users/123", { method: "GET" }),
+			{},
 		)),
 		{ body: '{"get":"123"}' },
 	);
@@ -78,6 +80,7 @@ Deno.test("route", async () => {
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({ username: "foo" }),
 			}),
+			{},
 		)),
 		{ body: '{"patch":"123","body":{"username":"foo"}}' },
 	);
@@ -88,6 +91,7 @@ Deno.test("route", async () => {
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({ username: "foo", password: "bar" }),
 			}),
+			{},
 		)),
 		{ body: '{"username":"foo","password":"bar"}' },
 	);

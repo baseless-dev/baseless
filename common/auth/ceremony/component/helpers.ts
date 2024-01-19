@@ -2,7 +2,6 @@ import {
 	assertAuthenticationCeremonyComponent,
 	type AuthenticationCeremonyComponent,
 	type AuthenticationCeremonyComponentChoice,
-	type AuthenticationCeremonyComponentConditional,
 	type AuthenticationCeremonyComponentSequence,
 } from "../ceremony.ts";
 export * as h from "./helpers.ts";
@@ -23,11 +22,4 @@ export function oneOf(
 		assertAuthenticationCeremonyComponent(component);
 	}
 	return { kind: "choice", components };
-}
-
-export function iif(
-	components: AuthenticationCeremonyComponent[],
-	condition: AuthenticationCeremonyComponentConditional["condition"],
-): AuthenticationCeremonyComponentConditional {
-	return { kind: "conditional", components, condition };
 }

@@ -120,15 +120,18 @@ Deno.test("rest", () => {
 
 Deno.test("complexe", () => {
 	const rst = parseRST({
+		"/{...paths}": {
+			GET: { handler: () => Response.error(), definition: {} },
+		},
 		"/login": {
+			GET: { handler: () => Response.error(), definition: {} },
+		},
+		"/users/{notid}/action": {
 			GET: { handler: () => Response.error(), definition: {} },
 		},
 		"/users/{id}": {
 			GET: { handler: () => Response.error(), definition: {} },
 			POST: { handler: () => Response.error(), definition: {} },
-		},
-		"/users/{notid}/action": {
-			GET: { handler: () => Response.error(), definition: {} },
 		},
 		"/users/{id}/comments/{comment}": {
 			GET: { handler: () => Response.error(), definition: {} },

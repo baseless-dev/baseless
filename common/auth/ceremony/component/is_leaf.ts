@@ -1,7 +1,6 @@
 import {
 	type AuthenticationCeremonyComponent,
 	isAuthenticationCeremonyComponentChoice,
-	isAuthenticationCeremonyComponentConditional,
 	isAuthenticationCeremonyComponentSequence,
 } from "../ceremony.ts";
 
@@ -17,9 +16,6 @@ export function isLeaf(step: AuthenticationCeremonyComponent): boolean {
 			!(isAuthenticationCeremonyComponentSequence(step) ||
 				isAuthenticationCeremonyComponentChoice(step))
 		);
-	}
-	if (isAuthenticationCeremonyComponentConditional(step)) {
-		return false;
 	}
 	return true;
 }

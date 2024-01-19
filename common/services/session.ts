@@ -1,5 +1,5 @@
-import type { SessionData } from "../../session/data.ts";
-import type { AutoId } from "../../system/autoid.ts";
+import type { SessionData } from "../session/data.ts";
+import type { AutoId } from "../system/autoid.ts";
 import {
 	// deno-lint-ignore no-unused-vars
 	SessionCreateError,
@@ -9,7 +9,7 @@ import {
 	SessionIDNotFoundError,
 	// deno-lint-ignore no-unused-vars
 	SessionUpdateError,
-} from "../../session/errors.ts";
+} from "../session/errors.ts";
 
 export interface ISessionService {
 	/**

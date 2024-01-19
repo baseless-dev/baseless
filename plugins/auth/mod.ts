@@ -114,18 +114,18 @@ export default function authPlugin(
 			};
 			return context;
 		})
-		.get("/authenticationCeremony", ({ auth }) => {
-			return Response.json(auth.getAuthenticationCeremony());
+		.get("/ceremony", async ({ auth }) => {
+			return Response.json(await auth.getAuthenticationCeremony());
 		}, {
 			summary: "Get the authentication ceremony",
 			tags: ["Authentication"],
 		})
-		.post("/authenticationCeremony", async ({ body, auth }) => {
+		.post("/ceremony", async ({ body, auth }) => {
 			const state = await decryptEncryptedAuthenticationCeremonyState(
 				body.state,
 				options.keys.publicKey,
 			);
-			return Response.json(auth.getAuthenticationCeremony(state));
+			return Response.json(await auth.getAuthenticationCeremony(state));
 		}, {
 			summary: "Get the authentication ceremony from an encrypted state",
 			tags: ["Authentication"],

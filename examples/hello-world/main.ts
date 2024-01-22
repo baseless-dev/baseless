@@ -7,7 +7,7 @@ import { DocumentIdentityProvider } from "../../providers/identity-document/mod.
 import { DenoKVProvider } from "../../providers/kv-denokv/mod.ts";
 import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
 import openapiPlugin from "../../plugins/openapi/mod.ts";
-import corePlugin from "../../plugins/baseless/mod.ts";
+import corePlugin from "../../plugins/core/mod.ts";
 import authPlugin from "../../plugins/auth/mod.ts";
 import assetPlugin from "../../plugins/asset/mod.ts";
 import EmailAuthentificationComponent from "../../providers/auth-email/mod.ts";

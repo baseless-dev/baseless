@@ -14,7 +14,7 @@ export type Options = {
 };
 
 // deno-lint-ignore explicit-function-return-type
-export default function baseless(
+export default function core(
 	options: Options,
 ) {
 	const { counter, kv, document } = options;

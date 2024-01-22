@@ -7,7 +7,7 @@ import type { IdentityProvider } from "../../providers/identity.ts";
 import type { SessionProvider } from "../../providers/session.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import { jwtVerify } from "https://deno.land/x/jose@v4.13.1/jwt/verify.ts";
-import { isAutoId } from "../../common/system/autoid.ts";
+import { assertAutoId, isAutoId } from "../../common/system/autoid.ts";
 import { AuthenticationService } from "./auth.ts";
 import { IdentityService } from "./identity.ts";
 import { SessionService } from "./session.ts";
@@ -16,6 +16,8 @@ import { t } from "../../common/schema/types.ts";
 import type { Context, TokenData } from "./context.ts";
 import type { CounterProvider } from "../../providers/counter.ts";
 import type { KVProvider } from "../../providers/kv.ts";
+import { UnauthorizedError } from "../../common/auth/errors.ts";
+import { createTokens } from "./create_tokens.ts";
 export * as t from "../../common/schema/types.ts";
 
 export type AuthenticationKeys = {
@@ -113,6 +115,52 @@ export default function authPlugin(
 				},
 			};
 			return context;
+		})
+		.post("/signout", async ({ session, authenticationToken }) => {
+			if (authenticationToken) {
+				const sessionId = authenticationToken.sessionData.id;
+				await session.destroy(sessionId).catch((_) => {});
+				return Response.json({});
+			}
+			throw new UnauthorizedError();
+		}, {
+			summary: "Sign out current session",
+			tags: ["Authentication"],
+		})
+		.post("/refresh", async ({ request, session, identity }) => {
+			const refreshToken = request.headers.get("X-Refresh-Token");
+			if (!refreshToken) {
+				return new Response(null, { status: 400 });
+			}
+			const { payload } = await jwtVerify(
+				refreshToken,
+				options.keys.publicKey,
+			);
+			const { sub: sessionId, scope } = payload;
+			assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
+			const sessionData = await session.get(sessionId);
+			const id = await identity.get(sessionData.identityId);
+			await session.update(
+				sessionData,
+				options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+			);
+			const { access_token, id_token } = await createTokens(
+				id,
+				sessionData,
+				options.keys.algo,
+				options.keys.privateKey,
+				options.accessTokenTTL ?? 1000 * 60 * 10,
+				options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+				`${scope}`,
+			);
+			return Response.json({
+				access_token,
+				id_token,
+				refresh_token: refreshToken,
+			});
+		}, {
+			summary: "Get access token from refresh token",
+			tags: ["Authentication"],
 		})
 		.get("/ceremony", async ({ auth }) => {
 			return Response.json(await auth.getAuthenticationCeremony());

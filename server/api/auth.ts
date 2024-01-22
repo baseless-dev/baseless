@@ -56,9 +56,10 @@ authRouter.post(
 authRouter.post("/createAnonymousIdentity", json(createAnonymousIdentity));
 authRouter.post("/createIdentity", json(createIdentity));
 authRouter.post("/deleteIdentityComponent", json(deleteIdentityComponent));
-authRouter.get("/getAuthenticationCeremony", json(getAuthenticationCeremony));
-authRouter.post("/getAuthenticationCeremony", json(getAuthenticationCeremony));
-authRouter.post("/refreshTokens", json(refreshTokens));
+// authRouter.get("/getAuthenticationCeremony", json(getAuthenticationCeremony));
+// authRouter.post("/getAuthenticationCeremony", json(getAuthenticationCeremony));
+// authRouter.post("/refreshTokens", json(refreshTokens));
+// authRouter.post("/signOut", json(signOut));
 authRouter.post(
 	"/sendAuthenticationComponentPrompt",
 	json(sendAuthenticationComponentPrompt),
@@ -67,7 +68,6 @@ authRouter.post(
 	"/sendIdentityComponentValidationCode",
 	json(sendIdentityComponentValidationCode),
 );
-authRouter.post("/signOut", json(signOut));
 authRouter.post(
 	"/submitAuthenticationComponentPrompt",
 	json(submitAuthenticationComponentPrompt),

@@ -35,11 +35,11 @@ const passwordComponent = new PasswordAuthentificationComponent(
 );
 
 const app = new Router()
-	.use(corePlugin({
-		counter,
-		document,
-		kv,
-	}))
+	// .use(corePlugin({
+	// 	counter,
+	// 	document,
+	// 	kv,
+	// }))
 	.use(
 		"/api/v1/auth",
 		authPlugin({

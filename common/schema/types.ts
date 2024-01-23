@@ -22,6 +22,19 @@ export function Ref(reference: string): ReferenceSchema {
 	return { $ref: reference };
 }
 
+export interface AnySchema extends BaseSchema {
+	type: "any";
+}
+
+export function isAnySchema(value: unknown): value is AnySchema {
+	return !!value && typeof value === "object" && "type" in value &&
+		value.type === "any";
+}
+
+export function Any(): AnySchema {
+	return { type: "any" };
+}
+
 export interface NullSchema extends BaseSchema {
 	type: "null";
 }
@@ -352,21 +365,23 @@ export function Example<const TSchema extends BaseSchema>(
 
 export type Schema =
 	| ReferenceSchema
+	| AnySchema
 	| NullSchema
 	| BooleanSchema
 	| NumberSchema
 	| StringSchema
-	| EnumSchema
-	| ConstSchema
-	| TupleSchema
-	| ArraySchema
-	| SetSchema
-	| ObjectSchema
-	| RecordSchema
-	| UnionSchema;
+	| EnumSchema<any[]>
+	| ConstSchema<any>
+	| TupleSchema<any[]>
+	| ArraySchema<any>
+	| SetSchema<any>
+	| ObjectSchema<any>
+	| RecordSchema<any>
+	| UnionSchema<any[]>;
 
 function isSchema(value: unknown): value is Schema {
 	return isReferenceSchema(value) ||
+		isAnySchema(value) ||
 		isNullSchema(value) ||
 		isBooleanSchema(value) ||
 		isNumberSchema(value) ||

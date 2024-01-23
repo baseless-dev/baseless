@@ -6,6 +6,7 @@ import type { OpenAPIV3 } from "https://esm.sh/openapi-types@12.1.3";
 import * as t from "../../common/schema/types.ts";
 import { isArraySchema } from "../../common/schema/types.ts";
 import { isStringSchema } from "../../common/schema/types.ts";
+import { parseRST, routifyRST } from "../../common/router/rst.ts";
 
 // deno-lint-ignore explicit-function-return-type
 export default function openapiPlugin(
@@ -17,9 +18,9 @@ export default function openapiPlugin(
 	},
 	servers: OpenAPIV3.ServerObject[] = [],
 ) {
-	return async (routes: Routes) => {
+	return (routes: Routes) => {
 		const app = new Router()
-			.get("/openapi.json", ({ request }) => {
+			.get("/openapi.json", async ({ request }) => {
 				if (request.headers.get("accept")?.includes("text/html")) {
 					const html = `<!DOCTYPE html>
 <html lang="en">
@@ -40,7 +41,7 @@ export default function openapiPlugin(
 						headers: { "content-type": "text/html; charset=utf-8" },
 					});
 				}
-				return new Response(json, {
+				return new Response(await json(), {
 					headers: { "content-type": "application/json" },
 				});
 			}, {
@@ -81,15 +82,23 @@ export default function openapiPlugin(
 				},
 			});
 
-		routes = { ...routes, ...(await app.getFinalizedData())[0] };
+		let cachedJSON: string | undefined;
+		const json = async () => {
+			if (!cachedJSON) {
+				const localRoutes = { ...routes, ...(await app.getFinalizedData())[0] };
 
-		const document: OpenAPIV3.Document = {
-			...transformRoutesToOpenAPIV3Document(routes),
-			openapi: "3.1.0",
-			info,
-			servers,
+				const sortedRoutes = routifyRST(parseRST(localRoutes));
+
+				const document: OpenAPIV3.Document = {
+					...transformRoutesToOpenAPIV3Document(sortedRoutes),
+					openapi: "3.1.0",
+					info,
+					servers,
+				};
+				cachedJSON = JSON.stringify(document);
+			}
+			return cachedJSON;
 		};
-		const json = JSON.stringify(document);
 
 		return app;
 	};
@@ -181,10 +190,7 @@ function transformRoutesToOpenAPIV3Document(
 							}
 							: {}),
 						responses: {
-							"500": {
-								description: "Unexpected server error",
-							},
-							...definition.response,
+							...definition.response as any,
 						},
 					} satisfies OpenAPIV3.OperationObject,
 				},

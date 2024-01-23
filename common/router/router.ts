@@ -2,7 +2,7 @@
 import type { MaybeCallable, MaybePromise, Pretty } from "../system/types.ts";
 import { compileRouter } from "./compiled_router.ts";
 import { dynamicRouter } from "./dynamic_router.ts";
-import { parseRST } from "./rst.ts";
+import { parseRST, routifyRST } from "./rst.ts";
 import {
 	Definition,
 	ExtractParamsAsSchemaRuntime,

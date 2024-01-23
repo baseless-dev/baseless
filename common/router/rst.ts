@@ -27,6 +27,40 @@ export function parseRST(
 	);
 }
 
+export function routifyRST(
+	segments: RouteSegment[],
+): Routes {
+	const routes = {} as Routes;
+	for (const segment of segments) {
+		stringifySegment(segment, "");
+	}
+	return routes;
+
+	function stringifySegment(
+		segment: RouteSegment,
+		path: string,
+	): void {
+		if (segment.kind === "const") {
+			for (const child of segment.children) {
+				stringifySegment(child, `${path}/${segment.value}`);
+			}
+		} else if (segment.kind === "param") {
+			for (const child of segment.children) {
+				stringifySegment(child, `${path}/{${segment.name}}`);
+			}
+		} else if (segment.kind === "rest") {
+			for (const child of segment.children) {
+				stringifySegment(child, `${path}/{...${segment.name}}`);
+			}
+		} else if (segment.kind === "handler") {
+			routes[path] = {
+				...routes[path],
+				...segment.definition,
+			};
+		}
+	}
+}
+
 function parseSegment(
 	segments: string[],
 	method: string,

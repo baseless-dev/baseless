@@ -2,7 +2,7 @@ import {
 	assertObjectMatch,
 	assertThrows,
 } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import { parseRST } from "./rst.ts";
+import { parseRST, routifyRST } from "./rst.ts";
 
 Deno.test("const", () => {
 	assertObjectMatch(

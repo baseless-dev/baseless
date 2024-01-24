@@ -21,6 +21,9 @@ export function CheckJIT<TSchema extends Schema>(
 	value: unknown,
 ): value is Infer<TSchema>;
 export function CheckJIT(schema: Schema, value: unknown): boolean {
+	if ("type" in schema && schema.type === "any") {
+		return true;
+	}
 	if ("type" in schema && schema.type === "null") {
 		return value === null;
 	}
@@ -117,6 +120,9 @@ export function CheckJIT(schema: Schema, value: unknown): boolean {
 }
 
 export function Code(schema: Schema, value = "value"): string {
+	if ("type" in schema && schema.type === "any") {
+		return `true`;
+	}
 	if (isNullSchema(schema)) {
 		return `${value} === null`;
 	}

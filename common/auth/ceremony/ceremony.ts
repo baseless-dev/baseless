@@ -117,3 +117,23 @@ export function assertAuthenticationCeremonyComponent(
 		throw new InvalidAuthenticationCeremonyComponentError();
 	}
 }
+
+export function isAuthenticationCeremonyComponentEqual(
+	a: AuthenticationCeremonyComponent,
+	b: AuthenticationCeremonyComponent,
+): boolean {
+	if (a.kind !== b.kind) {
+		return false;
+	}
+	if (a.kind === "prompt") {
+		const b2 = b as typeof a;
+		return a.id === b2.id && a.prompt === b2.prompt;
+	} else if (a.kind === "sequence" || a.kind === "choice") {
+		const b2 = b as typeof a;
+		return a.components.length === b2.components.length &&
+			a.components.every((c, i) =>
+				isAuthenticationCeremonyComponentEqual(c, b2.components[i])
+			);
+	}
+	return true;
+}

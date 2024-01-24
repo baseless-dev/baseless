@@ -1,4 +1,3 @@
-import { MessageSendError } from "../../client/errors.ts";
 import {
 	AuthenticationConfirmValidationCodeError,
 	AuthenticationRateLimitedError,
@@ -12,6 +11,7 @@ import { createLogger } from "../../common/system/logger.ts";
 import type { Message } from "../../common/message/message.ts";
 import type { Context } from "./context.ts";
 import type { AuthenticationOptions } from "./mod.ts";
+import { MessageSendError } from "../../common/message/errors.ts";
 
 export class IdentityService implements IIdentityService {
 	#logger = createLogger("identity-service");
@@ -159,7 +159,6 @@ export class IdentityService implements IIdentityService {
 				throw new AuthenticationSendValidationCodeError();
 			}
 			await authComponent.sendPrompt({
-				context: this.#context,
 				identity,
 				identityComponent,
 				locale,
@@ -214,7 +213,6 @@ export class IdentityService implements IIdentityService {
 			);
 			// TODO actual message from locale
 			await authComponent.sendMessage({
-				context: this.#context,
 				identity,
 				identityComponent,
 				message: { text: code },

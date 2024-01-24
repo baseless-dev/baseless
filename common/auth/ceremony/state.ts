@@ -1,10 +1,10 @@
+import { IDENTITY_AUTOID_PREFIX } from "../../identity/identity.ts";
+import { type AutoId, isAutoId } from "../../system/autoid.ts";
 import {
 	InvalidAuthenticationCeremonyState,
 	InvalidAuthenticationCeremonyStateAnonymous,
 	InvalidAuthenticationCeremonyStateIdentified,
-} from "../../../client/errors.ts";
-import { IDENTITY_AUTOID_PREFIX } from "../../identity/identity.ts";
-import { type AutoId, isAutoId } from "../../system/autoid.ts";
+} from "../errors.ts";
 
 export type AuthenticationCeremonyStateAnonymous = {
 	choices: string[];

@@ -12,7 +12,7 @@ import {
 	type TOTPOptions,
 } from "../../common/system/otp.ts";
 
-export default class TOTPAuthenticationComponent
+export default class TOTPAuthentificationComponent
 	extends AuthenticationComponent {
 	#options: Omit<TOTPOptions, "key">;
 	constructor(id: string, options: Omit<TOTPOptions, "key">) {

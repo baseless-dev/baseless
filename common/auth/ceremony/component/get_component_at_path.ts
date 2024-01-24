@@ -1,6 +1,7 @@
 import {
 	type AuthenticationCeremonyComponent,
 	type AuthenticationCeremonyComponentChoice,
+	isAuthenticationCeremonyComponentEqual,
 	isAuthenticationCeremonyComponentPrompt,
 } from "../ceremony.ts";
 import { oneOf } from "./helpers.ts";
@@ -26,9 +27,12 @@ export function getComponentAtPath(
 			components.add(comp);
 		}
 	}
-	if (components.size === 1) {
-		return Array.from(components)[0];
-	} else if (components.size > 1) {
-		return oneOf(...components);
+	const uniqueComponents = Array.from(components).filter((c, i, a) =>
+		a.findIndex((o) => isAuthenticationCeremonyComponentEqual(o, c)) === i
+	);
+	if (uniqueComponents.length === 1) {
+		return uniqueComponents[0];
+	} else if (uniqueComponents.length > 1) {
+		return oneOf(...uniqueComponents);
 	}
 }

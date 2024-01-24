@@ -24,7 +24,8 @@ import {
 	isAuthenticationCeremonyStateIdentified,
 } from "../../common/auth/ceremony/state.ts";
 import { encryptAuthenticationCeremonyState } from "./encrypt_authentication_ceremony_state.ts";
-export * as t from "../../common/schema/types.ts";
+import { simplify } from "../../common/auth/ceremony/component/simplify.ts";
+import { sequence } from "../../common/auth/ceremony/component/helpers.ts";
 
 export type AuthenticationKeys = {
 	algo: string;
@@ -63,6 +64,9 @@ export default function authPlugin(
 	options: AuthenticationOptions,
 ) {
 	const logger = createLogger("auth-plugin");
+	options.ceremony = simplify(
+		sequence(options.ceremony, { kind: "done" as const }),
+	);
 	return new Router()
 		.decorate(async ({ request }) => {
 			let authenticationToken: TokenData | undefined;
@@ -138,8 +142,8 @@ export default function authPlugin(
 			summary: "Sign out current session",
 			tags: ["Authentication"],
 			headers: t.Object({
-				"Autorization": t.String(),
-			}, ["Autorization"]),
+				"authorization": t.String(),
+			}, ["authorization"]),
 			response: {
 				200: {
 					description: "Confirmation",
@@ -191,8 +195,8 @@ export default function authPlugin(
 			summary: "Get access token from refresh token",
 			tags: ["Authentication"],
 			headers: t.Object({
-				"X-Refresh-Token": t.String(),
-			}, ["X-Refresh-Token"]),
+				"x-refresh-token": t.String(),
+			}, ["x-refresh-token"]),
 			response: {
 				200: {
 					description: "Tokens",
@@ -234,7 +238,7 @@ export default function authPlugin(
 			"/signIn/submitPrompt",
 			async ({ body, auth, remoteAddress, identity, session }) => {
 				const state = await decryptEncryptedAuthenticationCeremonyState(
-					body.state,
+					body.state ?? "",
 					options.keys.publicKey,
 				);
 				const subject = isAuthenticationCeremonyStateIdentified(state)
@@ -243,7 +247,7 @@ export default function authPlugin(
 				const result = await auth.submitComponentPrompt(
 					state,
 					body.component,
-					prompt,
+					body.prompt,
 					subject,
 				);
 				if (isAuthenticationCeremonyResponseDone(result)) {
@@ -288,7 +292,7 @@ export default function authPlugin(
 					component: t.Describe("The authentication component", t.String()),
 					prompt: t.Any(),
 					state: AuthenticationEncryptedStateSchema,
-				}, ["component", "prompt", "state"]),
+				}, ["component", "prompt"]),
 				response: {
 					200: {
 						description: "Sign in result",
@@ -309,7 +313,7 @@ export default function authPlugin(
 			async ({ body, identity, authenticationToken }) => {
 				try {
 					const state = await decryptEncryptedAuthenticationCeremonyState(
-						body.state,
+						body.state ?? "",
 						options.keys.publicKey,
 					);
 					const identityId = isAuthenticationCeremonyStateIdentified(state)
@@ -337,7 +341,7 @@ export default function authPlugin(
 					component: t.Describe("The authentication component", t.String()),
 					state: AuthenticationEncryptedStateSchema,
 					locale: t.String(),
-				}, ["component", "state"]),
+				}, ["component"]),
 				response: {
 					200: {
 						description: "Send sign in prompt result",
@@ -360,7 +364,7 @@ export default function authPlugin(
 			async ({ body, authenticationToken, identity }) => {
 				try {
 					const state = await decryptEncryptedAuthenticationCeremonyState(
-						body.state,
+						body.state ?? "",
 						options.keys.publicKey,
 					);
 					const identityId = isAuthenticationCeremonyStateIdentified(state)
@@ -388,7 +392,7 @@ export default function authPlugin(
 					component: t.Describe("The authentication component", t.String()),
 					state: AuthenticationEncryptedStateSchema,
 					locale: t.String(),
-				}, ["component", "state"]),
+				}, ["component"]),
 				response: {
 					200: {
 						description: "Send validation code result",

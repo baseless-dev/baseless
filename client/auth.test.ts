@@ -27,7 +27,6 @@ import { assertAuthenticationCeremonyResponseEncryptedState } from "../common/au
 import type { Message } from "../common/message/message.ts";
 import { setGlobalLogHandler } from "../common/system/logger.ts";
 import { assertAuthenticationCeremonyResponseTokens } from "../common/auth/ceremony/response.ts";
-import { decode } from "../common/encoding/base64.ts";
 import type { ID } from "../common/identity/identity.ts";
 import { assertAutoId, autoid } from "../common/system/autoid.ts";
 import mock, { type MockResult } from "../server/mock.ts";

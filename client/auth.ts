@@ -27,6 +27,7 @@ import {
 	assertSendComponentValidationCodeResponse,
 	type SendComponentValidationCodeResponse,
 } from "../common/auth/send_component_validation_code_response.ts";
+import { throwIfApiError } from "./errors.ts";
 
 class AuthApp {
 	#app: App;
@@ -174,7 +175,8 @@ class AuthApp {
 				`${this.#app.apiEndpoint}/auth/refresh`,
 				{
 					method: "POST",
-					headers: { "X-Refresh-Token": this.#tokens.refresh_token },
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ refresh_token: this.#tokens.refresh_token }),
 				},
 			);
 			this.#pendingRefreshTokenRequest = refreshPromise
@@ -186,8 +188,9 @@ class AuthApp {
 				);
 			const resp = await refreshPromise;
 			const result = await resp.json();
-			assertAuthenticationTokens(result);
-			this.#tokens = result;
+			throwIfApiError(result);
+			assertAuthenticationTokens(result.data);
+			this.#tokens = result.data;
 		}
 
 		if (this.#tokens?.access_token) {
@@ -295,9 +298,10 @@ export async function getAuthenticationCeremony(
 		},
 	);
 	const result = await resp.json();
-	assertAuthenticationCeremonyResponse(result);
+	throwIfApiError(result);
+	assertAuthenticationCeremonyResponse(result.data);
 	// deno-lint-ignore no-explicit-any
-	return result as any;
+	return result.data as any;
 }
 
 export async function submitAuthenticationSignInPrompt(
@@ -325,12 +329,13 @@ export async function submitAuthenticationSignInPrompt(
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
-	assertAuthenticationCeremonyResponse(result);
-	if (isAuthenticationCeremonyResponseTokens(result)) {
-		getAuth(app).tokens = result;
+	throwIfApiError(result);
+	assertAuthenticationCeremonyResponse(result.data);
+	if (isAuthenticationCeremonyResponseTokens(result.data)) {
+		getAuth(app).tokens = result.data;
 	}
 	// deno-lint-ignore no-explicit-any
-	return result as any;
+	return result.data as any;
 }
 
 export async function sendAuthenticationSendInPrompt(
@@ -346,8 +351,9 @@ export async function sendAuthenticationSendInPrompt(
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
-	assertSendComponentPromptResponse(result);
-	return result;
+	throwIfApiError(result);
+	assertSendComponentPromptResponse(result.data);
+	return result.data;
 }
 
 export async function sendAuthenticationComponentValidationCode(
@@ -363,8 +369,9 @@ export async function sendAuthenticationComponentValidationCode(
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
-	assertSendComponentValidationCodeResponse(result);
-	return result;
+	throwIfApiError(result);
+	assertSendComponentValidationCodeResponse(result.data);
+	return result.data;
 }
 
 export async function confirmAuthenticationComponentValidationCode(
@@ -378,8 +385,9 @@ export async function confirmAuthenticationComponentValidationCode(
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
-	assertConfirmComponentValidationCodeResponse(result);
-	return result;
+	throwIfApiError(result);
+	assertConfirmComponentValidationCodeResponse(result.data);
+	return result.data;
 }
 
 export async function signOut(app: App): Promise<void> {
@@ -390,6 +398,7 @@ export async function signOut(app: App): Promise<void> {
 			{ method: "POST" },
 		);
 		const result = await resp.json();
+		throwIfApiError(result);
 	} finally {
 		auth.tokens = undefined;
 	}

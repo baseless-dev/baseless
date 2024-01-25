@@ -86,3 +86,6 @@ export class InvalidAuthenticationCeremonyComponentDoneError extends Error {
 export class AuthenticationCeremonyComponentPromptError extends Error {
 	name = "AuthenticationCeremonyComponentPromptError" as const;
 }
+export class MissingRefreshTokenError extends Error {
+	name = "MissingRefreshTokenError" as const;
+}

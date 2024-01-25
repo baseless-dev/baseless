@@ -5,7 +5,6 @@ import {
 	AuthenticationSendValidationPromptError,
 } from "../../common/auth/errors.ts";
 import type { Identity } from "../../common/identity/identity.ts";
-import type { IIdentityService } from "../../common/services/identity.ts";
 import { type AutoId, autoid } from "../../common/system/autoid.ts";
 import { createLogger } from "../../common/system/logger.ts";
 import type { Message } from "../../common/message/message.ts";
@@ -13,7 +12,7 @@ import type { Context } from "./context.ts";
 import type { AuthenticationOptions } from "./mod.ts";
 import { MessageSendError } from "../../common/message/errors.ts";
 
-export class IdentityService implements IIdentityService {
+export class IdentityService {
 	#logger = createLogger("identity-service");
 	#context: Context;
 	#options: AuthenticationOptions;

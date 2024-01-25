@@ -25,11 +25,10 @@ import {
 	getComponentAtPath,
 } from "../../common/auth/ceremony/component/get_component_at_path.ts";
 import { createLogger } from "../../common/system/logger.ts";
-import type { IAuthenticationService } from "../../common/services/auth.ts";
 import { Identity, isIdentity } from "../../common/identity/identity.ts";
 import type { AuthenticationOptions } from "./mod.ts";
 
-export class AuthenticationService implements IAuthenticationService {
+export class AuthenticationService {
 	#logger = createLogger("auth-service");
 	#options: AuthenticationOptions;
 

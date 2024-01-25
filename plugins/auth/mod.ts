@@ -73,13 +73,22 @@ const wrapThrowable = async <T>(
 };
 
 const throwableSchema = <T>(schema: t.Schema): t.Schema =>
-	t.Union(
-		t.Object({
-			data: schema,
-		}, ["data"]),
-		t.Object({
-			error: t.String(),
-		}, ["error"]),
+	t.Describe(
+		"Either an error object or the actual response",
+		t.Union(
+			t.Object({
+				data: schema,
+			}, ["data"]),
+			t.Referenceable(
+				"AuthenticationErrorObject",
+				t.Describe(
+					"Error object",
+					t.Object({
+						error: t.Describe("Error code", t.String()),
+					}, ["error"]),
+				),
+			),
+		),
 	);
 
 // deno-lint-ignore explicit-function-return-type

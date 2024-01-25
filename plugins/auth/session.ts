@@ -1,4 +1,3 @@
-import type { ISessionService } from "../../common/services/session.ts";
 import type { SessionData } from "../../common/session/data.ts";
 import {
 	// deno-lint-ignore no-unused-vars
@@ -13,7 +12,7 @@ import {
 import type { AutoId } from "../../common/system/autoid.ts";
 import type { SessionProvider } from "../../providers/session.ts";
 
-export class SessionService implements ISessionService {
+export class SessionService {
 	#sessionProvider: SessionProvider;
 
 	constructor(

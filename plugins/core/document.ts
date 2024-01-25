@@ -1,5 +1,4 @@
 import type { Document, DocumentKey } from "../../common/document/document.ts";
-import type { IDocumentService } from "../../common/services/document.ts";
 import type {
 	DocumentAtomic,
 	DocumentGetOptions,
@@ -8,7 +7,7 @@ import type {
 	DocumentProvider,
 } from "../../providers/document.ts";
 
-export class DocumentService implements IDocumentService {
+export class DocumentService {
 	#documentProvider: DocumentProvider;
 
 	constructor(

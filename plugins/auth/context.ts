@@ -1,7 +1,7 @@
-import type { IAuthenticationService } from "../../common/services/auth.ts";
-import type { ISessionService } from "../../common/services/session.ts";
-import type { IIdentityService } from "../../common/services/identity.ts";
 import type { SessionData } from "../../common/session/data.ts";
+import type { AuthenticationService } from "./auth.ts";
+import type { IdentityService } from "./identity.ts";
+import type { SessionService } from "./session.ts";
 
 export type TokenData = {
 	lastAuthorizationTime: number;
@@ -12,7 +12,7 @@ export type TokenData = {
 export interface Context {
 	readonly remoteAddress: string;
 	readonly authenticationToken: TokenData | undefined;
-	readonly auth: IAuthenticationService;
-	readonly session: ISessionService;
-	readonly identity: IIdentityService;
+	readonly auth: AuthenticationService;
+	readonly session: SessionService;
+	readonly identity: IdentityService;
 }

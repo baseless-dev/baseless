@@ -1,5 +1,5 @@
-import type { IAssetService } from "../../common/services/asset.ts";
+import type { AssetService } from "./asset.ts";
 
 export interface Context {
-	readonly asset: IAssetService;
+	readonly asset: AssetService;
 }

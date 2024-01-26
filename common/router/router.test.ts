@@ -117,7 +117,7 @@ Deno.test("compile", () => {
 			},
 		});
 		const { code } = getRouterCode(rst);
-		console.log(code);
+		// console.log(code);
 	}
 });
 

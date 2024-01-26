@@ -127,6 +127,7 @@ function codeForRouteSegment(
 				    body = Object.fromEntries(new URLSearchParams(await request.text()));
 				  }
 				  else if (contentType === "multipart/form-data") {
+				    const form = await request.formData();
 				    body = Array.from(form.keys()).reduce((body, key) => {
 				      const values = form.getAll(key);
 				      body[key] = values.length === 1 ? values[0] : values;
@@ -139,7 +140,7 @@ function codeForRouteSegment(
 			  for (const decoration of decorations) {
 			    Object.assign(context, decoration instanceof Promise || decoration instanceof Function ? await decoration({ request, ...context }, ...args) : decoration);
 			  }
-			  return await handlers[${id}]({ request, params, headers, query, body, ...context }, ...args);
+			  return await handlers[${id}]({ request, params, headers, query, body, ...context }, args);
 			}`.replace(/\n\t*/g, ieol)+ieol;
 			first = false;
 		}

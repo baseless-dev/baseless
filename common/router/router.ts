@@ -746,6 +746,6 @@ export class Router<
 		if (tryCompile && "eval" in globalThis) {
 			return compileRouter<TArgs>(rst, decorations);
 		}
-		return dynamicRouter<TArgs>(routes, decorations);
+		return dynamicRouter<TArgs>(rst, decorations);
 	}
 }

@@ -80,10 +80,10 @@ export type Handler<
 ) => Promise<Response> | Response;
 
 export interface Definition<
-	TParams extends t.ObjectSchema<any, any[]> = t.ObjectSchema<any, any[]>,
-	THeaders extends t.ObjectSchema<any, any[]> = t.ObjectSchema<any, any[]>,
-	TBody extends t.ObjectSchema<any, any[]> = t.ObjectSchema<any, any[]>,
-	TQuery extends t.ObjectSchema<any, any[]> = t.ObjectSchema<any, any[]>,
+	TParams extends t.ObjectSchema = t.ObjectSchema,
+	THeaders extends t.ObjectSchema = t.ObjectSchema,
+	TBody extends t.ObjectSchema = t.ObjectSchema,
+	TQuery extends t.ObjectSchema = t.ObjectSchema,
 > {
 	tags?: string[];
 	summary?: string;

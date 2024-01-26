@@ -54,5 +54,5 @@ Deno.test("walk", () => {
 			replacement = t.Ref(result.value.$id);
 		}
 	}
-	console.log(result);
+	// console.log(result);
 });

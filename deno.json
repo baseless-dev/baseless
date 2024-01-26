@@ -24,9 +24,9 @@
 		"cache": "DENO_DIR=.deno deno cache",
 		"check": "DENO_DIR=.deno deno check client/**/*.ts",
 		"info": "DENO_DIR=.deno deno info",
-		"bench": "DENO_DIR=.deno deno bench -A --unstable",
-		"test": "DENO_DIR=.deno deno test -A --unstable --fail-fast --coverage=coverage",
-		"test:fast": "DENO_DIR=.deno deno test -A --unstable --parallel --fail-fast",
+		"bench": "DENO_DIR=.deno deno bench -A --unstable-kv",
+		"test": "DENO_DIR=.deno deno test -A --unstable-kv --fail-fast --coverage=coverage",
+		"test:fast": "DENO_DIR=.deno deno test -A --unstable-kv --parallel --fail-fast",
 		"coverage": "DENO_DIR=.deno deno coverage coverage"
 	},
 	"exclude": [".deno/", "npm/", "coverage/", "**/.deno"],

@@ -22,6 +22,23 @@ export function Ref(reference: string): ReferenceSchema {
 	return { $ref: reference };
 }
 
+export interface LazySchema<TSchema extends Schema = Schema>
+	extends BaseSchema {
+	type: "lazy";
+	schema: () => TSchema;
+}
+
+export function isLazySchema(value: unknown): value is LazySchema {
+	return !!value && typeof value === "object" && "type" in value &&
+		value.type === "lazy";
+}
+
+export function Lazy<const TSchema extends Schema>(
+	schema: () => TSchema,
+): LazySchema<TSchema> {
+	return { type: "lazy", schema };
+}
+
 export interface AnySchema extends BaseSchema {
 	type: "any";
 }
@@ -365,6 +382,7 @@ export function Example<const TSchema extends BaseSchema>(
 
 export type Schema =
 	| ReferenceSchema
+	| LazySchema<any>
 	| AnySchema
 	| NullSchema
 	| BooleanSchema
@@ -381,6 +399,7 @@ export type Schema =
 
 function isSchema(value: unknown): value is Schema {
 	return isReferenceSchema(value) ||
+		isLazySchema(value) ||
 		isAnySchema(value) ||
 		isNullSchema(value) ||
 		isBooleanSchema(value) ||
@@ -396,7 +415,9 @@ function isSchema(value: unknown): value is Schema {
 		isUnionSchema(value);
 }
 
-export type Infer<T> = T extends NullSchema ? null
+export type Infer<T> = T extends AnySchema ? unknown
+	: T extends LazySchema<infer TSchema> ? Infer<TSchema>
+	: T extends NullSchema ? null
 	: T extends BooleanSchema ? boolean
 	: T extends NumberSchema ? number
 	: T extends StringSchema ? string

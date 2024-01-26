@@ -4,6 +4,7 @@
     "specifiers": {
       "npm:@cloudflare/workers-types@4.20230914.0": "npm:@cloudflare/workers-types@4.20230914.0",
       "npm:@sinclair/typebox": "npm:@sinclair/typebox@0.31.28",
+      "npm:@types/node": "npm:@types/node@18.16.19",
       "npm:@types/react": "npm:@types/react@18.2.0",
       "npm:zod": "npm:zod@3.21.4"
     },
@@ -14,6 +15,10 @@
       },
       "@sinclair/typebox@0.31.28": {
         "integrity": "sha512-/s55Jujywdw/Jpan+vsy6JZs1z2ZTGxTmbZTPiuSL2wz9mfzA2gN1zzaqmvfi4pq+uOt7Du85fkiwv5ymW84aQ==",
+        "dependencies": {}
+      },
+      "@types/node@18.16.19": {
+        "integrity": "sha512-IXl7o+R9iti9eBW4Wg2hx1xQDig183jj7YLn8F7udNceyfkbn1ZxmzZXuak20gR40D7pIkIY1kYGx5VIGbaHKA==",
         "dependencies": {}
       },
       "@types/prop-types@15.7.5": {

@@ -1,28 +1,54 @@
-import { Router } from "../../common/router/router.ts";
-import type { Routes } from "../../common/router/types.ts";
-import { walk } from "../../common/schema/schema.ts";
-import { isObjectSchema, type Schema } from "../../common/schema/types.ts";
+// deno-lint-ignore-file no-explicit-any
+import {
+	type Elysia,
+	type InternalRoute,
+	t,
+	type TSchema,
+	TypeGuard,
+} from "../../server/elysia.ts";
 import type { OpenAPIV3 } from "https://esm.sh/openapi-types@12.1.3";
-import * as t from "../../common/schema/types.ts";
-import { isArraySchema } from "../../common/schema/types.ts";
-import { isStringSchema } from "../../common/schema/types.ts";
-import { parseRST, routifyRST } from "../../common/router/rst.ts";
 
-// deno-lint-ignore explicit-function-return-type
-export default function openapiPlugin(
-	info: OpenAPIV3.InfoObject,
-	meta?: {
-		tags?: string[];
-		summary?: string;
-		description?: string;
+export type OpenAPIOptions<TPath> = {
+	path?: TPath;
+	info: OpenAPIV3.InfoObject;
+	servers?: OpenAPIV3.ServerObject[];
+	tags?: string[];
+};
+
+export const openapi = <Path extends string = "/openapi.json">({
+	path = "/openapi.json" as Path,
+	info,
+	servers,
+	tags,
+}: OpenAPIOptions<Path> = {
+	path: "/openapi.json" as Path,
+	info: {
+		title: "OpenAPI Reference",
+		description: "The OpenAPI documentation for this API",
+		version: "0.0.0-0",
 	},
-	servers: OpenAPIV3.ServerObject[] = [],
-) {
-	return (routes: Routes) => {
-		const app = new Router()
-			.get("/openapi.json", async ({ request }) => {
-				if (request.headers.get("accept")?.includes("text/html")) {
-					const html = `<!DOCTYPE html>
+}) =>
+(app: Elysia) => {
+	let cachedDocument: string;
+	app.get(path, ({ request, query }) => {
+		if (request.headers.get("accept")?.includes("text/html")) {
+			const swagger = `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>${info.title}</title>
+	<meta name="description" content="${info.description}" />
+	<meta name="og:description" content="${info.description}" />
+	<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js" crossorigin></script>
+    <script>window.onload = () => { window.ui = SwaggerUIBundle({ url: "/openapi.json", dom_id: '#swagger-ui' }); };</script>
+</body>
+</html>`;
+			const scalar = `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
@@ -37,166 +63,102 @@ export default function openapiPlugin(
 	<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 </body>
 </html>`;
-					return new Response(html, {
-						headers: { "content-type": "text/html; charset=utf-8" },
-					});
-				}
-				return new Response(await json(), {
-					headers: { "content-type": "application/json" },
-				});
-			}, {
-				summary: meta?.summary ?? `OpenAPI Documentation`,
-				description: meta?.description ??
-					`The OpenAPI documentation for this API`,
-				tags: meta?.tags ?? ["OpenAPI"],
-				headers: t.Object({
-					Accept: t.Default(
-						"application/json",
-						t.Example(
-							"text/html",
-							t.Describe(
-								"The content type of the response",
-								t.String(),
-							),
-						),
-					),
-				}),
-				response: {
-					200: {
-						description: "The OpenAPI documentation for this API",
-						content: {
-							"text/html": {
-								schema: t.Example(
-									`<!DOCTYPE html>\n<html lang="en">\n\t...\n</html>`,
-									t.String(),
-								),
-							},
-							"application/json": {
-								schema: t.Example(
-									`{\n\t"openapi":"3.1.0",\n\t...\n}`,
-									t.String(),
-								),
-							},
-						},
-					},
-				},
+			return new Response(query.view === "swagger" ? swagger : scalar, {
+				headers: { "content-type": "text/html; charset=utf-8" },
 			});
+		}
+		if (!cachedDocument) {
+			const document: OpenAPIV3.Document = {
+				...transformRoutesToOpenAPIV3Document(
+					app.routes,
+					(app as any).definitions?.type,
+				),
+				openapi: "3.1.0",
+				info,
+				servers,
+			};
+			cachedDocument = JSON.stringify(document);
+		}
+		return new Response(cachedDocument, {
+			headers: { "content-type": "application/json; charset=utf-8" },
+		});
+	}, {
+		detail: {
+			summary: info.title,
+			description: info.description,
+			tags: tags ?? ["OpenAPI"],
+		},
+		query: t.Object({
+			view: t.Union([
+				t.Literal("swagger"),
+				t.Literal("scalar"),
+			], { default: "scalar" }),
+		}),
+	});
+	return app;
+};
 
-		let cachedJSON: string | undefined;
-		const json = async () => {
-			if (!cachedJSON) {
-				const localRoutes = { ...routes, ...(await app.getFinalizedData())[0] };
-
-				const sortedRoutes = routifyRST(parseRST(localRoutes));
-
-				const document: OpenAPIV3.Document = {
-					...transformRoutesToOpenAPIV3Document(sortedRoutes),
-					openapi: "3.1.0",
-					info,
-					servers,
-				};
-				cachedJSON = JSON.stringify(document);
-			}
-			return cachedJSON;
-		};
-
-		return app;
-	};
-}
+export default openapi;
 
 function transformRoutesToOpenAPIV3Document(
-	routes: Routes,
+	routes: InternalRoute[],
+	models?: Record<string, TSchema>,
 ): Pick<OpenAPIV3.Document, "components" | "paths"> {
-	const components: OpenAPIV3.ComponentsObject = {};
-	routes = Object.fromEntries(
-		Object.entries(routes).map(([path, operations]) => [
-			path,
-			Object.fromEntries(
-				Object.entries(operations).map(([method, operation]) => [
-					method,
-					{
-						...operation,
-						definition: {
-							...operation.definition,
-							params: operation.definition.params &&
-								promoteSchemaComponents(
-									components,
-									operation.definition.params,
-								) as any,
-							headers: operation.definition.headers &&
-								promoteSchemaComponents(
-									components,
-									operation.definition.headers,
-								) as any,
-							body: operation.definition.body &&
-								promoteSchemaComponents(
-									components,
-									operation.definition.body,
-								) as any,
-							query: operation.definition.query &&
-								promoteSchemaComponents(
-									components,
-									operation.definition.query,
-								) as any,
-							response: operation.definition.response && Object.fromEntries(
-								Object.entries(operation.definition.response).map((
-									[status, response],
-								) => [
-									status,
-									{
-										...response,
-										content: response.content && Object.fromEntries(
-											Object.entries(response.content).map((
-												[contentType, content],
-											) => [
-												contentType,
-												{
-													...content,
-													schema: promoteSchemaComponents(
-														components,
-														content.schema,
-													) as any,
-												},
-											]),
-										),
-									},
-								]),
-							),
-						},
-					},
-				]),
-			),
-		]),
-	);
-	const paths = Object.entries(routes).reduce((paths, [path, operations]) => {
-		path = path.replace(/\{\.\.\.(\w+)\}/g, "{$1}");
-		for (const [method, { definition }] of Object.entries(operations)) {
-			paths = {
-				...paths,
-				[path]: {
-					...paths[path],
-					[method.toLowerCase()]: {
-						summary: definition.summary,
-						description: definition.description,
-						tags: definition.tags,
-						parameters: [
-							...schemaToParameterObject("path", definition.params),
-							...schemaToParameterObject("query", definition.query),
-							...schemaToParameterObject("header", definition.headers),
-						],
-						...(definition.body
-							? {
-								requestBody: schemaToRequestBody(definition.body),
-							}
-							: {}),
-						responses: {
-							...definition.response as any,
-						},
-					} satisfies OpenAPIV3.OperationObject,
+	const components: OpenAPIV3.ComponentsObject = {
+		schemas: {
+			...models,
+		},
+	};
+	routes = routes.map((route: any) => {
+		return {
+			...route,
+			hooks: {
+				...route.hooks,
+				params: route.hooks.params
+					? promoteSchemaComponents(components, route.hooks.params)
+					: undefined,
+				headers: route.hooks.headers
+					? promoteSchemaComponents(components, route.hooks.headers)
+					: undefined,
+				query: route.hooks.query
+					? promoteSchemaComponents(components, route.hooks.query)
+					: undefined,
+				body: route.hooks.body
+					? promoteSchemaComponents(components, route.hooks.body)
+					: undefined,
+				cookie: route.hooks.cookie
+					? promoteSchemaComponents(components, route.hooks.cookie)
+					: undefined,
+				response: route.hooks.response
+					? promoteResponseComponents(components, route.hooks.response)
+					: undefined,
+			},
+		};
+	});
+	const paths = routes.reduce((paths, route) => {
+		const path = transformPath(route.path);
+		const hooks: LocalHook<any, any> = route.hooks;
+		return {
+			...paths,
+			[path]: {
+				...paths[path],
+				[route.method.toLowerCase()]: {
+					...hooks.detail,
+					parameters: [
+						...schemaToParameterObject("path", hooks.params),
+						...schemaToParameterObject("query", hooks.query),
+						...schemaToParameterObject("header", hooks.headers),
+						...schemaToParameterObject("cookie", hooks.cookie),
+					],
+					...(hooks.body
+						? {
+							requestBody: schemaToRequestBody(hooks.body),
+						}
+						: {}),
+					responses: hooks.response,
 				},
-			};
-		}
-		return paths;
+			},
+		};
 	}, {} as OpenAPIV3.PathsObject);
 	return {
 		paths,
@@ -204,18 +166,61 @@ function transformRoutesToOpenAPIV3Document(
 	};
 }
 
+function transformPath(path: string): string {
+	return path
+		.split("/")
+		.map((x) => (x.startsWith(":") ? `{${x.slice(1)}}` : x))
+		.join("/");
+}
+
+function schemaToRequestBody(
+	schema: TSchema,
+): OpenAPIV3.ReferenceObject | OpenAPIV3.RequestBodyObject {
+	return {
+		required: true,
+		content: {
+			"application/json": {
+				schema,
+			},
+			"application/x-www-form-urlencoded": {
+				schema,
+			},
+			"multipart/form-data": {
+				schema,
+			},
+		},
+	};
+}
+
+function schemaToParameterObject(
+	location: string,
+	schema?: TSchema,
+): OpenAPIV3.ParameterObject[] {
+	if (TypeGuard.IsObject(schema)) {
+		return Object.entries(schema.properties).map(([name, schema]) => {
+			return {
+				name,
+				in: location,
+				schema,
+				required: location === "path" ? true : (schema as any).required,
+			} as OpenAPIV3.ParameterObject;
+		});
+	}
+	return [];
+}
+
 function promoteSchemaComponents(
 	components: OpenAPIV3.ComponentsObject,
-	schema: Schema,
-): Schema {
+	schema: TSchema,
+): TSchema {
 	const iter = walk(schema);
 	let result = iter.next();
 	for (
-		let replacement = undefined;
+		let replacement: undefined | TSchema = undefined;
 		!result.done;
 		result = iter.next(replacement), replacement = undefined
 	) {
-		const { $id, ...rest } = result.value;
+		const { $id, $ref, ...rest } = result.value;
 		if ($id) {
 			components.schemas ??= {};
 			components.schemas![$id] = promoteSchemaComponents(
@@ -223,46 +228,96 @@ function promoteSchemaComponents(
 				rest,
 			) as any;
 			replacement = t.Ref(`#/components/schemas/${$id}`);
+		} else if ($ref && !$ref.startsWith("#")) {
+			replacement = t.Ref(`#/components/schemas/${$ref}`);
 		}
 	}
 	return result.value;
 }
 
-function schemaToRequestBody(
-	schema: Schema,
-): OpenAPIV3.ReferenceObject | OpenAPIV3.RequestBodyObject {
-	return {
-		required: true,
-		content: {
-			"application/json": {
-				schema: schema as any,
+function promoteResponseComponents(
+	components: OpenAPIV3.ComponentsObject,
+	response: unknown,
+): unknown {
+	if (response && typeof response === "object") {
+		if (TypeGuard.IsSchema(response)) {
+			// Schema
+			return {
+				200: {
+					description: "",
+					content: {
+						"application/json": {
+							schema: promoteSchemaComponents(components, response as TSchema),
+						},
+					},
+				},
+			};
+		} else {
+			// Statuses
+			return Object.fromEntries(
+				Object.entries(response).map(([status, schema]) => {
+					return [status, {
+						description: "",
+						content: {
+							"application/json": {
+								schema: promoteSchemaComponents(components, schema),
+							},
+						},
+					}];
+				}),
+			);
+		}
+	} else if (
+		response && typeof response === "string" && components.schemas &&
+		response in components.schemas
+	) {
+		// Model name
+		return {
+			200: {
+				description: "",
+				content: {
+					"application/json": {
+						schema: t.Ref(`#/components/schemas/${response}`),
+					},
+				},
 			},
-			"application/x-www-form-urlencoded": {
-				schema: schema as any,
-			},
-			"multipart/form-data": {
-				schema: schema as any,
-			},
-		},
-	};
+		};
+	}
+	throw new Error("Invalid response type.");
 }
 
-function schemaToParameterObject(
-	location: "path" | "query" | "header" | "cookie",
-	schema?: Schema,
-): OpenAPIV3.ParameterObject[] {
-	if (isObjectSchema(schema)) {
-		const objSchema = schema;
-		return Object.entries(schema.properties).map(([name, schema]) => {
-			return {
-				in: location,
-				name,
-				required: objSchema.required?.includes(name) ?? false,
-				schema: isArraySchema(schema) && isStringSchema(schema.items)
-					? t.String({ format: "path" })
-					: schema,
-			} as OpenAPIV3.ParameterObject;
-		});
+function* walk(
+	schema: TSchema,
+): Generator<TSchema, TSchema, TSchema | false | undefined> {
+	const op = yield schema;
+	if (op === false) {
+		return schema;
+	} else if (op !== undefined) {
+		return yield* walk(op);
 	}
-	return [];
+	if (TypeGuard.IsArray(schema)) {
+		return {
+			...schema,
+			items: yield* walk((schema as any).items),
+		};
+	} else if (TypeGuard.IsObject(schema)) {
+		const properties: typeof schema.properties = {};
+		for (const [key, propSchema] of Object.entries(schema.properties)) {
+			properties[key] = yield* walk(propSchema as any);
+		}
+		return {
+			...schema,
+			properties,
+		};
+	} else if (TypeGuard.IsUnion(schema)) {
+		const anyOf = [];
+		for (const unionSchema of schema.anyOf) {
+			anyOf.push(yield* walk(unionSchema));
+		}
+		return {
+			...schema,
+			anyOf,
+		};
+	}
+	return schema;
 }

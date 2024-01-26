@@ -1,18 +1,25 @@
-export class InvalidIDError extends Error {
-	name = "InvalidIDError" as const;
-}
-export class InvalidIdentityError extends Error {
-	name = "InvalidIdentityError" as const;
-}
-export class InvalidIdentityComponentsError extends Error {
-	name = "InvalidIdentityComponentsError" as const;
-}
-export class InvalidIdentityMetaError extends Error {
-	name = "InvalidIdentityMetaError" as const;
-}
-export class InvalidIdentityComponentError extends Error {
-	name = "InvalidIdentityComponentError" as const;
-}
+import { t } from "../deps.ts";
+
+export const IDENTITY_AUTOID_PREFIX = "id_";
+
+export const ID = t.Object({
+	id: t.String({ format: "autoid" }),
+	meta: t.Record(t.String(), t.Unknown()),
+}, { $id: "ID" });
+
+export const IdentityComponent = t.Object({
+	id: t.String(),
+	identification: t.Optional(t.String()),
+	confirmed: t.Boolean(),
+	meta: t.Record(t.String(), t.Unknown()),
+}, { $id: "IdentityComponent" });
+
+export const Identity = t.Object({
+	id: t.String({ format: "autoid" }),
+	meta: t.Record(t.String(), t.Unknown()),
+	components: t.Record(t.String(), IdentityComponent),
+}, { $id: "Identity" });
+
 export class IdentityNotFoundError extends Error {
 	name = "IdentityNotFoundError" as const;
 }

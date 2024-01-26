@@ -1,4 +1,4 @@
-import { decode, encode } from "../encoding/base32.ts";
+import { decodeBase32, encodeBase32 } from "../deps.ts";
 
 export type OTPAlgorithm = "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
 
@@ -140,7 +140,7 @@ export async function hotp(
 	} else if (typeof key === "string") {
 		cryptoKey = await crypto.subtle.importKey(
 			"raw",
-			Uint8Array.from(decode(key)),
+			Uint8Array.from(decodeBase32(key)),
 			{ name: "HMAC", hash: algorithm },
 			false,
 			["sign"],
@@ -196,7 +196,7 @@ export function otp({ digits = 6 }: { digits?: number } = {}): string {
 export function generateKey(length = 16): string {
 	const buffer = new Uint8Array(length);
 	crypto.getRandomValues(buffer);
-	return encode(buffer).slice(0, length);
+	return encodeBase32(buffer).slice(0, length);
 }
 
 export type OTPAuthURIOptions =

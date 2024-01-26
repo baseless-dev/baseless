@@ -7,7 +7,7 @@ import { MemoryDocumentProvider } from "../providers/document-memory/mod.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
 import { LoggerMessageProvider } from "../providers/message-logger/mod.ts";
 import { KVSessionProvider } from "../providers/session-kv/mod.ts";
-import { h, Router } from "./mod.ts";
+import { h } from "./mod.ts";
 import { DocumentIdentityProvider } from "../providers/identity-document/mod.ts";
 import authPlugin from "../plugins/auth/mod.ts";
 import assetPlugin from "../plugins/asset/mod.ts";

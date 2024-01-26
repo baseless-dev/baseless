@@ -1,6 +1,13 @@
-export class InvalidSessionDataError extends Error {
-	name = "InvalidSessionDataError" as const;
-}
+import { t } from "../deps.ts";
+
+export const SESSION_AUTOID_PREFIX = "ses_";
+
+export const SessionData = t.Object({
+	id: t.String({ format: "autoid" }),
+	identityId: t.String({ format: "autoid" }),
+	meta: t.Record(t.String(), t.Unknown()),
+}, { $id: "SessionData" });
+
 export class SessionIDNotFoundError extends Error {
 	name = "SessionIDNotFoundError" as const;
 }

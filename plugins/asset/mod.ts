@@ -1,5 +1,7 @@
 import type { AssetProvider } from "../../providers/asset.ts";
 import type { Elysia } from "../../deps.ts";
+import type { Context } from "./context.ts";
+import { AssetService } from "./asset.ts";
 
 export type AssetOptions = {
 	asset: AssetProvider;
@@ -10,10 +12,10 @@ export const asset = (
 ) =>
 (app: Elysia) => {
 	return app
-		.decorate(() => {
-			const context = {
+		.derive(() => {
+			const context: Context = {
 				get asset() {
-					return options.asset;
+					return new AssetService(options.asset);
 				},
 			};
 			return context;

@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
+import { assertEquals } from "../deps.test.ts";
 import type { MessageProvider } from "./message.ts";
 import { autoid } from "../lib/autoid.ts";
 import type { Message } from "../lib/message.ts";

@@ -1,4 +1,4 @@
-import { assert } from "https://deno.land/std@0.158.0/testing/asserts.ts";
+import { assert } from "../deps.test.ts";
 import { autoid, AutoIdGenerator, AutoIdStream } from "./autoid.ts";
 
 Deno.test("AutoID", async (t) => {

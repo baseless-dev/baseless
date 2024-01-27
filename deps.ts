@@ -25,3 +25,4 @@ export type {
 } from "https://deno.land/x/jose@v5.2.0/types.d.ts";
 export { SignJWT } from "https://deno.land/x/jose@v5.2.0/jwt/sign.ts";
 export { jwtVerify } from "https://deno.land/x/jose@v5.2.0/jwt/verify.ts";
+export type { OpenAPIV3 } from "https://esm.sh/openapi-types@12.1.3";

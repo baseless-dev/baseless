@@ -2,11 +2,11 @@
 import {
 	type Elysia,
 	type InternalRoute,
+	type OpenAPIV3,
 	t,
 	type TSchema,
 	TypeGuard,
 } from "../../deps.ts";
-import type { OpenAPIV3 } from "https://esm.sh/openapi-types@12.1.3";
 
 export type OpenAPIOptions<TPath> = {
 	path?: TPath;

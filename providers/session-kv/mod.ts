@@ -1,22 +1,19 @@
-import { IDENTITY_AUTOID_PREFIX } from "../../common/identity/identity.ts";
-import {
-	assertSessionData,
-	SESSION_AUTOID_PREFIX,
-	type SessionData,
-} from "../../common/session/data.ts";
-import {
-	SessionCreateError,
-	SessionDestroyError,
-	SessionIDNotFoundError,
-	SessionUpdateError,
-} from "../../common/session/errors.ts";
 import {
 	assertAutoId,
 	type AutoId,
 	autoid,
 	isAutoId,
-} from "../../common/system/autoid.ts";
-import { createLogger } from "../../common/system/logger.ts";
+} from "../../lib/autoid.ts";
+import { IDENTITY_AUTOID_PREFIX } from "../../lib/identity.ts";
+import { createLogger } from "../../lib/logger.ts";
+import {
+	SESSION_AUTOID_PREFIX,
+	SessionCreateError,
+	type SessionData,
+	SessionDestroyError,
+	SessionIDNotFoundError,
+	SessionUpdateError,
+} from "../../lib/session.ts";
 import type { KVProvider } from "../kv.ts";
 import type { SessionProvider } from "../session.ts";
 
@@ -28,25 +25,18 @@ export class KVSessionProvider implements SessionProvider {
 		this.#kvProvider = kv;
 	}
 
-	/**
-	 * @throws {SessionIDNotFoundError}
-	 */
 	async get(sessionId: AutoId): Promise<SessionData> {
 		try {
 			assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
 			const result = await this.#kvProvider.get(["byId", sessionId]);
 			const sessionData = JSON.parse(result.value);
-			assertSessionData(sessionData);
-			return sessionData;
+			return sessionData as SessionData;
 		} catch (inner) {
 			this.#logger.error(`Failed to get session ${sessionId}, got ${inner}`);
 		}
 		throw new SessionIDNotFoundError();
 	}
 
-	/**
-	 * @throws {SessionCreateError}
-	 */
 	async create(
 		identityId: AutoId,
 		meta: Record<string, unknown>,
@@ -77,15 +67,11 @@ export class KVSessionProvider implements SessionProvider {
 		throw new SessionCreateError();
 	}
 
-	/**
-	 * @throws {SessionUpdateError}
-	 */
 	async update(
 		sessionData: SessionData,
 		expiration?: number | Date,
 	): Promise<void> {
 		try {
-			assertSessionData(sessionData);
 			await Promise.all([
 				this.#kvProvider.put(
 					["byId", sessionData.id],
@@ -107,9 +93,6 @@ export class KVSessionProvider implements SessionProvider {
 		throw new SessionUpdateError();
 	}
 
-	/**
-	 * @throws {SessionDestroyError}
-	 */
 	async destroy(sessionId: AutoId): Promise<void> {
 		try {
 			assertAutoId(sessionId, SESSION_AUTOID_PREFIX);

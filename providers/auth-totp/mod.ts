@@ -1,34 +1,23 @@
-import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony/ceremony.ts";
+import type { Identity, IdentityComponent } from "../../lib/identity.ts";
+import { assertTOTPOptions, totp, type TOTPOptions } from "../../lib/otp.ts";
 import {
 	AuthenticationComponent,
 	AuthenticationComponentGetIdentityComponentMetaOptions,
 	AuthenticationComponentVerifyPromptOptions,
-} from "../../common/auth/component.ts";
-import type { IdentityComponent } from "../../common/identity/component.ts";
-import type { Identity } from "../../common/identity/identity.ts";
-import {
-	assertTOTPOptions,
-	totp,
-	type TOTPOptions,
-} from "../../common/system/otp.ts";
+} from "../auth_component.ts";
 
 export default class TOTPAuthentificationComponent
 	extends AuthenticationComponent {
-	#options: Omit<TOTPOptions, "key">;
+	prompt = "totp" as const;
+	options: { digits: number; timeout: number };
+	#totpOptions: Omit<TOTPOptions, "key">;
 	constructor(id: string, options: Omit<TOTPOptions, "key">) {
 		super(id);
 		assertTOTPOptions({ ...options, key: "" });
-		this.#options = options;
-	}
-	getCeremonyComponent(): AuthenticationCeremonyComponent {
-		return {
-			kind: "prompt",
-			id: this.id,
-			prompt: "totp",
-			options: {
-				digits: 6,
-				timeout: 60,
-			},
+		this.#totpOptions = options;
+		this.options = {
+			digits: options.digits ?? 6,
+			timeout: options.period ?? 60,
 		};
 	}
 	async getIdentityComponentMeta(
@@ -36,8 +25,8 @@ export default class TOTPAuthentificationComponent
 	): Promise<Pick<IdentityComponent, "identification" | "meta">> {
 		try {
 			const _ = await totp({
-				digits: 6,
-				period: 60,
+				digits: this.options.digits,
+				period: this.options.timeout,
 				key: `${value}`,
 				time: Date.now(),
 			});
@@ -56,9 +45,10 @@ export default class TOTPAuthentificationComponent
 			"key" in identity.component.meta &&
 			typeof identity.component.meta.key === "string"
 		) {
-			for (const offset of [-30, 0, 30]) {
+			const half = this.options.timeout / 2;
+			for (const offset of [-half, 0, half]) {
 				const code = await totp({
-					...this.#options,
+					...this.#totpOptions,
 					key: identity.component.meta.key,
 					time: Date.now() / 1000 + offset,
 				});

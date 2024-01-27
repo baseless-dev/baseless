@@ -1,11 +1,11 @@
-import type { Message } from "../../common/message/message.ts";
 import {
 	createLogger,
 	type Logger,
 	LogLevel,
 	LogLevelMethod,
-} from "../../common/system/logger.ts";
+} from "../../lib/logger.ts";
 import type { MessageProvider } from "../message.ts";
+import type { Message } from "../../lib/message.ts";
 
 /**
  * A mail provider that log every message

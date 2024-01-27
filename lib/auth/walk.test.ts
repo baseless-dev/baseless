@@ -1,34 +1,37 @@
-import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import * as h from "./helpers.ts";
+import { assertEquals } from "../../deps.test.ts";
 import walk from "./walk.ts";
-import type { AuthenticationCeremonyComponentPrompt } from "../ceremony.ts";
+import {
+	type AuthenticationCeremonyComponent,
+	oneOf,
+	sequence,
+} from "./types.ts";
 
 Deno.test("walk", () => {
-	const email: AuthenticationCeremonyComponentPrompt = {
+	const email: AuthenticationCeremonyComponent = {
 		kind: "prompt",
 		id: "email",
 		prompt: "email",
 		options: {},
 	};
-	const password: AuthenticationCeremonyComponentPrompt = {
+	const password: AuthenticationCeremonyComponent = {
 		kind: "prompt",
 		id: "password",
 		prompt: "password",
 		options: {},
 	};
-	const otp: AuthenticationCeremonyComponentPrompt = {
+	const otp: AuthenticationCeremonyComponent = {
 		kind: "prompt",
 		id: "otp",
 		prompt: "otp",
 		options: {},
 	};
-	const github: AuthenticationCeremonyComponentPrompt = {
+	const github: AuthenticationCeremonyComponent = {
 		kind: "prompt",
 		id: "github",
 		prompt: "oauth2",
 		options: {},
 	};
-	const google: AuthenticationCeremonyComponentPrompt = {
+	const google: AuthenticationCeremonyComponent = {
 		kind: "prompt",
 		id: "google",
 		prompt: "oauth2",
@@ -37,7 +40,7 @@ Deno.test("walk", () => {
 
 	assertEquals(
 		[...walk(
-			h.sequence(h.oneOf(h.sequence(email, password), google, github), otp),
+			sequence(oneOf(sequence(email, password), google, github), otp),
 		)],
 		[
 			[email, []],
@@ -52,7 +55,7 @@ Deno.test("walk", () => {
 
 	assertEquals(
 		[...walk(
-			h.sequence(email, h.oneOf(password, otp), h.oneOf(google, github)),
+			sequence(email, oneOf(password, otp), oneOf(google, github)),
 		)],
 		[
 			[email, []],
@@ -74,14 +77,14 @@ Deno.test("walk", () => {
 	);
 
 	assertEquals(
-		[...walk(h.oneOf(google, github))],
+		[...walk(oneOf(google, github))],
 		[
 			[google, []],
 			[github, []],
 		],
 	);
 	assertEquals(
-		[...walk(h.sequence(email, h.oneOf(password, otp)))],
+		[...walk(sequence(email, oneOf(password, otp)))],
 		[
 			[email, []],
 			[password, [email]],
@@ -90,7 +93,7 @@ Deno.test("walk", () => {
 		],
 	);
 	assertEquals(
-		[...walk(h.sequence(email, password, h.oneOf(google, github), otp))],
+		[...walk(sequence(email, password, oneOf(google, github), otp))],
 		[
 			[email, []],
 			[password, [email]],
@@ -104,7 +107,7 @@ Deno.test("walk", () => {
 		],
 	);
 	assertEquals(
-		[...walk(h.oneOf(h.sequence(email, password, otp), google, github))],
+		[...walk(oneOf(sequence(email, password, otp), google, github))],
 		[
 			[email, []],
 			[password, [email]],

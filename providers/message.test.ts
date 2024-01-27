@@ -1,7 +1,7 @@
 import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
 import type { MessageProvider } from "./message.ts";
-import type { Message } from "../common/message/message.ts";
-import { type AutoId, autoid } from "../common/system/autoid.ts";
+import { autoid } from "../lib/autoid.ts";
+import type { Message } from "../lib/message.ts";
 
 export default async function testMessageProvider(
 	mp: MessageProvider,
@@ -9,7 +9,7 @@ export default async function testMessageProvider(
 	getLastMessage: () => Promise<Message>,
 ): Promise<void> {
 	await t.step("send", async () => {
-		const msg1: Message<AutoId> = {
+		const msg1: Message = {
 			recipient: autoid(),
 			subject: "A subject",
 			text: "A message",

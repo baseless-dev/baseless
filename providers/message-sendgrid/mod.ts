@@ -1,6 +1,5 @@
-import { MessageSendError } from "../../common/message/errors.ts";
-import type { Message } from "../../common/message/message.ts";
-import { createLogger } from "../../common/system/logger.ts";
+import { createLogger } from "../../lib/logger.ts";
+import { type Message, MessageSendError } from "../../lib/message.ts";
 import type { MessageProvider } from "../message.ts";
 
 export type IAddress = {

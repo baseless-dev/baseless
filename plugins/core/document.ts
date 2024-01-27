@@ -1,4 +1,8 @@
-import type { Document, DocumentKey } from "../../common/document/document.ts";
+import type {
+	Document,
+	DocumentData,
+	DocumentKey,
+} from "../../lib/document.ts";
 import type {
 	DocumentAtomic,
 	DocumentGetOptions,
@@ -19,14 +23,14 @@ export class DocumentService {
 	get<Data = unknown>(
 		key: DocumentKey,
 		options?: DocumentGetOptions | undefined,
-	): Promise<Document<Data>> {
+	): Promise<Document> {
 		return this.#documentProvider.get(key, options);
 	}
 
 	getMany<Data = unknown>(
 		keys: DocumentKey[],
 		options?: DocumentGetOptions | undefined,
-	): Promise<Document<Data>[]> {
+	): Promise<Document[]> {
 		return this.#documentProvider.getMany(keys, options);
 	}
 
@@ -36,7 +40,7 @@ export class DocumentService {
 
 	async create<Data = unknown>(
 		key: DocumentKey,
-		data: Readonly<Data>,
+		data: DocumentData,
 	): Promise<void> {
 		// TODO security rules
 		await this.#documentProvider.create(key, data);
@@ -45,7 +49,7 @@ export class DocumentService {
 
 	async update<Data = unknown>(
 		key: DocumentKey,
-		data: Readonly<Data>,
+		data: DocumentData,
 	): Promise<void> {
 		// TODO security rules
 		await this.#documentProvider.update(key, data);
@@ -54,7 +58,7 @@ export class DocumentService {
 
 	async patch<Data = unknown>(
 		key: DocumentKey,
-		data: Readonly<Partial<Data>>,
+		data: DocumentData,
 	): Promise<void> {
 		// TODO security rules
 		await this.#documentProvider.patch(key, data);

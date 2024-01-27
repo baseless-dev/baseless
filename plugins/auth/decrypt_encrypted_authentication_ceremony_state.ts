@@ -1,19 +1,13 @@
-import type { KeyLike } from "https://deno.land/x/jose@v4.13.1/types.d.ts";
-import { jwtVerify } from "https://deno.land/x/jose@v4.13.1/jwt/verify.ts";
-import {
-	assertAuthenticationCeremonyState,
-	type AuthenticationCeremonyState,
-} from "../../common/auth/ceremony/state.ts";
+import { jwtVerify, type KeyLike } from "../../deps.ts";
+import type {
+	AuthenticationSignInState,
+	AuthenticationSignUpState,
+} from "../../lib/auth/types.ts";
 
 export async function decryptEncryptedAuthenticationCeremonyState(
 	data: string,
 	publicKey: KeyLike,
-): Promise<AuthenticationCeremonyState> {
-	try {
-		const { payload } = await jwtVerify(data, publicKey);
-		assertAuthenticationCeremonyState(payload);
-		return payload;
-	} catch (_error) {
-		return { choices: [] };
-	}
+): Promise<AuthenticationSignInState | AuthenticationSignUpState> {
+	const { payload } = await jwtVerify(data, publicKey);
+	return payload as any;
 }

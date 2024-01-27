@@ -1,9 +1,8 @@
 import {
 	type AuthenticationCeremonyComponent,
-	isAuthenticationCeremonyComponentChoice,
-	isAuthenticationCeremonyComponentSequence,
-} from "../ceremony.ts";
-import { oneOf, sequence } from "./helpers.ts";
+	oneOf,
+	sequence,
+} from "./types.ts";
 
 export function replace(
 	component: AuthenticationCeremonyComponent,
@@ -14,14 +13,13 @@ export function replace(
 		return replacement;
 	}
 	if (
-		isAuthenticationCeremonyComponentSequence(component) ||
-		isAuthenticationCeremonyComponentChoice(component)
+		component.kind === "sequence" ||
+		component.kind === "choice"
 	) {
 		let changed = false;
-		const componentsToReplace =
-			isAuthenticationCeremonyComponentSequence(component)
-				? component.components
-				: component.components;
+		const componentsToReplace = component.kind === "sequence"
+			? component.components
+			: component.components;
 		const components = componentsToReplace.map((component) => {
 			const replaced = replace(component, search, replacement);
 			if (replaced !== component) {
@@ -30,7 +28,7 @@ export function replace(
 			return replaced;
 		});
 		if (changed) {
-			return isAuthenticationCeremonyComponentSequence(component)
+			return component.kind === "sequence"
 				? sequence(...components)
 				: oneOf(...components);
 		}

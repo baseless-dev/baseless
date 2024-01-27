@@ -1,4 +1,4 @@
-import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/runtime/generate.ts";
+import { Elysia, generateKeyPair } from "../deps.ts";
 import { MemoryAssetProvider } from "../providers/asset-memory/mod.ts";
 import PasswordAuthentificationComponent from "../providers/auth-password/mod.ts";
 import EmailAuthentificationComponent from "../providers/auth-email/mod.ts";
@@ -7,16 +7,16 @@ import { MemoryDocumentProvider } from "../providers/document-memory/mod.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
 import { LoggerMessageProvider } from "../providers/message-logger/mod.ts";
 import { KVSessionProvider } from "../providers/session-kv/mod.ts";
-import { h } from "./mod.ts";
 import { DocumentIdentityProvider } from "../providers/identity-document/mod.ts";
 import authPlugin from "../plugins/auth/mod.ts";
 import assetPlugin from "../plugins/asset/mod.ts";
 import OTPLoggerAuthentificationComponent from "../providers/auth-otp-logger/mod.ts";
 import TOTPAuthentificationComponent from "../providers/auth-totp/mod.ts";
 import type { AuthenticationOptions } from "../plugins/auth/mod.ts";
+import { oneOf, sequence } from "../lib/auth/types.ts";
 
 export type MockResult = {
-	router: Router;
+	router: Elysia;
 	providers: {
 		kv: MemoryKVProvider;
 		document: MemoryDocumentProvider;
@@ -74,7 +74,7 @@ export default async function mock(
 		digits: 6,
 		period: 60,
 	});
-	let router = new Router();
+	let router = new Elysia();
 	const result = {
 		router,
 		providers: {
@@ -89,8 +89,8 @@ export default async function mock(
 			password,
 			otp,
 			totp,
-			oneOf: h.oneOf,
-			sequence: h.sequence,
+			oneOf,
+			sequence,
 		},
 	};
 	const { auth } = await builder?.(result) ?? {};
@@ -105,9 +105,9 @@ export default async function mock(
 				keys: auth?.keys ??
 					{ ...await generateKeyPair("PS512"), algo: "PS512" },
 				salt: "should probably be a secret more robust than this",
-				ceremony: h.sequence(
-					email.getCeremonyComponent(),
-					password.getCeremonyComponent(),
+				ceremony: sequence(
+					email,
+					password,
 				),
 				components: [email, password, otp, totp],
 				...auth,

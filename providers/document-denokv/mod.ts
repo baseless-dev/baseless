@@ -1,18 +1,14 @@
 import {
-	assertDocumentDataObject,
-	assertDocumentKey,
 	type Document,
-	type DocumentKey,
-	isDocumentKey,
-} from "../../common/document/document.ts";
-import {
 	DocumentCreateError,
+	DocumentData,
 	DocumentDeleteError,
+	type DocumentKey,
 	DocumentNotFoundError,
+	DocumentPatchError,
 	DocumentUpdateError,
-	InvalidDocumentKeyError,
-} from "../../common/document/errors.ts";
-import { createLogger } from "../../common/system/logger.ts";
+} from "../../lib/document.ts";
+import { createLogger } from "../../lib/logger.ts";
 import {
 	DocumentAtomic,
 	type DocumentAtomicsResult,
@@ -33,32 +29,28 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 		this.#storage = storage;
 	}
 
-	async get<Data = unknown>(
+	async get(
 		key: DocumentKey,
 		options?: DocumentGetOptions,
-	): Promise<Document<Data>> {
-		assertDocumentKey(key);
+	): Promise<Document> {
 		const result = await this.#storage.get(key, {
 			consistency: options?.consistency ?? "eventual",
 		});
 		if (result.versionstamp) {
 			return {
 				key,
-				data: result.value as Data,
+				data: result.value,
 				versionstamp: result.versionstamp,
 			};
 		}
 		throw new DocumentNotFoundError();
 	}
 
-	async getMany<Data = unknown>(
+	async getMany(
 		keys: DocumentKey[],
 		options?: DocumentGetOptions,
-	): Promise<Document<Data>[]> {
-		if (!Array.isArray(keys) || !keys.every(isDocumentKey)) {
-			throw new InvalidDocumentKeyError();
-		}
-		const documents: Document<Data>[] = [];
+	): Promise<Document[]> {
+		const documents: Document[] = [];
 		const results = await this.#storage.getMany(keys, {
 			consistency: options?.consistency ?? "eventual",
 		});
@@ -66,7 +58,7 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 			if (result.versionstamp) {
 				documents.push({
 					key: result.key as DocumentKey,
-					data: result.value as Data,
+					data: result.value,
 					versionstamp: result.versionstamp,
 				});
 			}
@@ -75,7 +67,6 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 	}
 
 	async list(options: DocumentListOptions): Promise<DocumentListResult> {
-		options.prefix && assertDocumentKey(options.prefix);
 		const keys: DocumentKey[] = [];
 		const results = await this.#storage.list({ prefix: options.prefix }, {
 			consistency: "eventual",
@@ -93,12 +84,10 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 		};
 	}
 
-	async create<Data = unknown>(
+	async create(
 		key: DocumentKey,
-		data: Data,
+		data: DocumentData,
 	): Promise<void> {
-		assertDocumentKey(key);
-		assertDocumentDataObject(data);
 		const result = await this.#storage.atomic()
 			.check({ key, versionstamp: null })
 			.set(key, data)
@@ -108,12 +97,10 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 		}
 	}
 
-	async update<Data = unknown>(
+	async update(
 		key: DocumentKey,
-		data: Readonly<Data>,
+		data: DocumentData,
 	): Promise<void> {
-		assertDocumentKey(key);
-		assertDocumentDataObject(data);
 		const value = await this.#storage.get(key, { consistency: "strong" });
 		const result = await this.#storage.atomic()
 			.check(value)
@@ -124,16 +111,17 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 		}
 	}
 
-	async patch<Data = unknown>(
+	async patch(
 		key: DocumentKey,
-		data: Readonly<Partial<Data>>,
+		data: DocumentData,
 	): Promise<void> {
-		assertDocumentKey(key);
-		assertDocumentDataObject(data);
 		const value = await this.#storage.get(key, { consistency: "strong" });
+		if (typeof value.value !== "object" || typeof data !== "object") {
+			throw new DocumentPatchError();
+		}
 		const result = await this.#storage.atomic()
 			.check(value)
-			.set(key, { ...value.value as Data, ...data })
+			.set(key, { ...value.value, ...data })
 			.commit();
 		if (!result.ok) {
 			throw new DocumentUpdateError();

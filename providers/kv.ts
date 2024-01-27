@@ -1,6 +1,3 @@
-// deno-lint-ignore no-unused-vars
-import type { KVKeyNotFoundError, KVPutError } from "../common/kv/errors.ts";
-
 /**
  * Options when getting a key
  */
@@ -59,8 +56,6 @@ export interface KVListResult {
 export interface KVProvider {
 	/**
 	 * Retrieve a single key
-	 *
-	 * @throws {KVKeyNotFoundError} This exception is thrown if the key is not found
 	 */
 	get(
 		key: string[],
@@ -69,7 +64,6 @@ export interface KVProvider {
 
 	/**
 	 * Put a key
-	 * @throws {KVPutError}
 	 */
 	put(
 		key: string[],
@@ -84,7 +78,6 @@ export interface KVProvider {
 
 	/**
 	 * Delete a key
-	 * @throws {KVKeyNotFoundError}
 	 */
 	delete(key: string[]): Promise<void>;
 }

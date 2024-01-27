@@ -1,29 +1,28 @@
 import {
 	type AuthenticationCeremonyComponent,
-	isAuthenticationCeremonyComponentChoice,
-	isAuthenticationCeremonyComponentSequence,
-} from "../ceremony.ts";
-import { oneOf, sequence } from "./helpers.ts";
+	oneOf,
+	sequence,
+} from "./types.ts";
 
 export function simplify(
 	component: AuthenticationCeremonyComponent,
 ): AuthenticationCeremonyComponent {
-	if (isAuthenticationCeremonyComponentSequence(component)) {
+	if (component.kind === "sequence") {
 		const components: AuthenticationCeremonyComponent[] = [];
 		for (let inner of component.components) {
 			inner = simplify(inner);
-			if (isAuthenticationCeremonyComponentSequence(inner)) {
+			if (inner.kind === "sequence") {
 				components.push(...inner.components);
 			} else {
 				components.push(inner);
 			}
 		}
 		return sequence(...components);
-	} else if (isAuthenticationCeremonyComponentChoice(component)) {
+	} else if (component.kind === "choice") {
 		const components: AuthenticationCeremonyComponent[] = [];
 		for (let inner of component.components) {
 			inner = simplify(inner);
-			if (isAuthenticationCeremonyComponentChoice(inner)) {
+			if (inner.kind === "choice") {
 				components.push(...inner.components);
 			} else {
 				components.push(inner);

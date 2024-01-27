@@ -1,11 +1,15 @@
-import type { IdentityComponent } from "../identity/component.ts";
-import type { Identity } from "../identity/identity.ts";
-import type { Message } from "../message/message.ts";
-import type { AuthenticationCeremonyComponent } from "./ceremony/ceremony.ts";
+import type { AuthenticationCeremonyComponentPrompt } from "../lib/auth/types.ts";
+import type { Identity, IdentityComponent } from "../lib/identity.ts";
+import type { Message } from "../lib/message.ts";
+
+// deno-lint-ignore no-empty-interface
+interface IAuthenticationComponent
+	extends AuthenticationCeremonyComponentPrompt {
+}
 
 export type AuthenticationComponentRateLimit = {
-	readonly interval: number;
-	readonly count: number;
+	interval: number;
+	count: number;
 };
 
 export type AuthenticationComponentGetIdentityComponentMetaOptions = {
@@ -32,18 +36,29 @@ export type AuthenticationComponentSendMessageOptions = {
 	message: Omit<Message, "recipient">;
 };
 
-export abstract class AuthenticationComponent {
-	readonly id: string;
-	readonly rateLimit: AuthenticationComponentRateLimit = {
-		count: 10,
-		interval: 60 * 5,
-	};
+export abstract class AuthenticationComponent
+	implements IAuthenticationComponent {
+	kind = "prompt" as const;
+	id: string;
+	abstract prompt: "email" | "oauth2" | "password" | "otp" | "totp";
+	abstract options: Record<string, unknown>;
+	#rateLimit: AuthenticationComponentRateLimit;
 
-	constructor(id: string) {
-		this.id = id;
+	get rateLimit(): AuthenticationComponentRateLimit {
+		return { ...this.#rateLimit };
 	}
 
-	abstract getCeremonyComponent(): AuthenticationCeremonyComponent;
+	constructor(
+		id: string,
+		rateLimit: AuthenticationComponentRateLimit = {
+			count: 10,
+			interval: 60 * 5,
+		},
+	) {
+		this.id = id;
+		this.#rateLimit = rateLimit;
+	}
+
 	getIdentityComponentMeta?(
 		options: AuthenticationComponentGetIdentityComponentMetaOptions,
 	): Promise<Pick<IdentityComponent, "identification" | "meta">>;

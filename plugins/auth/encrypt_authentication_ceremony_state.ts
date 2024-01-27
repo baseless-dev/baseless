@@ -1,12 +1,11 @@
+import { type JWTPayload, type KeyLike, SignJWT } from "../../deps.ts";
 import type {
-	JWTPayload,
-	KeyLike,
-} from "https://deno.land/x/jose@v4.13.1/types.d.ts";
-import { SignJWT } from "https://deno.land/x/jose@v4.13.1/jwt/sign.ts";
-import type { AuthenticationCeremonyState } from "../../common/auth/ceremony/state.ts";
+	AuthenticationSignInState,
+	AuthenticationSignUpState,
+} from "../../lib/auth/types.ts";
 
 export async function encryptAuthenticationCeremonyState(
-	state: AuthenticationCeremonyState,
+	state: AuthenticationSignInState | AuthenticationSignUpState,
 	alg: string,
 	privateKey: KeyLike,
 	expiration: string | number = "10m",

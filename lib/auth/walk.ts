@@ -1,17 +1,10 @@
 import {
 	type AuthenticationCeremonyComponent,
-	type AuthenticationCeremonyComponentDone,
-	type AuthenticationCeremonyComponentPrompt,
-	isAuthenticationCeremonyComponentChoice,
-	isAuthenticationCeremonyComponentSequence,
-} from "../ceremony.ts";
-import { h } from "./helpers.ts";
+	sequence,
+	type WalkedAuthenticationCeremonyComponent,
+} from "./types.ts";
 import { isLeaf } from "./is_leaf.ts";
 import { simplify } from "./simplify.ts";
-
-export type WalkedAuthenticationCeremonyComponent =
-	| AuthenticationCeremonyComponentPrompt
-	| AuthenticationCeremonyComponentDone;
 
 export default function* walk(
 	component: AuthenticationCeremonyComponent,
@@ -30,7 +23,7 @@ export default function* walk(
 			parents: ReadonlyArray<WalkedAuthenticationCeremonyComponent>,
 		]
 	> {
-		if (isAuthenticationCeremonyComponentSequence(component)) {
+		if (component.kind === "sequence") {
 			if (isLeaf(component)) {
 				const newParents = [...parents];
 				for (const inner of component.components) {
@@ -40,10 +33,10 @@ export default function* walk(
 			} else {
 				for (let i = 0, l = component.components.length; i < l; ++i) {
 					const inner = component.components[i];
-					if (isAuthenticationCeremonyComponentChoice(inner)) {
+					if (inner.kind === "choice") {
 						for (const inner2 of inner.components) {
 							yield* _walk(
-								simplify(h.sequence(
+								simplify(sequence(
 									...component.components.slice(0, i),
 									inner2,
 									...component.components.slice(i + 1),
@@ -55,7 +48,7 @@ export default function* walk(
 					}
 				}
 			}
-		} else if (isAuthenticationCeremonyComponentChoice(component)) {
+		} else if (component.kind === "choice") {
 			for (const inner of component.components) {
 				yield* _walk(inner, [...parents]);
 			}

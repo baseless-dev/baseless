@@ -1,5 +1,5 @@
-import type { Identity } from "../common/identity/identity.ts";
-import type { AutoId } from "../common/system/autoid.ts";
+import type { AutoId } from "../lib/autoid.ts";
+import type { Identity } from "../lib/identity.ts";
 
 /**
  * Identity Provider

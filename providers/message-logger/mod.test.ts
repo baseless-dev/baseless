@@ -1,7 +1,7 @@
-import type { Message } from "../../common/message/message.ts";
-import { setGlobalLogHandler } from "../../common/system/logger.ts";
+import { setGlobalLogHandler } from "../../lib/logger.ts";
 import testMessageProvider from "../message.test.ts";
 import { LoggerMessageProvider } from "./mod.ts";
+import type { Message } from "../../lib/message.ts";
 
 Deno.test("KVSessionProvider", async (t) => {
 	const mp = new LoggerMessageProvider();

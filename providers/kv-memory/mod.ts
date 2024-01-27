@@ -1,7 +1,6 @@
-import { CacheMap } from "../../common/collections/cachemap.ts";
-// deno-lint-ignore no-unused-vars
-import { KVKeyNotFoundError, KVPutError } from "../../common/kv/errors.ts";
-import { createLogger } from "../../common/system/logger.ts";
+import { CacheMap } from "../../lib/cachemap.ts";
+import { KVKeyNotFoundError } from "../../lib/kv.ts";
+import { createLogger } from "../../lib/logger.ts";
 import type {
 	KVGetOptions,
 	KVKey,

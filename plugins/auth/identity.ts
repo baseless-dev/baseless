@@ -3,14 +3,13 @@ import {
 	AuthenticationRateLimitedError,
 	AuthenticationSendValidationCodeError,
 	AuthenticationSendValidationPromptError,
-} from "../../common/auth/errors.ts";
-import type { Identity } from "../../common/identity/identity.ts";
-import { type AutoId, autoid } from "../../common/system/autoid.ts";
-import { createLogger } from "../../common/system/logger.ts";
-import type { Message } from "../../common/message/message.ts";
+} from "../../lib/auth/errors.ts";
+import { type AutoId, autoid } from "../../lib/autoid.ts";
+import type { Identity } from "../../lib/identity.ts";
+import { createLogger } from "../../lib/logger.ts";
+import { MessageSendError } from "../../lib/message.ts";
 import type { Context } from "./context.ts";
 import type { AuthenticationOptions } from "./mod.ts";
-import { MessageSendError } from "../../common/message/errors.ts";
 
 export class IdentityService {
 	#logger = createLogger("identity-service");

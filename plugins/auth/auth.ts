@@ -4,28 +4,15 @@ import {
 	AuthenticationInvalidStepError,
 	AuthenticationMissingIdentificatorError,
 	AuthenticationRateLimitedError,
-	InvalidAuthenticationCeremonyComponentError,
-} from "../../common/auth/errors.ts";
-import type { AuthenticationCeremonyResponse } from "../../common/auth/ceremony/response.ts";
-import {
-	isAuthenticationCeremonyResponseDone,
-	isAuthenticationCeremonyResponseState,
-} from "../../common/auth/ceremony/response.ts";
-import {
-	type AuthenticationCeremonyState,
-	isAuthenticationCeremonyStateIdentified,
-} from "../../common/auth/ceremony/state.ts";
-import {
-	type AuthenticationCeremonyComponentPrompt,
-	isAuthenticationCeremonyComponentChoice,
-	isAuthenticationCeremonyComponentDone,
-	isAuthenticationCeremonyComponentPrompt,
-} from "../../common/auth/ceremony/ceremony.ts";
-import {
-	getComponentAtPath,
-} from "../../common/auth/ceremony/component/get_component_at_path.ts";
-import { createLogger } from "../../common/system/logger.ts";
-import { Identity, isIdentity } from "../../common/identity/identity.ts";
+} from "../../lib/auth/errors.ts";
+import { getComponentAtPath } from "../../lib/auth/get_component_at_path.ts";
+import type {
+	AuthenticationCeremonyComponentPrompt,
+	AuthenticationSignInResponse,
+	AuthenticationSignInState,
+} from "../../lib/auth/types.ts";
+import type { Identity } from "../../lib/identity.ts";
+import { createLogger } from "../../lib/logger.ts";
 import type { AuthenticationOptions } from "./mod.ts";
 
 export class AuthenticationService {
@@ -38,49 +25,33 @@ export class AuthenticationService {
 		this.#options = options;
 	}
 
-	async getAuthenticationCeremony(
-		state?: AuthenticationCeremonyState,
-	): Promise<
-		AuthenticationCeremonyResponse<
-			Exclude<
-				ReturnType<typeof getComponentAtPath>,
-				undefined
-			>
-		>
-	> {
-		state ??= { choices: [] };
+	getSignInCeremony(
+		state?: AuthenticationSignInState,
+	): AuthenticationSignInResponse {
+		state ??= { kind: "signin", choices: [] };
 		const result = getComponentAtPath(this.#options.ceremony, state.choices);
-		if (!result || isAuthenticationCeremonyComponentDone(result)) {
-			if (isAuthenticationCeremonyStateIdentified(state)) {
+		if (!result || result.kind === "done") {
+			if (state.identity) {
 				return { done: true, identityId: state.identity };
 			}
 			throw new AuthenticationCeremonyDoneError();
 		}
-		const last = isAuthenticationCeremonyComponentChoice(result)
+		const last = result.kind === "choice"
 			? false
-			: isAuthenticationCeremonyResponseDone(
-				getComponentAtPath(this.#options.ceremony, [
-					...state.choices,
-					result.id,
-				]),
-			);
+			: getComponentAtPath(this.#options.ceremony, [
+				...state.choices,
+				result.id,
+			])?.kind === "done";
 		const first = state.choices.length === 0;
-		return { done: false, component: result, first, last, state };
+		return { done: false, state, component: result, first, last };
 	}
 
-	async submitComponentPrompt(
-		state: AuthenticationCeremonyState,
+	async submitSignInPrompt(
+		state: AuthenticationSignInState,
 		id: string,
 		value: unknown,
 		subject: string,
-	): Promise<
-		AuthenticationCeremonyResponse<
-			Exclude<
-				ReturnType<typeof getComponentAtPath>,
-				undefined
-			>
-		>
-	> {
+	): Promise<AuthenticationSignInResponse> {
 		const counterInterval = this.#options.rateLimit?.interval ?? 1000 * 60 * 5;
 		const slidingWindow = Math.round(Date.now() / counterInterval);
 		const counterKey = [
@@ -95,60 +66,59 @@ export class AuthenticationService {
 		) {
 			throw new AuthenticationRateLimitedError();
 		}
-		const authCeremony = await this.getAuthenticationCeremony(state);
-		if (!isAuthenticationCeremonyResponseState(authCeremony)) {
+		const authCeremony = await this.getSignInCeremony(state);
+		if (authCeremony.done === false && "state" in authCeremony) {
+			const step = authCeremony.component.kind === "choice"
+				? authCeremony.component.components.find((
+					s,
+				): s is AuthenticationCeremonyComponentPrompt =>
+					s.kind === "prompt" && s.id === id
+				)
+				: authCeremony.component;
+			if (!step || step.kind === "done") {
+				throw new AuthenticationInvalidStepError();
+			}
+			const identificator = this.#options.components.find((comp) =>
+				comp.id === id
+			);
+			if (!identificator) {
+				throw new AuthenticationMissingIdentificatorError();
+			}
+			const stateIdentity = state.identity
+				? await this.#options.identity.get(state.identity)
+				: undefined;
+			const identityComponent = stateIdentity?.components[step.id];
+			const result = await identificator.verifyPrompt({
+				value,
+				identity: stateIdentity && identityComponent
+					? {
+						identity: stateIdentity,
+						component: identityComponent,
+					}
+					: undefined,
+			});
+			let identity: Identity | undefined;
+			if (
+				typeof result === "object" &&
+				(!stateIdentity || result.id === stateIdentity.id)
+			) {
+				identity = result;
+			} else if (result === true && stateIdentity) {
+				identity = stateIdentity;
+			}
+			if (!identity) {
+				throw new AuthenticationCeremonyComponentPromptError();
+			}
+
+			const newState = {
+				kind: "signin" as const,
+				choices: [...state.choices, id],
+				identity: identity.id,
+			};
+			const newResult = await this.getSignInCeremony(newState);
+			return newResult;
+		} else {
 			throw new AuthenticationCeremonyDoneError();
 		}
-		const step = isAuthenticationCeremonyComponentChoice(authCeremony.component)
-			? authCeremony.component.components.find((
-				s,
-			): s is AuthenticationCeremonyComponentPrompt =>
-				isAuthenticationCeremonyComponentPrompt(s) && s.id === id
-			)
-			: authCeremony.component;
-		if (!step || isAuthenticationCeremonyComponentDone(step)) {
-			throw new AuthenticationInvalidStepError();
-		}
-
-		const identificator = this.#options.components.find((comp) =>
-			comp.id === id
-		);
-		if (!identificator) {
-			throw new AuthenticationMissingIdentificatorError();
-		}
-
-		const stateIdentity = isAuthenticationCeremonyStateIdentified(state)
-			? await this.#options.identity.get(state.identity)
-			: undefined;
-		const identityComponent = stateIdentity?.components[step.id];
-
-		const result = await identificator.verifyPrompt({
-			value,
-			identity: stateIdentity && identityComponent
-				? {
-					identity: stateIdentity,
-					component: identityComponent,
-				}
-				: undefined,
-		});
-
-		let identity: Identity | undefined;
-		if (
-			isIdentity(result) && (!stateIdentity || result.id === stateIdentity.id)
-		) {
-			identity = result;
-		} else if (result === true && stateIdentity) {
-			identity = stateIdentity;
-		}
-		if (!identity) {
-			throw new AuthenticationCeremonyComponentPromptError();
-		}
-
-		const newState = {
-			choices: [...state.choices, id],
-			identity: identity.id,
-		};
-		const newResult = await this.getAuthenticationCeremony(newState);
-		return newResult;
 	}
 }

@@ -5,7 +5,7 @@ import {
 	t,
 	type TSchema,
 	TypeGuard,
-} from "../../server/elysia.ts";
+} from "../../deps.ts";
 import type { OpenAPIV3 } from "https://esm.sh/openapi-types@12.1.3";
 
 export type OpenAPIOptions<TPath> = {
@@ -137,7 +137,7 @@ function transformRoutesToOpenAPIV3Document(
 	});
 	const paths = routes.reduce((paths, route) => {
 		const path = transformPath(route.path);
-		const hooks: LocalHook<any, any> = route.hooks;
+		const hooks = route.hooks as any;
 		return {
 			...paths,
 			[path]: {

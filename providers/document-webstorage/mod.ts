@@ -1,14 +1,12 @@
 import {
-	assertDocument,
 	type Document,
-	type DocumentKey,
-	isDocument,
-} from "../../common/document/document.ts";
-import {
 	DocumentCreateError,
+	DocumentData,
+	type DocumentKey,
 	DocumentNotFoundError,
-} from "../../common/document/errors.ts";
-import { createLogger } from "../../common/system/logger.ts";
+	DocumentPatchError,
+} from "../../lib/document.ts";
+import { createLogger } from "../../lib/logger.ts";
 import {
 	DocumentAtomic,
 	type DocumentAtomicsResult,
@@ -41,17 +39,19 @@ export class WebStorageDocumentProvider extends DocumentProvider {
 	}
 
 	// deno-lint-ignore require-await
-	async get<Data = unknown>(
+	async get(
 		key: DocumentKey,
 		_options?: DocumentGetOptions,
-	): Promise<Document<Data>> {
+	): Promise<Document> {
 		try {
 			const keyString = keyPathToKeyString([this.#prefix, ...key]);
 			const document = JSON.parse(
 				this.#storage.getItem(keyString) ?? "null",
 			) as unknown;
-			assertDocument(document);
-			return document as Document<Data>;
+			if (!document) {
+				throw new DocumentNotFoundError();
+			}
+			return document as Document;
 		} catch (error) {
 			this.#logger.error(`Couldn't get document ${key}, got error : ${error}.`);
 			throw new DocumentNotFoundError();
@@ -59,17 +59,18 @@ export class WebStorageDocumentProvider extends DocumentProvider {
 	}
 
 	// deno-lint-ignore require-await
-	async getMany<Data = unknown>(
+	async getMany(
 		keys: DocumentKey[],
 		_options?: DocumentGetOptions,
-	): Promise<Document<Data>[]> {
-		const documents: Document<Data>[] = [];
+	): Promise<Document[]> {
+		const documents: Document[] = [];
 		for (const key of keys) {
 			const keyString = keyPathToKeyString([this.#prefix, ...key]);
 			const document = JSON.parse(this.#storage.getItem(keyString) ?? "null");
-			if (isDocument(document)) {
-				documents.push(document as Document<Data>);
+			if (!document) {
+				throw new DocumentNotFoundError();
 			}
+			documents.push(document as Document);
 		}
 		return documents;
 	}
@@ -111,9 +112,9 @@ export class WebStorageDocumentProvider extends DocumentProvider {
 	}
 
 	// deno-lint-ignore require-await
-	async create<Data = unknown>(
+	async create(
 		key: DocumentKey,
-		data: Readonly<Data>,
+		data: DocumentData,
 	): Promise<void> {
 		const keyString = keyPathToKeyString([this.#prefix, ...key]);
 		if (this.#storage.getItem(keyString)) {
@@ -129,9 +130,9 @@ export class WebStorageDocumentProvider extends DocumentProvider {
 		);
 	}
 
-	async update<Data = unknown>(
+	async update(
 		key: DocumentKey,
-		data: Readonly<Data>,
+		data: DocumentData,
 	): Promise<void> {
 		const _ = await this.get(key);
 		const keyString = keyPathToKeyString([this.#prefix, ...key]);
@@ -145,12 +146,15 @@ export class WebStorageDocumentProvider extends DocumentProvider {
 		);
 	}
 
-	async patch<Data = unknown>(
+	async patch(
 		key: DocumentKey,
-		data: Readonly<Partial<Data>>,
+		data: DocumentData,
 	): Promise<void> {
-		const document = await this.get<Data>(key);
+		const document = await this.get(key);
 		const keyString = keyPathToKeyString([this.#prefix, ...key]);
+		if (typeof document.data !== "object" || typeof data !== "object") {
+			throw new DocumentPatchError();
+		}
 		this.#storage.setItem(
 			keyString,
 			JSON.stringify({

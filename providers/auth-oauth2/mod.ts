@@ -1,16 +1,19 @@
-import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony/ceremony.ts";
+import {
+	type Identity,
+	type IdentityComponent,
+	IdentityNotFoundError,
+} from "../../lib/identity.ts";
 import {
 	AuthenticationComponent,
 	AuthenticationComponentGetIdentityComponentMetaOptions,
 	AuthenticationComponentVerifyPromptOptions,
-} from "../../common/auth/component.ts";
-import type { IdentityComponent } from "../../common/identity/component.ts";
-import { IdentityNotFoundError } from "../../common/identity/errors.ts";
-import type { Identity } from "../../common/identity/identity.ts";
+} from "../auth_component.ts";
 import type { IdentityProvider } from "../identity.ts";
 
 export default abstract class OAuth2AuthentificationComponent
 	extends AuthenticationComponent {
+	prompt = "oauth2" as const;
+	options: { authorizationUrl: string };
 	#identityProvider: IdentityProvider;
 	#authorizationUrl: URL;
 	#tokenUrl: URL;
@@ -39,9 +42,7 @@ export default abstract class OAuth2AuthentificationComponent
 		this.#clientId = options.clientId;
 		this.#clientSecret = options.clientSecret;
 		this.#scope = options.scope;
-	}
 
-	getCeremonyComponent(): AuthenticationCeremonyComponent {
 		const authorizationUrl = new URL(this.#authorizationUrl);
 		authorizationUrl.searchParams.set("response_type", "code");
 		authorizationUrl.searchParams.set("client_id", this.#clientId);
@@ -52,15 +53,11 @@ export default abstract class OAuth2AuthentificationComponent
 			"redirect_uri",
 			this.#redirectUrl.toString(),
 		);
-		return {
-			kind: "prompt",
-			id: this.id,
-			prompt: "oauth2",
-			options: {
-				authorizationUrl: authorizationUrl.toString(),
-			},
+		this.options = {
+			authorizationUrl: authorizationUrl.toString(),
 		};
 	}
+
 	// deno-lint-ignore require-await
 	async getIdentityComponentMeta(
 		{ value }: AuthenticationComponentGetIdentityComponentMetaOptions,
@@ -101,6 +98,7 @@ export default abstract class OAuth2AuthentificationComponent
 				);
 				return identity;
 			} catch (_error) {
+				//
 			}
 		}
 		throw new IdentityNotFoundError();

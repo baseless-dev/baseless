@@ -1,5 +1,5 @@
+import { createLogger } from "../../lib/logger.ts";
 import type { AssetProvider } from "../asset.ts";
-import { createLogger } from "../../common/system/logger.ts";
 
 export interface MemoryAssetEntry {
 	body:

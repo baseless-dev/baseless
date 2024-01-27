@@ -1,9 +1,5 @@
 import type { KVProvider } from "./kv.ts";
-import {
-	assertEquals,
-	assertExists,
-	assertRejects,
-} from "https://deno.land/std@0.179.0/testing/asserts.ts";
+import { assertEquals, assertExists, assertRejects } from "../deps.test.ts";
 
 export default async function testKVProvider(
 	kv: KVProvider,

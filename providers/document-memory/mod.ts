@@ -1,9 +1,11 @@
-import type { Document, DocumentKey } from "../../common/document/document.ts";
 import {
+	type Document,
 	DocumentCreateError,
+	type DocumentKey,
 	DocumentNotFoundError,
-} from "../../common/document/errors.ts";
-import { createLogger } from "../../common/system/logger.ts";
+	DocumentPatchError,
+} from "../../lib/document.ts";
+import { createLogger } from "../../lib/logger.ts";
 import {
 	DocumentAtomic,
 	type DocumentAtomicsResult,
@@ -29,26 +31,26 @@ export class MemoryDocumentProvider extends DocumentProvider {
 	async get<Data = unknown>(
 		key: DocumentKey,
 		_options?: DocumentGetOptions,
-	): Promise<Document<Data>> {
+	): Promise<Document> {
 		const keyString = keyPathToKeyString(key);
 		const document = this.#storage.get(keyString);
 		if (!document) {
 			throw new DocumentNotFoundError();
 		}
-		return structuredClone(document) as Document<Data>;
+		return structuredClone(document);
 	}
 
 	// deno-lint-ignore require-await
 	async getMany<Data = unknown>(
 		keys: DocumentKey[],
 		_options?: DocumentGetOptions,
-	): Promise<Document<Data>[]> {
-		const documents: Document<Data>[] = [];
+	): Promise<Document[]> {
+		const documents: Document[] = [];
 		for (const key of keys) {
 			const keyString = keyPathToKeyString(key);
 			const document = this.#storage.get(keyString);
 			if (document) {
-				documents.push(structuredClone(document) as Document<Data>);
+				documents.push(structuredClone(document) as Document);
 			}
 		}
 		return documents;
@@ -125,6 +127,9 @@ export class MemoryDocumentProvider extends DocumentProvider {
 	): Promise<void> {
 		const document = await this.get<Data>(key);
 		const keyString = keyPathToKeyString(key);
+		if (typeof document.data !== "object" || typeof data !== "object") {
+			throw new DocumentPatchError();
+		}
 		this.#storage.set(keyString, {
 			key,
 			data: { ...document.data, ...data },

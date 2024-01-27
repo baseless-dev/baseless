@@ -1,4 +1,4 @@
-import { createLogger } from "../../common/system/logger.ts";
+import { createLogger } from "../../lib/logger.ts";
 import type { AssetProvider } from "../asset.ts";
 
 export class WebCacheAssetProvider implements AssetProvider {

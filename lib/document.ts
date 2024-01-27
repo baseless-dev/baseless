@@ -1,25 +1,15 @@
-import { t } from "../deps.ts";
+import { type Static, t } from "../deps.ts";
 
-export const DocumentDataPrimitive = t.Union([
-	t.String(),
-	t.Number(),
-	t.Boolean(),
-	t.Null(),
-], { $id: "DocumentDataPrimitive" });
+export type DocumentKey = string[];
+export type DocumentData = unknown;
 
-export const DocumentData = t.Recursive((self) =>
-	t.Union([
-		DocumentDataPrimitive,
-		t.Array(self),
-		t.Record(t.String(), self),
-	], { $id: "DocumentData" })
-);
-
-export const Document = t.Object({
+export const DocumentSchema = t.Object({
 	key: t.Array(t.String()),
-	data: DocumentData,
+	data: t.Unknown(),
 	versionstamp: t.String(),
 }, { $id: "Document" });
+
+export type Document = Static<typeof DocumentSchema>;
 
 export class DocumentNotFoundError extends Error {
 	name = "DocumentNotFoundError" as const;

@@ -1,24 +1,17 @@
-import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony/ceremony.ts";
+import type { Identity } from "../../lib/identity.ts";
+import { createLogger, LogLevel, LogLevelMethod } from "../../lib/logger.ts";
+import { assertOTPOptions, otp, type OTPOptions } from "../../lib/otp.ts";
 import {
 	AuthenticationComponent,
 	AuthenticationComponentSendPromptOptions,
 	AuthenticationComponentVerifyPromptOptions,
-} from "../../common/auth/component.ts";
-import type { Identity } from "../../common/identity/identity.ts";
-import {
-	createLogger,
-	LogLevel,
-	LogLevelMethod,
-} from "../../common/system/logger.ts";
-import {
-	assertOTPOptions,
-	otp,
-	type OTPOptions,
-} from "../../common/system/otp.ts";
+} from "../auth_component.ts";
 import type { KVProvider } from "../kv.ts";
 
 export default class OTPLoggerAuthentificationComponent
 	extends AuthenticationComponent {
+	prompt = "otp" as const;
+	options: { digits: number; timeout: number };
 	#kvProvider: KVProvider;
 	#options: OTPOptions;
 	#ttl: number;
@@ -37,16 +30,9 @@ export default class OTPLoggerAuthentificationComponent
 		this.#options = options;
 		this.#ttl = ttl;
 		this.#logMethod = LogLevelMethod[logLevel];
-	}
-	getCeremonyComponent(): AuthenticationCeremonyComponent {
-		return {
-			kind: "prompt",
-			id: this.id,
-			prompt: "otp",
-			options: {
-				digits: this.#options.digits ?? 6,
-				timeout: this.#ttl,
-			},
+		this.options = {
+			digits: this.#options.digits ?? 6,
+			timeout: this.#ttl,
 		};
 	}
 	async sendPrompt(

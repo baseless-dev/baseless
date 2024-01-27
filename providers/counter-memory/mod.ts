@@ -1,4 +1,4 @@
-import { CacheMap } from "../../common/collections/cachemap.ts";
+import { CacheMap } from "../../lib/cachemap.ts";
 import type { CounterProvider } from "../counter.ts";
 
 function keyPathToKeyString(key: string[]): string {

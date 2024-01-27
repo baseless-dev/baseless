@@ -1,24 +1,30 @@
-import { t } from "../deps.ts";
+import { type Static, t } from "../deps.ts";
 
 export const IDENTITY_AUTOID_PREFIX = "id_";
 
-export const ID = t.Object({
-	id: t.String({ format: "autoid" }),
+export const IDSchema = t.Object({
+	id: t.String(),
 	meta: t.Record(t.String(), t.Unknown()),
 }, { $id: "ID" });
 
-export const IdentityComponent = t.Object({
+export type ID = Static<typeof IDSchema>;
+
+export const IdentityComponentSchema = t.Object({
 	id: t.String(),
 	identification: t.Optional(t.String()),
 	confirmed: t.Boolean(),
 	meta: t.Record(t.String(), t.Unknown()),
 }, { $id: "IdentityComponent" });
 
-export const Identity = t.Object({
-	id: t.String({ format: "autoid" }),
+export type IdentityComponent = Static<typeof IdentityComponentSchema>;
+
+export const IdentitySchema = t.Object({
+	id: t.String(),
 	meta: t.Record(t.String(), t.Unknown()),
-	components: t.Record(t.String(), IdentityComponent),
+	components: t.Record(t.String(), IdentityComponentSchema),
 }, { $id: "Identity" });
+
+export type Identity = Static<typeof IdentitySchema>;
 
 export class IdentityNotFoundError extends Error {
 	name = "IdentityNotFoundError" as const;

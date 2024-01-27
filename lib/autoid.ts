@@ -1,9 +1,6 @@
 declare const ERROR: unique symbol;
 
-export type AutoId = string & {
-	[ERROR]:
-		"AutoId is an opaque type. Use autoid(), isAutoId() and assertAutoId() to generate or validate AutoIds.";
-};
+export type AutoId = string;
 
 const AutoIdChars =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

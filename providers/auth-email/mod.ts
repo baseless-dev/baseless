@@ -1,18 +1,21 @@
-import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony/ceremony.ts";
+import {
+	type Identity,
+	type IdentityComponent,
+	IdentityNotFoundError,
+} from "../../lib/identity.ts";
 import {
 	AuthenticationComponent,
 	AuthenticationComponentGetIdentityComponentMetaOptions,
 	AuthenticationComponentSendMessageOptions,
 	AuthenticationComponentVerifyPromptOptions,
-} from "../../common/auth/component.ts";
-import type { IdentityComponent } from "../../common/identity/component.ts";
-import { IdentityNotFoundError } from "../../common/identity/errors.ts";
-import type { Identity } from "../../common/identity/identity.ts";
+} from "../auth_component.ts";
 import type { IdentityProvider } from "../identity.ts";
 import type { MessageProvider } from "../message.ts";
 
 export default class EmailAuthentificationComponent
 	extends AuthenticationComponent {
+	prompt = "email" as const;
+	options = {};
 	#identityProvider: IdentityProvider;
 	#messageProvider: MessageProvider;
 	constructor(
@@ -23,14 +26,6 @@ export default class EmailAuthentificationComponent
 		super(id);
 		this.#identityProvider = identityProvider;
 		this.#messageProvider = messageProvider;
-	}
-	getCeremonyComponent(): AuthenticationCeremonyComponent {
-		return {
-			kind: "prompt",
-			id: this.id,
-			prompt: "email",
-			options: {},
-		};
 	}
 	// deno-lint-ignore require-await
 	async getIdentityComponentMeta(

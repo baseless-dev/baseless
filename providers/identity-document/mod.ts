@@ -1,17 +1,12 @@
+import { type AutoId, autoid } from "../../lib/autoid.ts";
 import {
+	type Identity,
+	IDENTITY_AUTOID_PREFIX,
 	IdentityCreateError,
 	IdentityDeleteError,
 	IdentityNotFoundError,
-} from "../../common/identity/errors.ts";
-import {
-	assertIdentity,
-	assertIdentityComponents,
-	assertIdentityMeta,
-	type Identity,
-	IDENTITY_AUTOID_PREFIX,
-} from "../../common/identity/identity.ts";
-import { type AutoId, autoid } from "../../common/system/autoid.ts";
-import { createLogger } from "../../common/system/logger.ts";
+} from "../../lib/identity.ts";
+import { createLogger } from "../../lib/logger.ts";
 import type { DocumentProvider } from "../document.ts";
 import type { IdentityProvider } from "../identity.ts";
 
@@ -30,7 +25,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 
 	async get(identityId: string): Promise<Identity> {
 		try {
-			const { data } = await this.#document.get<Identity>(
+			const { data } = await this.#document.get(
 				[
 					this.#prefix,
 					"identities",
@@ -38,7 +33,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 				],
 				{ consistency: "strong" },
 			);
-			return data;
+			return data as Identity;
 		} catch (_error) {
 			throw new IdentityNotFoundError();
 		}
@@ -49,21 +44,21 @@ export class DocumentIdentityProvider implements IdentityProvider {
 		identification: string,
 	): Promise<Identity> {
 		try {
-			const { data: identityId } = await this.#document.get<AutoId>([
+			const { data: identityId } = await this.#document.get([
 				this.#prefix,
 				"identifications",
 				type,
 				identification,
 			], { consistency: "strong" });
-			const { data } = await this.#document.get<Identity>(
+			const { data } = await this.#document.get(
 				[
 					this.#prefix,
 					"identities",
-					identityId,
+					identityId as string,
 				],
 				{ consistency: "strong" },
 			);
-			return data;
+			return data as Identity;
 		} catch (_error) {
 			throw new IdentityNotFoundError();
 		}
@@ -73,9 +68,6 @@ export class DocumentIdentityProvider implements IdentityProvider {
 		meta: Identity["meta"],
 		components: Identity["components"],
 	): Promise<Identity> {
-		assertIdentityMeta(meta);
-		assertIdentityComponents(components);
-
 		try {
 			const id = autoid(IDENTITY_AUTOID_PREFIX);
 			const atomic = this.#document.atomic()
@@ -113,10 +105,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 	}
 
 	async update(identity: Identity): Promise<void> {
-		assertIdentity(identity);
-		const { data: oldIdentity, versionstamp } = await this.#document.get<
-			Identity
-		>(
+		const { data, versionstamp } = await this.#document.get(
 			[
 				this.#prefix,
 				"identities",
@@ -124,6 +113,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 			],
 			{ consistency: "strong" },
 		);
+		const oldIdentity = data as Identity;
 		try {
 			const atomic = this.#document.atomic()
 				.match(
@@ -183,9 +173,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 	}
 
 	async delete(identityId: string): Promise<void> {
-		const { data: identity, versionstamp } = await this.#document.get<
-			Identity
-		>(
+		const { data, versionstamp } = await this.#document.get(
 			[
 				this.#prefix,
 				"identities",
@@ -193,6 +181,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 			],
 			{ consistency: "strong" },
 		);
+		const identity = data as Identity;
 		try {
 			const atomic = this.#document.atomic()
 				.match([this.#prefix, "identities", identity.id], versionstamp)

@@ -1,35 +1,27 @@
-import { encode } from "../../common/encoding/base64.ts";
+import { encodeBase64 } from "../../deps.ts";
+import type { Identity, IdentityComponent } from "../../lib/identity.ts";
 import {
 	AuthenticationComponent,
 	AuthenticationComponentGetIdentityComponentMetaOptions,
 	AuthenticationComponentVerifyPromptOptions,
-} from "../../common/auth/component.ts";
-import type { AuthenticationCeremonyComponent } from "../../common/auth/ceremony/ceremony.ts";
-import type { Identity } from "../../common/identity/identity.ts";
-import type { IdentityComponent } from "../../common/identity/component.ts";
+} from "../auth_component.ts";
 
 export default class PasswordAuthentificationComponent
 	extends AuthenticationComponent {
+	prompt = "password" as const;
+	options = {};
 	#salt: string;
 	constructor(id: string, salt: string) {
 		super(id);
 		this.#salt = salt;
 	}
 	async #hashPassword(password: string): Promise<string> {
-		return encode(
+		return encodeBase64(
 			await crypto.subtle.digest(
 				"SHA-512",
 				new TextEncoder().encode(`${this.#salt}:${password}`),
 			),
 		);
-	}
-	getCeremonyComponent(): AuthenticationCeremonyComponent {
-		return {
-			kind: "prompt",
-			id: this.id,
-			prompt: "password",
-			options: {},
-		};
 	}
 	async getIdentityComponentMeta(
 		{ value }: AuthenticationComponentGetIdentityComponentMetaOptions,

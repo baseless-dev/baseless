@@ -1,10 +1,8 @@
-import {
-	CounterIncrementError,
-	CounterResetError,
-} from "../../client/errors.ts";
-import { createLogger } from "../../common/system/logger.ts";
+/// <reference types="https://esm.sh/@cloudflare/workers-types@4.20240117.0/index.d.ts" />
+
+import { CounterIncrementError, CounterResetError } from "../../lib/counter.ts";
+import { createLogger } from "../../lib/logger.ts";
 import type { CounterProvider } from "../counter.ts";
-/// <reference types="https://esm.sh/v132/@cloudflare/workers-types@4.20230914.0/index.d.ts" />
 
 function keyPathToKeyString(key: string[]): string {
 	return key.map((p) => p.replaceAll("/", "\\/")).join("/");

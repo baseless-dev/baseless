@@ -1,12 +1,6 @@
-import {
-	extname,
-	join,
-	normalize,
-	resolve,
-} from "https://deno.land/std@0.179.0/path/mod.ts";
-import { contentType } from "https://deno.land/std@0.179.0/media_types/mod.ts";
+import { contentType, extname, join, normalize, resolve } from "../../deps.ts";
+import { createLogger } from "../../lib/logger.ts";
 import type { AssetProvider } from "../asset.ts";
-import { createLogger } from "../../common/system/logger.ts";
 
 export class DenoFSAssetProvider implements AssetProvider {
 	#logger = createLogger("asset-denofs");

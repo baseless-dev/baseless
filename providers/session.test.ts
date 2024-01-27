@@ -1,11 +1,9 @@
-import {
-	assertEquals,
-	assertRejects,
-} from "https://deno.land/std@0.179.0/testing/asserts.ts";
+import { assert, assertEquals, assertRejects } from "../deps.test.ts";
 import type { SessionProvider } from "./session.ts";
-import { autoid } from "../common/system/autoid.ts";
-import { assertSessionData, type SessionData } from "../common/session/data.ts";
-import { IDENTITY_AUTOID_PREFIX } from "../common/identity/identity.ts";
+import { autoid } from "../lib/autoid.ts";
+import { IDENTITY_AUTOID_PREFIX } from "../lib/identity.ts";
+import { type SessionData, SessionDataSchema } from "../lib/session.ts";
+import { Value } from "../deps.ts";
 
 export default async function testSessionProvider(
 	session: SessionProvider,
@@ -18,13 +16,13 @@ export default async function testSessionProvider(
 
 	await t.step("create", async () => {
 		sessionData1 = await session.create(identityId1, {});
-		assertSessionData(sessionData1);
+		assert(Value.Check(SessionDataSchema, sessionData1));
 		assertEquals(sessionData1.identityId, identityId1);
 	});
 
 	await t.step("create with expiration", async () => {
 		sessionData2 = await session.create(identityId2, {}, 100);
-		assertSessionData(sessionData2);
+		assert(Value.Check(SessionDataSchema, sessionData2));
 		assertEquals(sessionData2.identityId, identityId2);
 	});
 
@@ -35,13 +33,13 @@ export default async function testSessionProvider(
 		);
 		await session.update({ ...sessionData!, meta: { foo: "bar" } });
 		const sessionDataA = await session.get(sessionData!.id);
-		assertSessionData(sessionDataA);
+		assert(Value.Check(SessionDataSchema, sessionDataA));
 		assertEquals(sessionDataA.meta, { foo: "bar" });
 	});
 
 	await t.step("get", async () => {
 		const sessionData1a = await session.get(sessionData1!.id);
-		assertSessionData(sessionData1a);
+		assert(Value.Check(SessionDataSchema, sessionData1a));
 		assertEquals(sessionData1a, sessionData1);
 
 		await new Promise((r) => setTimeout(r, 1000));

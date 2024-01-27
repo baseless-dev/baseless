@@ -1,4 +1,4 @@
-import type { Document, DocumentKey } from "../common/document/document.ts";
+import type { Document, DocumentData, DocumentKey } from "../lib/document.ts";
 
 export interface DocumentGetOptions {
 	readonly consistency: "strong" | "eventual";
@@ -28,7 +28,7 @@ export type DocumentAtomicOperation =
 	| {
 		type: "set";
 		readonly key: DocumentKey;
-		readonly data: Readonly<unknown>;
+		readonly data: DocumentData;
 	};
 
 export abstract class DocumentAtomic {
@@ -53,7 +53,7 @@ export abstract class DocumentAtomic {
 		return this;
 	}
 
-	set<Data = unknown>(key: DocumentKey, data: Readonly<Data>): DocumentAtomic {
+	set(key: DocumentKey, data: DocumentData): DocumentAtomic {
 		this.ops.push({ type: "set", key, data });
 		return this;
 	}
@@ -67,31 +67,31 @@ export abstract class DocumentAtomic {
 }
 
 export abstract class DocumentProvider {
-	abstract get<Data = unknown>(
+	abstract get(
 		key: DocumentKey,
 		options?: DocumentGetOptions,
-	): Promise<Document<Data>>;
+	): Promise<Document>;
 
-	abstract getMany<Data = unknown>(
+	abstract getMany(
 		keys: Array<DocumentKey>,
 		options?: DocumentGetOptions,
-	): Promise<Array<Document<Data>>>;
+	): Promise<Array<Document>>;
 
 	abstract list(options: DocumentListOptions): Promise<DocumentListResult>;
 
-	abstract create<Data = unknown>(
+	abstract create(
 		key: DocumentKey,
-		data: Readonly<Data>,
+		data: DocumentData,
 	): Promise<void>;
 
-	abstract update<Data = unknown>(
+	abstract update(
 		key: DocumentKey,
-		data: Readonly<Data>,
+		data: DocumentData,
 	): Promise<void>;
 
-	abstract patch<Data = unknown>(
+	abstract patch(
 		key: DocumentKey,
-		data: Readonly<Partial<Data>>,
+		data: DocumentData,
 	): Promise<void>;
 
 	abstract delete(key: DocumentKey): Promise<void>;

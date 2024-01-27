@@ -1,15 +1,13 @@
-import {
-	assertEquals,
-	assertRejects,
-} from "https://deno.land/std@0.179.0/testing/asserts.ts";
+import { assert, assertEquals, assertRejects } from "../deps.test.ts";
 import type { IdentityProvider } from "./identity.ts";
 import {
-	assertID,
-	assertIdentity,
 	type Identity,
 	IDENTITY_AUTOID_PREFIX,
-} from "../common/identity/identity.ts";
-import { autoid } from "../common/system/autoid.ts";
+	IdentitySchema,
+	IDSchema,
+} from "../lib/identity.ts";
+import { autoid } from "../lib/autoid.ts";
+import { Value } from "../deps.ts";
 
 export default async function testIdentityProvider(
 	ip: IdentityProvider,
@@ -18,20 +16,20 @@ export default async function testIdentityProvider(
 	let identity: Identity;
 	await t.step("create", async () => {
 		identity = await ip.create({ foo: "bar" }, {});
-		assertID(identity);
+		assert(Value.Check(IDSchema, identity));
 		assertEquals(identity.meta, { foo: "bar" });
 	});
 
 	await t.step("get", async () => {
 		const id1 = await ip.get(identity.id);
-		assertIdentity(id1);
+		assert(Value.Check(IdentitySchema, id1));
 		assertEquals(id1.meta, { foo: "bar" });
 	});
 
 	await t.step("update", async () => {
 		await ip.update({ ...identity, meta: { foo: "foo" } });
 		const id1 = await ip.get(identity.id);
-		assertIdentity(id1);
+		assert(Value.Check(IdentitySchema, id1));
 		assertEquals(id1.meta, { foo: "foo" });
 		await assertRejects(() =>
 			ip.update({

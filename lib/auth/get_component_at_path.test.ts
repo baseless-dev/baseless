@@ -1,34 +1,37 @@
-import { assertEquals } from "https://deno.land/std@0.179.0/testing/asserts.ts";
-import * as h from "./helpers.ts";
+import { assertEquals } from "../../deps.test.ts";
 import { getComponentAtPath } from "./get_component_at_path.ts";
-import type { AuthenticationCeremonyComponentPrompt } from "../ceremony.ts";
+import {
+	type AuthenticationCeremonyComponent,
+	oneOf,
+	sequence,
+} from "./types.ts";
 
 Deno.test("getComponentAtPath", () => {
-	const email: AuthenticationCeremonyComponentPrompt = {
+	const email: AuthenticationCeremonyComponent = {
 		kind: "prompt",
 		id: "email",
 		prompt: "email",
 		options: {},
 	};
-	const password: AuthenticationCeremonyComponentPrompt = {
+	const password: AuthenticationCeremonyComponent = {
 		kind: "prompt",
 		id: "password",
 		prompt: "password",
 		options: {},
 	};
-	const otp: AuthenticationCeremonyComponentPrompt = {
+	const otp: AuthenticationCeremonyComponent = {
 		kind: "prompt",
 		id: "otp",
 		prompt: "otp",
 		options: {},
 	};
-	const github: AuthenticationCeremonyComponentPrompt = {
+	const github: AuthenticationCeremonyComponent = {
 		kind: "prompt",
 		id: "github",
 		prompt: "oauth2",
 		options: {},
 	};
-	const google: AuthenticationCeremonyComponentPrompt = {
+	const google: AuthenticationCeremonyComponent = {
 		kind: "prompt",
 		id: "google",
 		prompt: "oauth2",
@@ -37,17 +40,17 @@ Deno.test("getComponentAtPath", () => {
 	const done = { kind: "done" as const };
 
 	assertEquals(
-		getComponentAtPath(h.sequence(email, password, done), []),
+		getComponentAtPath(sequence(email, password, done), []),
 		email,
 	);
 	assertEquals(
-		getComponentAtPath(h.sequence(email, password, done), [
+		getComponentAtPath(sequence(email, password, done), [
 			"email",
 		]),
 		password,
 	);
 	assertEquals(
-		getComponentAtPath(h.sequence(email, password, done), [
+		getComponentAtPath(sequence(email, password, done), [
 			"email",
 			"password",
 		]),
@@ -55,49 +58,49 @@ Deno.test("getComponentAtPath", () => {
 	);
 	assertEquals(
 		getComponentAtPath(
-			h.sequence(email, password, h.oneOf(github, google), otp, done),
+			sequence(email, password, oneOf(github, google), otp, done),
 			[],
 		),
 		email,
 	);
 	assertEquals(
 		getComponentAtPath(
-			h.sequence(email, password, h.oneOf(github, google), otp, done),
+			sequence(email, password, oneOf(github, google), otp, done),
 			["email"],
 		),
 		password,
 	);
 	assertEquals(
 		getComponentAtPath(
-			h.sequence(email, password, h.oneOf(github, google), otp, done),
+			sequence(email, password, oneOf(github, google), otp, done),
 			["email", "password"],
 		),
-		h.oneOf(github, google),
+		oneOf(github, google),
 	);
 	assertEquals(
 		getComponentAtPath(
-			h.sequence(email, password, h.oneOf(github, google), otp, done),
+			sequence(email, password, oneOf(github, google), otp, done),
 			["email", "password", "github"],
 		),
 		otp,
 	);
 	assertEquals(
 		getComponentAtPath(
-			h.sequence(email, password, h.oneOf(github, google), otp, done),
+			sequence(email, password, oneOf(github, google), otp, done),
 			["email", "password", "google"],
 		),
 		otp,
 	);
 	assertEquals(
 		getComponentAtPath(
-			h.sequence(email, password, h.oneOf(github, google), otp, done),
+			sequence(email, password, oneOf(github, google), otp, done),
 			["email", "password", "github", "otp"],
 		),
 		done,
 	);
 	assertEquals(
 		getComponentAtPath(
-			h.sequence(email, password, h.oneOf(github, google), otp, done),
+			sequence(email, password, oneOf(github, google), otp, done),
 			["email", "password", "google", "otp"],
 		),
 		done,

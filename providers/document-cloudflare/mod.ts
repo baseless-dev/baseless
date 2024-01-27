@@ -1,18 +1,20 @@
+/// <reference types="https://esm.sh/@cloudflare/workers-types@4.20240117.0/index.d.ts" />
+
+import { Value } from "../../deps.ts";
+import { type AutoId, autoid } from "../../lib/autoid.ts";
 import {
 	type Document,
-	type DocumentKey,
-	isDocument,
-} from "../../common/document/document.ts";
-import {
 	DocumentAtomicError,
 	DocumentCreateError,
+	DocumentData,
 	DocumentDeleteError,
+	type DocumentKey,
 	DocumentNotFoundError,
 	DocumentPatchError,
+	DocumentSchema,
 	DocumentUpdateError,
-} from "../../common/document/errors.ts";
-import { type AutoId, autoid } from "../../common/system/autoid.ts";
-import { createLogger, type Logger } from "../../common/system/logger.ts";
+} from "../../lib/document.ts";
+import { createLogger, type Logger } from "../../lib/logger.ts";
 import {
 	DocumentAtomic,
 	type DocumentAtomicCheck,
@@ -22,7 +24,6 @@ import {
 	type DocumentListResult,
 	DocumentProvider,
 } from "../document.ts";
-/// <reference types="https://esm.sh/v132/@cloudflare/workers-types@4.20230914.0/index.d.ts" />
 
 function keyPathToKeyString(key: string[]): string {
 	return key.map((p) => p.replaceAll("/", "\\/")).join("/");
@@ -44,10 +45,10 @@ export class CloudFlareDocumentProvider extends DocumentProvider {
 		this.#do = doNS;
 	}
 
-	async get<Data = unknown>(
+	async get(
 		key: DocumentKey,
 		options?: DocumentGetOptions,
-	): Promise<Document<Data>> {
+	): Promise<Document> {
 		const keyString = keyPathToKeyString(key);
 		if (options?.consistency === "strong") {
 			const doId = this.#do.idFromName(keyString);
@@ -63,29 +64,29 @@ export class CloudFlareDocumentProvider extends DocumentProvider {
 				throw new DocumentNotFoundError();
 			}
 			const value = await response.json() as unknown;
-			if (!isDocument(value)) {
+			if (!Value.Check(DocumentSchema, value)) {
 				throw new DocumentNotFoundError();
 			}
-			return value as Document<Data>;
+			return value as Document;
 		} else {
 			const value = await this.#kv.get(keyString, "json");
-			if (!isDocument(value)) {
+			if (!Value.Check(DocumentSchema, value)) {
 				throw new DocumentNotFoundError();
 			}
-			return value as Document<Data>;
+			return value as Document;
 		}
 	}
 
-	async getMany<Data = unknown>(
+	async getMany(
 		keys: DocumentKey[],
 		options?: DocumentGetOptions,
-	): Promise<Document<Data>[]> {
+	): Promise<Document[]> {
 		const documentSettleResults = await Promise.allSettled(
-			keys.map((key) => this.get<Data>(key, options)),
+			keys.map((key) => this.get(key, options)),
 		);
 		const documentResults = documentSettleResults.filter((
 			p,
-		): p is PromiseFulfilledResult<Document<Data>> => p.status === "fulfilled");
+		): p is PromiseFulfilledResult<Document> => p.status === "fulfilled");
 		const documents = documentResults.map((p) => p.value);
 		return documents;
 	}
@@ -102,9 +103,9 @@ export class CloudFlareDocumentProvider extends DocumentProvider {
 		};
 	}
 
-	async create<Data = unknown>(
+	async create(
 		key: DocumentKey,
-		data: Readonly<Data>,
+		data: DocumentData,
 	): Promise<void> {
 		const doId = this.#do.idFromName(keyPathToKeyString(key));
 		const doStud = this.#do.get(doId);
@@ -118,9 +119,9 @@ export class CloudFlareDocumentProvider extends DocumentProvider {
 		}
 	}
 
-	async update<Data = unknown>(
+	async update(
 		key: DocumentKey,
-		data: Readonly<Data>,
+		data: DocumentData,
 	): Promise<void> {
 		const doId = this.#do.idFromName(keyPathToKeyString(key));
 		const doStud = this.#do.get(doId);
@@ -134,9 +135,9 @@ export class CloudFlareDocumentProvider extends DocumentProvider {
 		}
 	}
 
-	async patch<Data = unknown>(
+	async patch(
 		key: DocumentKey,
-		data: Readonly<Partial<Data>>,
+		data: DocumentData,
 	): Promise<void> {
 		const doId = this.#do.idFromName(keyPathToKeyString(key));
 		const doStud = this.#do.get(doId);

@@ -15,6 +15,8 @@ import TOTPAuthentificationComponent from "../providers/auth-totp/mod.ts";
 import type { AuthenticationOptions } from "../plugins/auth/mod.ts";
 import { oneOf, sequence } from "../lib/auth/types.ts";
 
+export { t } from "../deps.ts";
+
 export type MockResult = {
 	router: Elysia;
 	providers: {
@@ -29,8 +31,8 @@ export type MockResult = {
 		password: PasswordAuthentificationComponent;
 		otp: OTPLoggerAuthentificationComponent;
 		totp: TOTPAuthentificationComponent;
-		oneOf: typeof h.oneOf;
-		sequence: typeof h.sequence;
+		oneOf: typeof oneOf;
+		sequence: typeof sequence;
 	};
 };
 
@@ -41,13 +43,13 @@ export type BuilderResult = {
 	>;
 };
 
-export default async function mock(): Promise<MockResult>;
-export default async function mock(
+export async function mock(): Promise<MockResult>;
+export async function mock(
 	builder: (
 		result: MockResult,
 	) => void | BuilderResult | Promise<void | BuilderResult>,
 ): Promise<MockResult>;
-export default async function mock(
+export async function mock(
 	builder?: (
 		result: MockResult,
 	) => void | BuilderResult | Promise<void | BuilderResult>,
@@ -96,7 +98,6 @@ export default async function mock(
 	const { auth } = await builder?.(result) ?? {};
 	router = router
 		.use(
-			"/api/auth",
 			authPlugin({
 				counter,
 				identity,
@@ -109,7 +110,6 @@ export default async function mock(
 					email,
 					password,
 				),
-				components: [email, password, otp, totp],
 				...auth,
 			}),
 		)
@@ -121,3 +121,5 @@ export default async function mock(
 		router,
 	};
 }
+
+export default mock;

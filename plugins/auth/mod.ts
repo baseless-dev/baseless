@@ -1,26 +1,35 @@
 import {
-	type Elysia,
+	Elysia,
 	jwtVerify,
 	type KeyLike,
 	t,
 	type TSchema,
 } from "../../deps.ts";
-import { UnauthorizedError } from "../../lib/auth/errors.ts";
+import {
+	MissingRefreshTokenError,
+	UnauthorizedError,
+} from "../../lib/auth/errors.ts";
 import { simplify } from "../../lib/auth/simplify.ts";
 import {
 	type AuthenticationCeremonyComponent,
+	AuthenticationConfirmResultSchema,
+	AuthenticationSendResultSchema,
+	AuthenticationSignInResponseSchema,
+	type AuthenticationSignInState,
 	sequence,
 } from "../../lib/auth/types.ts";
-import { isAutoId } from "../../lib/autoid.ts";
+import { assertAutoId, isAutoId } from "../../lib/autoid.ts";
 import { createLogger } from "../../lib/logger.ts";
 import { SESSION_AUTOID_PREFIX } from "../../lib/session.ts";
-import type { AuthenticationComponent } from "../../providers/auth_component.ts";
 import type { CounterProvider } from "../../providers/counter.ts";
 import type { IdentityProvider } from "../../providers/identity.ts";
 import type { KVProvider } from "../../providers/kv.ts";
 import type { SessionProvider } from "../../providers/session.ts";
 import { AuthenticationService } from "./auth.ts";
 import type { Context, TokenData } from "./context.ts";
+import { createTokens } from "./create_tokens.ts";
+import { decryptEncryptedAuthenticationCeremonyState } from "./decrypt_encrypted_authentication_ceremony_state.ts";
+import { encryptAuthenticationCeremonyState } from "./encrypt_authentication_ceremony_state.ts";
 import { IdentityService } from "./identity.ts";
 import { SessionService } from "./session.ts";
 
@@ -36,6 +45,7 @@ export type RateLimitOptions = {
 };
 
 export type AuthenticationOptions = {
+	prefix?: string;
 	counter: CounterProvider;
 	kv: KVProvider;
 	identity: IdentityProvider;
@@ -43,7 +53,6 @@ export type AuthenticationOptions = {
 	keys: AuthenticationKeys;
 	salt: string;
 	ceremony: AuthenticationCeremonyComponent;
-	components: AuthenticationComponent[];
 	rateLimit?: RateLimitOptions;
 	accessTokenTTL?: number;
 	refreshTokenTTL?: number;
@@ -51,21 +60,11 @@ export type AuthenticationOptions = {
 	highRiskActionTimeWindow?: number;
 };
 
-const wrapThrowable = async <T>(
-	fn: () => T | Promise<T>,
-): Promise<Response> => {
-	try {
-		return Response.json({ data: await fn() });
-	} catch (error) {
-		return Response.json({ error: error.name });
-	}
-};
-
-const throwableSchema = <T>(schema: TSchema): TSchema =>
+const dataOrError = <T>(schema: TSchema): TSchema =>
 	t.Union([
 		t.Object({
 			data: schema,
-		}, ["data"]),
+		}),
 		t.Object({
 			error: t.String({ description: "Error code" }),
 		}, { $id: "AuthenticationErrorObject", description: "Error object" }),
@@ -75,13 +74,13 @@ const throwableSchema = <T>(schema: TSchema): TSchema =>
 
 export const auth = (
 	options: AuthenticationOptions,
-) =>
-(app: Elysia) => {
+) => {
 	const logger = createLogger("auth-plugin");
 	options.ceremony = simplify(
 		sequence(options.ceremony, { kind: "done" as const }),
 	);
-	return app
+
+	return new Elysia({ prefix: options.prefix ?? "/api/auth" })
 		.derive(async ({ headers }) => {
 			let authenticationToken: TokenData | undefined;
 			if ("authorization" in headers) {
@@ -140,22 +139,30 @@ export const auth = (
 					return new SessionService(options.session);
 				},
 				get auth() {
-					return new AuthenticationService(options);
+					return new AuthenticationService(
+						options.ceremony,
+						options.identity,
+						options.counter,
+						options.rateLimit,
+					);
 				},
 			};
 			return context;
 		})
 		.post(
-			"/signOut",
-			({ session, authenticationToken }) =>
-				wrapThrowable(async () => {
+			"/sign-out",
+			async ({ session, authenticationToken }) => {
+				try {
 					if (authenticationToken) {
 						const sessionId = authenticationToken.sessionData.id;
 						await session.destroy(sessionId).catch((_) => {});
-						return { ok: true };
+						return { data: { ok: true } };
 					}
 					throw new UnauthorizedError();
-				}),
+				} catch (error) {
+					return { error: error.name };
+				}
+			},
 			{
 				detail: {
 					summary: "Sign out current session",
@@ -164,314 +171,288 @@ export const auth = (
 				headers: t.Object({
 					"authorization": t.String(),
 				}),
-				response: throwableSchema(t.Object({
+				response: dataOrError(t.Object({
 					ok: t.Literal(true),
 				})),
+			},
+		)
+		.post(
+			"/refresh-tokens",
+			async ({ body, session, identity }) => {
+				try {
+					const refreshToken = body.refresh_token;
+					if (!refreshToken) {
+						throw new MissingRefreshTokenError();
+					}
+					const { payload } = await jwtVerify(
+						refreshToken,
+						options.keys.publicKey,
+					);
+					const { sub: sessionId, scope } = payload;
+					assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
+					const sessionData = await session.get(sessionId);
+					const id = await identity.get(sessionData.identityId);
+					await session.update(
+						sessionData,
+						options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+					);
+					const { access_token, id_token } = await createTokens(
+						id,
+						sessionData,
+						options.keys.algo,
+						options.keys.privateKey,
+						options.accessTokenTTL ?? 1000 * 60 * 10,
+						options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+						`${scope}`,
+					);
+					return {
+						data: {
+							access_token,
+							id_token,
+							refresh_token: refreshToken,
+						},
+					};
+				} catch (error) {
+					return { error: error.name };
+				}
+			},
+			{
+				detail: {
+					summary: "Get access token from refresh token",
+					tags: ["Authentication"],
+				},
+				body: t.Object({
+					"refresh_token": t.String(),
+				}, ["refresh_token"]),
+				response: dataOrError(t.Object({
+					access_token: t.String(),
+					id_token: t.String(),
+					refresh_token: t.String(),
+				})),
+			},
+		)
+		.get("/sign-in/ceremony", async ({ auth }) => {
+			try {
+				const data = await auth.getSignInCeremony();
+				return { data };
+			} catch (error) {
+				return { error: error.name };
+			}
+		}, {
+			detail: {
+				summary: "Get the authentication ceremony",
+				tags: ["Authentication"],
+			},
+			response: dataOrError(AuthenticationSignInResponseSchema),
+		})
+		.post(
+			"/sign-in/ceremony",
+			async ({ body, auth }) => {
+				try {
+					const state = await decryptEncryptedAuthenticationCeremonyState(
+						body.state,
+						options.keys.publicKey,
+					);
+					if (state.kind !== "signin") {
+						throw new UnauthorizedError();
+					}
+					const data = await auth.getSignInCeremony(state);
+					return { data };
+				} catch (error) {
+					return { error: error.name };
+				}
+			},
+			{
+				detail: {
+					summary: "Get the authentication ceremony from an encrypted state",
+					tags: ["Authentication"],
+				},
+				body: t.Object({
+					state: t.String({ description: "Encrypted state" }),
+				}),
+				response: dataOrError(AuthenticationSignInResponseSchema),
+			},
+		)
+		.post(
+			"/sign-in/submit-prompt",
+			async ({ body, auth, remoteAddress, identity, session }) => {
+				try {
+					const state = await decryptEncryptedAuthenticationCeremonyState(
+						body.state ?? "",
+						options.keys.publicKey,
+					);
+					if (state.kind !== "signin") {
+						throw new UnauthorizedError();
+					}
+					const subject = state.identity ? state.identity : remoteAddress;
+					const result = await auth.submitSignInPrompt(
+						state,
+						body.component,
+						body.prompt,
+						subject,
+					);
+					if (result.done) {
+						const id = await identity.get(result.identityId);
+						// TODO session expiration
+						const sessionData = await session.create(result.identityId, {});
+						const { access_token, id_token, refresh_token } =
+							await createTokens(
+								id,
+								sessionData,
+								options.keys.algo,
+								options.keys.privateKey,
+								options.accessTokenTTL ?? 1000 * 60 * 10,
+								options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+							);
+						return {
+							done: true,
+							access_token,
+							id_token,
+							refresh_token,
+						};
+					} else {
+						const { state, ...rest } = result as (typeof result & {
+							state?: AuthenticationSignInState;
+						});
+						return {
+							data: {
+								...rest,
+								...(state
+									? {
+										encryptedState: await encryptAuthenticationCeremonyState(
+											state,
+											options.keys.algo,
+											options.keys.privateKey,
+										),
+									}
+									: {}),
+							},
+						};
+					}
+				} catch (error) {
+					return { error: error.name };
+				}
+			},
+			{
+				detail: {
+					summary: "Submit sign in prompt",
+					tags: ["Authentication"],
+				},
+				body: t.Object({
+					component: t.String({ description: "The authentication component" }),
+					prompt: t.Any(),
+					state: t.String({ description: "Encrypted state" }),
+				}),
+				response: dataOrError(AuthenticationSignInResponseSchema),
+			},
+		)
+		.post(
+			"/sign-in/send-prompt",
+			async ({ body, identity, authenticationToken }) => {
+				try {
+					const state = await decryptEncryptedAuthenticationCeremonyState(
+						body.state ?? "",
+						options.keys.publicKey,
+					);
+					if (state.kind !== "signin") {
+						throw new UnauthorizedError();
+					}
+					const identityId = state.identity
+						? state.identity
+						: authenticationToken?.sessionData.identityId;
+					if (!identityId) {
+						return new UnauthorizedError();
+					}
+					// TODO default locale
+					const locale = body.locale?.toString() ?? "en";
+					await identity.sendComponentPrompt(
+						identityId,
+						body.component,
+						locale,
+					);
+					return { data: { sent: true } };
+				} catch (_error) {
+					return { data: { sent: false } };
+				}
+			},
+			{
+				detail: {
+					summary: "Send sign in prompt",
+					tags: ["Authentication"],
+				},
+				body: t.Object({
+					component: t.String({ description: "The authentication component" }),
+					state: t.String({ description: "Encrypted state" }),
+					locale: t.String(),
+				}),
+				response: dataOrError(AuthenticationSendResultSchema),
+			},
+		)
+		.post(
+			"/sign-in/send-validation-code",
+			async ({ body, authenticationToken, identity }) => {
+				try {
+					const state = await decryptEncryptedAuthenticationCeremonyState(
+						body.state ?? "",
+						options.keys.publicKey,
+					);
+					if (state.kind !== "signin") {
+						throw new UnauthorizedError();
+					}
+					const identityId = state.identity
+						? state.identity
+						: authenticationToken?.sessionData.identityId;
+					if (!identityId) {
+						throw new UnauthorizedError();
+					}
+					// TODO default locale
+					const locale = body.locale?.toString() ?? "en";
+					await identity.sendComponentValidationCode(
+						identityId,
+						body.component,
+						locale,
+					);
+					return { data: { sent: true } };
+				} catch (_error) {
+					return { data: { sent: false } };
+				}
+			},
+			{
+				detail: {
+					summary: "Send validation code",
+					tags: ["Authentication"],
+				},
+				body: t.Object({
+					component: t.String({ description: "The authentication component" }),
+					state: t.String({ description: "Encrypted state" }),
+					locale: t.String(),
+				}),
+				response: dataOrError(AuthenticationSendResultSchema),
+			},
+		)
+		.post(
+			"/sign-in/submit-validation-code",
+			async ({ body, identity }) => {
+				try {
+					await identity.confirmComponentValidationCode(body.code);
+					return { data: { confirmed: true } };
+				} catch (_error) {
+					return { data: { confirmed: false } };
+				}
+			},
+			{
+				detail: {
+					summary: "Submit validation code",
+					tags: ["Authentication"],
+				},
+				body: t.Object({
+					code: t.String(),
+				}),
+				response: {
+					200: dataOrError(AuthenticationConfirmResultSchema),
+				},
 			},
 		);
 };
 
 export default auth;
-
-// 		.post(
-// 			"/refresh",
-// 			async ({ body, session, identity }) =>
-// 				wrapThrowable(async () => {
-// 					const refreshToken = body.refresh_token;
-// 					if (!refreshToken) {
-// 						throw new MissingRefreshTokenError();
-// 					}
-// 					const { payload } = await jwtVerify(
-// 						refreshToken,
-// 						options.keys.publicKey,
-// 					);
-// 					const { sub: sessionId, scope } = payload;
-// 					assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
-// 					const sessionData = await session.get(sessionId);
-// 					const id = await identity.get(sessionData.identityId);
-// 					await session.update(
-// 						sessionData,
-// 						options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
-// 					);
-// 					const { access_token, id_token } = await createTokens(
-// 						id,
-// 						sessionData,
-// 						options.keys.algo,
-// 						options.keys.privateKey,
-// 						options.accessTokenTTL ?? 1000 * 60 * 10,
-// 						options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
-// 						`${scope}`,
-// 					);
-// 					return {
-// 						access_token,
-// 						id_token,
-// 						refresh_token: refreshToken,
-// 					};
-// 				}),
-// 			{
-// 				summary: "Get access token from refresh token",
-// 				tags: ["Authentication"],
-// 				body: t.Object({
-// 					"refresh_token": t.String(),
-// 				}, ["refresh_token"]),
-// 				response: {
-// 					200: {
-// 						description: "Tokens",
-// 						content: {
-// 							"application/json": {
-// 								schema: throwableSchema(t.Object({
-// 									access_token: t.String(),
-// 									id_token: t.String(),
-// 									refresh_token: t.String(),
-// 								}, ["access_token", "id_token", "refresh_token"])),
-// 							},
-// 						},
-// 					},
-// 				},
-// 			},
-// 		)
-// 		.get("/ceremony", async ({ auth }) =>
-// 			wrapThrowable(async () => {
-// 				return await auth.getAuthenticationCeremony();
-// 			}), {
-// 			summary: "Get the authentication ceremony",
-// 			tags: ["Authentication"],
-// 			response: {
-// 				200: {
-// 					description: "Tokens",
-// 					content: {
-// 						"application/json": {
-// 							schema: throwableSchema(t.Any()),
-// 						},
-// 					},
-// 				},
-// 			},
-// 		})
-// 		.post("/ceremony", async ({ body, auth }) =>
-// 			wrapThrowable(async () => {
-// 				const state = await decryptEncryptedAuthenticationCeremonyState(
-// 					body.state,
-// 					options.keys.publicKey,
-// 				);
-// 				return await auth.getAuthenticationCeremony(state);
-// 			}), {
-// 			summary: "Get the authentication ceremony from an encrypted state",
-// 			tags: ["Authentication"],
-// 			body: t.Object({
-// 				state: AuthenticationEncryptedStateSchema,
-// 			}, ["state"]),
-// 			response: {
-// 				200: {
-// 					description: "Tokens",
-// 					content: {
-// 						"application/json": {
-// 							schema: throwableSchema(t.Any()),
-// 						},
-// 					},
-// 				},
-// 			},
-// 		})
-// 		.post(
-// 			"/signIn/submitPrompt",
-// 			async ({ body, auth, remoteAddress, identity, session }) =>
-// 				wrapThrowable(async () => {
-// 					const state = await decryptEncryptedAuthenticationCeremonyState(
-// 						body.state ?? "",
-// 						options.keys.publicKey,
-// 					);
-// 					const subject = isAuthenticationCeremonyStateIdentified(state)
-// 						? state.identity
-// 						: remoteAddress;
-// 					const result = await auth.submitComponentPrompt(
-// 						state,
-// 						body.component,
-// 						body.prompt,
-// 						subject,
-// 					);
-// 					if (isAuthenticationCeremonyResponseDone(result)) {
-// 						const id = await identity.get(result.identityId);
-// 						// TODO session expiration
-// 						const sessionData = await session.create(result.identityId, {});
-// 						const { access_token, id_token, refresh_token } =
-// 							await createTokens(
-// 								id,
-// 								sessionData,
-// 								options.keys.algo,
-// 								options.keys.privateKey,
-// 								options.accessTokenTTL ?? 1000 * 60 * 10,
-// 								options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
-// 							);
-// 						return {
-// 							done: true,
-// 							access_token,
-// 							id_token,
-// 							refresh_token,
-// 						};
-// 					} else {
-// 						const { state, ...rest } = result as (typeof result & {
-// 							state?: AuthenticationCeremonyState;
-// 						});
-// 						return {
-// 							...rest,
-// 							...(state
-// 								? {
-// 									encryptedState: await encryptAuthenticationCeremonyState(
-// 										state,
-// 										options.keys.algo,
-// 										options.keys.privateKey,
-// 									),
-// 								}
-// 								: {}),
-// 						};
-// 					}
-// 				}),
-// 			{
-// 				summary: "Submit sign in prompt",
-// 				tags: ["Authentication"],
-// 				body: t.Object({
-// 					component: t.Describe("The authentication component", t.String()),
-// 					prompt: t.Any(),
-// 					state: AuthenticationEncryptedStateSchema,
-// 				}, ["component", "prompt"]),
-// 				response: {
-// 					200: {
-// 						description: "Sign in result",
-// 						content: {
-// 							"application/json": {
-// 								schema: throwableSchema(t.Any()),
-// 							},
-// 						},
-// 					},
-// 				},
-// 			},
-// 		)
-// 		.post(
-// 			"/signIn/sendPrompt",
-// 			async ({ body, identity, authenticationToken }) =>
-// 				wrapThrowable(async () => {
-// 					try {
-// 						const state = await decryptEncryptedAuthenticationCeremonyState(
-// 							body.state ?? "",
-// 							options.keys.publicKey,
-// 						);
-// 						const identityId = isAuthenticationCeremonyStateIdentified(state)
-// 							? state.identity
-// 							: authenticationToken?.sessionData.identityId;
-// 						if (!identityId) {
-// 							return new UnauthorizedError();
-// 						}
-// 						// TODO default locale
-// 						const locale = body.locale?.toString() ?? "en";
-// 						await identity.sendComponentPrompt(
-// 							identityId,
-// 							body.component,
-// 							locale,
-// 						);
-// 						return { sent: true };
-// 					} catch (_error) {
-// 						return { sent: false };
-// 					}
-// 				}),
-// 			{
-// 				summary: "Send sign in prompt",
-// 				tags: ["Authentication"],
-// 				body: t.Object({
-// 					component: t.Describe("The authentication component", t.String()),
-// 					state: AuthenticationEncryptedStateSchema,
-// 					locale: t.String(),
-// 				}, ["component"]),
-// 				response: {
-// 					200: {
-// 						description: "Send sign in prompt result",
-// 						content: {
-// 							"application/json": {
-// 								schema: throwableSchema(t.Object({
-// 									sent: t.Boolean(),
-// 								}, ["sent"])),
-// 							},
-// 						},
-// 					},
-// 				},
-// 			},
-// 		)
-// 		.post(
-// 			"/component/sendValidationCode",
-// 			async ({ body, authenticationToken, identity }) =>
-// 				wrapThrowable(async () => {
-// 					try {
-// 						const state = await decryptEncryptedAuthenticationCeremonyState(
-// 							body.state ?? "",
-// 							options.keys.publicKey,
-// 						);
-// 						const identityId = isAuthenticationCeremonyStateIdentified(state)
-// 							? state.identity
-// 							: authenticationToken?.sessionData.identityId;
-// 						if (!identityId) {
-// 							throw new UnauthorizedError();
-// 						}
-// 						// TODO default locale
-// 						const locale = body.locale?.toString() ?? "en";
-// 						await identity.sendComponentValidationCode(
-// 							identityId,
-// 							body.component,
-// 							locale,
-// 						);
-// 						return { sent: true };
-// 					} catch (_error) {
-// 						return { sent: false };
-// 					}
-// 				}),
-// 			{
-// 				summary: "Send validation code",
-// 				tags: ["Authentication"],
-// 				body: t.Object({
-// 					component: t.Describe("The authentication component", t.String()),
-// 					state: AuthenticationEncryptedStateSchema,
-// 					locale: t.String(),
-// 				}, ["component"]),
-// 				response: {
-// 					200: {
-// 						description: "Send validation code result",
-// 						content: {
-// 							"application/json": {
-// 								schema: throwableSchema(t.Object({
-// 									sent: t.Boolean(),
-// 								}, ["sent"])),
-// 							},
-// 						},
-// 					},
-// 				},
-// 			},
-// 		)
-// 		.post(
-// 			"/component/submitValidationCode",
-// 			async ({ body, identity }) =>
-// 				wrapThrowable(async () => {
-// 					try {
-// 						await identity.confirmComponentValidationCode(body.code);
-// 						return { confirmed: true };
-// 					} catch (_error) {
-// 						return { confirmed: false };
-// 					}
-// 				}),
-// 			{
-// 				summary: "Submit validation code",
-// 				tags: ["Authentication"],
-// 				body: t.Object({
-// 					code: t.String(),
-// 				}, ["code"]),
-// 				response: {
-// 					200: {
-// 						description: "Submit validation code result",
-// 						content: {
-// 							"application/json": {
-// 								schema: throwableSchema(t.Object({
-// 									confirmed: t.Boolean(),
-// 								}, ["confirmed"])),
-// 							},
-// 						},
-// 					},
-// 				},
-// 			},
-// 		);
-// }

@@ -135,6 +135,8 @@ function transformRoutesToOpenAPIV3Document(
 			},
 		};
 	});
+	routes.sort((a, b) => a.path.localeCompare(b.path));
+
 	const paths = routes.reduce((paths, route) => {
 		const path = transformPath(route.path);
 		const hooks = route.hooks as any;

@@ -549,6 +549,7 @@
     "https://esm.sh/@sinclair/typebox@0.32.3/compiler": "117ca169a92201234acf80c9a0956872da7b650894d49a0d53a2d6b6f76c0529",
     "https://esm.sh/@sinclair/typebox@0.32.3/value": "d29cdb6dbeb330b9b00c392fb37431cd19d577caa7779769f82f7b126b2e65ac",
     "https://esm.sh/elysia@0.8.10": "ce369730898bbb19b820b4a3b4a18e55e3789189e59673e764025eb482248500",
+    "https://esm.sh/openapi-types@12.1.3": "bea5fdb12d3f62e59cd7a97a322cafdcdc3c6e59c538b1127ce4fb174001d4e5",
     "https://esm.sh/preact-router@4.1.0": "d8bb45f16cf86f3e202b0c31e089fb4575ee6da4bed4294e869b98ed8fa23560",
     "https://esm.sh/preact-router@4.1.0/match": "371b8e6e845cc1d212ef4e6df59c5c850c7774317e68ab97c4d721b0dcc2280b",
     "https://esm.sh/preact@10.13.2": "5ebf0838bbc3c32fc6e78a4cd9dd672f2c36386d0595815d721a6b0941278488",
@@ -715,6 +716,7 @@
     "https://esm.sh/v135/fast-querystring@1.1.2/denonext/fast-querystring.mjs": "09d2cb627d0ae363cc0f0cb5412e3b1d8d23440f96628a8bad938b3f11dd23f1",
     "https://esm.sh/v135/memoirist@0.1.4/denonext/memoirist.mjs": "ba78116af4294d4515ee5c2fae579a273d5751fdd384c654dcc8bdbd9e065c52",
     "https://esm.sh/v135/nanoid@5.0.4/denonext/nanoid.mjs": "665bc6a0f97d525d3b7cdf9e270be02da167bc6e53199b68dcdd22920dde66e2",
+    "https://esm.sh/v135/openapi-types@12.1.3/denonext/openapi-types.mjs": "8e3de1dd2bc5329635aeb0920b1046586d62b4a668afd83d2282d0f8f9b3be33",
     "https://esm.sh/windicss@3.5.6": "4b1d8b5f18e3b65d5df3aa508b07bed7399c573a166a42dc14c98d6b8b5cfbbd",
     "https://esm.sh/windicss@3.5.6/utils/parser": "901a000a3611e2d65545d4547613ea40df69db6b6ae435b913365e19c812a874"
   }

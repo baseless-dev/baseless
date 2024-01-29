@@ -1,10 +1,4 @@
-import {
-	Elysia,
-	jwtVerify,
-	type KeyLike,
-	t,
-	type TSchema,
-} from "../../deps.ts";
+import { jwtVerify, type KeyLike, t, type TSchema } from "../../deps.ts";
 import {
 	MissingRefreshTokenError,
 	UnauthorizedError,
@@ -32,6 +26,7 @@ import { decryptEncryptedAuthenticationCeremonyState } from "./decrypt_encrypted
 import { encryptAuthenticationCeremonyState } from "./encrypt_authentication_ceremony_state.ts";
 import { IdentityService } from "./identity.ts";
 import { SessionService } from "./session.ts";
+import { Router } from "../../lib/router/router.ts";
 
 export type AuthenticationKeys = {
 	algo: string;
@@ -80,11 +75,11 @@ export const auth = (
 		sequence(options.ceremony, { kind: "done" as const }),
 	);
 
-	return new Elysia({ prefix: options.prefix ?? "/api/auth" })
-		.derive(async ({ headers }) => {
+	return new Router()
+		.derive(async ({ request }) => {
 			let authenticationToken: TokenData | undefined;
-			if ("authorization" in headers) {
-				const authorization = headers["authorization"] ?? "";
+			if (request.headers.has("Authorization")) {
+				const authorization = request.headers.get("Authorization") ?? "";
 				const [, scheme, accessToken] =
 					authorization.match(/(?<scheme>[^ ]+) (?<params>.+)/) ?? [];
 				if (scheme === "Bearer") {
@@ -124,7 +119,7 @@ export const auth = (
 
 			const context: Context = {
 				get remoteAddress() {
-					return headers["x-real-ip"] ?? "";
+					return request.headers.get("X-Real-Ip") ?? "";
 				},
 				get authenticationToken() {
 					return authenticationToken;
@@ -156,11 +151,11 @@ export const auth = (
 					if (authenticationToken) {
 						const sessionId = authenticationToken.sessionData.id;
 						await session.destroy(sessionId).catch((_) => {});
-						return { data: { ok: true } };
+						return Response.json({ data: { ok: true } });
 					}
-					throw new UnauthorizedError();
+					return Response.json({ error: UnauthorizedError.name });
 				} catch (error) {
-					return { error: error.name };
+					return Response.json({ error: error.name });
 				}
 			},
 			{
@@ -171,9 +166,18 @@ export const auth = (
 				headers: t.Object({
 					"authorization": t.String(),
 				}),
-				response: dataOrError(t.Object({
-					ok: t.Literal(true),
-				})),
+				response: {
+					200: {
+						description: "Sign out confirmation",
+						content: {
+							"application/json": {
+								schema: dataOrError(t.Object({
+									ok: t.Literal(true),
+								})),
+							},
+						},
+					},
+				},
 			},
 		)
 		.post(
@@ -182,7 +186,7 @@ export const auth = (
 				try {
 					const refreshToken = body.refresh_token;
 					if (!refreshToken) {
-						throw new MissingRefreshTokenError();
+						return Response.json({ error: MissingRefreshTokenError.name });
 					}
 					const { payload } = await jwtVerify(
 						refreshToken,
@@ -205,15 +209,15 @@ export const auth = (
 						options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
 						`${scope}`,
 					);
-					return {
+					return Response.json({
 						data: {
 							access_token,
 							id_token,
 							refresh_token: refreshToken,
 						},
-					};
+					});
 				} catch (error) {
-					return { error: error.name };
+					return Response.json({ error: error.name });
 				}
 			},
 			{
@@ -223,27 +227,45 @@ export const auth = (
 				},
 				body: t.Object({
 					"refresh_token": t.String(),
-				}, ["refresh_token"]),
-				response: dataOrError(t.Object({
-					access_token: t.String(),
-					id_token: t.String(),
-					refresh_token: t.String(),
-				})),
+				}),
+				response: {
+					200: {
+						description: "Refreshed tokens",
+						content: {
+							"application/json": {
+								schema: dataOrError(t.Object({
+									access_token: t.String(),
+									id_token: t.String(),
+									refresh_token: t.String(),
+								})),
+							},
+						},
+					},
+				},
 			},
 		)
 		.get("/sign-in/ceremony", async ({ auth }) => {
 			try {
 				const data = await auth.getSignInCeremony();
-				return { data };
+				return Response.json({ data });
 			} catch (error) {
-				return { error: error.name };
+				return Response.json({ error: error.name });
 			}
 		}, {
 			detail: {
 				summary: "Get the authentication ceremony",
 				tags: ["Authentication"],
 			},
-			response: dataOrError(AuthenticationSignInResponseSchema),
+			response: {
+				200: {
+					description: "Authentication ceremony",
+					content: {
+						"application/json": {
+							schema: dataOrError(AuthenticationSignInResponseSchema),
+						},
+					},
+				},
+			},
 		})
 		.post(
 			"/sign-in/ceremony",
@@ -254,12 +276,12 @@ export const auth = (
 						options.keys.publicKey,
 					);
 					if (state.kind !== "signin") {
-						throw new UnauthorizedError();
+						return Response.json({ error: UnauthorizedError.name });
 					}
 					const data = await auth.getSignInCeremony(state);
-					return { data };
+					return Response.json({ data });
 				} catch (error) {
-					return { error: error.name };
+					return Response.json({ error: error.name });
 				}
 			},
 			{
@@ -270,7 +292,16 @@ export const auth = (
 				body: t.Object({
 					state: t.String({ description: "Encrypted state" }),
 				}),
-				response: dataOrError(AuthenticationSignInResponseSchema),
+				response: {
+					200: {
+						description: "Authentication ceremony",
+						content: {
+							"application/json": {
+								schema: dataOrError(AuthenticationSignInResponseSchema),
+							},
+						},
+					},
+				},
 			},
 		)
 		.post(
@@ -282,7 +313,7 @@ export const auth = (
 						options.keys.publicKey,
 					);
 					if (state.kind !== "signin") {
-						throw new UnauthorizedError();
+						return Response.json({ error: UnauthorizedError.name });
 					}
 					const subject = state.identity ? state.identity : remoteAddress;
 					const result = await auth.submitSignInPrompt(
@@ -304,17 +335,17 @@ export const auth = (
 								options.accessTokenTTL ?? 1000 * 60 * 10,
 								options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
 							);
-						return {
+						return Response.json({
 							done: true,
 							access_token,
 							id_token,
 							refresh_token,
-						};
+						});
 					} else {
 						const { state, ...rest } = result as (typeof result & {
 							state?: AuthenticationSignInState;
 						});
-						return {
+						return Response.json({
 							data: {
 								...rest,
 								...(state
@@ -327,10 +358,10 @@ export const auth = (
 									}
 									: {}),
 							},
-						};
+						});
 					}
 				} catch (error) {
-					return { error: error.name };
+					return Response.json({ error: error.name });
 				}
 			},
 			{
@@ -343,7 +374,16 @@ export const auth = (
 					prompt: t.Any(),
 					state: t.String({ description: "Encrypted state" }),
 				}),
-				response: dataOrError(AuthenticationSignInResponseSchema),
+				response: {
+					200: {
+						description: "Authentication ceremony",
+						content: {
+							"application/json": {
+								schema: dataOrError(AuthenticationSignInResponseSchema),
+							},
+						},
+					},
+				},
 			},
 		)
 		.post(
@@ -355,13 +395,13 @@ export const auth = (
 						options.keys.publicKey,
 					);
 					if (state.kind !== "signin") {
-						throw new UnauthorizedError();
+						return Response.json({ error: UnauthorizedError.name });
 					}
 					const identityId = state.identity
 						? state.identity
 						: authenticationToken?.sessionData.identityId;
 					if (!identityId) {
-						return new UnauthorizedError();
+						return Response.json({ error: UnauthorizedError.name });
 					}
 					// TODO default locale
 					const locale = body.locale?.toString() ?? "en";
@@ -370,9 +410,9 @@ export const auth = (
 						body.component,
 						locale,
 					);
-					return { data: { sent: true } };
+					return Response.json({ data: { sent: true } });
 				} catch (_error) {
-					return { data: { sent: false } };
+					return Response.json({ data: { sent: false } });
 				}
 			},
 			{
@@ -385,7 +425,16 @@ export const auth = (
 					state: t.String({ description: "Encrypted state" }),
 					locale: t.String(),
 				}),
-				response: dataOrError(AuthenticationSendResultSchema),
+				response: {
+					200: {
+						description: "Prompt sent confirmation",
+						content: {
+							"application/json": {
+								schema: dataOrError(AuthenticationSendResultSchema),
+							},
+						},
+					},
+				},
 			},
 		)
 		.post(
@@ -397,13 +446,13 @@ export const auth = (
 						options.keys.publicKey,
 					);
 					if (state.kind !== "signin") {
-						throw new UnauthorizedError();
+						return Response.json({ error: UnauthorizedError.name });
 					}
 					const identityId = state.identity
 						? state.identity
 						: authenticationToken?.sessionData.identityId;
 					if (!identityId) {
-						throw new UnauthorizedError();
+						return Response.json({ error: UnauthorizedError.name });
 					}
 					// TODO default locale
 					const locale = body.locale?.toString() ?? "en";
@@ -412,9 +461,9 @@ export const auth = (
 						body.component,
 						locale,
 					);
-					return { data: { sent: true } };
+					return Response.json({ data: { sent: true } });
 				} catch (_error) {
-					return { data: { sent: false } };
+					return Response.json({ data: { sent: false } });
 				}
 			},
 			{
@@ -427,7 +476,16 @@ export const auth = (
 					state: t.String({ description: "Encrypted state" }),
 					locale: t.String(),
 				}),
-				response: dataOrError(AuthenticationSendResultSchema),
+				response: {
+					200: {
+						description: "Validation code sent confirmation",
+						content: {
+							"application/json": {
+								schema: dataOrError(AuthenticationSendResultSchema),
+							},
+						},
+					},
+				},
 			},
 		)
 		.post(
@@ -435,9 +493,9 @@ export const auth = (
 			async ({ body, identity }) => {
 				try {
 					await identity.confirmComponentValidationCode(body.code);
-					return { data: { confirmed: true } };
+					return Response.json({ data: { confirmed: true } });
 				} catch (_error) {
-					return { data: { confirmed: false } };
+					return Response.json({ data: { confirmed: false } });
 				}
 			},
 			{
@@ -449,7 +507,14 @@ export const auth = (
 					code: t.String(),
 				}),
 				response: {
-					200: dataOrError(AuthenticationConfirmResultSchema),
+					200: {
+						description: "Validation code confirmation",
+						content: {
+							"application/json": {
+								schema: dataOrError(AuthenticationConfirmResultSchema),
+							},
+						},
+					},
 				},
 			},
 		);

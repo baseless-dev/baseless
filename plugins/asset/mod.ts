@@ -1,5 +1,5 @@
 import type { AssetProvider } from "../../providers/asset.ts";
-import type { Elysia } from "../../deps.ts";
+import { Router } from "../../lib/router/router.ts";
 import type { Context } from "./context.ts";
 import { AssetService } from "./asset.ts";
 
@@ -9,22 +9,27 @@ export type AssetOptions = {
 
 export const asset = (
 	options: AssetOptions,
-) =>
-(app: Elysia) => {
-	return app
+) => {
+	return new Router()
 		.derive(() => {
 			const context: Context = {
-				get asset() {
-					return new AssetService(options.asset);
-				},
+				asset: new AssetService(options.asset),
 			};
 			return context;
 		})
-		.get("/*", ({ request, asset }) => asset.fetch(request), {
+		.get("/{...rest}", ({ request, asset }) => asset.fetch(request), {
 			detail: {
 				summary: "Static Asset",
 				description: "Fetches a static asset from the asset provider",
 				tags: ["Asset"],
+			},
+			response: {
+				200: {
+					description: "The static asset",
+				},
+				404: {
+					description: "The static asset was not found",
+				},
 			},
 		});
 };

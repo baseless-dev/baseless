@@ -3,13 +3,23 @@ export {
 	encodeBase32,
 } from "https://deno.land/std@0.213.0/encoding/base32.ts";
 export { encodeBase64 } from "https://deno.land/std@0.213.0/encoding/base64.ts";
-export * from "https://esm.sh/elysia@0.8.10";
-export { Value } from "https://esm.sh/@sinclair/typebox@0.32.13/value";
+export {
+	type Static,
+	type TArray,
+	type TObject,
+	type TSchema,
+	type TString,
+	Type as t,
+} from "https://esm.sh/@sinclair/typebox@0.32.13";
+export { Check, Value } from "https://esm.sh/@sinclair/typebox@0.32.13/value";
 export {
 	FormatRegistry,
 	TypeGuard,
 } from "https://esm.sh/@sinclair/typebox@0.32.13/type";
-export { TypeCompiler } from "https://esm.sh/@sinclair/typebox@0.32.13/compiler";
+export {
+	type TypeCheck,
+	TypeCompiler,
+} from "https://esm.sh/@sinclair/typebox@0.32.13/compiler";
 export {
 	extname,
 	fromFileUrl,

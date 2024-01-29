@@ -1,12 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
-import {
-	type Elysia,
-	type InternalRoute,
-	type OpenAPIV3,
-	t,
-	type TSchema,
-	TypeGuard,
-} from "../../deps.ts";
+import { type OpenAPIV3, t, type TSchema, TypeGuard } from "../../deps.ts";
+import { Router } from "../../lib/router/router.ts";
+import type { Definition, Route, Routes } from "../../lib/router/types.ts";
 
 export type OpenAPIOptions<TPath> = {
 	path?: TPath;
@@ -28,11 +23,12 @@ export const openapi = <Path extends string = "/openapi.json">({
 		version: "0.0.0-0",
 	},
 }) =>
-(app: Elysia) => {
+(routes: ReadonlyArray<Route>) => {
 	let cachedDocument: string;
-	app.get(path, ({ request, query }) => {
-		if (request.headers.get("accept")?.includes("text/html")) {
-			const swagger = `<!DOCTYPE html>
+	return new Router()
+		.get(path, ({ request, query }) => {
+			if (request.headers.get("accept")?.includes("text/html")) {
+				const swagger = `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
@@ -48,7 +44,7 @@ export const openapi = <Path extends string = "/openapi.json">({
     <script>window.onload = () => { window.ui = SwaggerUIBundle({ url: "/openapi.json", dom_id: '#swagger-ui' }); };</script>
 </body>
 </html>`;
-			const scalar = `<!DOCTYPE html>
+				const scalar = `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
@@ -63,101 +59,93 @@ export const openapi = <Path extends string = "/openapi.json">({
 	<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 </body>
 </html>`;
-			return new Response(query.view === "swagger" ? swagger : scalar, {
-				headers: { "content-type": "text/html; charset=utf-8" },
+				return new Response(query.view === "swagger" ? swagger : scalar, {
+					headers: { "content-type": "text/html; charset=utf-8" },
+				});
+			}
+			if (!cachedDocument) {
+				const document: OpenAPIV3.Document = {
+					...transformRoutesToOpenAPIV3Document(
+						[...routes],
+					),
+					openapi: "3.1.0",
+					info,
+					servers,
+				};
+				cachedDocument = JSON.stringify(document);
+			}
+			return new Response(cachedDocument, {
+				headers: { "content-type": "application/json; charset=utf-8" },
 			});
-		}
-		if (!cachedDocument) {
-			const document: OpenAPIV3.Document = {
-				...transformRoutesToOpenAPIV3Document(
-					app.routes,
-					(app as any).definitions?.type,
+		}, {
+			detail: {
+				summary: info.title,
+				description: info.description,
+				tags: tags ?? ["OpenAPI"],
+			},
+			query: t.Object({
+				view: t.Optional(
+					t.Union([
+						t.Literal("swagger"),
+						t.Literal("scalar"),
+					], { default: "scalar" }),
 				),
-				openapi: "3.1.0",
-				info,
-				servers,
-			};
-			cachedDocument = JSON.stringify(document);
-		}
-		return new Response(cachedDocument, {
-			headers: { "content-type": "application/json; charset=utf-8" },
+			}),
 		});
-	}, {
-		detail: {
-			summary: info.title,
-			description: info.description,
-			tags: tags ?? ["OpenAPI"],
-		},
-		query: t.Object({
-			view: t.Union([
-				t.Literal("swagger"),
-				t.Literal("scalar"),
-			], { default: "scalar" }),
-		}),
-	});
-	return app;
 };
 
 export default openapi;
 
 function transformRoutesToOpenAPIV3Document(
-	routes: InternalRoute[],
-	models?: Record<string, TSchema>,
+	routes: Routes,
 ): Pick<OpenAPIV3.Document, "components" | "paths"> {
 	const components: OpenAPIV3.ComponentsObject = {
-		schemas: {
-			...models,
-		},
+		schemas: {},
 	};
-	routes = routes.map((route: any) => {
+	routes = routes.map((route) => {
 		return {
 			...route,
-			hooks: {
-				...route.hooks,
-				params: route.hooks.params
-					? promoteSchemaComponents(components, route.hooks.params)
+			definition: {
+				...route.definition,
+				params: route.definition.params
+					? promoteSchemaComponents(components, route.definition.params)
 					: undefined,
-				headers: route.hooks.headers
-					? promoteSchemaComponents(components, route.hooks.headers)
+				headers: route.definition.headers
+					? promoteSchemaComponents(components, route.definition.headers)
 					: undefined,
-				query: route.hooks.query
-					? promoteSchemaComponents(components, route.hooks.query)
+				query: route.definition.query
+					? promoteSchemaComponents(components, route.definition.query)
 					: undefined,
-				body: route.hooks.body
-					? promoteSchemaComponents(components, route.hooks.body)
+				body: route.definition.body
+					? promoteSchemaComponents(components, route.definition.body)
 					: undefined,
-				cookie: route.hooks.cookie
-					? promoteSchemaComponents(components, route.hooks.cookie)
-					: undefined,
-				response: route.hooks.response
-					? promoteResponseComponents(components, route.hooks.response)
+				response: route.definition.response
+					? promoteResponseComponents(components, route.definition.response)
 					: undefined,
 			},
-		};
+		} as Route;
 	});
 	routes.sort((a, b) => a.path.localeCompare(b.path));
 
 	const paths = routes.reduce((paths, route) => {
-		const path = transformPath(route.path);
-		const hooks = route.hooks as any;
+		const path = route.path.replace(/\{\.\.\.(\w+)\}/g, "{$1}");
 		return {
 			...paths,
 			[path]: {
 				...paths[path],
 				[route.method.toLowerCase()]: {
-					...hooks.detail,
+					...route.definition.detail,
 					parameters: [
-						...schemaToParameterObject("path", hooks.params),
-						...schemaToParameterObject("query", hooks.query),
-						...schemaToParameterObject("header", hooks.headers),
-						...schemaToParameterObject("cookie", hooks.cookie),
+						...schemaToParameterObject("path", route.definition.params),
+						...schemaToParameterObject("query", route.definition.query),
+						...schemaToParameterObject("header", route.definition.headers),
 					],
-					...(hooks.body
+					...(route.definition.body
 						? {
-							requestBody: schemaToRequestBody(hooks.body),
+							requestBody: schemaToRequestBody(route.definition.body),
 						}
 						: {}),
-					responses: hooks.response,
+					responses: route.definition.response,
 				},
 			},
 		};
@@ -166,13 +154,6 @@ function transformRoutesToOpenAPIV3Document(
 		paths,
 		components,
 	};
-}
-
-function transformPath(path: string): string {
-	return path
-		.split("/")
-		.map((x) => (x.startsWith(":") ? `{${x.slice(1)}}` : x))
-		.join("/");
 }
 
 function schemaToRequestBody(
@@ -196,14 +177,17 @@ function schemaToRequestBody(
 
 function schemaToParameterObject(
 	location: string,
-	schema?: TSchema,
+	schema?: any,
 ): OpenAPIV3.ParameterObject[] {
 	if (TypeGuard.IsObject(schema)) {
 		return Object.entries(schema.properties).map(([name, schema]) => {
 			return {
 				name,
 				in: location,
-				schema,
+				schema: location === "path" && TypeGuard.IsArray(schema) &&
+						TypeGuard.IsString(schema.items)
+					? t.String({ format: "path" })
+					: schema,
 				required: location === "path" ? true : (schema as any).required,
 			} as OpenAPIV3.ParameterObject;
 		});
@@ -237,59 +221,34 @@ function promoteSchemaComponents(
 	return result.value;
 }
 
+type MapKeyToString<T> = {
+	[K in keyof T as `${string & K}`]: T[K];
+};
+
 function promoteResponseComponents(
 	components: OpenAPIV3.ComponentsObject,
-	response: unknown,
-): unknown {
-	if (response && typeof response === "object") {
-		if (TypeGuard.IsSchema(response)) {
-			// Schema
-			return {
-				200: {
-					description: "",
-					content: {
-						"application/json": {
-							schema: promoteSchemaComponents(components, response as TSchema),
-						},
-					},
-				},
-			};
-		} else {
-			// Statuses
-			return Object.fromEntries(
-				Object.entries(response).map(([status, schema]) => {
-					return [status, {
-						description: "",
-						content: {
-							"application/json": {
-								schema: promoteSchemaComponents(components, schema),
+	response: NonNullable<Definition<any, any, any, any>["response"]>,
+): Definition<any, any, any, any>["response"] {
+	return Object.fromEntries(
+		Object.entries(response)
+			.map(([status, meta]) => [status, {
+				...meta,
+				content: Object.fromEntries(
+					Object.entries(meta.content ?? {})
+						.map(([contentType, content]) => [
+							contentType,
+							{
+								...content,
+								schema: promoteSchemaComponents(components, content.schema),
 							},
-						},
-					}];
-				}),
-			);
-		}
-	} else if (
-		response && typeof response === "string" && components.schemas &&
-		response in components.schemas
-	) {
-		// Model name
-		return {
-			200: {
-				description: "",
-				content: {
-					"application/json": {
-						schema: t.Ref(`#/components/schemas/${response}`),
-					},
-				},
-			},
-		};
-	}
-	throw new Error("Invalid response type.");
+						]),
+				),
+			}]),
+	);
 }
 
 function* walk(
-	schema: TSchema,
+	schema: any,
 ): Generator<TSchema, TSchema, TSchema | false | undefined> {
 	const op = yield schema;
 	if (op === false) {
@@ -301,16 +260,16 @@ function* walk(
 		return {
 			...schema,
 			items: yield* walk((schema as any).items),
-		};
+		} as any;
 	} else if (TypeGuard.IsObject(schema)) {
-		const properties: typeof schema.properties = {};
+		const properties: Record<string, TSchema> = {};
 		for (const [key, propSchema] of Object.entries(schema.properties)) {
 			properties[key] = yield* walk(propSchema as any);
 		}
 		return {
 			...schema,
 			properties,
-		};
+		} as any;
 	} else if (TypeGuard.IsUnion(schema)) {
 		const anyOf = [];
 		for (const unionSchema of schema.anyOf) {
@@ -319,7 +278,7 @@ function* walk(
 		return {
 			...schema,
 			anyOf,
-		};
+		} as any;
 	}
 	return schema;
 }

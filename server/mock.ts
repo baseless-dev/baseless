@@ -1,4 +1,4 @@
-import { Elysia, generateKeyPair } from "../deps.ts";
+import { generateKeyPair } from "../deps.ts";
 import { MemoryAssetProvider } from "../providers/asset-memory/mod.ts";
 import PasswordAuthentificationComponent from "../providers/auth-password/mod.ts";
 import EmailAuthentificationComponent from "../providers/auth-email/mod.ts";
@@ -14,11 +14,12 @@ import OTPLoggerAuthentificationComponent from "../providers/auth-otp-logger/mod
 import TOTPAuthentificationComponent from "../providers/auth-totp/mod.ts";
 import type { AuthenticationOptions } from "../plugins/auth/mod.ts";
 import { oneOf, sequence } from "../lib/auth/types.ts";
+import { Router } from "../lib/router/router.ts";
 
 export { t } from "../deps.ts";
 
 export type MockResult = {
-	router: Elysia;
+	router: Router;
 	providers: {
 		kv: MemoryKVProvider;
 		document: MemoryDocumentProvider;
@@ -76,7 +77,7 @@ export async function mock(
 		digits: 6,
 		period: 60,
 	});
-	let router = new Elysia();
+	let router = new Router();
 	const result = {
 		router,
 		providers: {

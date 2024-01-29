@@ -167,7 +167,7 @@ export class Router<
 	>(
 		path: TPath,
 		handler: THandler,
-		definition: TDefinition,
+		definition?: TDefinition,
 	): Router<TContext> {
 		return this.#defineRoute(path, "GET", handler, { ...definition });
 	}

@@ -1,4 +1,4 @@
-import { Value } from "../../deps.ts";
+import { Assert } from "../../deps.ts";
 import { type Static, t } from "../../deps.ts";
 import { IdentityComponentSchema } from "../identity/types.ts";
 
@@ -117,9 +117,7 @@ export function sequence(
 	...components: AuthenticationCeremonyComponent[]
 ): AuthenticationCeremonyComponent {
 	for (const component of components) {
-		if (!Value.Check(AuthenticationCeremonyComponentSchema, component)) {
-			throw new TypeError(`Invalid component: ${JSON.stringify(component)}`);
-		}
+		Assert(AuthenticationCeremonyComponentSchema, component);
 	}
 	return { kind: "sequence", components };
 }
@@ -128,9 +126,7 @@ export function oneOf(
 	...components: AuthenticationCeremonyComponent[]
 ): AuthenticationCeremonyComponent {
 	for (const component of components) {
-		if (!Value.Check(AuthenticationCeremonyComponentSchema, component)) {
-			throw new TypeError(`Invalid component: ${JSON.stringify(component)}`);
-		}
+		Assert(AuthenticationCeremonyComponentSchema, component);
 	}
 	return { kind: "choice", components };
 }

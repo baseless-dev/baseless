@@ -1,8 +1,8 @@
 import { assert, assertEquals, assertRejects } from "../deps.test.ts";
 import type { SessionProvider } from "./session.ts";
 import { autoid } from "../lib/autoid.ts";
-import { IDENTITY_AUTOID_PREFIX } from "../lib/identity.ts";
-import { type SessionData, SessionDataSchema } from "../lib/session.ts";
+import { IDENTITY_AUTOID_PREFIX } from "../lib/identity/types.ts";
+import { type SessionData, SessionDataSchema } from "../lib/session/types.ts";
 import { Value } from "../deps.ts";
 
 export default async function testSessionProvider(

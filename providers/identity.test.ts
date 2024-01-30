@@ -5,7 +5,7 @@ import {
 	IDENTITY_AUTOID_PREFIX,
 	IdentitySchema,
 	IDSchema,
-} from "../lib/identity.ts";
+} from "../lib/identity/types.ts";
 import { autoid } from "../lib/autoid.ts";
 import { Value } from "../deps.ts";
 

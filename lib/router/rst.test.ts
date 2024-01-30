@@ -16,7 +16,7 @@ Deno.test("const", () => {
 				handler: () => Response.error(),
 				definition: {},
 			},
-		]),
+		])[0],
 		{
 			kind: "const",
 			value: "foo",

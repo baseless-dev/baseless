@@ -1,273 +1,252 @@
-// import {
-// 	assertAuthenticationCeremonyResponse,
-// 	type AuthenticationCeremonyResponse,
-// } from "../common/auth/ceremony/response.ts";
-// import { EventEmitter } from "../common/system/event_emitter.ts";
-// import { type App, isApp } from "./app.ts";
-// import {
-// 	assertAuthenticationCeremonyResponseTokens,
-// 	type AuthenticationCeremonyResponseTokens,
-// 	isAuthenticationCeremonyResponseTokens,
-// } from "../common/auth/ceremony/response.ts";
-// import {
-// 	assertAuthenticationTokens,
-// 	type AuthenticationTokens,
-// } from "../common/auth/tokens.ts";
-// import { assertID, type ID } from "../common/identity/identity.ts";
-// import type { getComponentAtPath } from "../common/auth/ceremony/component/get_component_at_path.ts";
-// import {
-// 	assertSendComponentPromptResponse,
-// 	type SendComponentPromptResponse,
-// } from "../common/auth/send_component_prompt_response.ts";
-// import {
-// 	assertConfirmComponentValidationCodeResponse,
-// 	type ConfirmComponentValidationCodeResponse,
-// } from "../common/auth/confirm_confirmation_validation_code_response.ts";
-// import {
-// 	assertSendComponentValidationCodeResponse,
-// 	type SendComponentValidationCodeResponse,
-// } from "../common/auth/send_component_validation_code_response.ts";
-// import { throwIfApiError } from "./errors.ts";
+import {
+	type AuthenticationTokens,
+	AuthenticationTokensSchema,
+} from "../lib/auth/types.ts";
+import { EventEmitter } from "../lib/event_emitter.ts";
+import { type ID, IDSchema } from "../lib/identity/types.ts";
+import { type App, isApp } from "./app.ts";
+import { Assert } from "../deps.ts";
+import { throwIfApiError } from "./errors.ts";
 
-// class AuthApp {
-// 	#app: App;
-// 	#tokens?: AuthenticationTokens;
-// 	#accessTokenExpiration?: number;
-// 	#pendingRefreshTokenRequest?: Promise<void>;
-// 	#expireTimeout?: number;
-// 	#persistence: Persistence;
-// 	#storage: Storage;
-// 	#onAuthStateChange: EventEmitter<[ID | undefined]>;
+class AuthApp {
+	#app: App;
+	#tokens?: AuthenticationTokens;
+	#accessTokenExpiration?: number;
+	#pendingRefreshTokenRequest?: Promise<void>;
+	#expireTimeout?: number;
+	#persistence: Persistence;
+	#storage: Storage;
+	#onAuthStateChange: EventEmitter<[ID | undefined]>;
 
-// 	constructor(
-// 		app: App,
-// 	) {
-// 		this.#app = app;
-// 		const localPersistence = globalThis.localStorage.getItem(
-// 			`baseless_${app.clientId}_persistence`,
-// 		);
-// 		this.#persistence = isPersistence(localPersistence)
-// 			? localPersistence
-// 			: "local";
-// 		this.#storage = this.#persistence === "local"
-// 			? globalThis.localStorage
-// 			: globalThis.sessionStorage;
-// 		this.#onAuthStateChange = new EventEmitter<[ID | undefined]>();
+	constructor(
+		app: App,
+	) {
+		this.#app = app;
+		const localPersistence = globalThis.localStorage.getItem(
+			`baseless_${app.clientId}_persistence`,
+		);
+		this.#persistence = isPersistence(localPersistence)
+			? localPersistence
+			: "local";
+		this.#storage = this.#persistence === "local"
+			? globalThis.localStorage
+			: globalThis.sessionStorage;
+		this.#onAuthStateChange = new EventEmitter<[ID | undefined]>();
 
-// 		const tokensString = this.#storage.getItem(
-// 			`baseless_${app.clientId}_tokens`,
-// 		);
-// 		if (tokensString) {
-// 			try {
-// 				const maybeTokens = JSON.parse(tokensString);
-// 				assertAuthenticationTokens(maybeTokens);
-// 				this.tokens = maybeTokens;
-// 			} catch (error) {
-// 				console.error(
-// 					`[baseless] failed to parse tokens from storage, got ${error}.`,
-// 				);
-// 				this.#storage.removeItem(`baseless_${app.clientId}_tokens`);
-// 			}
-// 		}
-// 	}
+		const tokensString = this.#storage.getItem(
+			`baseless_${app.clientId}_tokens`,
+		);
+		if (tokensString) {
+			try {
+				const maybeTokens = JSON.parse(tokensString);
+				Assert(AuthenticationTokensSchema, maybeTokens);
+				this.tokens = maybeTokens;
+			} catch (error) {
+				console.error(
+					`[baseless] failed to parse tokens from storage, got ${error}.`,
+				);
+				this.#storage.removeItem(`baseless_${app.clientId}_tokens`);
+			}
+		}
+	}
 
-// 	get accessTokenExpiration(): number | undefined {
-// 		return this.#accessTokenExpiration;
-// 	}
+	get accessTokenExpiration(): number | undefined {
+		return this.#accessTokenExpiration;
+	}
 
-// 	get pendingRefreshTokenRequest(): Promise<void> | undefined {
-// 		return this.#pendingRefreshTokenRequest;
-// 	}
+	get pendingRefreshTokenRequest(): Promise<void> | undefined {
+		return this.#pendingRefreshTokenRequest;
+	}
 
-// 	get expireTimeout(): number | undefined {
-// 		return this.#expireTimeout;
-// 	}
+	get expireTimeout(): number | undefined {
+		return this.#expireTimeout;
+	}
 
-// 	get persistence(): Persistence {
-// 		return this.#persistence;
-// 	}
+	get persistence(): Persistence {
+		return this.#persistence;
+	}
 
-// 	set persistence(persistence: Persistence) {
-// 		assertPersistence(persistence);
-// 		globalThis.localStorage.setItem(
-// 			`baseless_${this.#app.clientId}_persistence`,
-// 			persistence,
-// 		);
-// 		const oldStorage = this.#storage;
-// 		const newStorage = persistence === "local"
-// 			? globalThis.localStorage
-// 			: globalThis.sessionStorage;
-// 		const tokens = oldStorage?.getItem(
-// 			`baseless_${this.#app.clientId}_tokens`,
-// 		);
-// 		if (tokens) {
-// 			newStorage.setItem(`baseless_${this.#app.clientId}_tokens`, tokens);
-// 			oldStorage.removeItem(`baseless_${this.#app.clientId}_tokens`);
-// 		}
-// 		this.#storage = newStorage;
-// 		this.#persistence = persistence;
-// 	}
+	set persistence(persistence: Persistence) {
+		assertPersistence(persistence);
+		globalThis.localStorage.setItem(
+			`baseless_${this.#app.clientId}_persistence`,
+			persistence,
+		);
+		const oldStorage = this.#storage;
+		const newStorage = persistence === "local"
+			? globalThis.localStorage
+			: globalThis.sessionStorage;
+		const tokens = oldStorage?.getItem(
+			`baseless_${this.#app.clientId}_tokens`,
+		);
+		if (tokens) {
+			newStorage.setItem(`baseless_${this.#app.clientId}_tokens`, tokens);
+			oldStorage.removeItem(`baseless_${this.#app.clientId}_tokens`);
+		}
+		this.#storage = newStorage;
+		this.#persistence = persistence;
+	}
 
-// 	get storage(): Storage {
-// 		return this.#storage;
-// 	}
+	get storage(): Storage {
+		return this.#storage;
+	}
 
-// 	get onAuthStateChange(): EventEmitter<[ID | undefined]> {
-// 		return this.#onAuthStateChange;
-// 	}
+	get onAuthStateChange(): EventEmitter<[ID | undefined]> {
+		return this.#onAuthStateChange;
+	}
 
-// 	get tokens(): AuthenticationTokens | undefined {
-// 		return this.#tokens ? { ...this.#tokens } : undefined;
-// 	}
+	get tokens(): AuthenticationTokens | undefined {
+		return this.#tokens ? { ...this.#tokens } : undefined;
+	}
 
-// 	set tokens(tokens: Readonly<AuthenticationTokens> | undefined) {
-// 		clearTimeout(this.#expireTimeout);
-// 		this.#expireTimeout = undefined;
-// 		if (tokens) {
-// 			assertAuthenticationTokens(tokens);
-// 			const { access_token, id_token, refresh_token } = tokens;
-// 			tokens = { access_token, id_token, refresh_token };
-// 			const { sub: identityId, meta } = JSON.parse(
-// 				atob(id_token.split(".").at(1)!),
-// 			);
-// 			const identity = { id: identityId, meta };
-// 			assertID(identity);
-// 			const { exp: accessTokenExp = Number.MAX_VALUE } = JSON.parse(
-// 				atob(access_token.split(".").at(1)!),
-// 			);
-// 			const { exp: refreshTokenExp = undefined } = refresh_token
-// 				? JSON.parse(atob(refresh_token.split(".").at(1)!))
-// 				: {};
-// 			const expiration = parseInt(refreshTokenExp ?? accessTokenExp, 10);
-// 			this.#tokens = tokens;
-// 			this.#accessTokenExpiration = parseInt(accessTokenExp, 10);
-// 			this.#onAuthStateChange.emit(identity);
-// 			this.#expireTimeout = setTimeout(
-// 				() => this.tokens = undefined,
-// 				expiration * 1000 - Date.now(),
-// 			);
-// 			this.#storage.setItem(
-// 				`baseless_${this.#app.clientId}_tokens`,
-// 				JSON.stringify(tokens),
-// 			);
-// 		} else {
-// 			this.#tokens = undefined;
-// 			this.#accessTokenExpiration = undefined;
-// 			this.#onAuthStateChange.emit(undefined);
-// 			this.#storage.removeItem(`baseless_${this.#app.clientId}_tokens`);
-// 		}
-// 	}
+	set tokens(tokens: Readonly<AuthenticationTokens> | undefined) {
+		clearTimeout(this.#expireTimeout);
+		this.#expireTimeout = undefined;
+		if (tokens) {
+			Assert(AuthenticationTokensSchema, tokens);
+			const { access_token, id_token, refresh_token } = tokens;
+			tokens = { access_token, id_token, refresh_token };
+			const { sub: identityId, meta } = JSON.parse(
+				atob(id_token.split(".").at(1)!),
+			);
+			const identity = { id: identityId, meta };
+			Assert(IDSchema, identity);
+			const { exp: accessTokenExp = Number.MAX_VALUE } = JSON.parse(
+				atob(access_token.split(".").at(1)!),
+			);
+			const { exp: refreshTokenExp = undefined } = refresh_token
+				? JSON.parse(atob(refresh_token.split(".").at(1)!))
+				: {};
+			const expiration = parseInt(refreshTokenExp ?? accessTokenExp, 10);
+			this.#tokens = tokens;
+			this.#accessTokenExpiration = parseInt(accessTokenExp, 10);
+			this.#onAuthStateChange.emit(identity);
+			this.#expireTimeout = setTimeout(
+				() => this.tokens = undefined,
+				expiration * 1000 - Date.now(),
+			);
+			this.#storage.setItem(
+				`baseless_${this.#app.clientId}_tokens`,
+				JSON.stringify(tokens),
+			);
+		} else {
+			this.#tokens = undefined;
+			this.#accessTokenExpiration = undefined;
+			this.#onAuthStateChange.emit(undefined);
+			this.#storage.removeItem(`baseless_${this.#app.clientId}_tokens`);
+		}
+	}
 
-// 	async fetchWithTokens(
-// 		input: RequestInfo | URL,
-// 		init?: RequestInit,
-// 	): Promise<Response> {
-// 		if (this.#pendingRefreshTokenRequest) {
-// 			await this.#pendingRefreshTokenRequest;
-// 		}
-// 		const headers = new Headers(init?.headers);
-// 		const now = Date.now() / 1000 >> 0;
-// 		if (
-// 			this.#tokens?.access_token && this.#tokens.refresh_token &&
-// 			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
-// 		) {
-// 			const refreshPromise = this.#app.fetch(
-// 				`${this.#app.apiEndpoint}/auth/refresh`,
-// 				{
-// 					method: "POST",
-// 					headers: { "Content-Type": "application/json" },
-// 					body: JSON.stringify({ refresh_token: this.#tokens.refresh_token }),
-// 				},
-// 			);
-// 			this.#pendingRefreshTokenRequest = refreshPromise
-// 				.catch(() => {})
-// 				.then(
-// 					() => {
-// 						this.#pendingRefreshTokenRequest = undefined;
-// 					},
-// 				);
-// 			const resp = await refreshPromise;
-// 			const result = await resp.json();
-// 			throwIfApiError(result);
-// 			assertAuthenticationTokens(result.data);
-// 			this.#tokens = result.data;
-// 		}
+	async fetchWithTokens(
+		input: RequestInfo | URL,
+		init?: RequestInit,
+	): Promise<Response> {
+		if (this.#pendingRefreshTokenRequest) {
+			await this.#pendingRefreshTokenRequest;
+		}
+		const headers = new Headers(init?.headers);
+		const now = Date.now() / 1000 >> 0;
+		if (
+			this.#tokens?.access_token && this.#tokens.refresh_token &&
+			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
+		) {
+			const refreshPromise = this.#app.fetch(
+				`${this.#app.apiEndpoint}/auth/refresh`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ refresh_token: this.#tokens.refresh_token }),
+				},
+			);
+			this.#pendingRefreshTokenRequest = refreshPromise
+				.catch(() => {})
+				.then(
+					() => {
+						this.#pendingRefreshTokenRequest = undefined;
+					},
+				);
+			const resp = await refreshPromise;
+			const result = await resp.json();
+			throwIfApiError(result);
+			Assert(AuthenticationTokensSchema, result.data);
+			this.#tokens = result.data;
+		}
 
-// 		if (this.#tokens?.access_token) {
-// 			headers.set("Authorization", `Bearer ${this.#tokens.access_token}`);
-// 		}
-// 		return this.#app.fetch(input, { ...init, headers });
-// 	}
-// }
+		if (this.#tokens?.access_token) {
+			headers.set("Authorization", `Bearer ${this.#tokens.access_token}`);
+		}
+		return this.#app.fetch(input, { ...init, headers });
+	}
+}
 
-// const authApps = new Map<App["clientId"], AuthApp>();
-// function getAuth(app: App): AuthApp {
-// 	if (!authApps.has(app.clientId)) {
-// 		initializeAuth(app);
-// 	}
-// 	return authApps.get(app.clientId)!;
-// }
+export type Persistence = "local" | "session";
 
-// export type Persistence = "local" | "session";
+export function isPersistence(value?: unknown): value is Persistence {
+	return value === "local" || value === "session";
+}
 
-// export class AuthNotInitializedError extends Error {}
+export function assertPersistence(
+	value?: unknown,
+): asserts value is Persistence {
+	if (!isPersistence(value)) {
+		throw new InvalidPersistenceError();
+	}
+}
+export class InvalidPersistenceError extends Error {}
 
-// export function isPersistence(value?: unknown): value is Persistence {
-// 	return value === "local" || value === "session";
-// }
+const authApps = new Map<App["clientId"], AuthApp>();
+function getAuth(app: App): AuthApp {
+	if (!authApps.has(app.clientId)) {
+		initializeAuth(app);
+	}
+	return authApps.get(app.clientId)!;
+}
 
-// export function assertPersistence(
-// 	value?: unknown,
-// ): asserts value is Persistence {
-// 	if (!isPersistence(value)) {
-// 		throw new InvalidPersistenceError();
-// 	}
-// }
-// export class InvalidPersistenceError extends Error {}
+export class AuthNotInitializedError extends Error {}
 
-// export function assertInitializedAuth(
-// 	value?: unknown,
-// ): asserts value is App {
-// 	if (!isApp(value) || !authApps.has(value.clientId)) {
-// 		throw new AuthNotInitializedError();
-// 	}
-// }
+export function assertInitializedAuth(
+	value?: unknown,
+): asserts value is App {
+	if (!isApp(value) || !authApps.has(value.clientId)) {
+		throw new AuthNotInitializedError();
+	}
+}
 
-// export function initializeAuth(app: App): App {
-// 	if (!authApps.has(app.clientId)) {
-// 		const auth = new AuthApp(app);
-// 		authApps.set(app.clientId, auth);
-// 	}
+export function initializeAuth(app: App): App {
+	if (!authApps.has(app.clientId)) {
+		const auth = new AuthApp(app);
+		authApps.set(app.clientId, auth);
+	}
 
-// 	return app;
-// }
+	return app;
+}
 
-// export function fetchWithTokens(
-// 	app: App,
-// 	input: RequestInfo | URL,
-// 	init?: RequestInit,
-// ): Promise<Response> {
-// 	assertInitializedAuth(app);
-// 	return getAuth(app).fetchWithTokens(input, init);
-// }
+export function fetchWithTokens(
+	app: App,
+	input: RequestInfo | URL,
+	init?: RequestInit,
+): Promise<Response> {
+	assertInitializedAuth(app);
+	return getAuth(app).fetchWithTokens(input, init);
+}
 
-// export function getPersistence(app: App): Persistence {
-// 	assertInitializedAuth(app);
-// 	return getAuth(app).persistence;
-// }
+export function getPersistence(app: App): Persistence {
+	assertInitializedAuth(app);
+	return getAuth(app).persistence;
+}
 
-// export function setPersistence(app: App, persistence: Persistence): void {
-// 	assertInitializedAuth(app);
-// 	getAuth(app).persistence = persistence;
-// }
+export function setPersistence(app: App, persistence: Persistence): void {
+	assertInitializedAuth(app);
+	getAuth(app).persistence = persistence;
+}
 
-// export function onAuthStateChange(
-// 	app: App,
-// 	listener: (identity: ID | undefined) => void,
-// ): () => void {
-// 	assertInitializedAuth(app);
-// 	return getAuth(app).onAuthStateChange.listen(listener);
-// }
+export function onAuthStateChange(
+	app: App,
+	listener: (identity: ID | undefined) => void,
+): () => void {
+	assertInitializedAuth(app);
+	return getAuth(app).onAuthStateChange.listen(listener);
+}
 
 // export async function getAuthenticationCeremony(
 // 	app: App,

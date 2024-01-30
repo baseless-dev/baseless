@@ -1,3 +1,27 @@
+import {
+	type Static,
+	type TSchema,
+	TypeBoxError,
+} from "npm:@sinclair/typebox@0.32.13/type";
+import { Value } from "npm:@sinclair/typebox@0.32.13/value";
+
+export function Assert<T extends TSchema>(
+	schema: T,
+	value: unknown,
+): asserts value is Static<T> {
+	if (!Value.Check(schema, value)) {
+		const errors = [...Value.Errors(schema, value)];
+		throw new AssertionError(
+			errors.map((err) => `${err.message} ${err.path}`).join(". ").trim(),
+		);
+	}
+}
+export class AssertionError extends TypeBoxError {
+	constructor(message: string) {
+		super(message);
+	}
+}
+
 export {
 	decodeBase32,
 	encodeBase32,

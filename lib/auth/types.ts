@@ -97,18 +97,17 @@ export type WalkedAuthenticationCeremonyComponent = Static<
 	typeof WalkedAuthenticationCeremonyComponentSchema
 >;
 
-export const AtPathAuthenticationCeremonyComponentSchema = t.Recursive(
-	(self) =>
-		t.Union([
+export const AtPathAuthenticationCeremonyComponentSchema = t.Union([
+	AuthenticationCeremonyComponentPromptSchema,
+	AuthenticationCeremonyComponentDoneSchema,
+	t.Object({
+		kind: t.Literal("choice"),
+		components: t.Array(t.Union([
 			AuthenticationCeremonyComponentPromptSchema,
 			AuthenticationCeremonyComponentDoneSchema,
-			t.Object({
-				kind: t.Literal("choice"),
-				components: t.Array(self),
-			}, { $id: "AtPathAuthenticationCeremonyComponentChoice" }),
-		]),
-	{ $id: "AtPathAuthenticationCeremonyComponent" },
-);
+		])),
+	}, { $id: "AtPathAuthenticationCeremonyComponentChoice" }),
+], { $id: "AtPathAuthenticationCeremonyComponent" });
 
 export type AtPathAuthenticationCeremonyComponent = Static<
 	typeof AtPathAuthenticationCeremonyComponentSchema

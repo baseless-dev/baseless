@@ -10,16 +10,13 @@ export {
 	type TSchema,
 	type TString,
 	Type as t,
-} from "https://esm.sh/@sinclair/typebox@0.32.13";
-export { Check, Value } from "https://esm.sh/@sinclair/typebox@0.32.13/value";
-export {
-	FormatRegistry,
-	TypeGuard,
-} from "https://esm.sh/@sinclair/typebox@0.32.13/type";
+} from "npm:@sinclair/typebox@0.32.13";
+export { Check, Value } from "npm:@sinclair/typebox@0.32.13/value";
+export { FormatRegistry, TypeGuard } from "npm:@sinclair/typebox@0.32.13/type";
 export {
 	type TypeCheck,
 	TypeCompiler,
-} from "https://esm.sh/@sinclair/typebox@0.32.13/compiler";
+} from "npm:@sinclair/typebox@0.32.13/compiler";
 export {
 	extname,
 	fromFileUrl,
@@ -28,11 +25,11 @@ export {
 	resolve,
 } from "https://deno.land/std@0.213.0/path/mod.ts";
 export { contentType } from "https://deno.land/std@0.213.0/media_types/mod.ts";
-export { generateKeyPair } from "https://deno.land/x/jose@v5.2.0/runtime/generate.ts";
-export type {
-	JWTPayload,
-	KeyLike,
-} from "https://deno.land/x/jose@v5.2.0/types.d.ts";
-export { SignJWT } from "https://deno.land/x/jose@v5.2.0/jwt/sign.ts";
-export { jwtVerify } from "https://deno.land/x/jose@v5.2.0/jwt/verify.ts";
-export type { OpenAPIV3 } from "https://esm.sh/openapi-types@12.1.3";
+export {
+	generateKeyPair,
+	type JWTPayload,
+	jwtVerify,
+	type KeyLike,
+	SignJWT,
+} from "npm:jose@5.2.0";
+export type { OpenAPIV3 } from "npm:openapi-types@12.1.3";

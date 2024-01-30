@@ -1,4 +1,4 @@
-import type { Identity, IdentityComponent } from "../../lib/identity.ts";
+import type { Identity, IdentityComponent } from "../../lib/identity/types.ts";
 import { assertTOTPOptions, totp, type TOTPOptions } from "../../lib/otp.ts";
 import {
 	AuthenticationComponent,

@@ -1,6 +1,6 @@
 import type { AuthenticationCeremonyComponentPrompt } from "../lib/auth/types.ts";
-import type { Identity, IdentityComponent } from "../lib/identity.ts";
-import type { Message } from "../lib/message.ts";
+import type { Identity, IdentityComponent } from "../lib/identity/types.ts";
+import type { Message } from "../lib/message/types.ts";
 
 // deno-lint-ignore no-empty-interface
 interface IAuthenticationComponent

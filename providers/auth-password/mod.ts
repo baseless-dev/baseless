@@ -1,5 +1,5 @@
 import { encodeBase64 } from "../../deps.ts";
-import type { Identity, IdentityComponent } from "../../lib/identity.ts";
+import type { Identity, IdentityComponent } from "../../lib/identity/types.ts";
 import {
 	AuthenticationComponent,
 	AuthenticationComponentGetIdentityComponentMetaOptions,

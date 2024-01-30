@@ -1,6 +1,6 @@
 import { Value } from "../../deps.ts";
 import { type Static, t } from "../../deps.ts";
-import { IdentityComponentSchema } from "../identity.ts";
+import { IdentityComponentSchema } from "../identity/types.ts";
 
 export const AuthenticationTokensSchema = t.Object({
 	access_token: t.String(),

@@ -1,6 +1,6 @@
 import { type KeyLike, SignJWT } from "../../deps.ts";
-import type { ID } from "../../lib/identity.ts";
-import type { SessionData } from "../../lib/session.ts";
+import type { ID } from "../../lib/identity/types.ts";
+import type { SessionData } from "../../lib/session/types.ts";
 
 export async function createTokens(
 	identity: ID,

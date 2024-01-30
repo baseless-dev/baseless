@@ -1,4 +1,8 @@
-import type { Document, DocumentData, DocumentKey } from "../lib/document.ts";
+import type {
+	Document,
+	DocumentData,
+	DocumentKey,
+} from "../lib/document/types.ts";
 
 export interface DocumentGetOptions {
 	readonly consistency: "strong" | "eventual";

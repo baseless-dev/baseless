@@ -1,11 +1,13 @@
 import {
-	type Document,
 	DocumentCreateError,
-	DocumentData,
-	type DocumentKey,
 	DocumentNotFoundError,
 	DocumentPatchError,
-} from "../../lib/document.ts";
+} from "../../lib/document/errors.ts";
+import type {
+	Document,
+	DocumentData,
+	DocumentKey,
+} from "../../lib/document/types.ts";
 import { createLogger } from "../../lib/logger.ts";
 import {
 	DocumentAtomic,

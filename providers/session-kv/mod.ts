@@ -4,16 +4,18 @@ import {
 	autoid,
 	isAutoId,
 } from "../../lib/autoid.ts";
-import { IDENTITY_AUTOID_PREFIX } from "../../lib/identity.ts";
+import { IDENTITY_AUTOID_PREFIX } from "../../lib/identity/types.ts";
 import { createLogger } from "../../lib/logger.ts";
 import {
-	SESSION_AUTOID_PREFIX,
 	SessionCreateError,
-	type SessionData,
 	SessionDestroyError,
 	SessionIDNotFoundError,
 	SessionUpdateError,
-} from "../../lib/session.ts";
+} from "../../lib/session/errors.ts";
+import {
+	SESSION_AUTOID_PREFIX,
+	type SessionData,
+} from "../../lib/session/types.ts";
 import type { KVProvider } from "../kv.ts";
 import type { SessionProvider } from "../session.ts";
 

@@ -1,4 +1,4 @@
-import { KVKeyNotFoundError, KVPutError } from "../../lib/kv.ts";
+import { KVKeyNotFoundError, KVPutError } from "../../lib/kv/errors.ts";
 import { createLogger } from "../../lib/logger.ts";
 import type {
 	KVGetOptions,

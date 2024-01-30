@@ -1,4 +1,4 @@
-import type { Identity } from "../../lib/identity.ts";
+import type { Identity } from "../../lib/identity/types.ts";
 import { createLogger, LogLevel, LogLevelMethod } from "../../lib/logger.ts";
 import { assertOTPOptions, otp, type OTPOptions } from "../../lib/otp.ts";
 import {

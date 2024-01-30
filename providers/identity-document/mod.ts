@@ -1,11 +1,13 @@
-import { type AutoId, autoid } from "../../lib/autoid.ts";
+import { autoid } from "../../lib/autoid.ts";
 import {
-	type Identity,
-	IDENTITY_AUTOID_PREFIX,
 	IdentityCreateError,
 	IdentityDeleteError,
 	IdentityNotFoundError,
-} from "../../lib/identity.ts";
+} from "../../lib/identity/errors.ts";
+import {
+	type Identity,
+	IDENTITY_AUTOID_PREFIX,
+} from "../../lib/identity/types.ts";
 import { createLogger } from "../../lib/logger.ts";
 import type { DocumentProvider } from "../document.ts";
 import type { IdentityProvider } from "../identity.ts";

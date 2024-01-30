@@ -1,8 +1,5 @@
-import {
-	type Identity,
-	type IdentityComponent,
-	IdentityNotFoundError,
-} from "../../lib/identity.ts";
+import { IdentityNotFoundError } from "../../lib/identity/errors.ts";
+import type { Identity, IdentityComponent } from "../../lib/identity/types.ts";
 import {
 	AuthenticationComponent,
 	AuthenticationComponentGetIdentityComponentMetaOptions,

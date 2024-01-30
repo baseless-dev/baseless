@@ -3,17 +3,19 @@
 import { Value } from "../../deps.ts";
 import { type AutoId, autoid } from "../../lib/autoid.ts";
 import {
-	type Document,
 	DocumentAtomicError,
 	DocumentCreateError,
-	DocumentData,
 	DocumentDeleteError,
-	type DocumentKey,
 	DocumentNotFoundError,
 	DocumentPatchError,
-	DocumentSchema,
 	DocumentUpdateError,
-} from "../../lib/document.ts";
+} from "../../lib/document/errors.ts";
+import {
+	type Document,
+	DocumentData,
+	type DocumentKey,
+	DocumentSchema,
+} from "../../lib/document/types.ts";
 import { createLogger, type Logger } from "../../lib/logger.ts";
 import {
 	DocumentAtomic,

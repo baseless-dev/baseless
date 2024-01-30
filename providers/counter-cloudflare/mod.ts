@@ -1,6 +1,9 @@
 /// <reference types="https://esm.sh/@cloudflare/workers-types@4.20240117.0/index.d.ts" />
 
-import { CounterIncrementError, CounterResetError } from "../../lib/counter.ts";
+import {
+	CounterIncrementError,
+	CounterResetError,
+} from "../../lib/counter/errors.ts";
 import { createLogger } from "../../lib/logger.ts";
 import type { CounterProvider } from "../counter.ts";
 

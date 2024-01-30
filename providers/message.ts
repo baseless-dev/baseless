@@ -1,4 +1,4 @@
-import type { Message } from "../lib/message.ts";
+import type { Message } from "../lib/message/types.ts";
 
 export interface MessageProvider {
 	/**

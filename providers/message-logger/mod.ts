@@ -5,7 +5,7 @@ import {
 	LogLevelMethod,
 } from "../../lib/logger.ts";
 import type { MessageProvider } from "../message.ts";
-import type { Message } from "../../lib/message.ts";
+import type { Message } from "../../lib/message/types.ts";
 
 /**
  * A mail provider that log every message

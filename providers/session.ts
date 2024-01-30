@@ -1,5 +1,5 @@
 import type { AutoId } from "../lib/autoid.ts";
-import type { SessionData } from "../lib/session.ts";
+import type { SessionData } from "../lib/session/types.ts";
 
 export interface SessionProvider {
 	get(sessionId: AutoId): Promise<SessionData>;

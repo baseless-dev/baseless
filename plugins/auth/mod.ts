@@ -14,7 +14,7 @@ import {
 } from "../../lib/auth/types.ts";
 import { assertAutoId, isAutoId } from "../../lib/autoid.ts";
 import { createLogger } from "../../lib/logger.ts";
-import { SESSION_AUTOID_PREFIX } from "../../lib/session.ts";
+import { SESSION_AUTOID_PREFIX } from "../../lib/session/types.ts";
 import type { CounterProvider } from "../../providers/counter.ts";
 import type { IdentityProvider } from "../../providers/identity.ts";
 import type { KVProvider } from "../../providers/kv.ts";
@@ -117,17 +117,23 @@ export const auth = (
 				}
 			}
 
+			const remoteAddress = request.headers.get("X-Real-Ip") ?? "";
+
 			const context: Context = {
 				get remoteAddress() {
-					return request.headers.get("X-Real-Ip") ?? "";
+					return remoteAddress;
 				},
 				get authenticationToken() {
 					return authenticationToken;
 				},
 				get identity() {
 					return new IdentityService(
-						options,
-						context,
+						options.ceremony,
+						options.identity,
+						options.counter,
+						options.kv,
+						remoteAddress,
+						options.rateLimit,
 					);
 				},
 				get session() {

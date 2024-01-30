@@ -1,5 +1,5 @@
 import { CacheMap } from "../../lib/cachemap.ts";
-import { KVKeyNotFoundError } from "../../lib/kv.ts";
+import { KVKeyNotFoundError } from "../../lib/kv/errors.ts";
 import { createLogger } from "../../lib/logger.ts";
 import type {
 	KVGetOptions,

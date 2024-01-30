@@ -1,4 +1,4 @@
-import { type Static, t } from "../deps.ts";
+import { type Static, t } from "../../deps.ts";
 
 export const Message = t.Object({
 	recipient: t.String(),
@@ -8,7 +8,3 @@ export const Message = t.Object({
 }, { $id: "Message" });
 
 export type Message = Static<typeof Message>;
-
-export class MessageSendError extends Error {
-	name = "MessageSendError" as const;
-}

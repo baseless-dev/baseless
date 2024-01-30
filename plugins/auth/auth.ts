@@ -13,7 +13,7 @@ import type {
 	AuthenticationSignInResponse,
 	AuthenticationSignInState,
 } from "../../lib/auth/types.ts";
-import type { Identity } from "../../lib/identity.ts";
+import type { Identity } from "../../lib/identity/types.ts";
 import { createLogger } from "../../lib/logger.ts";
 import { AuthenticationComponent } from "../../providers/auth_component.ts";
 import type { CounterProvider } from "../../providers/counter.ts";

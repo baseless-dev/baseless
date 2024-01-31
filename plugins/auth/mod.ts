@@ -8,8 +8,11 @@ import {
 	type AuthenticationCeremonyComponent,
 	AuthenticationConfirmResultSchema,
 	AuthenticationSendResultSchema,
+	AuthenticationSignInResponseErrorSchema,
 	AuthenticationSignInResponseSchema,
+	AuthenticationSignInResponseStateSchema,
 	type AuthenticationSignInState,
+	AuthenticationSubmitSignInResponseSchema,
 	sequence,
 } from "../../lib/auth/types.ts";
 import { assertAutoId, isAutoId } from "../../lib/autoid.ts";
@@ -317,7 +320,11 @@ export const auth = (
 					const state = await decryptEncryptedAuthenticationCeremonyState(
 						body.state ?? "",
 						options.keys.publicKey,
-					);
+					).catch((_) => ({
+						kind: "signin" as const,
+						choices: [],
+						identity: undefined,
+					}));
 					if (state.kind !== "signin") {
 						return Response.json({ error: UnauthorizedError.name });
 					}
@@ -342,10 +349,12 @@ export const auth = (
 								options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
 							);
 						return Response.json({
-							done: true,
-							access_token,
-							id_token,
-							refresh_token,
+							data: {
+								done: true,
+								access_token,
+								id_token,
+								refresh_token,
+							},
 						});
 					} else {
 						const { state, ...rest } = result as (typeof result & {
@@ -356,7 +365,7 @@ export const auth = (
 								...rest,
 								...(state
 									? {
-										encryptedState: await encryptAuthenticationCeremonyState(
+										state: await encryptAuthenticationCeremonyState(
 											state,
 											options.keys.algo,
 											options.keys.privateKey,
@@ -378,14 +387,14 @@ export const auth = (
 				body: t.Object({
 					component: t.String({ description: "The authentication component" }),
 					prompt: t.Any(),
-					state: t.String({ description: "Encrypted state" }),
+					state: t.Optional(t.String({ description: "Encrypted state" })),
 				}),
 				response: {
 					200: {
 						description: "Authentication ceremony",
 						content: {
 							"application/json": {
-								schema: dataOrError(AuthenticationSignInResponseSchema),
+								schema: dataOrError(AuthenticationSubmitSignInResponseSchema),
 							},
 						},
 					},
@@ -399,7 +408,11 @@ export const auth = (
 					const state = await decryptEncryptedAuthenticationCeremonyState(
 						body.state ?? "",
 						options.keys.publicKey,
-					);
+					).catch((_) => ({
+						kind: "signin" as const,
+						choices: [],
+						identity: undefined,
+					}));
 					if (state.kind !== "signin") {
 						return Response.json({ error: UnauthorizedError.name });
 					}
@@ -428,8 +441,8 @@ export const auth = (
 				},
 				body: t.Object({
 					component: t.String({ description: "The authentication component" }),
-					state: t.String({ description: "Encrypted state" }),
-					locale: t.String(),
+					state: t.Optional(t.String({ description: "Encrypted state" })),
+					locale: t.Optional(t.String()),
 				}),
 				response: {
 					200: {
@@ -450,7 +463,11 @@ export const auth = (
 					const state = await decryptEncryptedAuthenticationCeremonyState(
 						body.state ?? "",
 						options.keys.publicKey,
-					);
+					).catch((_) => ({
+						kind: "signin" as const,
+						choices: [],
+						identity: undefined,
+					}));
 					if (state.kind !== "signin") {
 						return Response.json({ error: UnauthorizedError.name });
 					}
@@ -479,8 +496,8 @@ export const auth = (
 				},
 				body: t.Object({
 					component: t.String({ description: "The authentication component" }),
-					state: t.String({ description: "Encrypted state" }),
-					locale: t.String(),
+					state: t.Optional(t.String({ description: "Encrypted state" })),
+					locale: t.Optional(t.String()),
 				}),
 				response: {
 					200: {

@@ -96,7 +96,7 @@ export default function makeDynamicRouter(
 				const requestContext = { ...context };
 				for (const derive of derivers) {
 					Object.assign(
-						context,
+						requestContext,
 						derive instanceof Function
 							? await derive({ request, ...requestContext })
 							: derive,
@@ -141,7 +141,7 @@ function routeSegmentsToRegExp(
 		} else if (segment.kind === "rest") {
 			index += 1;
 			// deno-fmt-ignore-line
-			return `/(?<${segment.name}>.+)${childrenToRegExp(segment.children)}`;
+			return `/(?<${segment.name}>.+)?${childrenToRegExp(segment.children)}`;
 		} else {
 			index += 1;
 			groups.set(index, segment.operations);

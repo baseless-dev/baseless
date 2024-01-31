@@ -16,7 +16,7 @@
 		"ignoreDeprecations": "5.0"
 	},
 	"tasks": {
-		"start:hello-world": "DENO_DIR=.deno deno run --watch --unstable --allow-read --allow-write --allow-env --allow-net --allow-sys ./examples/hello-world/server.ts",
+		"start:hello-world": "DENO_DIR=.deno deno run --watch --unstable-kv --allow-read --allow-write --allow-env --allow-net --allow-sys ./examples/hello-world/server.ts",
 		"bundle:hello-world": "DENO_DIR=.deno deno run -A ./cli/bundle.ts --entry ./examples/hello-world/server.ts --dist ./examples/hello-world/dist --show-deps 4",
 		"build": "DENO_DIR=.deno deno run -A ./build.ts",
 		"fmt": "DENO_DIR=.deno deno fmt",

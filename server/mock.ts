@@ -99,6 +99,7 @@ export async function mock(
 	const { auth } = await builder?.(result) ?? {};
 	router = router
 		.use(
+			"/api",
 			authPlugin({
 				counter,
 				identity,

@@ -26,25 +26,30 @@ export type Plugin<TContext extends {} = {}> = MaybeCallable<
 	[ReadonlyArray<Route>]
 >;
 
+export type PluginWithPrefix<TContext extends {} = {}> = {
+	plugin: Plugin<TContext>;
+	prefix: string;
+};
+
 export class Router<
 	TContext extends {} = {},
 > {
 	#decorators: Array<ContextDecorator<any>> = [];
 	#derivers: Array<ContextDeriver<any>> = [];
-	#plugins: Array<Plugin<any>> = [];
+	#plugins: Array<PluginWithPrefix<any>> = [];
 	#routes: Routes = [];
 
 	constructor();
 	constructor(
 		decorators: Array<ContextDecorator<any>>,
 		derivers: Array<ContextDeriver<any>>,
-		plugins: Array<Plugin<any>>,
+		plugins: Array<PluginWithPrefix<any>>,
 		routes: Routes,
 	);
 	constructor(
 		decorators?: Array<ContextDecorator<any>>,
 		derivers?: Array<ContextDeriver<any>>,
-		plugins?: Array<Plugin<any>>,
+		plugins?: Array<PluginWithPrefix<any>>,
 		routes?: Routes,
 	) {
 		this.#decorators = [...decorators ?? []];
@@ -78,11 +83,29 @@ export class Router<
 	use<
 		const TNewContext extends {},
 		const TPlugin extends Plugin<TNewContext>,
-	>(plugin: TPlugin): Router<TContext & TNewContext> {
+	>(plugin: TPlugin): Router<TContext & TNewContext>;
+	use<
+		const TNewContext extends {},
+		const TPlugin extends Plugin<TNewContext>,
+	>(prefix: string, plugin: TPlugin): Router<TContext & TNewContext>;
+	use<
+		const TNewContext extends {},
+		const TPlugin extends Plugin<TNewContext>,
+	>(
+		prefix: string | TPlugin,
+		plugin?: TPlugin,
+	): Router<TContext & TNewContext> {
+		if (typeof prefix !== "string") {
+			plugin = prefix;
+			prefix = "";
+		}
 		return new Router(
 			this.#decorators,
 			this.#derivers,
-			[...this.#plugins, plugin],
+			[...this.#plugins, {
+				plugin: plugin!,
+				prefix,
+			}],
 			this.#routes,
 		);
 	}
@@ -333,12 +356,15 @@ export class Router<
 		const derivers = [...this.#derivers];
 		const routes = [...this.#routes];
 		for (const plugin of this.#plugins) {
-			const result = plugin instanceof Function
-				? await plugin(routes)
-				: plugin as Router<any>;
+			const result = plugin.plugin instanceof Function
+				? await plugin.plugin(routes)
+				: plugin.plugin as Router<any>;
 			decorators.push(...result.#decorators);
 			derivers.push(...result.#derivers);
-			routes.push(...result.#routes);
+			routes.push(...result.#routes.map((route) => ({
+				...route,
+				path: `${plugin.prefix}${route.path}`,
+			})));
 		}
 		const context = {};
 		for (const decorator of decorators) {

@@ -14,6 +14,7 @@ import { AuthenticationComponent } from "../../providers/auth_component.ts";
 import type { CounterProvider } from "../../providers/counter.ts";
 import type { IdentityProvider } from "../../providers/identity.ts";
 import type { KVProvider } from "../../providers/kv.ts";
+import type { Message } from "../../lib/message/types.ts";
 
 export class IdentityService {
 	#logger = createLogger("identity-service");

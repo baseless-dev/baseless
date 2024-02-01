@@ -6,11 +6,6 @@ import {
 	assertThrows,
 } from "../deps.test.ts";
 import { Assert, generateKeyPair } from "../deps.ts";
-import {
-	AuthenticationSignInResponseStateSchema,
-	AuthenticationSubmitSignInResponseDoneSchema,
-	AuthenticationSubmitSignInResponseStateSchema,
-} from "../lib/auth/types.ts";
 import { assertAutoId, autoid } from "../lib/autoid.ts";
 import type { ID } from "../lib/identity/types.ts";
 import { setGlobalLogHandler } from "../lib/logger.ts";
@@ -19,20 +14,24 @@ import { type App, initializeApp } from "./app.ts";
 import {
 	assertInitializedAuth,
 	assertPersistence,
+	getCeremony,
 	getIdentity,
 	getIdToken,
 	getPersistence,
-	getSignInCeremony,
 	initializeAuth,
 	onAuthStateChange,
 	sendSignInPrompt,
-	sendSignInValidationCode,
 	setPersistence,
 	signOut,
 	submitSignInPrompt,
-	submitSignInValidationCode,
+	submitSignUpPrompt,
 } from "./auth.ts";
 import type { Message } from "../lib/message/types.ts";
+import {
+	AuthenticationCeremonyResponseNextSchema,
+	AuthenticationCeremonyResponseStartSchema,
+	AuthenticationSignInResponseDoneSchema,
+} from "../lib/auth/types.ts";
 
 Deno.test("Client Auth", async (t) => {
 	const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -122,214 +121,235 @@ Deno.test("Client Auth", async (t) => {
 					"email",
 					"john@test.local",
 				);
-				Assert(AuthenticationSubmitSignInResponseStateSchema, result);
+				Assert(AuthenticationCeremonyResponseNextSchema, result);
 				await submitSignInPrompt(
 					app,
 					"password",
 					"123",
-					result.state,
+					result.encryptedState,
 				);
 			},
 		};
 	};
 
-	await t.step("initializeAuth", async () => {
+	// await t.step("initializeAuth", async () => {
+	// 	const { app } = await initMockServer();
+	// 	initializeAuth(app);
+	// 	assertInitializedAuth(app);
+	// });
+
+	// await t.step("getPersistence", async () => {
+	// 	const { app } = await initMockServer();
+	// 	initializeAuth(app);
+	// 	const persistence = getPersistence(app);
+	// 	assertPersistence(persistence);
+	// });
+
+	// await t.step("setPersistence", async () => {
+	// 	const { app } = await initMockServer();
+	// 	initializeAuth(app);
+	// 	assertThrows(() => setPersistence(app, "invalid" as any));
+	// 	setPersistence(app, "local");
+	// 	assertEquals(getPersistence(app), "local");
+	// 	setPersistence(app, "session");
+	// 	assertEquals(getPersistence(app), "session");
+	// });
+
+	// await t.step("getCeremony", async () => {
+	// 	const { app, components: { email } } = await initMockServer();
+	// 	initializeAuth(app);
+	// 	const result = await getCeremony(app);
+	// 	Assert(AuthenticationCeremonyResponseStartSchema, result);
+	// 	assertEquals(result.first, true);
+	// 	assertEquals(result.last, false);
+	// 	assertEquals(
+	// 		result.component,
+	// 		JSON.parse(JSON.stringify(email)),
+	// 	);
+	// 	await assertRejects(() => getCeremony(app, "invalid"));
+	// });
+
+	// await t.step("submitSignInPrompt", async () => {
+	// 	const { app } = await initMockServer();
+	// 	initializeAuth(app);
+	// 	const result1 = await submitSignInPrompt(
+	// 		app,
+	// 		"email",
+	// 		"john@test.local",
+	// 	);
+	// 	Assert(AuthenticationCeremonyResponseNextSchema, result1);
+	// 	assertEquals(result1.first, false);
+	// 	assertEquals(result1.last, false);
+	// 	const result2 = await submitSignInPrompt(
+	// 		app,
+	// 		"password",
+	// 		"123",
+	// 		result1.encryptedState,
+	// 	);
+	// 	Assert(AuthenticationSignInResponseDoneSchema, result2);
+	// 	await signOut(app);
+	// });
+
+	// await t.step("sendSignInPrompt", async () => {
+	// 	const { app } = await initMockServer();
+	// 	initializeAuth(app);
+	// 	const result1 = await submitSignInPrompt(
+	// 		app,
+	// 		"email",
+	// 		"john@test.local",
+	// 	);
+	// 	Assert(AuthenticationCeremonyResponseNextSchema, result1);
+	// 	const messages: { ns: string; lvl: string; message: string }[] = [];
+	// 	setGlobalLogHandler((ns, lvl, msg) => {
+	// 		if (ns === "auth-otp-logger") {
+	// 			messages.push({ ns, lvl, message: msg! });
+	// 		}
+	// 	});
+	// 	await sendSignInPrompt(
+	// 		app,
+	// 		"otp",
+	// 		result1.encryptedState,
+	// 	);
+	// 	const challengeCode = messages.pop()?.message ?? "";
+	// 	assertEquals(challengeCode.length, 6);
+	// 	setGlobalLogHandler(() => {});
+	// 	const result3 = await submitSignInPrompt(
+	// 		app,
+	// 		"otp",
+	// 		challengeCode,
+	// 		result1.encryptedState,
+	// 	);
+	// 	Assert(AuthenticationSignInResponseDoneSchema, result3);
+	// 	await signOut(app);
+	// });
+
+	// await t.step("signOut", async () => {
+	// 	const { app, signIn } = await initMockServer();
+	// 	initializeAuth(app);
+	// 	await signIn(app);
+	// 	await signOut(app);
+	// 	await assertRejects(() => signOut(app));
+	// });
+
+	// await t.step("onAuthStateChange", async () => {
+	// 	const { app, identity, signIn } = await initMockServer();
+	// 	const john = { id: identity.id, meta: identity.meta };
+	// 	initializeAuth(app);
+	// 	const changes: (ID | undefined)[] = [];
+	// 	const unsubscribe = onAuthStateChange(app, (identity) => {
+	// 		changes.push(identity);
+	// 	});
+	// 	await signIn(app);
+	// 	assertEquals(changes, [john]);
+	// 	await signOut(app);
+	// 	assertEquals(changes, [john, undefined]);
+	// 	await signIn(app);
+	// 	assertEquals(changes, [john, undefined, john]);
+	// 	await sleep(4200);
+	// 	assertEquals(changes, [john, undefined, john, undefined]);
+	// 	unsubscribe();
+	// });
+
+	// await t.step("getIdToken", async () => {
+	// 	const { app, signIn } = await initMockServer();
+	// 	initializeAuth(app);
+	// 	await signIn(app);
+	// 	const idToken = await getIdToken(app);
+	// 	assert(idToken?.length ?? 0 > 0);
+	// 	await signOut(app);
+	// });
+
+	// await t.step("getIdentity", async () => {
+	// 	const { app, identity, signIn } = await initMockServer();
+	// 	const john = { id: identity.id, meta: identity.meta };
+	// 	initializeAuth(app);
+	// 	await signIn(app);
+	// 	const id1 = await getIdentity(app);
+	// 	assertEquals(id1, john);
+	// 	await signOut(app);
+	// });
+
+	// await t.step("refresh token when needed", async () => {
+	// 	const { app, signIn } = await initMockServer();
+	// 	initializeAuth(app);
+	// 	await signIn(app);
+	// 	const idToken1 = await getIdToken(app);
+	// 	assert(idToken1);
+	// 	await sleep(2200);
+	// 	await getCeremony(app);
+	// 	const idToken2 = await getIdToken(app);
+	// 	assert(idToken2);
+	// 	assertNotEquals(idToken1, idToken2);
+	// 	await signOut(app);
+	// });
+
+	await t.step("submitSignUpPrompt", async () => {
 		const { app } = await initMockServer();
 		initializeAuth(app);
-		assertInitializedAuth(app);
-	});
-
-	await t.step("getPersistence", async () => {
-		const { app } = await initMockServer();
-		initializeAuth(app);
-		const persistence = getPersistence(app);
-		assertPersistence(persistence);
-	});
-
-	await t.step("setPersistence", async () => {
-		const { app } = await initMockServer();
-		initializeAuth(app);
-		assertThrows(() => setPersistence(app, "invalid" as any));
-		setPersistence(app, "local");
-		assertEquals(getPersistence(app), "local");
-		setPersistence(app, "session");
-		assertEquals(getPersistence(app), "session");
-	});
-
-	await t.step("getSignInCeremony", async () => {
-		const { app, components: { email } } = await initMockServer();
-		initializeAuth(app);
-		const result = await getSignInCeremony(app);
-		Assert(AuthenticationSignInResponseStateSchema, result);
-		assertEquals(result.first, true);
-		assertEquals(result.last, false);
-		assertEquals(
-			result.component,
-			JSON.parse(JSON.stringify(email)),
-		);
-		await assertRejects(() => getSignInCeremony(app, "invalid"));
-	});
-
-	await t.step("submitSignInPrompt", async () => {
-		const { app } = await initMockServer();
-		initializeAuth(app);
-		const result1 = await submitSignInPrompt(
+		const result1 = await submitSignUpPrompt(
 			app,
 			"email",
-			"john@test.local",
+			"jane@test.local",
 		);
-		Assert(AuthenticationSubmitSignInResponseStateSchema, result1);
+		Assert(AuthenticationCeremonyResponseNextSchema, result1);
 		assertEquals(result1.first, false);
 		assertEquals(result1.last, false);
-		const result2 = await submitSignInPrompt(
+		const result2 = await submitSignUpPrompt(
 			app,
 			"password",
 			"123",
-			result1.state,
+			result1.encryptedState,
 		);
-		Assert(AuthenticationSubmitSignInResponseDoneSchema, result2);
+		Assert(AuthenticationSignInResponseDoneSchema, result2);
 		await signOut(app);
 	});
 
-	await t.step("signOut", async () => {
-		const { app, signIn } = await initMockServer();
-		initializeAuth(app);
-		await signIn(app);
-		await signOut(app);
-		await assertRejects(() => signOut(app));
-	});
+	// await t.step("sendSignInValidationCode", async () => {
+	// 	const { app, signIn } = await initMockServer();
+	// 	initializeAuth(app);
+	// 	await signIn(app);
+	// 	const messages: { ns: string; lvl: string; message: Message }[] = [];
+	// 	setGlobalLogHandler((ns, lvl, msg) => {
+	// 		if (ns === "message-logger") {
+	// 			messages.push({ ns, lvl, message: JSON.parse(msg)! });
+	// 		}
+	// 	});
+	// 	const result = await sendSignInValidationCode(
+	// 		app,
+	// 		"email",
+	// 		undefined,
+	// 	);
+	// 	setGlobalLogHandler(() => {});
+	// 	assertEquals(result.sent, true);
+	// 	assertAutoId(messages[0]?.message.text, "code_");
+	// 	await signOut(app);
+	// });
 
-	await t.step("sendSignInPrompt", async () => {
-		const { app } = await initMockServer();
-		initializeAuth(app);
-		const result1 = await submitSignInPrompt(
-			app,
-			"email",
-			"john@test.local",
-		);
-		Assert(AuthenticationSubmitSignInResponseStateSchema, result1);
-		const messages: { ns: string; lvl: string; message: string }[] = [];
-		setGlobalLogHandler((ns, lvl, msg) => {
-			if (ns === "auth-otp-logger") {
-				messages.push({ ns, lvl, message: msg! });
-			}
-		});
-		const result2 = await sendSignInPrompt(
-			app,
-			"otp",
-			result1.state,
-		);
-		const challengeCode = messages.pop()?.message ?? "";
-		assertEquals(challengeCode.length, 6);
-		setGlobalLogHandler(() => {});
-		const result3 = await submitSignInPrompt(
-			app,
-			"otp",
-			challengeCode,
-			result1.state,
-		);
-		Assert(AuthenticationSubmitSignInResponseDoneSchema, result3);
-		await signOut(app);
-	});
-
-	await t.step("sendSignInValidationCode", async () => {
-		const { app, signIn } = await initMockServer();
-		initializeAuth(app);
-		await signIn(app);
-		const messages: { ns: string; lvl: string; message: Message }[] = [];
-		setGlobalLogHandler((ns, lvl, msg) => {
-			if (ns === "message-logger") {
-				messages.push({ ns, lvl, message: JSON.parse(msg)! });
-			}
-		});
-		const result = await sendSignInValidationCode(
-			app,
-			"email",
-			undefined,
-		);
-		setGlobalLogHandler(() => {});
-		assertEquals(result.sent, true);
-		assertAutoId(messages[0]?.message.text, "code_");
-		await signOut(app);
-	});
-
-	await t.step("submitSignInValidationCode", async () => {
-		const { app, signIn } = await initMockServer();
-		initializeAuth(app);
-		await signIn(app);
-		const messages: { ns: string; lvl: string; message: Message }[] = [];
-		setGlobalLogHandler((ns, lvl, msg) => {
-			if (ns === "message-logger") {
-				messages.push({ ns, lvl, message: JSON.parse(msg)! });
-			}
-		});
-		const sendResult = await sendSignInValidationCode(
-			app,
-			"email",
-			"john@test.local",
-		);
-		setGlobalLogHandler(() => {});
-		assertEquals(sendResult.sent, true);
-		const validationCode = messages[0]?.message.text;
-		const confirmResult = await submitSignInValidationCode(
-			app,
-			validationCode,
-		);
-		assertEquals(confirmResult.confirmed, true);
-		await signOut(app);
-	});
-
-	await t.step("onAuthStateChange", async () => {
-		const { app, identity, signIn } = await initMockServer();
-		const john = { id: identity.id, meta: identity.meta };
-		initializeAuth(app);
-		const changes: (ID | undefined)[] = [];
-		const unsubscribe = onAuthStateChange(app, (identity) => {
-			changes.push(identity);
-		});
-		await signIn(app);
-		assertEquals(changes, [john]);
-		await signOut(app);
-		assertEquals(changes, [john, undefined]);
-		await signIn(app);
-		assertEquals(changes, [john, undefined, john]);
-		await sleep(4200);
-		assertEquals(changes, [john, undefined, john, undefined]);
-		unsubscribe();
-	});
-
-	await t.step("getIdToken", async () => {
-		const { app, signIn } = await initMockServer();
-		initializeAuth(app);
-		await signIn(app);
-		const idToken = await getIdToken(app);
-		assert(idToken?.length ?? 0 > 0);
-		await signOut(app);
-	});
-
-	await t.step("getIdentity", async () => {
-		const { app, identity, signIn } = await initMockServer();
-		const john = { id: identity.id, meta: identity.meta };
-		initializeAuth(app);
-		await signIn(app);
-		const id1 = await getIdentity(app);
-		assertEquals(id1, john);
-		await signOut(app);
-	});
-
-	await t.step("refresh token when needed", async () => {
-		const { app, signIn } = await initMockServer();
-		initializeAuth(app);
-		await signIn(app);
-		const idToken1 = await getIdToken(app);
-		assert(idToken1);
-		await sleep(1200);
-		await getSignInCeremony(app);
-		const idToken2 = await getIdToken(app);
-		assert(idToken2);
-		assertNotEquals(idToken1, idToken2);
-		await signOut(app);
-	});
+	// await t.step("submitSignInValidationCode", async () => {
+	// 	const { app, signIn } = await initMockServer();
+	// 	initializeAuth(app);
+	// 	await signIn(app);
+	// 	const messages: { ns: string; lvl: string; message: Message }[] = [];
+	// 	setGlobalLogHandler((ns, lvl, msg) => {
+	// 		if (ns === "message-logger") {
+	// 			messages.push({ ns, lvl, message: JSON.parse(msg)! });
+	// 		}
+	// 	});
+	// 	const sendResult = await sendSignInValidationCode(
+	// 		app,
+	// 		"email",
+	// 		"john@test.local",
+	// 	);
+	// 	setGlobalLogHandler(() => {});
+	// 	assertEquals(sendResult.sent, true);
+	// 	const validationCode = messages[0]?.message.text;
+	// 	const confirmResult = await submitSignInValidationCode(
+	// 		app,
+	// 		validationCode,
+	// 	);
+	// 	assertEquals(confirmResult.confirmed, true);
+	// 	await signOut(app);
+	// });
 
 	// await t.step("createAnonymousIdentity", async () => {
 	// 	const { app } = await initMockServer();

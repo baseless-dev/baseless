@@ -1,13 +1,11 @@
 import {
-	AuthenticationConfirmResult,
-	AuthenticationConfirmResultSchema,
+	AuthenticationCeremonyResponse,
+	AuthenticationCeremonyResponseSchema,
 	AuthenticationSendResult,
 	AuthenticationSendResultSchema,
 	AuthenticationSignInResponse,
+	AuthenticationSignInResponseDoneSchema,
 	AuthenticationSignInResponseSchema,
-	AuthenticationSubmitSignInResponse,
-	AuthenticationSubmitSignInResponseDoneSchema,
-	AuthenticationSubmitSignInResponseSchema,
 	type AuthenticationTokens,
 	AuthenticationTokensSchema,
 } from "../lib/auth/types.ts";
@@ -131,7 +129,9 @@ class AuthApp {
 			this.#accessTokenExpiration = parseInt(accessTokenExp, 10);
 			this.#onAuthStateChange.emit(identity);
 			this.#expireTimeout = setTimeout(
-				() => this.tokens = undefined,
+				() => {
+					this.tokens = undefined;
+				},
 				expiration * 1000 - Date.now(),
 			);
 			this.#storage.setItem(
@@ -257,10 +257,10 @@ export function onAuthStateChange(
 	return getAuth(app).onAuthStateChange.listen(listener);
 }
 
-export async function getSignInCeremony(
+export async function getCeremony(
 	app: App,
 	state?: string,
-): Promise<AuthenticationSignInResponse> {
+): Promise<AuthenticationCeremonyResponse> {
 	assertInitializedAuth(app);
 	const auth = getAuth(app);
 	let method = "GET";
@@ -272,7 +272,7 @@ export async function getSignInCeremony(
 		body = JSON.stringify({ state });
 	}
 	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/sign-in/ceremony`,
+		`${app.apiEndpoint}/ceremony`,
 		{
 			body,
 			method,
@@ -280,7 +280,7 @@ export async function getSignInCeremony(
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
-	Assert(AuthenticationSignInResponseSchema, result.data);
+	Assert(AuthenticationCeremonyResponseSchema, result.data);
 	return result.data;
 }
 
@@ -289,7 +289,7 @@ export async function submitSignInPrompt(
 	component: string,
 	prompt: unknown,
 	state?: string,
-): Promise<AuthenticationSubmitSignInResponse> {
+): Promise<AuthenticationSignInResponse> {
 	assertInitializedAuth(app);
 	const auth = getAuth(app);
 	const body = JSON.stringify({
@@ -303,8 +303,8 @@ export async function submitSignInPrompt(
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
-	Assert(AuthenticationSubmitSignInResponseSchema, result.data);
-	if (Value.Check(AuthenticationSubmitSignInResponseDoneSchema, result.data)) {
+	Assert(AuthenticationSignInResponseSchema, result.data);
+	if (Value.Check(AuthenticationSignInResponseDoneSchema, result.data)) {
 		const { access_token, id_token, refresh_token } = result.data;
 		getAuth(app).tokens = { access_token, id_token, refresh_token };
 	}
@@ -329,39 +329,66 @@ export async function sendSignInPrompt(
 	return result.data;
 }
 
-export async function sendSignInValidationCode(
+export async function submitSignUpPrompt(
 	app: App,
 	component: string,
+	prompt: unknown,
 	state?: string,
-): Promise<AuthenticationSendResult> {
+): Promise<any> {
 	assertInitializedAuth(app);
 	const auth = getAuth(app);
-	const body = JSON.stringify({ component, state });
+	const body = JSON.stringify({
+		component,
+		prompt,
+		...(state ? { state } : undefined),
+	});
 	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/sign-in/send-validation-code`,
+		`${app.apiEndpoint}/sign-up/submit-prompt`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
 	throwIfApiError(result);
-	Assert(AuthenticationSendResultSchema, result.data);
+	Assert(AuthenticationSignInResponseSchema, result.data);
+	if (Value.Check(AuthenticationSignInResponseDoneSchema, result.data)) {
+		const { access_token, id_token, refresh_token } = result.data;
+		getAuth(app).tokens = { access_token, id_token, refresh_token };
+	}
 	return result.data;
 }
 
-export async function submitSignInValidationCode(
-	app: App,
-	code: string,
-): Promise<AuthenticationConfirmResult> {
-	const auth = getAuth(app);
-	const body = JSON.stringify({ code });
-	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/sign-in/submit-validation-code`,
-		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
-	);
-	const result = await resp.json();
-	throwIfApiError(result);
-	Assert(AuthenticationConfirmResultSchema, result.data);
-	return result.data;
-}
+// export async function sendSignInValidationCode(
+// 	app: App,
+// 	component: string,
+// 	state?: string,
+// ): Promise<AuthenticationSendResult> {
+// 	assertInitializedAuth(app);
+// 	const auth = getAuth(app);
+// 	const body = JSON.stringify({ component, state });
+// 	const resp = await auth.fetchWithTokens(
+// 		`${app.apiEndpoint}/sign-in/send-validation-code`,
+// 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+// 	);
+// 	const result = await resp.json();
+// 	throwIfApiError(result);
+// 	Assert(AuthenticationSendResultSchema, result.data);
+// 	return result.data;
+// }
+
+// export async function submitSignInValidationCode(
+// 	app: App,
+// 	code: string,
+// ): Promise<AuthenticationConfirmResult> {
+// 	const auth = getAuth(app);
+// 	const body = JSON.stringify({ code });
+// 	const resp = await auth.fetchWithTokens(
+// 		`${app.apiEndpoint}/sign-in/submit-validation-code`,
+// 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+// 	);
+// 	const result = await resp.json();
+// 	throwIfApiError(result);
+// 	Assert(AuthenticationConfirmResultSchema, result.data);
+// 	return result.data;
+// }
 
 export async function signOut(app: App): Promise<void> {
 	const auth = getAuth(app);

@@ -112,66 +112,8 @@ export function oneOf(
 	return { kind: "choice", components };
 }
 
-export const AuthenticationCeremonyStateSignInSchema = t.Object({
-	kind: t.Literal("signin"),
-	identity: t.Optional(t.String()),
-	choices: t.Array(t.String()),
-}, { $id: "AuthenticationCeremonyStateSignIn" });
-
-export type AuthenticationCeremonyStateSignIn = Static<
-	typeof AuthenticationCeremonyStateSignInSchema
->;
-
-export const AuthenticationCeremonyStateSignUpSchema = t.Object({
-	kind: t.Literal("signup"),
-	components: t.Array(IdentityComponentSchema),
-}, { $id: "AuthenticationCeremonyStateSignUp" });
-
-export type AuthenticationCeremonyStateSignUp = Static<
-	typeof AuthenticationCeremonyStateSignUpSchema
->;
-
-export const AuthenticationCeremonyStateSchema = t.Union([
-	AuthenticationCeremonyStateSignInSchema,
-	AuthenticationCeremonyStateSignUpSchema,
-], { $id: "AuthenticationCeremonyState" });
-
-export type AuthenticationCeremonyState = Static<
-	typeof AuthenticationCeremonyStateSchema
->;
-
-export const AuthenticationCeremonyResponseDoneSchema = t.Object({
-	done: t.Literal(true),
-	identityId: t.Optional(t.String()),
-}, { $id: "AuthenticationCeremonyResponseDone" });
-
-export type AuthenticationCeremonyResponseDone = Static<
-	typeof AuthenticationCeremonyResponseDoneSchema
->;
-
-export const AuthenticationCeremonyResponseErrorSchema = t.Object({
-	done: t.Literal(false),
-	error: t.Literal(true),
-}, { $id: "AuthenticationCeremonyResponseError" });
-
-export type AuthenticationCeremonyResponseError = Static<
-	typeof AuthenticationCeremonyResponseErrorSchema
->;
-
-export const AuthenticationCeremonyResponseStartSchema = t.Object({
-	done: t.Literal(false),
-	component: AtPathAuthenticationCeremonyComponentSchema,
-	first: t.Literal(true),
-	last: t.Boolean(),
-}, { $id: "AuthenticationCeremonyResponseStart" });
-
-export type AuthenticationCeremonyResponseStart = Static<
-	typeof AuthenticationCeremonyResponseStartSchema
->;
-
 export const AuthenticationCeremonyResponseNextSchema = t.Object({
 	done: t.Literal(false),
-	encryptedState: t.String(),
 	component: AtPathAuthenticationCeremonyComponentSchema,
 	first: t.Boolean(),
 	last: t.Boolean(),
@@ -181,46 +123,65 @@ export type AuthenticationCeremonyResponseNext = Static<
 	typeof AuthenticationCeremonyResponseNextSchema
 >;
 
+export const AuthenticationCeremonyResponseDoneSchema = t.Object({
+	done: t.Literal(true),
+}, { $id: "AuthenticationCeremonyResponseDone" });
+
+export type AuthenticationCeremonyResponseDone = Static<
+	typeof AuthenticationCeremonyResponseDoneSchema
+>;
+
 export const AuthenticationCeremonyResponseSchema = t.Union([
-	AuthenticationCeremonyResponseDoneSchema,
-	AuthenticationCeremonyResponseErrorSchema,
-	AuthenticationCeremonyResponseStartSchema,
 	AuthenticationCeremonyResponseNextSchema,
+	AuthenticationCeremonyResponseDoneSchema,
 ], { $id: "AuthenticationCeremonyResponse" });
 
 export type AuthenticationCeremonyResponse = Static<
 	typeof AuthenticationCeremonyResponseSchema
 >;
 
-export const AuthenticationSignInResponseDoneSchema = t.Object({
-	done: t.Literal(true),
-	access_token: t.String(),
-	id_token: t.String(),
-	refresh_token: t.Optional(t.String()),
-}, { $id: "AuthenticationSignInResponseDone" });
+export const AuthenticationSignInStateSchema = t.Object({
+	kind: t.Literal("signin"),
+	identity: t.Optional(t.String()),
+	choices: t.Array(t.String()),
+}, { $id: "AuthenticationSignInState" });
 
-export const AuthenticationSignInResponseSchema = t.Union([
-	AuthenticationSignInResponseDoneSchema,
-	AuthenticationCeremonyResponseErrorSchema,
-	AuthenticationCeremonyResponseStartSchema,
-	AuthenticationCeremonyResponseNextSchema,
-], { $id: "AuthenticationSignInResponse" });
-
-export type AuthenticationSignInResponse = Static<
-	typeof AuthenticationSignInResponseSchema
+export type AuthenticationSignInState = Static<
+	typeof AuthenticationSignInStateSchema
 >;
 
-export const AuthenticationSignUpResponseDoneSchema = t.Object({
-	done: t.Literal(true),
+export const AuthenticationSignUpStateSchema = t.Object({
+	kind: t.Literal("signup"),
+	identity: t.Optional(t.String()),
 	components: t.Array(IdentityComponentSchema),
-}, { $id: "AuthenticationSignUpResponseDone" });
+}, { $id: "AuthenticationSignUpState" });
 
-export const AuthenticationSignUpResponseSchema = t.Union([
-	AuthenticationSignUpResponseDoneSchema,
-	AuthenticationCeremonyResponseErrorSchema,
-	AuthenticationCeremonyResponseStartSchema,
-	AuthenticationCeremonyResponseNextSchema,
-], { $id: "AuthenticationSignInResponse" });
+export type AuthenticationSignUpState = Static<
+	typeof AuthenticationSignUpStateSchema
+>;
+
+export const AuthenticationStateSchema = t.Union([
+	AuthenticationSignInStateSchema,
+	AuthenticationSignUpStateSchema,
+], { $id: "AuthenticationState" });
+
+export type AuthenticationState = Static<
+	typeof AuthenticationStateSchema
+>;
+
+// export const AuthenticationSignInResponseSchema = t.Object({
+// 	state: t.String(),
+// 	response: AuthenticationCeremonyResponseSchema,
+// }, { $id: "AuthenticationSignInResponse" });
+
+// export type AuthenticationSignInResponse = Static<
+// 	typeof AuthenticationSignInResponseSchema
+// >;
+
+export const AuthenticationSignUpResponseSchema = t.Object({
+	state: t.String(),
+	response: AuthenticationCeremonyResponseSchema,
+}, { $id: "AuthenticationSignUpResponse" });
 
 export type AuthenticationSignUpResponse = Static<
 	typeof AuthenticationSignUpResponseSchema

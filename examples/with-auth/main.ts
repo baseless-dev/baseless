@@ -124,7 +124,7 @@ if (
 			password: {
 				id: "password",
 				confirmed: true,
-				...await passwordComponent.getIdentityComponentMeta(
+				...await passwordComponent.initializeIdentityComponent(
 					{ value: "123" },
 				),
 			},
@@ -136,7 +136,7 @@ if (
 			totp: {
 				id: "totp",
 				confirmed: true,
-				...await totpComponent.getIdentityComponentMeta(
+				...await totpComponent.initializeIdentityComponent(
 					{ value: generateKey() },
 				),
 			},

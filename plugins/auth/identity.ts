@@ -201,7 +201,7 @@ export class IdentityService {
 		if (!authComponent) {
 			throw new AuthenticationSendValidationCodeError();
 		}
-		if (authComponent.sendMessage) {
+		if (authComponent.sendValidationCode) {
 			if (authComponent.rateLimit.interval) {
 				const { interval, count } = authComponent.rateLimit;
 				const slidingWindow = Math.round(Date.now() / interval * 1000);
@@ -236,7 +236,7 @@ export class IdentityService {
 				{ expiration: 1000 * 60 * 5 },
 			);
 			// TODO actual message from locale
-			await authComponent.sendMessage({
+			await authComponent.sendValidationCode({
 				identity,
 				identityComponent,
 				message: { text: code },

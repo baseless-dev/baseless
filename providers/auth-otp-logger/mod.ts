@@ -1,9 +1,12 @@
+import type { AuthenticationCeremonyComponentPrompt } from "../../lib/auth/types.ts";
 import type { Identity } from "../../lib/identity/types.ts";
 import { createLogger, LogLevel, LogLevelMethod } from "../../lib/logger.ts";
 import { assertOTPOptions, otp, type OTPOptions } from "../../lib/otp.ts";
 import {
 	AuthenticationComponent,
 	AuthenticationComponentSendPromptOptions,
+	AuthenticationComponentSendValidationOptions,
+	AuthenticationComponentValidateCodeOptions,
 	AuthenticationComponentVerifyPromptOptions,
 } from "../auth_component.ts";
 import type { KVProvider } from "../kv.ts";
@@ -21,7 +24,7 @@ export default class OTPLoggerAuthentificationComponent
 		id: string,
 		kvProvider: KVProvider,
 		options: OTPOptions,
-		ttl = 60 * 1000,
+		ttl = 60 * 1000 * 5,
 		logLevel = LogLevel.INFO,
 	) {
 		super(id);
@@ -52,8 +55,30 @@ export default class OTPLoggerAuthentificationComponent
 			return false;
 		}
 		const code = await this.#kvProvider.get(
-			["otp-logger", identity.identity.id],
+			["otp-logger", identity.id],
 		);
 		return code.value === `${value}`;
+	}
+	sendValidationCode(
+		{}: AuthenticationComponentSendValidationOptions,
+	): Promise<void> {
+		debugger;
+		throw "TODO!";
+	}
+	validateCode(
+		options: AuthenticationComponentValidateCodeOptions,
+	): Promise<boolean> {
+		debugger;
+		throw "TODO!";
+	}
+	validationCodePrompt(): AuthenticationCeremonyComponentPrompt {
+		return {
+			id: "validation",
+			kind: "prompt",
+			prompt: "otp",
+			options: {
+				...this.options,
+			},
+		};
 	}
 }

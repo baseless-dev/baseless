@@ -60,7 +60,7 @@ Deno.test("Client Auth", async (t) => {
 					password: {
 						id: "password",
 						confirmed: true,
-						...await r.components.password.getIdentityComponentMeta(
+						...await r.components.password.initializeIdentityComponent(
 							{ value: "123" },
 						),
 					},

@@ -20,9 +20,9 @@ export default class TOTPAuthentificationComponent
 			timeout: options.period ?? 60,
 		};
 	}
-	async getIdentityComponentMeta(
+	async initializeIdentityComponent(
 		{ value }: AuthenticationComponentGetIdentityComponentMetaOptions,
-	): Promise<Pick<IdentityComponent, "identification" | "meta">> {
+	): Promise<Omit<IdentityComponent, "id">> {
 		try {
 			const _ = await totp({
 				digits: this.options.digits,
@@ -33,7 +33,7 @@ export default class TOTPAuthentificationComponent
 		} catch (_error) {
 			throw new Error("Invalid TOTP key");
 		}
-		return { meta: { key: `${value}` } };
+		return { meta: { key: `${value}` }, confirmed: true };
 	}
 	async verifyPrompt(
 		{ value, identity }: AuthenticationComponentVerifyPromptOptions,

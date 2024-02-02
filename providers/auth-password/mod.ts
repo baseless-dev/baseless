@@ -23,11 +23,11 @@ export default class PasswordAuthentificationComponent
 			),
 		);
 	}
-	async getIdentityComponentMeta(
+	async initializeIdentityComponent(
 		{ value }: AuthenticationComponentGetIdentityComponentMetaOptions,
-	): Promise<Pick<IdentityComponent, "identification" | "meta">> {
+	): Promise<Omit<IdentityComponent, "id">> {
 		const hash = await this.#hashPassword(`${value}`);
-		return { meta: { hash } };
+		return { meta: { hash }, confirmed: true };
 	}
 	async verifyPrompt(
 		{ value, identity }: AuthenticationComponentVerifyPromptOptions,

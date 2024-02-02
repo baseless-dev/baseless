@@ -10,15 +10,7 @@ export function Assert<T extends TSchema>(
 	value: unknown,
 ): asserts value is Static<T> {
 	if (!Value.Check(schema, value)) {
-		const errors = [...Value.Errors(schema, value)];
-		throw new AssertionError(
-			errors.map((err) => `${err.message} ${err.path}`).join(". ").trim(),
-		);
-	}
-}
-export class AssertionError extends TypeBoxError {
-	constructor(message: string) {
-		super(message);
+		throw new TypeBoxError(`Value did not match schema`);
 	}
 }
 

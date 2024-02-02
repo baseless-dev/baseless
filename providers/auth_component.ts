@@ -1,6 +1,5 @@
 import type { AuthenticationCeremonyComponentPrompt } from "../lib/auth/types.ts";
 import type { Identity, IdentityComponent } from "../lib/identity/types.ts";
-import type { Message } from "../lib/message/types.ts";
 
 // deno-lint-ignore no-empty-interface
 interface IAuthenticationComponent
@@ -19,21 +18,32 @@ export type AuthenticationComponentGetIdentityComponentMetaOptions = {
 export type AuthenticationComponentVerifyPromptOptions = {
 	value: unknown;
 	identity?: {
-		identity: Identity;
+		id: Identity["id"];
 		component: IdentityComponent;
 	};
 };
 
 export type AuthenticationComponentSendPromptOptions = {
 	locale: string;
-	identity: Identity;
-	identityComponent: IdentityComponent;
+	identity: {
+		id: Identity["id"];
+		component: IdentityComponent;
+	};
 };
 
-export type AuthenticationComponentSendMessageOptions = {
-	identity: Identity;
-	identityComponent: IdentityComponent;
-	message: Omit<Message, "recipient">;
+export type AuthenticationComponentSendValidationOptions = {
+	identity: {
+		id: Identity["id"];
+		component: IdentityComponent;
+	};
+};
+
+export type AuthenticationComponentValidateCodeOptions = {
+	value: unknown;
+	identity: {
+		id: Identity["id"];
+		component: IdentityComponent;
+	};
 };
 
 export abstract class AuthenticationComponent
@@ -59,16 +69,24 @@ export abstract class AuthenticationComponent
 		this.#rateLimit = rateLimit;
 	}
 
-	getIdentityComponentMeta?(
-		options: AuthenticationComponentGetIdentityComponentMetaOptions,
-	): Promise<Pick<IdentityComponent, "identification" | "meta">>;
+	initializeIdentityComponent(
+		_options: AuthenticationComponentGetIdentityComponentMetaOptions,
+	): Promise<Omit<IdentityComponent, "id">> {
+		return Promise.resolve({ meta: {}, confirmed: true });
+	}
 	sendPrompt?(
 		options: AuthenticationComponentSendPromptOptions,
 	): Promise<void>;
+
 	abstract verifyPrompt(
 		options: AuthenticationComponentVerifyPromptOptions,
 	): Promise<boolean | Identity>;
-	sendMessage?(
-		options: AuthenticationComponentSendMessageOptions,
+
+	sendValidationCode?(
+		options: AuthenticationComponentSendValidationOptions,
 	): Promise<void>;
+	validationCodePrompt?(): AuthenticationCeremonyComponentPrompt;
+	validateCode?(
+		options: AuthenticationComponentValidateCodeOptions,
+	): Promise<boolean>;
 }

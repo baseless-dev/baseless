@@ -56,10 +56,10 @@ export default abstract class OAuth2AuthentificationComponent
 	}
 
 	// deno-lint-ignore require-await
-	async getIdentityComponentMeta(
+	async initializeIdentityComponent(
 		{ value }: AuthenticationComponentGetIdentityComponentMetaOptions,
-	): Promise<Pick<IdentityComponent, "identification" | "meta">> {
-		return { identification: `${value}`, meta: {} };
+	): Promise<Omit<IdentityComponent, "id">> {
+		return { identification: `${value}`, meta: {}, confirmed: true };
 	}
 	abstract retrieveIdentification(access_token: string): Promise<string>;
 	async verifyPrompt(

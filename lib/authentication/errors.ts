@@ -19,6 +19,12 @@ export class AuthenticationConfirmValidationCodeError extends Error {
 export class AuthenticationMissingIdentificatorError extends Error {
 	name = "AuthenticationMissingIdentificatorError" as const;
 }
+export class AuthenticationSubmitPromptError extends Error {
+	name = "AuthenticationSubmitPromptError" as const;
+}
+export class AuthenticationSendPromptError extends Error {
+	name = "AuthenticationSendPromptError" as const;
+}
 export class UnauthorizedError extends Error {
 	name = "UnauthorizedError" as const;
 }

@@ -1,6 +1,6 @@
 import { Value } from "../deps.ts";
 import { type ApiResponseData, ApiResponseErrorSchema } from "../lib/api.ts";
-import * as authErrors from "../lib/auth/errors.ts";
+import * as authErrors from "../lib/authentication/errors.ts";
 import * as counterErrors from "../lib/counter/errors.ts";
 import * as documentErrors from "../lib/document/errors.ts";
 import * as identityErrors from "../lib/identity/errors.ts";
@@ -8,7 +8,7 @@ import * as kvErrors from "../lib/kv/errors.ts";
 import * as messageErrors from "../lib/message/errors.ts";
 import * as sessionErrors from "../lib/session/errors.ts";
 export * from "../lib/api.ts";
-export * from "../lib/auth/errors.ts";
+export * from "../lib/authentication/errors.ts";
 export * from "../lib/counter/errors.ts";
 export * from "../lib/document/errors.ts";
 export * from "../lib/identity/errors.ts";

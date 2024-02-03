@@ -2,7 +2,7 @@ import { generateKeyPair } from "https://deno.land/x/jose@v4.13.1/key/generate_k
 import {
 	oneOf,
 	sequence,
-} from "../../common/auth/ceremony/component/helpers.ts";
+} from "../../common/authentication/ceremony/component/helpers.ts";
 import { config } from "../../common/server/config/config.ts";
 import {
 	createConsoleLogHandler,

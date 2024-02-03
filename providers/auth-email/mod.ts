@@ -1,4 +1,4 @@
-import type { AuthenticationCeremonyComponentPrompt } from "../../lib/auth/types.ts";
+import type { AuthenticationCeremonyComponentPrompt } from "../../lib/authentication/types.ts";
 import { IdentityNotFoundError } from "../../lib/identity/errors.ts";
 import type { Identity, IdentityComponent } from "../../lib/identity/types.ts";
 import { otp } from "../../lib/otp.ts";

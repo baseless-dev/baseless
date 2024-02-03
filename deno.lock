@@ -64,6 +64,7 @@
   },
   "redirects": {
     "https://esm.sh/@cloudflare/workers-types@4.20240117.0/index.d.ts": "https://esm.sh/v135/@cloudflare/workers-types@4.20240117.0/index.d.ts",
+    "https://esm.sh/v118/@types/react@~18.2/jsx-runtime~.d.ts": "https://esm.sh/v118/@types/react@18.2.0/jsx-runtime~.d.ts",
     "https://esm.sh/v128/@types/react@~18.2/jsx-runtime~.d.ts": "https://esm.sh/v128/@types/react@18.2.38/jsx-runtime~.d.ts"
   },
   "remote": {

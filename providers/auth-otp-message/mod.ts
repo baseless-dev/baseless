@@ -1,4 +1,4 @@
-import type { AuthenticationCeremonyComponentPrompt } from "../../lib/auth/types.ts";
+import type { AuthenticationCeremonyComponentPrompt } from "../../lib/authentication/types.ts";
 import type { Identity } from "../../lib/identity/types.ts";
 import { createLogger, LogLevel, LogLevelMethod } from "../../lib/logger.ts";
 import { assertOTPOptions, otp, type OTPOptions } from "../../lib/otp.ts";
@@ -10,29 +10,29 @@ import {
 	AuthenticationComponentVerifyPromptOptions,
 } from "../auth_component.ts";
 import type { KVProvider } from "../kv.ts";
+import type { MessageProvider } from "../message.ts";
 
-export default class OTPLoggerAuthentificationComponent
+export default class OTPMessageAuthentificationComponent
 	extends AuthenticationComponent {
 	prompt = "otp" as const;
 	options: { digits: number; timeout: number };
 	#kvProvider: KVProvider;
+	#messageProvider: MessageProvider;
 	#options: OTPOptions;
 	#ttl: number;
-	#logMethod: typeof LogLevelMethod[keyof typeof LogLevelMethod];
-	#logger = createLogger("auth-otp-logger");
 	constructor(
 		id: string,
 		kvProvider: KVProvider,
+		messageProvider: MessageProvider,
 		options: OTPOptions,
 		ttl = 60 * 1000 * 5,
-		logLevel = LogLevel.INFO,
 	) {
 		super(id);
 		this.#kvProvider = kvProvider;
+		this.#messageProvider = messageProvider;
 		assertOTPOptions(options);
 		this.#options = options;
 		this.#ttl = ttl;
-		this.#logMethod = LogLevelMethod[logLevel];
 		this.options = {
 			digits: this.#options.digits ?? 6,
 			timeout: this.#ttl,
@@ -46,7 +46,10 @@ export default class OTPLoggerAuthentificationComponent
 			expiration: this.#ttl,
 		});
 		// TODO template?
-		this.#logger[this.#logMethod](code);
+		this.#messageProvider.send({
+			recipient: identity.id,
+			text: `${code}`,
+		});
 	}
 	async verifyPrompt(
 		{ identity, value }: AuthenticationComponentVerifyPromptOptions,

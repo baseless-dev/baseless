@@ -16,3 +16,12 @@ export interface CounterProvider {
 	 */
 	reset(key: string[]): Promise<void>;
 }
+
+/**
+ * Return a sliding window counter
+ * @param interval Interval in seconds
+ * @returns
+ */
+export function slidingWindow(interval: number): number {
+	return Math.round(Date.now() / interval * 1000);
+}

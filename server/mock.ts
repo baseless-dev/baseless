@@ -8,13 +8,14 @@ import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
 import { LoggerMessageProvider } from "../providers/message-logger/mod.ts";
 import { KVSessionProvider } from "../providers/session-kv/mod.ts";
 import { DocumentIdentityProvider } from "../providers/identity-document/mod.ts";
-import authPlugin from "../plugins/auth/mod.ts";
+import authPlugin from "../plugins/authentication/mod.ts";
 import assetPlugin from "../plugins/asset/mod.ts";
-import OTPLoggerAuthentificationComponent from "../providers/auth-otp-logger/mod.ts";
+import OTPMessageAuthentificationComponent from "../providers/auth-otp-message/mod.ts";
 import TOTPAuthentificationComponent from "../providers/auth-totp/mod.ts";
-import type { AuthenticationOptions } from "../plugins/auth/mod.ts";
-import { oneOf, sequence } from "../lib/auth/types.ts";
+import type { AuthenticationOptions } from "../plugins/authentication/mod.ts";
+import { oneOf, sequence } from "../lib/authentication/types.ts";
 import { Router } from "../lib/router/router.ts";
+import { MemoryMessageProvider } from "../providers/message-memory/mod.ts";
 
 export { t } from "../deps.ts";
 
@@ -26,11 +27,12 @@ export type MockResult = {
 		asset: MemoryAssetProvider;
 		identity: DocumentIdentityProvider;
 		session: KVSessionProvider;
+		message: MemoryMessageProvider;
 	};
 	components: {
 		email: EmailAuthentificationComponent;
 		password: PasswordAuthentificationComponent;
-		otp: OTPLoggerAuthentificationComponent;
+		otp: OTPMessageAuthentificationComponent;
 		totp: TOTPAuthentificationComponent;
 		oneOf: typeof oneOf;
 		sequence: typeof sequence;
@@ -61,16 +63,18 @@ export async function mock(
 	const asset = new MemoryAssetProvider();
 	const identity = new DocumentIdentityProvider(new MemoryDocumentProvider());
 	const session = new KVSessionProvider(new MemoryKVProvider());
+	const message = new MemoryMessageProvider();
 	const email = new EmailAuthentificationComponent(
 		"email",
 		identity,
-		new LoggerMessageProvider(),
+		kv,
+		message,
 	);
 	const password = new PasswordAuthentificationComponent(
 		"password",
 		"lesalt",
 	);
-	const otp = new OTPLoggerAuthentificationComponent("otp", kv, {
+	const otp = new OTPMessageAuthentificationComponent("otp", kv, message, {
 		digits: 6,
 	});
 	const totp = new TOTPAuthentificationComponent("totp", {
@@ -86,6 +90,7 @@ export async function mock(
 			asset,
 			identity,
 			session,
+			message,
 		},
 		components: {
 			email,

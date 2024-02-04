@@ -6,11 +6,7 @@ import type {
 	AuthenticationCeremonyComponent,
 } from "../../lib/authentication/types.ts";
 import { autoid } from "../../lib/autoid.ts";
-import {
-	Identity,
-	IDENTITY_AUTOID_PREFIX,
-	type IdentityComponent,
-} from "../../lib/identity/types.ts";
+import type { Identity, IdentityComponent } from "../../lib/identity/types.ts";
 import { createLogger } from "../../lib/logger.ts";
 import {
 	RegistrationSendValidationCodeError,
@@ -18,9 +14,11 @@ import {
 	RegistrationSubmitValidationCodeError,
 } from "../../lib/registration/errors.ts";
 import {
+	REGISTRATION_AUTOID_PREFIX,
 	RegistrationCeremonyState,
 	type RegistrationState,
 	RegistrationStateSchema,
+	RegistrationSubmitResult,
 } from "../../lib/registration/types.ts";
 import { AuthenticationComponent } from "../../providers/auth_component.ts";
 import type { IdentityProvider } from "../../providers/identity.ts";
@@ -81,7 +79,7 @@ export default class RegistrationService {
 		state?: RegistrationState,
 	): RegistrationCeremonyState {
 		state ??= {
-			identity: autoid(IDENTITY_AUTOID_PREFIX),
+			identity: autoid(REGISTRATION_AUTOID_PREFIX),
 			kind: "registration",
 			components: [],
 		};
@@ -106,10 +104,16 @@ export default class RegistrationService {
 					c.kind === "prompt" && c.id === lastComponent.id
 				)
 				: nextComponent.component;
+			const last = !ceremonyComponent || ceremonyComponent.kind !== "prompt"
+				? false
+				: getComponentAtPath(this.#ceremony, [
+					...choices,
+					lastComponent.id,
+				])?.kind === "done";
 			return {
 				done: false,
 				first: false,
-				last: false, // TODO!
+				last,
 				forComponent: currentComponent as any,
 				validationComponent: {
 					...component.validationCodePrompt(),
@@ -139,9 +143,9 @@ export default class RegistrationService {
 		id: string,
 		value: unknown,
 		state?: RegistrationState,
-	): Promise<Identity> {
+	): Promise<RegistrationSubmitResult> {
 		state ??= {
-			identity: autoid(IDENTITY_AUTOID_PREFIX),
+			identity: autoid(REGISTRATION_AUTOID_PREFIX),
 			kind: "registration",
 			components: [],
 		};
@@ -169,14 +173,20 @@ export default class RegistrationService {
 			id,
 			...await identificator.initializeIdentityComponent({ value }),
 		};
-		return {
-			id: state.identity,
-			components: [
-				...state.components,
-				identityComponent,
-			],
-			meta: {},
-		};
+
+		state.components.push(identityComponent);
+
+		if (this.getCeremony(state).done === true) {
+			return {
+				kind: "identity",
+				identity: await this.#identityProvider.create(
+					{},
+					state.components,
+				),
+			};
+		}
+
+		return state;
 	}
 
 	async sendValidationCode(
@@ -185,7 +195,7 @@ export default class RegistrationService {
 		state?: RegistrationState,
 	): Promise<boolean> {
 		state ??= {
-			identity: autoid(IDENTITY_AUTOID_PREFIX),
+			identity: autoid(REGISTRATION_AUTOID_PREFIX),
 			kind: "registration",
 			components: [],
 		};
@@ -218,9 +228,9 @@ export default class RegistrationService {
 		id: string,
 		value: unknown,
 		state?: RegistrationState,
-	): Promise<Identity> {
+	): Promise<RegistrationSubmitResult> {
 		state ??= {
-			identity: autoid(IDENTITY_AUTOID_PREFIX),
+			identity: autoid(REGISTRATION_AUTOID_PREFIX),
 			kind: "registration",
 			components: [],
 		};
@@ -246,99 +256,27 @@ export default class RegistrationService {
 		if (result === false) {
 			throw new RegistrationSubmitValidationCodeError();
 		}
-		return {
-			id: state.identity,
-			components: [
-				...state.components.filter((c) => c.id !== id),
-				{
-					...state.components.find((c) => c.id === id)!,
-					confirmed: true,
-				},
-			],
-			meta: {},
+
+		const identityComponent = {
+			...state.components.find((c) => c.id === id)!,
+			confirmed: true,
 		};
+		state.components.splice(
+			state.components.findIndex((c) => c.id === id),
+			1,
+			identityComponent,
+		);
+
+		if (this.getCeremony(state).done === true) {
+			return {
+				kind: "identity",
+				identity: await this.#identityProvider.create(
+					{},
+					state.components,
+				),
+			};
+		}
+
+		return state;
 	}
-
-	// async submitSignUpPrompt(
-	// 	id: string,
-	// 	value: unknown,
-	// 	state?: AuthenticationSignUpState,
-	// ): Promise<AuthenticationSignUpResponse> {
-	// 	state ??= { kind: "signup" as const, components: [] };
-	// 	const signUpCeremony = this.getSignUpCeremony(state);
-	// 	if (signUpCeremony.done) {
-	// 		throw new AuthenticationCeremonyDoneError();
-	// 	}
-	// 	const step = signUpCeremony.component.kind === "choice"
-	// 		? signUpCeremony.component.components.find((
-	// 			s,
-	// 		): s is AuthenticationCeremonyComponentPrompt =>
-	// 			s.kind === "prompt" && s.id === id
-	// 		)
-	// 		: signUpCeremony.component;
-	// 	if (!step || step.kind === "done") {
-	// 		throw new AuthenticationInvalidStepError();
-	// 	}
-	// 	const validating = id === "validation";
-	// 	if (id === "validation") {
-	// 		id = state.components.at(-1)!.id;
-	// 	}
-	// 	const identificator = this.#components.find((comp) => comp.id === id);
-	// 	if (!identificator) {
-	// 		throw new AuthenticationMissingIdentificatorError();
-	// 	}
-	// 	if (validating) {
-	// 		if (!identificator.validateCode || !state.identity) {
-	// 			throw "FIXME!";
-	// 		}
-	// 		const valid = await identificator.validateCode({
-	// 			value,
-	// 			identity: {
-	// 				id: state.identity,
-	// 				component: { id: "validation", confirmed: false, meta: {} },
-	// 			},
-	// 		});
-	// 		throw "TODO!";
-	// 	} else {
-	// 		const identityComponent = {
-	// 			id,
-	// 			...await identificator.initializeIdentityComponent({ value }),
-	// 		};
-	// 		const newState = {
-	// 			identity: autoid("tid-"),
-	// 			...state,
-	// 			components: [
-	// 				...state.components,
-	// 				identityComponent,
-	// 			],
-	// 		};
-	// 		const encryptedState = await this.encryptAuthenticationState(newState);
-	// 		const newResult = this.getSignUpCeremony(newState);
-	// 		return {
-	// 			state: encryptedState,
-	// 			response: newResult,
-	// 		};
-	// 	}
-	// }
-
-	// async sendSignUpValidationCode(
-	// 	id: string,
-	// 	state: AuthenticationSignUpState,
-	// ): Promise<void> {
-	// 	const signUpCeremony = this.getSignUpCeremony(state);
-	// 	if (signUpCeremony.done) {
-	// 		throw new AuthenticationCeremonyDoneError();
-	// 	}
-	// 	const step = signUpCeremony.component.kind === "choice"
-	// 		? signUpCeremony.component.components.find((
-	// 			s,
-	// 		): s is AuthenticationCeremonyComponentPrompt =>
-	// 			s.kind === "prompt" && s.id === id
-	// 		)
-	// 		: signUpCeremony.component;
-	// 	if (!step || step.kind === "done") {
-	// 		throw new AuthenticationInvalidStepError();
-	// 	}
-	// 	throw "TODO!";
-	// }
 }

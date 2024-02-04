@@ -109,12 +109,9 @@ Deno.test("RegistrationService", async (t) => {
 				],
 			},
 		);
+		assert(state1.kind === "registration");
 		assertObjectMatch(
-			register.getCeremony({
-				kind: "registration",
-				identity: state1.id,
-				components: state1.components,
-			}),
+			register.getCeremony(state1),
 			{
 				done: false,
 				first: false,
@@ -128,11 +125,7 @@ Deno.test("RegistrationService", async (t) => {
 			},
 		);
 		await assertRejects(() =>
-			register.submitPrompt("validation", "123", {
-				kind: "registration",
-				identity: state1.id,
-				components: state1.components,
-			})
+			register.submitPrompt("validation", "123", state1)
 		);
 	});
 
@@ -140,12 +133,9 @@ Deno.test("RegistrationService", async (t) => {
 		const { register, message } = await init();
 
 		const state1 = await register.submitPrompt("email", "jane@test.local");
+		assert(state1.kind === "registration");
 		assertEquals(
-			await register.sendValidationCode("email", "en", {
-				kind: "registration",
-				identity: state1.id,
-				components: state1.components,
-			}),
+			await register.sendValidationCode("email", "en", state1),
 			true,
 		);
 		assert(message.messages.at(-1));
@@ -155,18 +145,11 @@ Deno.test("RegistrationService", async (t) => {
 		const { register, message } = await init();
 
 		const state1 = await register.submitPrompt("email", "jane@test.local");
-		await register.sendValidationCode("email", "en", {
-			kind: "registration",
-			identity: state1.id,
-			components: state1.components,
-		});
+		assert(state1.kind === "registration");
+		await register.sendValidationCode("email", "en", state1);
 		const code = message.messages.at(-1)!.text;
 		assertObjectMatch(
-			await register.submitValidationCode("email", code, {
-				kind: "registration",
-				identity: state1.id,
-				components: state1.components,
-			}),
+			await register.submitValidationCode("email", code, state1),
 			{
 				components: [
 					{
@@ -177,5 +160,18 @@ Deno.test("RegistrationService", async (t) => {
 				],
 			},
 		);
+	});
+
+	await t.step("submit last prompt returns an identity", async () => {
+		const { register, message } = await init();
+
+		const state1 = await register.submitPrompt("email", "jane@test.local");
+		assert(state1.kind === "registration");
+		await register.sendValidationCode("email", "en", state1);
+		const code = message.messages.at(-1)!.text;
+		const state2 = await register.submitValidationCode("email", code, state1);
+		assert(state2.kind === "registration");
+		const state3 = await register.submitPrompt("password", "123", state2);
+		assert(state3.kind === "identity");
 	});
 });

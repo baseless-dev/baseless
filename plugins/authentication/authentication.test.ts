@@ -75,7 +75,7 @@ Deno.test("AuthenticationService", async (t) => {
 		};
 	};
 
-	await t.step("get sign in ceremony", async () => {
+	await t.step("get ceremony", async () => {
 		const { auth } = await init();
 		assertObjectMatch(
 			await auth.getCeremony(),

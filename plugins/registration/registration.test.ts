@@ -15,7 +15,7 @@ import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
 import { MemoryMessageProvider } from "../../providers/message-memory/mod.ts";
 import RegistrationService from "./registration.ts";
 
-Deno.test("AuthenticationService", async (t) => {
+Deno.test("RegistrationService", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
 	const init = async () => {
 		const message = new MemoryMessageProvider();
@@ -80,7 +80,7 @@ Deno.test("AuthenticationService", async (t) => {
 		};
 	};
 
-	await t.step("get sign in ceremony", async () => {
+	await t.step("get ceremony", async () => {
 		const { register } = await init();
 		assertObjectMatch(
 			await register.getCeremony(),

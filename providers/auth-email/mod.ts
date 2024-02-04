@@ -59,7 +59,7 @@ export default class EmailAuthentificationComponent
 		// TODO template?
 		this.#messageProvider.send({
 			recipient: identity.id,
-			text: `Your validation code is ${code}`,
+			text: `${code}`,
 		});
 	}
 	async validateCode(

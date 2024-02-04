@@ -48,25 +48,25 @@ Deno.test("Client Authentication", async (t) => {
 			}
 			john = await r.providers.identity.create(
 				{},
-				{
-					email: {
+				[
+					{
 						id: "email",
 						identification: "john@test.local",
 						confirmed: true,
 						meta: {},
 					},
-					password: {
+					{
 						id: "password",
 						...await r.components.password.initializeIdentityComponent(
 							{ value: "123" },
 						),
 					},
-					otp: {
+					{
 						id: "otp",
 						confirmed: true,
 						meta: {},
 					},
-				},
+				],
 			);
 			const { publicKey, privateKey } = cachedKeys;
 			return {

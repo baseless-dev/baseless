@@ -21,7 +21,7 @@ export type IdentityComponent = Static<typeof IdentityComponentSchema>;
 export const IdentitySchema = t.Object({
 	id: t.String(),
 	meta: t.Record(t.String(), t.Unknown()),
-	components: t.Record(t.String(), IdentityComponentSchema),
+	components: t.Array(IdentityComponentSchema),
 }, { $id: "Identity" });
 
 export type Identity = Static<typeof IdentitySchema>;

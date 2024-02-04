@@ -1,4 +1,4 @@
-import { assert, assertObjectMatch } from "../../deps.test.ts";
+import { assert, assertEquals, assertObjectMatch } from "../../deps.test.ts";
 import { generateKeyPair } from "../../deps.ts";
 import { oneOf, sequence } from "../../lib/authentication/types.ts";
 import EmailAuthentificationComponent from "../../providers/auth-email/mod.ts";
@@ -44,29 +44,29 @@ Deno.test("AuthenticationService", async (t) => {
 			email,
 			oneOf(password, otp),
 		);
-		const authService = new AuthenticationService(
+		const auth = new AuthenticationService(
 			ceremony,
 			identity,
 			keys,
 		);
-		const john = await identity.create({}, {
-			email: {
+		const john = await identity.create({}, [
+			{
 				id: "email",
 				...await email.initializeIdentityComponent({
 					value: "john@test.local",
 				}),
 			},
-			password: {
+			{
 				id: "password",
 				...await password.initializeIdentityComponent({ value: "123" }),
 			},
-			otp: {
+			{
 				id: "otp",
 				...await otp.initializeIdentityComponent({ value: "" }),
 			},
-		});
+		]);
 		return {
-			authService,
+			auth,
 			message,
 			email,
 			password,
@@ -76,9 +76,9 @@ Deno.test("AuthenticationService", async (t) => {
 	};
 
 	await t.step("get sign in ceremony", async () => {
-		const { authService } = await init();
+		const { auth } = await init();
 		assertObjectMatch(
-			await authService.getCeremony(),
+			await auth.getCeremony(),
 			{
 				done: false,
 				first: true,
@@ -90,79 +90,35 @@ Deno.test("AuthenticationService", async (t) => {
 
 	await t.step("submit prompt", async () => {
 		const {
-			authService,
+			auth,
 			john,
 		} = await init();
 
-		const state1 = await authService.submitPrompt("email", "john@test.local");
-		assertObjectMatch(
-			state1,
-			{
-				done: false,
-				first: false,
-				last: false,
-				component: {
-					kind: "choice",
-					components: [{ id: "password" }, { id: "otp" }],
-				},
-			},
+		const result1 = await auth.submitPrompt("email", "john@test.local");
+		assertEquals(result1, john);
+		const result2 = await auth.submitPrompt(
+			"password",
+			"123",
+			{ kind: "authentication", identity: john.id, choices: ["email"] },
 		);
-		assertObjectMatch(
-			await authService.submitPrompt(
-				"password",
-				"123",
-				state1.done === false ? state1.state : undefined,
-			),
-			{
-				done: true,
-			},
-		);
+		assertEquals(result2, true);
 	});
 
 	await t.step("send prompt", async () => {
 		const {
-			authService,
+			auth,
 			message,
 			john,
 		} = await init();
 
-		const state1 = await authService.submitPrompt("email", "john@test.local");
-		assertObjectMatch(
-			await authService.sendPrompt(
+		assertEquals(
+			await auth.sendPrompt(
 				"otp",
 				"en",
-				state1.done === false ? state1.state! : "",
+				{ kind: "authentication", identity: john.id, choices: ["email"] },
 			),
-			{
-				sent: true,
-			},
+			true,
 		);
 		assert(message.messages.at(-1));
-	});
-
-	await t.step("submit & send prompt", async () => {
-		const {
-			authService,
-			message,
-			john,
-		} = await init();
-
-		const state1 = await authService.submitPrompt("email", "john@test.local");
-		await authService.sendPrompt(
-			"otp",
-			"en",
-			state1.done === false ? state1.state! : "",
-		);
-		const code = message.messages.at(-1)!.text;
-		assertObjectMatch(
-			await authService.submitPrompt(
-				"otp",
-				code,
-				state1.done === false ? state1.state! : "",
-			),
-			{
-				done: true,
-			},
-		);
 	});
 });

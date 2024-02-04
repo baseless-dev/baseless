@@ -32,7 +32,7 @@ import type { IdentityProvider } from "../../providers/identity.ts";
 import type { AuthenticationKeys } from "./mod.ts";
 
 export default class AuthenticationService {
-	#logger = createLogger("auth-service");
+	#logger = createLogger("authentication-service");
 	#ceremony: AuthenticationCeremonyComponent;
 	#components: AuthenticationComponent[];
 	#identityProvider: IdentityProvider;
@@ -82,12 +82,9 @@ export default class AuthenticationService {
 		return payload;
 	}
 
-	async getCeremony(
-		encryptedState?: string,
-	): Promise<AuthenticationCeremonyState> {
-		const state = encryptedState
-			? await this.decryptAuthenticationState(encryptedState)
-			: undefined;
+	getCeremony(
+		state?: AuthenticationState,
+	): AuthenticationCeremonyState {
 		const choices = state?.choices ?? [];
 		const ceremonyComponent = getComponentAtPath(this.#ceremony, choices);
 		if (!ceremonyComponent || ceremonyComponent.kind === "done") {
@@ -105,21 +102,17 @@ export default class AuthenticationService {
 			component: ceremonyComponent,
 			first,
 			last,
-			state: encryptedState,
 		};
 	}
 
 	async submitPrompt(
 		id: string,
 		value: unknown,
-		encryptedState?: string,
-	): Promise<AuthenticationCeremonyState> {
-		const state = encryptedState
-			? await this.decryptAuthenticationState(encryptedState)
-			: undefined;
-		const nextComponent = await this.getCeremony(encryptedState);
+		state?: AuthenticationState,
+	): Promise<boolean | Identity> {
+		const nextComponent = this.getCeremony(state);
 		if (nextComponent.done === true) {
-			return { done: true };
+			throw new AuthenticationSubmitPromptError();
 		}
 		const currentComponent = nextComponent.component.kind === "choice"
 			? nextComponent.component.components.find((c) =>
@@ -127,14 +120,17 @@ export default class AuthenticationService {
 			)
 			: nextComponent.component;
 
-		if (!currentComponent || currentComponent.kind === "done") {
-			return { done: true };
+		if (
+			!currentComponent || currentComponent.kind === "done" ||
+			currentComponent.id !== id
+		) {
+			throw new AuthenticationSubmitPromptError();
 		}
 		const identificator = this.#components.find((c) => c.id === id);
 		if (!identificator) {
 			throw new AuthenticationMissingIdentificatorError();
 		}
-		let identity = state?.identity
+		const identity = state?.identity
 			? await this.#identityProvider.get(state.identity)
 			: undefined;
 		const result = await identificator.verifyPrompt({
@@ -142,42 +138,24 @@ export default class AuthenticationService {
 			identity: identity
 				? {
 					id: identity.id,
-					component: identity.components[id],
+					component: identity.components.find((c) => c.id === id)!,
 				}
 				: undefined,
 		});
-		// Identificator returned an identity, if state had previously identify an identity, it must be the same
-		if (
-			typeof result === "object" && (!identity || result.id === identity.id)
-		) {
-			identity = result;
-		} // Identificator validated
-		else if (result === false) {
-			throw new AuthenticationSubmitPromptError();
-		}
-		const newState = {
-			kind: "signin" as const,
-			identity: identity?.id,
-			choices: [...state?.choices ?? [], id],
-		};
-		const newEncryptedState = await this.encryptAuthenticationState(newState);
-		return this.getCeremony(newEncryptedState);
+		return result;
 	}
 
 	async sendPrompt(
 		id: string,
 		locale: string,
-		encryptedState?: string,
-	): Promise<AuthenticationSendPromptResult> {
-		const state = encryptedState
-			? await this.decryptAuthenticationState(encryptedState)
-			: undefined;
+		state?: AuthenticationState,
+	): Promise<boolean> {
 		if (!state?.identity) {
 			throw new AuthenticationSendPromptError();
 		}
-		const nextComponent = await this.getCeremony(encryptedState);
+		const nextComponent = await this.getCeremony(state);
 		if (nextComponent.done === true) {
-			return { sent: false };
+			throw new AuthenticationSendPromptError();
 		}
 		const currentComponent = nextComponent.component.kind === "choice"
 			? nextComponent.component.components.find((c) =>
@@ -197,18 +175,18 @@ export default class AuthenticationService {
 		}
 		if (identificator.sendPrompt) {
 			const identity = await this.#identityProvider.get(state.identity);
-			if (!(id in identity.components)) {
+			if (!identity.components.find((c) => c.id === id)) {
 				throw new AuthenticationSendPromptError();
 			}
 			await identificator.sendPrompt({
 				locale,
 				identity: {
 					id: identity.id,
-					component: identity.components[id],
+					component: identity.components.find((c) => c.id === id)!,
 				},
 			});
-			return { sent: true };
+			return true;
 		}
-		return { sent: false };
+		return false;
 	}
 }

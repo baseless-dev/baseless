@@ -32,6 +32,7 @@ export type AuthenticationComponentSendPromptOptions = {
 };
 
 export type AuthenticationComponentSendValidationOptions = {
+	locale: string;
 	identity: {
 		id: Identity["id"];
 		component: IdentityComponent;
@@ -88,5 +89,5 @@ export abstract class AuthenticationComponent
 	validationCodePrompt?(): AuthenticationCeremonyComponentPrompt;
 	validateCode?(
 		options: AuthenticationComponentValidateCodeOptions,
-	): Promise<boolean>;
+	): Promise<boolean | Identity>;
 }

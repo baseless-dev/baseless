@@ -133,7 +133,7 @@ export type AuthenticationCeremonyState = Static<
 >;
 
 export const AuthenticationStateSchema = t.Object({
-	kind: t.Literal("signin"),
+	kind: t.Literal("authentication"),
 	identity: t.Optional(t.String()),
 	choices: t.Array(t.String()),
 }, { $id: "AuthenticationState" });

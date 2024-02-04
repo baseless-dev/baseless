@@ -1,6 +1,7 @@
 import { jwtVerify, type KeyLike, t, type TSchema } from "../../deps.ts";
 import {
 	AuthenticationRateLimitedError,
+	AuthenticationSubmitPromptError,
 	MissingRefreshTokenError,
 	UnauthorizedError,
 } from "../../lib/authentication/errors.ts";
@@ -257,7 +258,8 @@ export const authentication = (
 		})
 		.post("/ceremony", async ({ body, auth }) => {
 			try {
-				const data = await auth.getCeremony(body.state);
+				const state = await auth.decryptAuthenticationState(body.state);
+				const data = await auth.getCeremony(state);
 				return Response.json({ data });
 			} catch (error) {
 				return Response.json({ error: error.name });
@@ -285,7 +287,7 @@ export const authentication = (
 			try {
 				const state = body.state
 					? await auth.decryptAuthenticationState(body.state)
-					: undefined;
+					: { kind: "authentication" as const, choices: [] };
 
 				const interval = options.rateLimit?.interval ?? 60 * 1000;
 				const keys = [
@@ -306,9 +308,20 @@ export const authentication = (
 				const result = await auth.submitPrompt(
 					body.component,
 					body.prompt,
-					body.state,
+					state,
 				);
-				if (result.done) {
+				if (result === false) {
+					return Response.json({ error: AuthenticationSubmitPromptError.name });
+				} // If prompt returned an identity different from the current state
+				else if (typeof result === "object") {
+					if (state.identity && result.id !== state.identity) {
+						return Response.json({ error: UnauthorizedError.name });
+					}
+					state.identity = result.id;
+				}
+				state.choices.push(body.component);
+				const nextCeremonyComponent = await auth.getCeremony(state);
+				if (nextCeremonyComponent.done === true) {
 					const identityId = state?.identity;
 					if (!identityId) {
 						return Response.json({ error: UnauthorizedError.name });
@@ -335,7 +348,8 @@ export const authentication = (
 				} else {
 					return Response.json({
 						data: {
-							...result,
+							...nextCeremonyComponent,
+							state: await auth.encryptAuthenticationState(state),
 						},
 					});
 				}
@@ -387,11 +401,11 @@ export const authentication = (
 				const result = await auth.sendPrompt(
 					body.component,
 					body.locale,
-					body.state,
+					state,
 				);
 				return Response.json({
 					data: {
-						...result,
+						sent: result,
 					},
 				});
 			} catch (error) {
@@ -418,194 +432,6 @@ export const authentication = (
 				},
 			},
 		});
-	// .post(
-	// 	"/send-prompt",
-	// 	async ({ body, auth, remoteAddress, identity, session }) => {
-	// 		try {
-	// 			// const result = await auth.submitSignUpPrompt(
-	// 			// 	body.state,
-	// 			// 	body.component,
-	// 			// 	body.prompt,
-	// 			// 	remoteAddress,
-	// 			// );
-	// 			// if (result.done) {
-	// 			// 	debugger;
-	// 			// 	throw "TODO!";
-	// 				// const id = await identity.get(result.identityId);
-	// 				// // TODO session expiration
-	// 				// const sessionData = await session.create(result.identityId, {});
-	// 				// const { access_token, id_token, refresh_token } =
-	// 				// 	await createTokens(
-	// 				// 		id,
-	// 				// 		sessionData,
-	// 				// 		options.keys.algo,
-	// 				// 		options.keys.privateKey,
-	// 				// 		options.accessTokenTTL ?? 1000 * 60 * 10,
-	// 				// 		options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
-	// 				// 	);
-	// 				// return Response.json({
-	// 				// 	data: {
-	// 				// 		done: true,
-	// 				// 		access_token,
-	// 				// 		id_token,
-	// 				// 		refresh_token,
-	// 				// 	},
-	// 				// });
-	// 			} else {
-	// 				return Response.json({
-	// 					data: {
-	// 						...result,
-	// 					},
-	// 				});
-	// 			}
-	// 		} catch (error) {
-	// 			return Response.json({ error: error.name });
-	// 		}
-	// 	},
-	// 	{
-	// 		detail: {
-	// 			summary: "Submit sign up prompt",
-	// 			tags: ["Authentication"],
-	// 		},
-	// 		body: t.Object({
-	// 			component: t.String({ description: "The authentication component" }),
-	// 			prompt: t.Any(),
-	// 			state: t.Optional(t.String({ description: "Encrypted state" })),
-	// 		}),
-	// 		response: {
-	// 			200: {
-	// 				description: "Authentication ceremony",
-	// 				content: {
-	// 					"application/json": {
-	// 						schema: dataOrError(AuthenticationSignInResponseSchema),
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// );
-	// .post(
-	// 	"/sign-up/submit-prompt",
-	// 	async ({ auth, body, remoteAddress }) => {
-	// 		try {
-	// 			const state = await decryptEncryptedAuthenticationCeremonyState(
-	// 				body.state ?? "",
-	// 				options.keys.publicKey,
-	// 			).catch((_) => ({
-	// 				kind: "signup" as const,
-	// 				components: [],
-	// 			}));
-	// 			if (state.kind !== "signup") {
-	// 				return Response.json({ error: UnauthorizedError.name });
-	// 			}
-	// 			const result = await auth.submitSignUpPrompt(
-	// 				state,
-	// 				body.component,
-	// 				body.prompt,
-	// 				remoteAddress,
-	// 			);
-	// 			return Response.json({ error: "TODO!" });
-	// 		} catch (error) {
-	// 			return Response.json({ error: error.name });
-	// 		}
-	// 	},
-	// 	{
-	// 		detail: {
-	// 			summary: "Submit sign up prompt",
-	// 			tags: ["Authentication"],
-	// 		},
-	// 		body: t.Object({
-	// 			component: t.String({ description: "The authentication component" }),
-	// 			prompt: t.Any(),
-	// 			state: t.Optional(t.String({ description: "Encrypted state" })),
-	// 		}),
-	// 	},
-	// );
-	// .post(
-	// 	"/sign-in/send-validation-code",
-	// 	async ({ body, authenticationToken, identity }) => {
-	// 		try {
-	// 			const state = await decryptEncryptedAuthenticationCeremonyState(
-	// 				body.state ?? "",
-	// 				options.keys.publicKey,
-	// 			).catch((_) => ({
-	// 				kind: "signin" as const,
-	// 				choices: [],
-	// 				identity: undefined,
-	// 			}));
-	// 			if (state.kind !== "signin") {
-	// 				return Response.json({ error: UnauthorizedError.name });
-	// 			}
-	// 			const identityId = state.identity
-	// 				? state.identity
-	// 				: authenticationToken?.sessionData.identityId;
-	// 			if (!identityId) {
-	// 				return Response.json({ error: UnauthorizedError.name });
-	// 			}
-	// 			// TODO default locale
-	// 			const locale = body.locale?.toString() ?? "en";
-	// 			await identity.sendComponentValidationCode(
-	// 				identityId,
-	// 				body.component,
-	// 				locale,
-	// 			);
-	// 			return Response.json({ data: { sent: true } });
-	// 		} catch (_error) {
-	// 			return Response.json({ data: { sent: false } });
-	// 		}
-	// 	},
-	// 	{
-	// 		detail: {
-	// 			summary: "Send validation code",
-	// 			tags: ["Authentication"],
-	// 		},
-	// 		body: t.Object({
-	// 			component: t.String({ description: "The authentication component" }),
-	// 			state: t.Optional(t.String({ description: "Encrypted state" })),
-	// 			locale: t.Optional(t.String()),
-	// 		}),
-	// 		response: {
-	// 			200: {
-	// 				description: "Validation code sent confirmation",
-	// 				content: {
-	// 					"application/json": {
-	// 						schema: dataOrError(AuthenticationSendResultSchema),
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// )
-	// .post(
-	// 	"/sign-in/submit-validation-code",
-	// 	async ({ body, identity }) => {
-	// 		try {
-	// 			await identity.confirmComponentValidationCode(body.code);
-	// 			return Response.json({ data: { confirmed: true } });
-	// 		} catch (_error) {
-	// 			return Response.json({ data: { confirmed: false } });
-	// 		}
-	// 	},
-	// 	{
-	// 		detail: {
-	// 			summary: "Submit validation code",
-	// 			tags: ["Authentication"],
-	// 		},
-	// 		body: t.Object({
-	// 			code: t.String(),
-	// 		}),
-	// 		response: {
-	// 			200: {
-	// 				description: "Validation code confirmation",
-	// 				content: {
-	// 					"application/json": {
-	// 						schema: dataOrError(AuthenticationConfirmResultSchema),
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// );
 };
 
 export default authentication;

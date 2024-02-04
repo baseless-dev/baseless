@@ -82,18 +82,18 @@ export class DocumentIdentityProvider implements IdentityProvider {
 					meta,
 					components,
 				});
-			for (const [compoentnId, component] of Object.entries(components)) {
+			for (const component of components) {
 				if (component.identification) {
 					atomic.notExists([
 						this.#prefix,
 						"identifications",
-						compoentnId,
+						component.id,
 						component.identification,
 					]);
 					atomic.set([
 						this.#prefix,
 						"identifications",
-						compoentnId,
+						component.id,
 						component.identification,
 					], id);
 				}
@@ -125,9 +125,11 @@ export class DocumentIdentityProvider implements IdentityProvider {
 
 			// Upsert identifications
 			for (
-				const [compoentnId, component] of Object.entries(identity.components)
+				const component of identity.components
 			) {
-				const oldComponent = oldIdentity.components[compoentnId];
+				const oldComponent = oldIdentity.components.find((c) =>
+					c.id === component.id
+				);
 				if (oldComponent) {
 					Object.assign(component, {
 						...component,
@@ -137,29 +139,29 @@ export class DocumentIdentityProvider implements IdentityProvider {
 					atomic.notExists([
 						this.#prefix,
 						"identifications",
-						compoentnId,
+						component.id,
 						component.identification,
 					]);
 					atomic.set([
 						this.#prefix,
 						"identifications",
-						compoentnId,
+						component.id,
 						component.identification,
 					], identity.id);
 				}
 			}
 			// Delete old identifications
 			for (
-				const [compoentnId, component] of Object.entries(
-					oldIdentity.components,
-				)
+				const component of oldIdentity.components
 			) {
-				const newIdentification = identity.components[compoentnId];
+				const newIdentification = identity.components.find((c) =>
+					c.id === component.id
+				);
 				if (!newIdentification && component.identification) {
 					atomic.delete([
 						this.#prefix,
 						"identifications",
-						compoentnId,
+						component.id,
 						component.identification,
 					]);
 				}
@@ -189,13 +191,13 @@ export class DocumentIdentityProvider implements IdentityProvider {
 				.match([this.#prefix, "identities", identity.id], versionstamp)
 				.delete([this.#prefix, "identities", identity.id]);
 			for (
-				const [compoentnId, component] of Object.entries(identity.components)
+				const component of identity.components
 			) {
 				if (component.identification) {
 					atomic.delete([
 						this.#prefix,
 						"identifications",
-						compoentnId,
+						component.id,
 						component.identification,
 					]);
 				}

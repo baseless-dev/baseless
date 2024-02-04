@@ -16,8 +16,9 @@ import { Assert, Value } from "../deps.ts";
 import { throwIfApiError } from "./errors.ts";
 import MemoryStorage from "./memory_storage.ts";
 
-class AuthApp {
+class AuthenticationApp {
 	#app: App;
+	#apiEndpoint: string;
 	#tokens?: AuthenticationTokens;
 	#accessTokenExpiration?: number;
 	#pendingRefreshTokenRequest?: Promise<void>;
@@ -28,8 +29,10 @@ class AuthApp {
 
 	constructor(
 		app: App,
+		apiEndpoint: string,
 	) {
 		this.#app = app;
+		this.#apiEndpoint = apiEndpoint;
 		const localPersistence = globalThis.localStorage.getItem(
 			`baseless_${app.clientId}_persistence`,
 		);
@@ -56,6 +59,10 @@ class AuthApp {
 				this.#storage.removeItem(`baseless_${app.clientId}_tokens`);
 			}
 		}
+	}
+
+	get apiEndpoint(): string {
+		return this.#apiEndpoint;
 	}
 
 	get accessTokenExpiration(): number | undefined {
@@ -163,7 +170,7 @@ class AuthApp {
 			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
 		) {
 			const refreshPromise = this.#app.fetch(
-				`${this.#app.apiEndpoint}/refresh-tokens`,
+				`${this.#apiEndpoint}/refresh-tokens`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -206,12 +213,10 @@ export function assertPersistence(
 }
 export class InvalidPersistenceError extends Error {}
 
-const authApps = new Map<App["clientId"], AuthApp>();
-function getAuth(app: App): AuthApp {
-	if (!authApps.has(app.clientId)) {
-		initializeAuthentication(app);
-	}
-	return authApps.get(app.clientId)!;
+const authenticationApps = new Map<App["clientId"], AuthenticationApp>();
+function getAuthentication(app: App): AuthenticationApp {
+	assertInitializedAuthentication(app);
+	return authenticationApps.get(app.clientId)!;
 }
 
 export class AuthenticationNotInitializedError extends Error {}
@@ -219,15 +224,15 @@ export class AuthenticationNotInitializedError extends Error {}
 export function assertInitializedAuthentication(
 	value?: unknown,
 ): asserts value is App {
-	if (!isApp(value) || !authApps.has(value.clientId)) {
+	if (!isApp(value) || !authenticationApps.has(value.clientId)) {
 		throw new AuthenticationNotInitializedError();
 	}
 }
 
-export function initializeAuthentication(app: App): App {
-	if (!authApps.has(app.clientId)) {
-		const auth = new AuthApp(app);
-		authApps.set(app.clientId, auth);
+export function initializeAuthentication(app: App, apiEndpoint: string): App {
+	if (!authenticationApps.has(app.clientId)) {
+		const auth = new AuthenticationApp(app, apiEndpoint);
+		authenticationApps.set(app.clientId, auth);
 	}
 
 	return app;
@@ -239,17 +244,17 @@ export function fetchWithTokens(
 	init?: RequestInit,
 ): Promise<Response> {
 	assertInitializedAuthentication(app);
-	return getAuth(app).fetchWithTokens(input, init);
+	return getAuthentication(app).fetchWithTokens(input, init);
 }
 
 export function getPersistence(app: App): Persistence {
 	assertInitializedAuthentication(app);
-	return getAuth(app).persistence;
+	return getAuthentication(app).persistence;
 }
 
 export function setPersistence(app: App, persistence: Persistence): void {
 	assertInitializedAuthentication(app);
-	getAuth(app).persistence = persistence;
+	getAuthentication(app).persistence = persistence;
 }
 
 export function onAuthenticationStateChange(
@@ -257,11 +262,11 @@ export function onAuthenticationStateChange(
 	listener: (identity: ID | undefined) => void,
 ): () => void {
 	assertInitializedAuthentication(app);
-	return getAuth(app).onAuthStateChange.listen(listener);
+	return getAuthentication(app).onAuthStateChange.listen(listener);
 }
 
 export function getIdToken(app: App): string | undefined {
-	const auth = getAuth(app);
+	const auth = getAuthentication(app);
 	return auth.tokens?.id_token;
 }
 
@@ -282,7 +287,7 @@ export async function getCeremony(
 	state?: string,
 ): Promise<AuthenticationCeremonyState> {
 	assertInitializedAuthentication(app);
-	const auth = getAuth(app);
+	const auth = getAuthentication(app);
 	let method = "GET";
 	let body: string | undefined;
 	const headers = new Headers();
@@ -292,7 +297,7 @@ export async function getCeremony(
 		body = JSON.stringify({ state });
 	}
 	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/ceremony`,
+		`${auth.apiEndpoint}/ceremony`,
 		{
 			body,
 			method,
@@ -305,10 +310,10 @@ export async function getCeremony(
 }
 
 export async function signOut(app: App): Promise<void> {
-	const auth = getAuth(app);
+	const auth = getAuthentication(app);
 	try {
 		const resp = await auth.fetchWithTokens(
-			`${app.apiEndpoint}/sign-out`,
+			`${auth.apiEndpoint}/sign-out`,
 			{ method: "POST" },
 		);
 		const result = await resp.json();
@@ -325,14 +330,14 @@ export async function submitPrompt(
 	state?: string,
 ): Promise<AuthenticationSubmitPromptState> {
 	assertInitializedAuthentication(app);
-	const auth = getAuth(app);
+	const auth = getAuthentication(app);
 	const body = JSON.stringify({
 		component,
 		prompt,
 		...(state ? { state } : undefined),
 	});
 	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/submit-prompt`,
+		`${auth.apiEndpoint}/submit-prompt`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
@@ -340,7 +345,7 @@ export async function submitPrompt(
 	Assert(AuthenticationSubmitPromptStateSchema, result.data);
 	if (Value.Check(AuthenticationSubmitPromptStateDoneSchema, result.data)) {
 		const { access_token, id_token, refresh_token } = result.data;
-		getAuth(app).tokens = { access_token, id_token, refresh_token };
+		getAuthentication(app).tokens = { access_token, id_token, refresh_token };
 	}
 	return result.data;
 }
@@ -352,10 +357,10 @@ export async function sendPrompt(
 	state?: string,
 ): Promise<AuthenticationSendPromptResult> {
 	assertInitializedAuthentication(app);
-	const auth = getAuth(app);
+	const auth = getAuthentication(app);
 	const body = JSON.stringify({ component, state, locale });
 	const resp = await auth.fetchWithTokens(
-		`${app.apiEndpoint}/send-prompt`,
+		`${auth.apiEndpoint}/send-prompt`,
 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 	);
 	const result = await resp.json();
@@ -378,7 +383,7 @@ export async function sendPrompt(
 // 		...(state ? { state } : undefined),
 // 	});
 // 	const resp = await auth.fetchWithTokens(
-// 		`${app.apiEndpoint}/sign-up/submit-prompt`,
+// 		`${auth.apiEndpoint}/sign-up/submit-prompt`,
 // 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 // 	);
 // 	const result = await resp.json();
@@ -400,7 +405,7 @@ export async function sendPrompt(
 // 	const auth = getAuth(app);
 // 	const body = JSON.stringify({ component, state });
 // 	const resp = await auth.fetchWithTokens(
-// 		`${app.apiEndpoint}/sign-in/send-validation-code`,
+// 		`${auth.apiEndpoint}/sign-in/send-validation-code`,
 // 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 // 	);
 // 	const result = await resp.json();
@@ -416,7 +421,7 @@ export async function sendPrompt(
 // 	const auth = getAuth(app);
 // 	const body = JSON.stringify({ code });
 // 	const resp = await auth.fetchWithTokens(
-// 		`${app.apiEndpoint}/sign-in/submit-validation-code`,
+// 		`${auth.apiEndpoint}/sign-in/submit-validation-code`,
 // 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 // 	);
 // 	const result = await resp.json();
@@ -430,7 +435,7 @@ export async function sendPrompt(
 // // ): Promise<AuthenticationCeremonyResponseTokens> {
 // // 	const auth = getAuth(app);
 // // 	const resp = await auth.fetchWithTokens(
-// // 		`${app.apiEndpoint}/auth/createAnonymousIdentity`,
+// // 		`${auth.apiEndpoint}/auth/createAnonymousIdentity`,
 // // 		{ method: "POST" },
 // // 	);
 // // 	const result = await resp.json();
@@ -451,7 +456,7 @@ export async function sendPrompt(
 // // 		locale,
 // // 	});
 // // 	const resp = await auth.fetchWithTokens(
-// // 		`${app.apiEndpoint}/auth/createIdentity`,
+// // 		`${auth.apiEndpoint}/auth/createIdentity`,
 // // 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 // // 	);
 // // 	const result = await resp.json();
@@ -475,7 +480,7 @@ export async function sendPrompt(
 // // 		locale,
 // // 	});
 // // 	const resp = await auth.fetchWithTokens(
-// // 		`${app.apiEndpoint}/auth/addIdentityComponent`,
+// // 		`${auth.apiEndpoint}/auth/addIdentityComponent`,
 // // 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 // // 	);
 // // 	const result = await resp.json();
@@ -495,7 +500,7 @@ export async function sendPrompt(
 // // 		locale,
 // // 	});
 // // 	const resp = await auth.fetchWithTokens(
-// // 		`${app.apiEndpoint}/auth/updateIdentityComponent`,
+// // 		`${auth.apiEndpoint}/auth/updateIdentityComponent`,
 // // 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 // // 	);
 // // 	const result = await resp.json();
@@ -513,7 +518,7 @@ export async function sendPrompt(
 // // 		locale,
 // // 	});
 // // 	const resp = await auth.fetchWithTokens(
-// // 		`${app.apiEndpoint}/auth/deleteIdentityComponent`,
+// // 		`${auth.apiEndpoint}/auth/deleteIdentityComponent`,
 // // 		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
 // // 	);
 // // 	const result = await resp.json();

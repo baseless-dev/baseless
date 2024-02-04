@@ -4,9 +4,6 @@ export class AuthenticationCeremonyDoneError extends Error {
 export class AuthenticationInvalidStepError extends Error {
 	name = "AuthenticationInvalidStepError" as const;
 }
-export class AuthenticationRateLimitedError extends Error {
-	name = "AuthenticationRateLimitedError" as const;
-}
 export class AuthenticationSendValidationPromptError extends Error {
 	name = "AuthenticationSendValidationPromptError" as const;
 }

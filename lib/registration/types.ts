@@ -3,7 +3,11 @@ import {
 	AtPathAuthenticationCeremonyComponentSchema,
 	AuthenticationCeremonyComponentPromptSchema,
 } from "../authentication/types.ts";
-import { IdentityComponentSchema, IdentitySchema } from "../identity/types.ts";
+import {
+	IdentityComponentSchema,
+	IdentitySchema,
+	IDSchema,
+} from "../identity/types.ts";
 
 export const REGISTRATION_AUTOID_PREFIX = "rid_";
 
@@ -72,4 +76,23 @@ export const RegistrationSubmitResultSchema = t.Union([
 
 export type RegistrationSubmitResult = Static<
 	typeof RegistrationSubmitResultSchema
+>;
+
+export const RegistrationSubmitStateDoneSchema = t.Object({
+	done: t.Literal(true),
+	id: IDSchema,
+}, { $id: "RegistrationSubmitStateDone" });
+
+export type RegistrationSubmitStateDone = Static<
+	typeof RegistrationSubmitStateDoneSchema
+>;
+
+export const RegistrationSubmitStateSchema = t.Union([
+	RegistrationCeremonyStateNextSchema,
+	RegistrationCeremonyStateValidationSchema,
+	RegistrationSubmitStateDoneSchema,
+], { $id: "AuthenticationSubmitState" });
+
+export type RegistrationSubmitState = Static<
+	typeof RegistrationSubmitStateSchema
 >;

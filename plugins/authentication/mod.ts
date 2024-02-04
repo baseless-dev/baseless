@@ -1,6 +1,5 @@
 import { jwtVerify, type KeyLike, t, type TSchema } from "../../deps.ts";
 import {
-	AuthenticationRateLimitedError,
 	AuthenticationSubmitPromptError,
 	MissingRefreshTokenError,
 	UnauthorizedError,
@@ -28,6 +27,7 @@ import type { Context, TokenData } from "./context.ts";
 import { createTokens } from "./create_tokens.ts";
 import SessionService from "./session.ts";
 import { Router } from "../../lib/router/router.ts";
+import { RateLimitedError } from "../../lib/errors.ts";
 
 export type AuthenticationKeys = {
 	algo: string;
@@ -41,7 +41,6 @@ export type RateLimitOptions = {
 };
 
 export type AuthenticationOptions = {
-	prefix?: string;
 	counter: CounterProvider;
 	kv: KVProvider;
 	identity: IdentityProvider;
@@ -71,7 +70,7 @@ const dataOrError = <T>(schema: TSchema): TSchema =>
 export const authentication = (
 	options: AuthenticationOptions,
 ) => {
-	const logger = createLogger("auth-plugin");
+	const logger = createLogger("authentication-plugin");
 	options.ceremony = simplify(
 		sequence(options.ceremony, { kind: "done" as const }),
 	);
@@ -130,7 +129,7 @@ export const authentication = (
 				get session() {
 					return new SessionService(options.session);
 				},
-				get auth() {
+				get authentication() {
 					return new AuthenticationService(
 						options.ceremony,
 						options.identity,
@@ -233,9 +232,9 @@ export const authentication = (
 				},
 			},
 		})
-		.get("/ceremony", async ({ auth }) => {
+		.get("/ceremony", async ({ authentication }) => {
 			try {
-				const data = await auth.getCeremony();
+				const data = await authentication.getCeremony();
 				return Response.json({ data });
 			} catch (error) {
 				return Response.json({ error: error.name });
@@ -256,10 +255,12 @@ export const authentication = (
 				},
 			},
 		})
-		.post("/ceremony", async ({ body, auth }) => {
+		.post("/ceremony", async ({ body, authentication }) => {
 			try {
-				const state = await auth.decryptAuthenticationState(body.state);
-				const data = await auth.getCeremony(state);
+				const state = await authentication.decryptAuthenticationState(
+					body.state,
+				);
+				const data = await authentication.getCeremony(state);
 				return Response.json({ data });
 			} catch (error) {
 				return Response.json({ error: error.name });
@@ -283,104 +284,111 @@ export const authentication = (
 				},
 			},
 		})
-		.post("/submit-prompt", async ({ body, auth, remoteAddress, session }) => {
-			try {
-				const state = body.state
-					? await auth.decryptAuthenticationState(body.state)
-					: { kind: "authentication" as const, choices: [] };
+		.post(
+			"/submit-prompt",
+			async ({ body, authentication, remoteAddress, session }) => {
+				try {
+					const state = body.state
+						? await authentication.decryptAuthenticationState(body.state)
+						: { kind: "authentication" as const, choices: [] };
 
-				const interval = options.rateLimit?.interval ?? 60 * 1000;
-				const keys = [
-					"authentication",
-					"submitprompt",
-					state?.identity ?? remoteAddress,
-					slidingWindow(interval).toString(),
-				];
-				const counter = await options.counter.increment(
-					keys,
-					1,
-					interval,
-				);
-				if (counter > 10) {
-					throw new AuthenticationRateLimitedError();
-				}
-
-				const result = await auth.submitPrompt(
-					body.component,
-					body.prompt,
-					state,
-				);
-				if (result === false) {
-					return Response.json({ error: AuthenticationSubmitPromptError.name });
-				} // If prompt returned an identity different from the current state
-				else if (typeof result === "object") {
-					if (state.identity && result.id !== state.identity) {
-						return Response.json({ error: UnauthorizedError.name });
-					}
-					state.identity = result.id;
-				}
-				state.choices.push(body.component);
-				const nextCeremonyComponent = await auth.getCeremony(state);
-				if (nextCeremonyComponent.done === true) {
-					const identityId = state?.identity;
-					if (!identityId) {
-						return Response.json({ error: UnauthorizedError.name });
-					}
-					const id = await options.identity.get(identityId);
-					// TODO session expiration
-					const sessionData = await session.create(identityId, {});
-					const { access_token, id_token, refresh_token } = await createTokens(
-						id,
-						sessionData,
-						options.keys.algo,
-						options.keys.privateKey,
-						options.accessTokenTTL ?? 1000 * 60 * 10,
-						options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+					const interval = options.rateLimit?.interval ?? 60 * 1000;
+					const keys = [
+						"authentication",
+						"submitprompt",
+						state?.identity ?? remoteAddress,
+						slidingWindow(interval).toString(),
+					];
+					const counter = await options.counter.increment(
+						keys,
+						1,
+						interval,
 					);
-					return Response.json({
-						data: {
-							done: true,
-							access_token,
-							id_token,
-							refresh_token,
-						},
-					});
-				} else {
-					return Response.json({
-						data: {
-							...nextCeremonyComponent,
-							state: await auth.encryptAuthenticationState(state),
-						},
-					});
+					if (counter > 10) {
+						throw new RateLimitedError();
+					}
+
+					const result = await authentication.submitPrompt(
+						body.component,
+						body.prompt,
+						state,
+					);
+					if (result === false) {
+						return Response.json({
+							error: AuthenticationSubmitPromptError.name,
+						});
+					} // If prompt returned an identity different from the current state
+					else if (typeof result === "object") {
+						if (state.identity && result.id !== state.identity) {
+							return Response.json({ error: UnauthorizedError.name });
+						}
+						state.identity = result.id;
+					}
+					state.choices.push(body.component);
+					const nextCeremonyComponent = await authentication.getCeremony(state);
+					if (nextCeremonyComponent.done === true) {
+						const identityId = state?.identity;
+						if (!identityId) {
+							return Response.json({ error: UnauthorizedError.name });
+						}
+						const id = await options.identity.get(identityId);
+						// TODO session expiration
+						const sessionData = await session.create(identityId, {});
+						const { access_token, id_token, refresh_token } =
+							await createTokens(
+								id,
+								sessionData,
+								options.keys.algo,
+								options.keys.privateKey,
+								options.accessTokenTTL ?? 1000 * 60 * 10,
+								options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+							);
+						return Response.json({
+							data: {
+								done: true,
+								access_token,
+								id_token,
+								refresh_token,
+							},
+						});
+					} else {
+						return Response.json({
+							data: {
+								...nextCeremonyComponent,
+								state: await authentication.encryptAuthenticationState(state),
+							},
+						});
+					}
+				} catch (error) {
+					return Response.json({ error: error.name });
 				}
-			} catch (error) {
-				return Response.json({ error: error.name });
-			}
-		}, {
-			detail: {
-				summary: "Submit sign in prompt",
-				tags: ["Authentication"],
 			},
-			body: t.Object({
-				component: t.String({ description: "The authentication component" }),
-				prompt: t.Any(),
-				state: t.Optional(t.String({ description: "Encrypted state" })),
-			}),
-			response: {
-				200: {
-					description: "The sign in prompt result",
-					content: {
-						"application/json": {
-							schema: dataOrError(AuthenticationSubmitPromptStateSchema),
+			{
+				detail: {
+					summary: "Submit sign in prompt",
+					tags: ["Authentication"],
+				},
+				body: t.Object({
+					component: t.String({ description: "The authentication component" }),
+					prompt: t.Any(),
+					state: t.Optional(t.String({ description: "Encrypted state" })),
+				}),
+				response: {
+					200: {
+						description: "The sign in prompt result",
+						content: {
+							"application/json": {
+								schema: dataOrError(AuthenticationSubmitPromptStateSchema),
+							},
 						},
 					},
 				},
 			},
-		})
-		.post("/send-prompt", async ({ body, auth, remoteAddress }) => {
+		)
+		.post("/send-prompt", async ({ body, authentication, remoteAddress }) => {
 			try {
 				const state = body.state
-					? await auth.decryptAuthenticationState(body.state)
+					? await authentication.decryptAuthenticationState(body.state)
 					: undefined;
 				const interval = options.rateLimit?.interval ?? 60 * 1000;
 				const keys = [
@@ -395,10 +403,10 @@ export const authentication = (
 					interval,
 				);
 				if (counter > 10) {
-					throw new AuthenticationRateLimitedError();
+					throw new RateLimitedError();
 				}
 
-				const result = await auth.sendPrompt(
+				const result = await authentication.sendPrompt(
 					body.component,
 					body.locale,
 					state,

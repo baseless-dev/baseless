@@ -5,10 +5,10 @@ import EmailAuthentificationComponent from "../providers/auth-email/mod.ts";
 import { MemoryCounterProvider } from "../providers/counter-memory/mod.ts";
 import { MemoryDocumentProvider } from "../providers/document-memory/mod.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
-import { LoggerMessageProvider } from "../providers/message-logger/mod.ts";
 import { KVSessionProvider } from "../providers/session-kv/mod.ts";
 import { DocumentIdentityProvider } from "../providers/identity-document/mod.ts";
-import authPlugin from "../plugins/authentication/mod.ts";
+import authenticationPlugin from "../plugins/authentication/mod.ts";
+import registrationPlugin from "../plugins/registration/mod.ts";
 import assetPlugin from "../plugins/asset/mod.ts";
 import OTPMessageAuthentificationComponent from "../providers/auth-otp-message/mod.ts";
 import TOTPAuthentificationComponent from "../providers/auth-totp/mod.ts";
@@ -102,22 +102,35 @@ export async function mock(
 		},
 	};
 	const { auth } = await builder?.(result) ?? {};
+	const keys = auth?.keys ??
+		{ ...await generateKeyPair("PS512"), algo: "PS512" };
 	router = router
 		.use(
-			"/api",
-			authPlugin({
+			"/api/authentication",
+			authenticationPlugin({
 				counter,
 				identity,
 				session,
 				kv,
-				keys: auth?.keys ??
-					{ ...await generateKeyPair("PS512"), algo: "PS512" },
+				keys,
 				salt: "should probably be a secret more robust than this",
 				ceremony: sequence(
 					email,
 					password,
 				),
 				...auth,
+			}),
+		)
+		.use(
+			"/api/registration",
+			registrationPlugin({
+				counter,
+				identity,
+				keys,
+				ceremony: sequence(
+					email,
+					password,
+				),
 			}),
 		)
 		.use(assetPlugin({

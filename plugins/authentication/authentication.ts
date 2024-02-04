@@ -1,15 +1,6 @@
+import { Assert, type JWTPayload, jwtVerify, SignJWT } from "../../deps.ts";
 import {
-	Assert,
-	type JWTPayload,
-	jwtVerify,
-	type KeyLike,
-	SignJWT,
-	Value,
-} from "../../deps.ts";
-import {
-	AuthenticationCeremonyComponentPromptError,
 	AuthenticationMissingIdentificatorError,
-	AuthenticationRateLimitedError,
 	AuthenticationSendPromptError,
 	AuthenticationSubmitPromptError,
 } from "../../lib/authentication/errors.ts";
@@ -20,9 +11,6 @@ import type {
 	AuthenticationCeremonyState,
 	AuthenticationSendPromptResult,
 	AuthenticationState,
-} from "../../lib/authentication/types.ts";
-import type {
-	AuthenticationCeremonyComponentPrompt,
 } from "../../lib/authentication/types.ts";
 import { AuthenticationStateSchema } from "../../lib/authentication/types.ts";
 import type { Identity } from "../../lib/identity/types.ts";

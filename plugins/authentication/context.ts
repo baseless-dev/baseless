@@ -11,6 +11,6 @@ export type TokenData = {
 export interface Context {
 	readonly remoteAddress: string;
 	readonly authenticationToken: TokenData | undefined;
-	readonly auth: AuthenticationService;
+	readonly authentication: AuthenticationService;
 	readonly session: SessionService;
 }

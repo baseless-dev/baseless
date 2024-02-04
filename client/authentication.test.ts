@@ -108,6 +108,8 @@ Deno.test("Client Authentication", async (t) => {
 			},
 		});
 
+		initializeAuthentication(app, "http://test.local/api/authentication");
+
 		return {
 			...result,
 			identity: john!,
@@ -134,20 +136,17 @@ Deno.test("Client Authentication", async (t) => {
 
 	await t.step("initializeAuthentication", async () => {
 		const { app } = await initMockServer();
-		initializeAuthentication(app);
 		assertInitializedAuthentication(app);
 	});
 
 	await t.step("getPersistence", async () => {
 		const { app } = await initMockServer();
-		initializeAuthentication(app);
 		const persistence = getPersistence(app);
 		assertPersistence(persistence);
 	});
 
 	await t.step("setPersistence", async () => {
 		const { app } = await initMockServer();
-		initializeAuthentication(app);
 		// deno-lint-ignore no-explicit-any
 		assertThrows(() => setPersistence(app, "invalid" as any));
 		setPersistence(app, "local");
@@ -158,7 +157,6 @@ Deno.test("Client Authentication", async (t) => {
 
 	await t.step("getCeremony", async () => {
 		const { app, components: { email } } = await initMockServer();
-		initializeAuthentication(app);
 		const result = await getCeremony(app);
 		Assert(AuthenticationCeremonyStateNextSchema, result);
 		assertEquals(result.first, true);
@@ -172,7 +170,6 @@ Deno.test("Client Authentication", async (t) => {
 
 	await t.step("submitPrompt", async () => {
 		const { app } = await initMockServer();
-		initializeAuthentication(app);
 		const result1 = await submitPrompt(
 			app,
 			"email",
@@ -193,7 +190,6 @@ Deno.test("Client Authentication", async (t) => {
 
 	await t.step("sendPrompt", async () => {
 		const { app, messages } = await initMockServer();
-		initializeAuthentication(app);
 		const result1 = await submitPrompt(
 			app,
 			"email",
@@ -220,7 +216,6 @@ Deno.test("Client Authentication", async (t) => {
 
 	await t.step("signOut", async () => {
 		const { app, signIn } = await initMockServer();
-		initializeAuthentication(app);
 		await signIn(app);
 		await signOut(app);
 		await assertRejects(() => signOut(app));
@@ -229,7 +224,6 @@ Deno.test("Client Authentication", async (t) => {
 	await t.step("onAuthenticationStateChange", async () => {
 		const { app, identity, signIn } = await initMockServer();
 		const john = { id: identity.id, meta: identity.meta };
-		initializeAuthentication(app);
 		const changes: (ID | undefined)[] = [];
 		const unsubscribe = onAuthenticationStateChange(app, (identity) => {
 			changes.push(identity);
@@ -247,7 +241,6 @@ Deno.test("Client Authentication", async (t) => {
 
 	await t.step("getIdToken", async () => {
 		const { app, signIn } = await initMockServer();
-		initializeAuthentication(app);
 		await signIn(app);
 		const idToken = await getIdToken(app);
 		assert(idToken?.length ?? 0 > 0);
@@ -257,7 +250,6 @@ Deno.test("Client Authentication", async (t) => {
 	await t.step("getIdentity", async () => {
 		const { app, identity, signIn } = await initMockServer();
 		const john = { id: identity.id, meta: identity.meta };
-		initializeAuthentication(app);
 		await signIn(app);
 		const id1 = await getIdentity(app);
 		assertEquals(id1, john);
@@ -266,7 +258,6 @@ Deno.test("Client Authentication", async (t) => {
 
 	await t.step("refresh token when needed", async () => {
 		const { app, signIn } = await initMockServer();
-		initializeAuthentication(app);
 		await signIn(app);
 		const idToken1 = await getIdToken(app);
 		assert(idToken1);

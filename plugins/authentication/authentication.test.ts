@@ -119,6 +119,13 @@ Deno.test("AuthenticationService", async (t) => {
 			),
 			true,
 		);
-		assert(message.messages.at(-1));
+		const code = message.messages.at(-1)?.text;
+		assert(code);
+		const result2 = await auth.submitPrompt(
+			"otp",
+			code,
+			{ kind: "authentication", identity: john.id, choices: ["email"] },
+		);
+		assertEquals(result2, true);
 	});
 });

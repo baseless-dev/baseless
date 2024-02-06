@@ -4,74 +4,92 @@ import {
 	globToRegExp,
 	join,
 	relative,
-} from "https://deno.land/std@0.179.0/path/mod.ts";
-import { walk } from "https://deno.land/std@0.179.0/fs/walk.ts";
-import * as colors from "https://deno.land/std@0.165.0/fmt/colors.ts";
+} from "https://deno.land/std@0.213.0/path/mod.ts";
+import { walk } from "https://deno.land/std@0.213.0/fs/walk.ts";
+import * as colors from "https://deno.land/std@0.213.0/fmt/colors.ts";
 import {
 	ModuleKind,
 	Project,
 	ScriptTarget,
 	ts,
-} from "https://deno.land/x/ts_morph@18.0.0/mod.ts";
+} from "https://deno.land/x/ts_morph@21.0.1/mod.ts";
 
-const __dirname = fromFileUrl(new URL(".", import.meta.url));
+const cache = await caches.open("petitevite");
+const getOrFetchAsText = async (url: string) => {
+	const cached = await cache.match(url);
+	if (cached) {
+		return cached.text();
+	}
+	const response = await fetch(url);
+	await cache.put(url, response.clone());
+	return await response.text();
+};
 
 const importMap: Map<string, { browser: string; node: string }> = new Map([
-	["https://deno.land/x/jose@v4.13.1/jwt/verify.ts", {
-		browser: "https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/jwt/verify.js",
+	["npm:@sinclair/typebox@0.32.13/type", {
+		browser: "https://cdn.skypack.dev/@sinclair/typebox@0.32.13/type",
+		node: "@sinclair/typebox/type",
+	}],
+	["npm:@sinclair/typebox@0.32.13/value", {
+		browser: "https://cdn.skypack.dev/@sinclair/typebox@0.32.13/value",
+		node: "@sinclair/typebox/value",
+	}],
+	["npm:@sinclair/typebox@0.32.13/compiler", {
+		browser: "https://cdn.skypack.dev/@sinclair/typebox@0.32.13/compiler",
+		node: "@sinclair/typebox/compiler",
+	}],
+	["npm:@sinclair/typebox@0.32.13", {
+		browser: "https://cdn.skypack.dev/@sinclair/typebox@0.32.13",
+		node: "@sinclair/typebox",
+	}],
+	["npm:jose@5.2.0", {
+		browser: "https://cdn.skypack.dev/jose@5.2.0",
 		node: "jose",
 	}],
-	["https://deno.land/x/jose@v4.13.1/jwt/sign.ts", {
-		browser: "https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/jwt/sign.js",
-		node: "jose",
+	["npm:openapi-types@12.1.3", {
+		browser: "https://cdn.skypack.dev/openapi-types@12.1.3",
+		node: "openapi-types",
 	}],
-	["https://deno.land/x/jose@v4.13.1/runtime/generate.ts", {
-		browser:
-			"https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/runtime/generate.js",
-		node: "jose",
+]);
+const virtualFiles = new Map<string, { content: string; as: string }>([
+	["https://deno.land/std@0.213.0/encoding/base32.ts", {
+		content: await getOrFetchAsText(
+			"https://deno.land/std@0.213.0/encoding/base32.ts",
+		),
+		as: "./vendor/deno/encoding/base32.ts",
 	}],
-	["https://deno.land/x/jose@v4.13.1/key/export.ts", {
-		browser: "https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/key/export.js",
-		node: "jose",
-	}],
-	["https://deno.land/x/jose@v4.13.1/key/import.ts", {
-		browser: "https://cdnjs.cloudflare.com/ajax/libs/jose/4.13.1/key/import.js",
-		node: "jose",
-	}],
-	["https://deno.land/x/jose@v4.13.1/types.d.ts", {
-		browser: "https://deno.land/x/jose@v4.13.1/types.d.ts",
-		node: "jose",
+	["https://deno.land/std@0.213.0/encoding/base64.ts", {
+		content: await getOrFetchAsText(
+			"https://deno.land/std@0.213.0/encoding/base64.ts",
+		),
+		as: "./vendor/deno/encoding/base64.ts",
 	}],
 ]);
 
-await Deno.remove(join(__dirname, "./npm"), { recursive: true }).catch(
-	(_) => {},
-);
+await Deno
+	.remove(join(import.meta.dirname!, "./npm"), { recursive: true })
+	.catch((_) => {});
 
-const entryPoints = new Array<string>();
-for await (
-	const entry of walk(__dirname, {
-		match: [globToRegExp("**/*.{ts,tsx}")],
-		skip: [
-			globToRegExp(join(__dirname, "**/*.test.*")),
-			globToRegExp(
-				join(
-					__dirname,
-					"{.deno,coverage,examples,node_modules,npm}/**/*",
-				),
+const entrypoints = await Array.fromAsync(walk(import.meta.dirname!, {
+	match: [globToRegExp("**/*.{ts,tsx}")],
+	skip: [
+		/build\.ts/,
+		globToRegExp(join(import.meta.dirname!, "**/*.test.*")),
+		globToRegExp(join(import.meta.dirname!, "**/*.bench.*")),
+		globToRegExp(
+			join(
+				import.meta.dirname!,
+				"{.deno,coverage,examples,node_modules,npm}/**/*",
 			),
-			globToRegExp(
-				join(
-					__dirname,
-					"providers/{asset-denofs,kv-denokv,document-denokv}/**/*",
-				),
+		),
+		globToRegExp(
+			join(
+				import.meta.dirname!,
+				"providers/{asset-denofs,kv-denokv,document-denokv}/**/*",
 			),
-			/build\.ts/,
-		],
-	})
-) {
-	entryPoints.push(entry.path);
-}
+		),
+	],
+}));
 
 const timeStart = performance.now();
 console.log(
@@ -82,7 +100,7 @@ console.log(
 
 const browserProject = new Project({
 	compilerOptions: {
-		outDir: join(__dirname, "npm/browser"),
+		outDir: join(import.meta.dirname!, "npm/browser"),
 		declaration: false,
 		sourceMap: true,
 		target: ScriptTarget.ESNext,
@@ -90,19 +108,19 @@ const browserProject = new Project({
 		moduleResolution: ts.ModuleResolutionKind.NodeNext,
 	},
 });
-const nodeProject = new Project({
-	compilerOptions: {
-		outDir: join(__dirname, "npm/node"),
-		declaration: false,
-		sourceMap: true,
-		target: ScriptTarget.ESNext,
-		module: ModuleKind.ESNext,
-		moduleResolution: ts.ModuleResolutionKind.NodeNext,
-	},
-});
+// const nodeProject = new Project({
+// 	compilerOptions: {
+// 		outDir: join(import.meta.dirname!, "npm/node"),
+// 		declaration: false,
+// 		sourceMap: true,
+// 		target: ScriptTarget.ESNext,
+// 		module: ModuleKind.ESNext,
+// 		moduleResolution: ts.ModuleResolutionKind.NodeNext,
+// 	},
+// });
 const typesProject = new Project({
 	compilerOptions: {
-		outDir: join(__dirname, "npm/types"),
+		outDir: join(import.meta.dirname!, "npm/types"),
 		declaration: true,
 		emitDeclarationOnly: true,
 		target: ScriptTarget.ESNext,
@@ -111,10 +129,15 @@ const typesProject = new Project({
 	},
 });
 
-for await (const entryPoint of entryPoints) {
-	browserProject.addSourceFileAtPath(entryPoint);
-	nodeProject.addSourceFileAtPath(entryPoint);
-	typesProject.addSourceFileAtPath(entryPoint);
+for (const entrypoint of entrypoints) {
+	browserProject.addSourceFileAtPath(entrypoint.path);
+	// nodeProject.addSourceFileAtPath(entrypoint.path);
+	typesProject.addSourceFileAtPath(entrypoint.path);
+}
+for (const { as, content } of virtualFiles.values()) {
+	browserProject.createSourceFile(as, content);
+	// nodeProject.createSourceFile(as, content);
+	typesProject.createSourceFile(as, content);
 }
 
 const browserResult = await browserProject.emitToMemory({
@@ -130,19 +153,27 @@ const browserResult = await browserProject.emitToMemory({
 						}
 						if (importMap.has(moduleSpecifier)) {
 							const mapTo = importMap.get(moduleSpecifier)!;
-							if ("bundle" in mapTo) {
-								console.log(`Browser bundling ${moduleSpecifier}...`);
-							} else {
-								moduleSpecifier = mapTo.browser;
-							}
-						} else {
-							moduleSpecifier = moduleSpecifier.replace(/\.tsx?$/, ".mjs");
+							moduleSpecifier = mapTo.browser;
+						} else if (virtualFiles.has(moduleSpecifier)) {
+							moduleSpecifier = virtualFiles.get(moduleSpecifier)!.as;
+						} else if (moduleSpecifier.match(/^(https?:\/\/|npm:)/)) {
+							console.error(
+								colors.red(`×`) +
+									colors.dim(` ${moduleSpecifier} not found in importMap.`),
+							);
 						}
+						moduleSpecifier = moduleSpecifier.replace(/\.tsx?$/, ".mjs");
 						if (ts.isImportDeclaration(node)) {
 							let namedBindings = node.importClause?.namedBindings;
 							if (namedBindings && ts.isNamedImports(namedBindings)) {
+								const elements = namedBindings.elements.filter((e) =>
+									!e.isTypeOnly
+								);
+								if (elements.length === 0) {
+									return undefined;
+								}
 								namedBindings = context.factory.createNamedImports(
-									namedBindings.elements.filter((e) => !e.isTypeOnly),
+									elements,
 								);
 							}
 							const importClause = context.factory.createImportClause(
@@ -157,10 +188,25 @@ const browserResult = await browserProject.emitToMemory({
 								node.assertClause,
 							);
 						} else {
+							if (node.isTypeOnly) {
+								return undefined;
+							}
+							let exportClause = node.exportClause;
+							if (exportClause && ts.isNamedExports(exportClause)) {
+								const elements = exportClause.elements.filter((e) =>
+									!e.isTypeOnly
+								);
+								if (elements.length === 0) {
+									return undefined;
+								}
+								exportClause = context.factory.createNamedExports(
+									elements,
+								);
+							}
 							return context.factory.createExportDeclaration(
 								node.modifiers,
 								node.isTypeOnly,
-								node.exportClause,
+								exportClause,
 								context.factory.createStringLiteral(moduleSpecifier),
 								node.assertClause,
 							);
@@ -172,7 +218,67 @@ const browserResult = await browserProject.emitToMemory({
 });
 const browserDiagnostics = browserResult.getDiagnostics();
 
-const nodeResult = await nodeProject.emitToMemory({
+// const nodeResult = await nodeProject.emitToMemory({
+// 	customTransformers: {
+// 		before: [
+// 			(context) => (sourceFile) =>
+// 				visitSourceFile(
+// 					sourceFile,
+// 					context,
+// 					visitImportExportDeclaration((node, moduleSpecifier) => {
+// 						if (ts.isImportDeclaration(node) && node.importClause?.isTypeOnly) {
+// 							return context.factory.createNotEmittedStatement(node);
+// 						}
+// 						if (importMap.has(moduleSpecifier)) {
+// 							const mapTo = importMap.get(moduleSpecifier)!;
+// 							if ("bundle" in mapTo) {
+// 								console.log(`Node bundling ${moduleSpecifier}...`);
+// 							} else {
+// 								moduleSpecifier = mapTo.node;
+// 							}
+// 						} else {
+// 							moduleSpecifier = moduleSpecifier.replace(/\.tsx?$/, ".mjs");
+// 						}
+// 						if (ts.isImportDeclaration(node)) {
+// 							let namedBindings = node.importClause?.namedBindings;
+// 							if (namedBindings && ts.isNamedImports(namedBindings)) {
+// 								namedBindings = context.factory.createNamedImports(
+// 									namedBindings.elements.filter((e) => !e.isTypeOnly),
+// 								);
+// 							}
+// 							const importClause = context.factory.createImportClause(
+// 								false,
+// 								node.importClause?.name,
+// 								namedBindings,
+// 							);
+// 							return context.factory.createImportDeclaration(
+// 								node.modifiers,
+// 								importClause,
+// 								context.factory.createStringLiteral(
+// 									moduleSpecifier.replace(/\.tsx?$/, ""),
+// 								),
+// 								node.assertClause,
+// 							);
+// 						} else {
+// 							return context.factory.createExportDeclaration(
+// 								node.modifiers,
+// 								node.isTypeOnly,
+// 								node.exportClause,
+// 								context.factory.createStringLiteral(
+// 									moduleSpecifier.replace(/\.tsx?$/, ""),
+// 								),
+// 								node.assertClause,
+// 							);
+// 						}
+// 					}),
+// 				),
+// 		],
+// 	},
+// });
+// const nodeDiagnostics = nodeResult.getDiagnostics();
+
+const typesResult = await typesProject.emitToMemory({
+	emitOnlyDtsFiles: true,
 	customTransformers: {
 		before: [
 			(context) => (sourceFile) =>
@@ -180,37 +286,23 @@ const nodeResult = await nodeProject.emitToMemory({
 					sourceFile,
 					context,
 					visitImportExportDeclaration((node, moduleSpecifier) => {
-						if (ts.isImportDeclaration(node) && node.importClause?.isTypeOnly) {
-							return context.factory.createNotEmittedStatement(node);
-						}
 						if (importMap.has(moduleSpecifier)) {
 							const mapTo = importMap.get(moduleSpecifier)!;
-							if ("bundle" in mapTo) {
-								console.log(`Node bundling ${moduleSpecifier}...`);
-							} else {
-								moduleSpecifier = mapTo.node;
-							}
-						} else {
-							moduleSpecifier = moduleSpecifier.replace(/\.tsx?$/, ".mjs");
-						}
-						if (ts.isImportDeclaration(node)) {
-							let namedBindings = node.importClause?.namedBindings;
-							if (namedBindings && ts.isNamedImports(namedBindings)) {
-								namedBindings = context.factory.createNamedImports(
-									namedBindings.elements.filter((e) => !e.isTypeOnly),
-								);
-							}
-							const importClause = context.factory.createImportClause(
-								false,
-								node.importClause?.name,
-								namedBindings,
+							moduleSpecifier = mapTo.browser;
+						} else if (virtualFiles.has(moduleSpecifier)) {
+							moduleSpecifier = virtualFiles.get(moduleSpecifier)!.as;
+						} else if (moduleSpecifier.match(/^(https?:\/\/|npm:)/)) {
+							console.error(
+								colors.red(`×`) +
+									colors.dim(` ${moduleSpecifier} not found in importMap.`),
 							);
+						}
+						moduleSpecifier = moduleSpecifier.replace(/\.tsx?$/, ".mjs");
+						if (ts.isImportDeclaration(node)) {
 							return context.factory.createImportDeclaration(
 								node.modifiers,
-								importClause,
-								context.factory.createStringLiteral(
-									moduleSpecifier.replace(/\.tsx?$/, ""),
-								),
+								node.importClause,
+								context.factory.createStringLiteral(moduleSpecifier),
 								node.assertClause,
 							);
 						} else {
@@ -218,9 +310,7 @@ const nodeResult = await nodeProject.emitToMemory({
 								node.modifiers,
 								node.isTypeOnly,
 								node.exportClause,
-								context.factory.createStringLiteral(
-									moduleSpecifier.replace(/\.tsx?$/, ""),
-								),
+								context.factory.createStringLiteral(moduleSpecifier),
 								node.assertClause,
 							);
 						}
@@ -229,16 +319,11 @@ const nodeResult = await nodeProject.emitToMemory({
 		],
 	},
 });
-const nodeDiagnostics = nodeResult.getDiagnostics();
-
-const typesResult = await typesProject.emitToMemory({
-	emitOnlyDtsFiles: true,
-});
 const typesDiagnostics = typesResult.getDiagnostics();
 
 const diagnostics = [
 	...browserDiagnostics,
-	...nodeDiagnostics,
+	// 	...nodeDiagnostics,
 	...typesDiagnostics,
 ];
 if (diagnostics.length) {
@@ -264,27 +349,30 @@ for (const file of browserResult.getFiles()) {
 	await Deno.mkdir(dirname(filePath), { recursive: true });
 	await Deno.writeTextFile(filePath, fileText);
 }
-for (const file of nodeResult.getFiles()) {
-	const filePath = file.filePath.replace(/\.js(\.map)?$/, ".mjs$1");
-	const fileText = file.text.replace(
-		/(\/\/# sourceMappingURL=.*).js.map/g,
-		"$1.mjs.map",
-	);
-	// TODO replace .js to .mjs in { files } from .mjs.map
-	await Deno.mkdir(dirname(filePath), { recursive: true });
-	await Deno.writeTextFile(filePath, fileText);
-}
+// for (const file of nodeResult.getFiles()) {
+// 	const filePath = file.filePath.replace(/\.js(\.map)?$/, ".mjs$1");
+// 	const fileText = file.text.replace(
+// 		/(\/\/# sourceMappingURL=.*).js.map/g,
+// 		"$1.mjs.map",
+// 	);
+// 	// TODO replace .js to .mjs in { files } from .mjs.map
+// 	await Deno.mkdir(dirname(filePath), { recursive: true });
+// 	await Deno.writeTextFile(filePath, fileText);
+// }
 for (const file of typesResult.getFiles()) {
 	await Deno.mkdir(dirname(file.filePath), { recursive: true });
 	// Poor's man replace importMap in types file
 	for (const [src, { node }] of importMap) {
 		file.text = file.text.replaceAll(src, node);
 	}
+	for (const [src, { as }] of virtualFiles) {
+		file.text = file.text.replaceAll(src, as.replace(/\.tsx?$/, ""));
+	}
 	await Deno.writeTextFile(file.filePath, file.text);
 }
 
 await Deno.writeTextFile(
-	join(__dirname, "npm/package.json"),
+	join(import.meta.dirname!, "npm/package.json"),
 	JSON.stringify(
 		{
 			name: "@baseless/core",
@@ -292,23 +380,25 @@ await Deno.writeTextFile(
 			description: "Baseless Core",
 			repository: {
 				type: "git",
-				url: "git+https://github.com/baseless-dev/baseless",
+				url: "git+https://github.com/baseless-dev/core",
 			},
 			type: "module",
 			dependencies: {
-				jose: "4.13.1",
+				"@sinclair/typebox": "0.32.13",
+				jose: "5.2.0",
 			},
 			devDependencies: {
 				"@cloudflare/workers-types": "4.20230914.0",
+				"openapi-types": "12.1.3",
 			},
 			exports: Object.fromEntries(
-				entryPoints.map(
-					(entryPath) => {
-						const key = "./" + relative(__dirname, entryPath);
+				entrypoints.map(
+					(entry) => {
+						const key = "./" + relative(import.meta.dirname!, entry.path);
 						return [key.replace(/\.tsx?$/, "").replace(/\/mod$/, ""), {
-							node: "./" + join("node/", key.replace(/\.tsx?$/, ".mjs")),
-							browser: "./" + join("node/", key.replace(/\.tsx?$/, ".mjs")),
-							// browser: "./" + join("browser/", key.replace(/\.tsx?$/, ".mjs")),
+							// node: "./" + join("node/", key.replace(/\.tsx?$/, ".mjs")),
+							// browser: "./" + join("node/", key.replace(/\.tsx?$/, ".mjs")),
+							browser: "./" + join("browser/", key.replace(/\.tsx?$/, ".mjs")),
 							// deno: "./" + join("deno/", key),
 							types: "./" + join("types/", key.replace(/\.tsx?$/, ".d.ts")),
 						}];
@@ -332,7 +422,7 @@ await npmLink.status;
 console.log(
 	colors.green("✓") +
 		colors.dim(
-			` ${entryPoints.length} modules transformed in ${
+			` ${entrypoints.length} modules transformed in ${
 				(performance.now() - timeStart).toFixed(0)
 			}ms.`,
 		),
@@ -344,8 +434,8 @@ function visitImportExportDeclaration(
 	visitNode: (
 		node: ts.ImportDeclaration | ts.ExportDeclaration,
 		moduleSpecifier: string,
-	) => ts.Node,
-): (node: ts.Node, context: ts.TransformationContext) => ts.Node {
+	) => ts.Node | undefined,
+): (node: ts.Node, context: ts.TransformationContext) => ts.Node | undefined {
 	return (node: ts.Node, _context: ts.TransformationContext) => {
 		if (
 			ts.isImportDeclaration(node) &&
@@ -368,11 +458,14 @@ function visitImportExportDeclaration(
 function visitSourceFile(
 	sourceFile: ts.SourceFile,
 	context: ts.TransformationContext,
-	visitNode: (node: ts.Node, context: ts.TransformationContext) => ts.Node,
+	visitNode: (
+		node: ts.Node,
+		context: ts.TransformationContext,
+	) => ts.Node | undefined,
 ): ts.SourceFile {
 	return visitNodeAndChildren(sourceFile) as ts.SourceFile;
 
-	function visitNodeAndChildren(node: ts.Node): ts.Node {
+	function visitNodeAndChildren(node: ts.Node): ts.Node | undefined {
 		return ts.visitEachChild(
 			visitNode(node, context),
 			visitNodeAndChildren,

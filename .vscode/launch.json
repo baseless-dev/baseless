@@ -6,6 +6,23 @@
 	"configurations": [
 		{
 			"request": "launch",
+			"name": "Debug build.ts",
+			"type": "node",
+			"program": "${workspaceFolder}/build.ts",
+			"cwd": "${workspaceFolder}/",
+			"env": {
+				"DENO_DIR": ".deno"
+			},
+			"runtimeExecutable": "/home/grenierdev/.deno/bin/deno",
+			"runtimeArgs": [
+				"run",
+				"-A",
+				"--inspect-wait"
+			],
+			"attachSimplePort": 9229
+		},
+		{
+			"request": "launch",
 			"name": "Launch with-auth",
 			"type": "node",
 			"program": "${workspaceFolder}/examples/with-auth/main.ts",

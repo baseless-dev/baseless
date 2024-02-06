@@ -1,4 +1,10 @@
-import { contentType, extname, join, normalize, resolve } from "../../deps.ts";
+import {
+	extname,
+	join,
+	normalize,
+	resolve,
+} from "https://deno.land/std@0.213.0/path/mod.ts";
+import { contentType } from "https://deno.land/std@0.213.0/media_types/mod.ts";
 import { createLogger } from "../../lib/logger.ts";
 import type { AssetProvider } from "../asset.ts";
 

@@ -34,14 +34,6 @@ export {
 	TypeCompiler,
 } from "npm:@sinclair/typebox@0.32.13/compiler";
 export {
-	extname,
-	fromFileUrl,
-	join,
-	normalize,
-	resolve,
-} from "https://deno.land/std@0.213.0/path/mod.ts";
-export { contentType } from "https://deno.land/std@0.213.0/media_types/mod.ts";
-export {
 	generateKeyPair,
 	type JWTPayload,
 	jwtVerify,

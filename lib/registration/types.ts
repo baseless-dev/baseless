@@ -96,3 +96,11 @@ export const RegistrationSubmitStateSchema = t.Union([
 export type RegistrationSubmitState = Static<
 	typeof RegistrationSubmitStateSchema
 >;
+
+export const RegistrationSendValidationCodeResultSchema = t.Object({
+	sent: t.Boolean(),
+}, { $id: "RegistrationSendValidationCodeResult" });
+
+export type RegistrationSendValidationCodeResult = Static<
+	typeof RegistrationSendValidationCodeResultSchema
+>;

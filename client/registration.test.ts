@@ -3,12 +3,25 @@ import { autoid } from "../lib/autoid.ts";
 import type { ID } from "../lib/identity/types.ts";
 import mock, { type MockResult } from "../server/mock.ts";
 import { type App, initializeApp } from "./app.ts";
-import { getCeremony, initializeRegistration } from "./registration.ts";
+import {
+	getCeremony,
+	initializeRegistration,
+	submitPrompt,
+	submitValidationCode,
+} from "./registration.ts";
 import type { Message } from "../lib/message/types.ts";
 import { assertInitializedRegistration } from "./registration.ts";
-import { RegistrationCeremonyStateNextSchema } from "../lib/registration/types.ts";
-import { assertEquals, assertRejects } from "../deps.test.ts";
-import { submitPrompt } from "./authentication.ts";
+import {
+	RegistrationCeremonyStateNextSchema,
+	RegistrationCeremonyStateValidationSchema,
+} from "../lib/registration/types.ts";
+import {
+	assert,
+	assertEquals,
+	assertObjectMatch,
+	assertRejects,
+} from "../deps.test.ts";
+import { sendValidationCode } from "./registration.ts";
 
 Deno.test("Client Registration", async (t) => {
 	const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -119,13 +132,67 @@ Deno.test("Client Registration", async (t) => {
 
 	await t.step("submitPrompt", async () => {
 		const { app } = await initMockServer();
-		const result1 = await submitPrompt(
+		const state1 = await submitPrompt(
 			app,
 			"email",
 			"john@test.local",
 		);
-		Assert(RegistrationCeremonyStateNextSchema, result1);
-		assertEquals(result1.first, false);
-		assertEquals(result1.last, false);
+		Assert(RegistrationCeremonyStateValidationSchema, state1);
+		assertEquals(state1.first, false);
+		assertEquals(state1.last, false);
+		assertObjectMatch(state1.validationComponent, {
+			id: "validation",
+			kind: "prompt",
+			prompt: "otp",
+		});
+	});
+
+	await t.step("send validation code", async () => {
+		const { app, messages } = await initMockServer();
+		const state1 = await submitPrompt(
+			app,
+			"email",
+			"john@test.local",
+		);
+		Assert(RegistrationCeremonyStateValidationSchema, state1);
+		assertEquals(await sendValidationCode(app, "email", "en", state1.state), {
+			sent: true,
+		});
+		const code = messages().at(-1)?.text;
+		assert(code?.length === 8);
+	});
+
+	await t.step("submit validation code", async () => {
+		const { app, messages } = await initMockServer();
+
+		const state1 = await submitPrompt(app, "email", "john@test.local");
+		assert(state1.done === false);
+		await sendValidationCode(app, "email", "en", state1.state);
+		const code = messages().at(-1)!.text;
+		const state2 = await submitValidationCode(
+			app,
+			"email",
+			code,
+			state1.state,
+		);
+		Assert(RegistrationCeremonyStateNextSchema, state2);
+	});
+
+	await t.step("submit last prompt returns an identity", async () => {
+		const { app, messages } = await initMockServer();
+
+		const state1 = await submitPrompt(app, "email", "john@test.local");
+		assert(state1.done === false);
+		await sendValidationCode(app, "email", "en", state1.state);
+		const code = messages().at(-1)!.text;
+		const state2 = await submitValidationCode(
+			app,
+			"email",
+			code,
+			state1.state,
+		);
+		assert(state2.done === false);
+		const state3 = await submitPrompt(app, "password", "123", state2.state);
+		assert(state3.done === true);
 	});
 });

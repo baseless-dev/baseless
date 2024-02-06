@@ -2,6 +2,12 @@ import { Assert } from "../deps.ts";
 import {
 	type RegistrationCeremonyState,
 	RegistrationCeremonyStateSchema,
+	RegistrationSendValidationCodeResult,
+	RegistrationSendValidationCodeResultSchema,
+	RegistrationSubmitResult,
+	RegistrationSubmitResultSchema,
+	RegistrationSubmitState,
+	RegistrationSubmitStateSchema,
 } from "../lib/registration/types.ts";
 import { type App, isApp } from "./app.ts";
 import { throwIfApiError } from "./errors.ts";
@@ -69,5 +75,74 @@ export async function getCeremony(
 	const result = await resp.json();
 	throwIfApiError(result);
 	Assert(RegistrationCeremonyStateSchema, result.data);
+	return result.data;
+}
+
+export async function submitPrompt(
+	app: App,
+	component: string,
+	prompt: unknown,
+	state?: string,
+): Promise<RegistrationSubmitState> {
+	assertInitializedRegistration(app);
+	const register = getRegistration(app);
+	const body = JSON.stringify({
+		component,
+		prompt,
+		...(state ? { state } : undefined),
+	});
+	const resp = await app.fetch(
+		`${register.apiEndpoint}/submit-prompt`,
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+	Assert(RegistrationSubmitStateSchema, result.data);
+	return result.data;
+}
+
+export async function sendValidationCode(
+	app: App,
+	component: string,
+	locale: string,
+	state?: string,
+): Promise<RegistrationSendValidationCodeResult> {
+	assertInitializedRegistration(app);
+	const register = getRegistration(app);
+	const body = JSON.stringify({
+		component,
+		locale,
+		...(state ? { state } : undefined),
+	});
+	const resp = await app.fetch(
+		`${register.apiEndpoint}/send-validation-code`,
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+	Assert(RegistrationSendValidationCodeResultSchema, result.data);
+	return result.data;
+}
+
+export async function submitValidationCode(
+	app: App,
+	component: string,
+	code: string,
+	state?: string,
+): Promise<RegistrationSubmitState> {
+	assertInitializedRegistration(app);
+	const register = getRegistration(app);
+	const body = JSON.stringify({
+		component,
+		code,
+		...(state ? { state } : undefined),
+	});
+	const resp = await app.fetch(
+		`${register.apiEndpoint}/submit-validation-code`,
+		{ body, headers: { "Content-Type": "application/json" }, method: "POST" },
+	);
+	const result = await resp.json();
+	throwIfApiError(result);
+	Assert(RegistrationSubmitStateSchema, result.data);
 	return result.data;
 }

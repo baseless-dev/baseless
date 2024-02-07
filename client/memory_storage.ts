@@ -1,4 +1,4 @@
-export default class MemoryStorage extends globalThis.Storage {
+export default class MemoryStorage implements globalThis.Storage {
 	#kv = new Map<string, string>();
 	length = 0;
 	clear(): void {

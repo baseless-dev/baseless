@@ -41,7 +41,9 @@ class AuthenticationApp {
 			: "memory";
 		this.#storage = this.#persistence === "local"
 			? globalThis.localStorage
-			: globalThis.sessionStorage;
+			: this.#persistence === "session"
+			? globalThis.sessionStorage
+			: new MemoryStorage();
 		this.#onAuthStateChange = new EventEmitter<[ID | undefined]>();
 
 		const tokensString = this.#storage.getItem(

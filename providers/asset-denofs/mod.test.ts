@@ -1,5 +1,5 @@
 import testAssetProvider from "../asset.test.ts";
-import { fromFileUrl } from "https://deno.land/std@0.213.0/path/mod.ts";
+import { fromFileUrl } from "../../deps.test.ts";
 import { DenoFSAssetProvider } from "./mod.ts";
 
 Deno.test("DenoFSAssetProvider", async (t) => {

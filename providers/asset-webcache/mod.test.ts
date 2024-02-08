@@ -1,5 +1,5 @@
 import { DenoFSAssetProvider } from "../asset-denofs/mod.ts";
-import { fromFileUrl } from "../../deps.ts";
+import { fromFileUrl } from "../../deps.test.ts";
 import testAssetProvider from "../asset.test.ts";
 import { WebCacheAssetProvider } from "./mod.ts";
 

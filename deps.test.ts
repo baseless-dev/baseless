@@ -5,3 +5,4 @@ export { assertExists } from "https://deno.land/std@0.213.0/assert/assert_exists
 export { assertRejects } from "https://deno.land/std@0.213.0/assert/assert_rejects.ts";
 export { assertObjectMatch } from "https://deno.land/std@0.213.0/assert/assert_object_match.ts";
 export { assertThrows } from "https://deno.land/std@0.213.0/assert/assert_throws.ts";
+export { fromFileUrl } from "https://deno.land/std@0.213.0/path/mod.ts";

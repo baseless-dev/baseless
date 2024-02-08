@@ -108,8 +108,160 @@ const printer = ts.createPrinter();
 
 {
 	await rm("./npm/src");
-	await rm("./npm/node");
+
+	await Deno.writeTextFile(
+		join(import.meta.dirname!, "npm/package.json"),
+		JSON.stringify(
+			{
+				name: "@baseless/core",
+				version: "0.0.0",
+				description: "Baseless Core",
+				repository: {
+					type: "git",
+					url: "git+https://github.com/baseless-dev/core",
+				},
+				type: "module",
+				dependencies: {
+					"@sinclair/typebox": "0.32.13",
+					jose: "5.2.0",
+				},
+				devDependencies: {
+					"@cloudflare/workers-types": "4.20230914.0",
+					"openapi-types": "12.1.3",
+					"typescript": "5.3.3",
+				},
+			},
+			undefined,
+			"  ",
+		),
+	);
+
+	await Deno.writeTextFile(
+		join(import.meta.dirname!, "npm/tsconfig.json"),
+		JSON.stringify(
+			{
+				include: ["src/**/*"],
+				exclude: ["node_modules", "**/*.test.*", "**/*.bench.*"],
+				compilerOptions: {
+					target: "ESNext",
+					module: "NodeNext",
+					moduleResolution: "NodeNext",
+					lib: ["esnext", "dom", "webworker"],
+					types: ["@cloudflare/workers-types"],
+				},
+			},
+			undefined,
+			"  ",
+		),
+	);
+
+	const npmInstall = new Deno.Command(`npm`, { cwd: "./npm", args: ["i"] })
+		.spawn();
+	await npmInstall.status;
+
 	await rm("./npm/types");
+
+	for (const entrypoint of entrypoints) {
+		const sourceFile = ts.createSourceFile(
+			entrypoint.path,
+			await Deno.readTextFile(entrypoint.path),
+			ts.ScriptTarget.ESNext,
+		);
+
+		const transformResult = ts.transform(sourceFile, [
+			(context) => {
+				const visit: ts.Visitor = (node) => {
+					if (
+						ts.isImportDeclaration(node) &&
+						node.moduleSpecifier &&
+						ts.isStringLiteral(node.moduleSpecifier)
+					) {
+						if (importMap.has(node.moduleSpecifier.text)) {
+							const mapTo = importMap.get(node.moduleSpecifier.text)!;
+							node.moduleSpecifier.text = mapTo.node;
+						} else if (virtualFiles.has(node.moduleSpecifier.text)) {
+							node.moduleSpecifier.text =
+								virtualFiles.get(node.moduleSpecifier.text)!.as;
+						} else if (node.moduleSpecifier.text.match(/^(https?:\/\/|npm:)/)) {
+							console.error(
+								colors.red(`×`) +
+									colors.dim(
+										` ${node.moduleSpecifier.text} not found in importMap.`,
+									),
+							);
+						}
+						return context.factory.createImportDeclaration(
+							node.modifiers,
+							node.importClause,
+							context.factory.createStringLiteral(node.moduleSpecifier.text),
+							node.assertClause,
+						);
+					} else if (
+						ts.isExportDeclaration(node) &&
+						node.moduleSpecifier &&
+						ts.isStringLiteral(node.moduleSpecifier)
+					) {
+						if (importMap.has(node.moduleSpecifier.text)) {
+							const mapTo = importMap.get(node.moduleSpecifier.text)!;
+							node.moduleSpecifier.text = mapTo.node;
+						} else if (virtualFiles.has(node.moduleSpecifier.text)) {
+							node.moduleSpecifier.text =
+								virtualFiles.get(node.moduleSpecifier.text)!.as;
+						} else if (node.moduleSpecifier.text.match(/^(https?:\/\/|npm:)/)) {
+							console.error(
+								colors.red(`×`) +
+									colors.dim(
+										` ${node.moduleSpecifier.text} not found in importMap.`,
+									),
+							);
+						}
+						return context.factory.createExportDeclaration(
+							node.modifiers,
+							node.isTypeOnly,
+							node.exportClause,
+							context.factory.createStringLiteral(node.moduleSpecifier.text),
+							node.assertClause,
+						);
+					}
+					return ts.visitEachChild(node, (child) => visit(child), context);
+				};
+				return (node) => ts.visitNode(node, visit) as any;
+			},
+		]);
+
+		const dest = join(
+			import.meta.dirname!,
+			"npm/src",
+			"./" + relative(import.meta.dirname!, entrypoint.path),
+		);
+		const code = printer.printFile(transformResult.transformed[0]);
+
+		await Deno.mkdir(dirname(dest), { recursive: true });
+		await Deno.writeTextFile(dest, code);
+	}
+
+	for (const [, { as, content }] of virtualFiles) {
+		const dest = join(import.meta.dirname!, "npm/src", as);
+		await Deno.mkdir(dirname(dest), { recursive: true });
+		await Deno.writeTextFile(dest, content);
+	}
+
+	const typeCompile = new Deno.Command(`npx`, {
+		cwd: "./npm",
+		args: [
+			"tsc",
+			"--project",
+			"tsconfig.json",
+			"--emitDeclarationOnly",
+			"--declaration",
+			"--outDir",
+			"types",
+		],
+	}).spawn();
+	await typeCompile.status;
+
+	await rm("./npm/src");
+	await rm("./npm/node");
 
 	for (const entrypoint of entrypoints) {
 		const sourceFile = ts.createSourceFile(
@@ -206,70 +358,6 @@ const printer = ts.createPrinter();
 			content.replace(/\.(jsx?|tsx?)("|')/g, "$2"),
 		);
 	}
-
-	await Deno.writeTextFile(
-		join(import.meta.dirname!, "npm/package.json"),
-		JSON.stringify(
-			{
-				name: "@baseless/core",
-				version: "0.0.0",
-				description: "Baseless Core",
-				repository: {
-					type: "git",
-					url: "git+https://github.com/baseless-dev/core",
-				},
-				type: "module",
-				dependencies: {
-					"@sinclair/typebox": "0.32.13",
-					jose: "5.2.0",
-				},
-				devDependencies: {
-					"@cloudflare/workers-types": "4.20230914.0",
-					"openapi-types": "12.1.3",
-					"typescript": "5.3.3",
-				},
-			},
-			undefined,
-			"  ",
-		),
-	);
-
-	await Deno.writeTextFile(
-		join(import.meta.dirname!, "npm/tsconfig.json"),
-		JSON.stringify(
-			{
-				include: ["src/**/*"],
-				exclude: ["node_modules", "**/*.test.*", "**/*.bench.*"],
-				compilerOptions: {
-					target: "ESNext",
-					module: "NodeNext",
-					moduleResolution: "NodeNext",
-					lib: ["esnext", "dom", "webworker"],
-					types: ["@cloudflare/workers-types"],
-				},
-			},
-			undefined,
-			"  ",
-		),
-	);
-
-	const npmInstall = new Deno.Command(`npm`, { cwd: "./npm", args: ["i"] })
-		.spawn();
-	await npmInstall.status;
-
-	const typeCompile = new Deno.Command(`npx`, {
-		cwd: "./npm",
-		args: [
-			"tsc",
-			"--project",
-			"tsconfig.json",
-			"--emitDeclarationOnly",
-			"--declaration",
-			"--outDir",
-			"types",
-		],
-	}).spawn();
-	await typeCompile.status;
 
 	const nodeCompile = new Deno.Command(`npx`, {
 		cwd: "./npm",

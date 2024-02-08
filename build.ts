@@ -21,9 +21,10 @@ const getOrFetchAsText = async (url: string) => {
 };
 
 const rm = (path: string) =>
-	Deno
-		.remove(join(import.meta.dirname!, path), { recursive: true })
-		.catch((_) => {});
+	Deno.remove(path, { recursive: true }).catch((_) => {});
+const mkdir = (path: string) => Deno.mkdir(path, { recursive: true });
+const writeText = (path: string, content: string) =>
+	Deno.writeTextFile(path, content);
 
 const importMap: Map<string, { browser: string; node: string }> = new Map([
 	["npm:@sinclair/typebox@0.32.13/type", {
@@ -72,10 +73,6 @@ const virtualFiles = new Map<string, { content: string; as: string }>([
 	}],
 ]);
 
-// await rm("./npm/node");
-// await rm("./npm/browser");
-// await rm("./npm/types");
-
 const entrypoints = await Array.fromAsync(walk(import.meta.dirname!, {
 	match: [globToRegExp("**/*.{ts,tsx}")],
 	skip: [
@@ -104,12 +101,20 @@ console.log(
 	}`,
 );
 
+console.log(
+	colors.dim(
+		`• Exporting ${entrypoints.length + virtualFiles.size} modules`,
+	),
+);
+
 const printer = ts.createPrinter();
 
-{
-	await rm("./npm/src");
+await mkdir(join(import.meta.dirname!, "./npm"));
 
-	await Deno.writeTextFile(
+{
+	await rm(join(import.meta.dirname!, "./npm/src"));
+
+	await writeText(
 		join(import.meta.dirname!, "npm/package.json"),
 		JSON.stringify(
 			{
@@ -136,7 +141,7 @@ const printer = ts.createPrinter();
 		),
 	);
 
-	await Deno.writeTextFile(
+	await writeText(
 		join(import.meta.dirname!, "npm/tsconfig.json"),
 		JSON.stringify(
 			{
@@ -155,11 +160,16 @@ const printer = ts.createPrinter();
 		),
 	);
 
-	const npmInstall = new Deno.Command(`npm`, { cwd: "./npm", args: ["i"] })
+	const npmInstall = new Deno.Command(`npm`, {
+		cwd: "./npm",
+		args: ["i"],
+		stdout: "null",
+		stderr: "null",
+	})
 		.spawn();
 	await npmInstall.status;
 
-	await rm("./npm/types");
+	await rm(join(import.meta.dirname!, "./npm/types"));
 
 	for (const entrypoint of entrypoints) {
 		const sourceFile = ts.createSourceFile(
@@ -236,14 +246,14 @@ const printer = ts.createPrinter();
 		);
 		const code = printer.printFile(transformResult.transformed[0]);
 
-		await Deno.mkdir(dirname(dest), { recursive: true });
-		await Deno.writeTextFile(dest, code);
+		await mkdir(dirname(dest));
+		await writeText(dest, code);
 	}
 
 	for (const [, { as, content }] of virtualFiles) {
 		const dest = join(import.meta.dirname!, "npm/src", as);
-		await Deno.mkdir(dirname(dest), { recursive: true });
-		await Deno.writeTextFile(dest, content);
+		await mkdir(dirname(dest));
+		await writeText(dest, content);
 	}
 
 	const typeCompile = new Deno.Command(`npx`, {
@@ -257,11 +267,15 @@ const printer = ts.createPrinter();
 			"--outDir",
 			"types",
 		],
+		stdout: "null",
+		stderr: "null",
 	}).spawn();
 	await typeCompile.status;
 
-	await rm("./npm/src");
-	await rm("./npm/node");
+	console.log(colors.dim(`• Types definition`));
+
+	await rm(join(import.meta.dirname!, "./npm/src"));
+	await rm(join(import.meta.dirname!, "./npm/node"));
 
 	for (const entrypoint of entrypoints) {
 		const sourceFile = ts.createSourceFile(
@@ -346,14 +360,14 @@ const printer = ts.createPrinter();
 		);
 		const code = printer.printFile(transformResult.transformed[0]);
 
-		await Deno.mkdir(dirname(dest), { recursive: true });
-		await Deno.writeTextFile(dest, code);
+		await mkdir(dirname(dest));
+		await writeText(dest, code);
 	}
 
 	for (const [, { as, content }] of virtualFiles) {
 		const dest = join(import.meta.dirname!, "npm/src", as);
-		await Deno.mkdir(dirname(dest), { recursive: true });
-		await Deno.writeTextFile(
+		await mkdir(dirname(dest));
+		await writeText(
 			dest,
 			content.replace(/\.(jsx?|tsx?)("|')/g, "$2"),
 		);
@@ -368,17 +382,21 @@ const printer = ts.createPrinter();
 			"--outDir",
 			"node",
 		],
+		stdout: "null",
+		stderr: "null",
 	}).spawn();
 	await nodeCompile.status;
 
-	await rm("./npm/package.json");
-	await rm("./npm/package-lock.json");
-	await rm("./npm/tsconfig.json");
-	await rm("./npm/src");
+	console.log(colors.dim(`• Nodejs`));
+
+	await rm(join(import.meta.dirname!, "./npm/package.json"));
+	await rm(join(import.meta.dirname!, "./npm/package-lock.json"));
+	await rm(join(import.meta.dirname!, "./npm/tsconfig.json"));
+	await rm(join(import.meta.dirname!, "./npm/src"));
 }
 {
-	await rm("./npm/src");
-	await rm("./npm/browser");
+	await rm(join(import.meta.dirname!, "./npm/src"));
+	await rm(join(import.meta.dirname!, "./npm/browser"));
 
 	for (const entrypoint of entrypoints) {
 		const sourceFile = ts.createSourceFile(
@@ -463,14 +481,14 @@ const printer = ts.createPrinter();
 		);
 		const code = printer.printFile(transformResult.transformed[0]);
 
-		await Deno.mkdir(dirname(dest), { recursive: true });
-		await Deno.writeTextFile(dest, code);
+		await mkdir(dirname(dest));
+		await writeText(dest, code);
 	}
 
 	for (const [, { as, content }] of virtualFiles) {
 		const dest = join(import.meta.dirname!, "npm/src", as);
-		await Deno.mkdir(dirname(dest), { recursive: true });
-		await Deno.writeTextFile(
+		await mkdir(dirname(dest));
+		await writeText(
 			dest,
 			content.replace(/\.(jsx?|tsx?)("|')/g, ".js$2"),
 		);
@@ -488,10 +506,12 @@ const printer = ts.createPrinter();
 	});
 	program.emit();
 
-	await rm("./npm/src");
+	console.log(colors.dim(`• Browser`));
+
+	await rm(join(import.meta.dirname!, "./npm/src"));
 }
 
-await Deno.writeTextFile(
+await writeText(
 	join(import.meta.dirname!, "npm/package.json"),
 	JSON.stringify(
 		{
@@ -529,20 +549,28 @@ await Deno.writeTextFile(
 	),
 );
 
-const npmInstall = new Deno.Command(`npm`, { cwd: "./npm", args: ["i"] })
+const npmInstall = new Deno.Command(`npm`, {
+	cwd: "./npm",
+	args: ["i"],
+	stdout: "null",
+	stderr: "null",
+})
 	.spawn();
 await npmInstall.status;
 
-const npmLink = new Deno.Command(`npm`, { cwd: "./npm", args: ["link"] })
+const npmLink = new Deno.Command(`npm`, {
+	cwd: "./npm",
+	args: ["link"],
+	stdout: "null",
+	stderr: "null",
+})
 	.spawn();
 await npmLink.status;
 
 console.log(
 	colors.green("✓") +
 		colors.dim(
-			` ${entrypoints.length} modules transformed in ${
-				(performance.now() - timeStart).toFixed(0)
-			}ms.`,
+			` Build took ${(performance.now() - timeStart).toFixed(0)}ms.`,
 		),
 );
 

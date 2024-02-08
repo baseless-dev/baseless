@@ -360,10 +360,10 @@ const printer = ts.createPrinter();
 		await Deno.writeTextFile(dest, code);
 	}
 
-	for (const virtual of virtualFiles) {
-		const dest = join(import.meta.dirname!, "npm/src", virtual[1].as);
+	for (const [, { as, content }] of virtualFiles) {
+		const dest = join(import.meta.dirname!, "npm/src", as);
 		await Deno.mkdir(dirname(dest), { recursive: true });
-		await Deno.writeTextFile(dest, virtual[1].content);
+		await Deno.writeTextFile(dest, content);
 	}
 
 	const fileNames = await Array.fromAsync(

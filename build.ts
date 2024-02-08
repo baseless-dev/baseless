@@ -140,6 +140,10 @@ const printer = ts.createPrinter();
 									),
 							);
 						}
+						node.moduleSpecifier.text = node.moduleSpecifier.text.replace(
+							/\.tsx?$/,
+							"",
+						);
 						return context.factory.createImportDeclaration(
 							node.modifiers,
 							node.importClause,
@@ -165,6 +169,10 @@ const printer = ts.createPrinter();
 									),
 							);
 						}
+						node.moduleSpecifier.text = node.moduleSpecifier.text.replace(
+							/\.tsx?$/,
+							"",
+						);
 						return context.factory.createExportDeclaration(
 							node.modifiers,
 							node.isTypeOnly,
@@ -190,10 +198,13 @@ const printer = ts.createPrinter();
 		await Deno.writeTextFile(dest, code);
 	}
 
-	for (const virtual of virtualFiles) {
-		const dest = join(import.meta.dirname!, "npm/src", virtual[1].as);
+	for (const [, { as, content }] of virtualFiles) {
+		const dest = join(import.meta.dirname!, "npm/src", as);
 		await Deno.mkdir(dirname(dest), { recursive: true });
-		await Deno.writeTextFile(dest, virtual[1].content);
+		await Deno.writeTextFile(
+			dest,
+			content.replace(/\.(jsx?|tsx?)("|')/g, "$2"),
+		);
 	}
 
 	await Deno.writeTextFile(
@@ -310,6 +321,10 @@ const printer = ts.createPrinter();
 									),
 							);
 						}
+						node.moduleSpecifier.text = node.moduleSpecifier.text.replace(
+							/\.tsx?$/,
+							".js",
+						);
 						return context.factory.createImportDeclaration(
 							node.modifiers,
 							node.importClause,
@@ -335,6 +350,10 @@ const printer = ts.createPrinter();
 									),
 							);
 						}
+						node.moduleSpecifier.text = node.moduleSpecifier.text.replace(
+							/\.tsx?$/,
+							".js",
+						);
 						return context.factory.createExportDeclaration(
 							node.modifiers,
 							node.isTypeOnly,
@@ -363,7 +382,10 @@ const printer = ts.createPrinter();
 	for (const [, { as, content }] of virtualFiles) {
 		const dest = join(import.meta.dirname!, "npm/src", as);
 		await Deno.mkdir(dirname(dest), { recursive: true });
-		await Deno.writeTextFile(dest, content);
+		await Deno.writeTextFile(
+			dest,
+			content.replace(/\.(jsx?|tsx?)("|')/g, ".js$2"),
+		);
 	}
 
 	const fileNames = await Array.fromAsync(

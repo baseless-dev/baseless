@@ -67,14 +67,13 @@ Deno.bench(
 	},
 );
 
+const r = new Request("http://localhost:8080/users/123");
+
 Deno.bench(
 	"route request (dynamic)",
 	{ group: "route" },
 	async () => {
-		// deno-lint-ignore no-unused-vars
-		const response = await dynamic(
-			new Request("http://localhost:8080/users/123"),
-		);
+		await dynamic(r);
 	},
 );
 
@@ -82,9 +81,6 @@ Deno.bench(
 	"route request (compiled)",
 	{ group: "route", baseline: true },
 	async () => {
-		// deno-lint-ignore no-unused-vars
-		const response = await compiled(
-			new Request("http://localhost:8080/users/123"),
-		);
+		await compiled(r);
 	},
 );

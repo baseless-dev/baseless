@@ -43,7 +43,7 @@ export default function makeDynamicRouter(
 								"Access-Control-Allow-Methods": `${
 									Object.keys(ops).join(", ")
 								}, OPTIONS`,
-								"Access-Control-Allow-Headers": headers,
+								"Access-Control-Allow-Headers": headers === "" ? "*" : headers,
 							},
 						});
 					} else {

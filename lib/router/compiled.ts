@@ -211,7 +211,7 @@ function codeForRouteSegment(
 			    headers: {
 			      "Access-Control-Allow-Origin": origin ? new URL(origin).host : "*",
 			      "Access-Control-Allow-Methods": "${Object.keys(segment.operations).join(", ")}, OPTIONS",
-			      "Access-Control-Allow-Headers": "${headers}",
+			      "Access-Control-Allow-Headers": "${headers === "" ? "*" : headers}",
 			    },
 			  });
 			}`.replace(/\n\t*/g, ieol)+ieol;

@@ -16,11 +16,14 @@ import type { AuthenticationOptions } from "../plugins/authentication/mod.ts";
 import { oneOf, sequence } from "../lib/authentication/types.ts";
 import { Router } from "../lib/router/router.ts";
 import { MemoryMessageProvider } from "../providers/message-memory/mod.ts";
+import type { Context as AuthenticationContext } from "../plugins/authentication/context.ts";
+import type { Context as RegistrationContext } from "../plugins/registration/context.ts";
+import type { Context as AssetContext } from "../plugins/asset/context.ts";
 
 export { t } from "../deps.ts";
 
 export type MockResult = {
-	router: Router;
+	router: Router<AuthenticationContext & RegistrationContext & AssetContext>;
 	providers: {
 		kv: MemoryKVProvider;
 		document: MemoryDocumentProvider;
@@ -40,9 +43,11 @@ export type MockResult = {
 };
 
 export type BuilderResult = {
-	auth?: Omit<
-		AuthenticationOptions,
-		"counter" | "kv" | "identity" | "session"
+	auth?: Partial<
+		Omit<
+			AuthenticationOptions,
+			"counter" | "kv" | "identity" | "session"
+		>
 	>;
 };
 

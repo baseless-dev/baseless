@@ -85,6 +85,9 @@ class AuthenticationApp {
 
 	set persistence(persistence: Persistence) {
 		assertPersistence(persistence);
+		if (persistence === this.#persistence) {
+			return;
+		}
 		globalThis.localStorage.setItem(
 			`baseless_${this.#app.clientId}_persistence`,
 			persistence,
@@ -99,8 +102,8 @@ class AuthenticationApp {
 			`baseless_${this.#app.clientId}_tokens`,
 		);
 		if (tokens) {
-			newStorage.setItem(`baseless_${this.#app.clientId}_tokens`, tokens);
 			oldStorage.removeItem(`baseless_${this.#app.clientId}_tokens`);
+			newStorage.setItem(`baseless_${this.#app.clientId}_tokens`, tokens);
 		}
 		this.#storage = newStorage;
 		this.#persistence = persistence;

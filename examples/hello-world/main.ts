@@ -1,7 +1,45 @@
+import {
+	createConsoleLogHandler,
+	LogLevel,
+	setGlobalLogHandler,
+} from "../../lib/logger.ts";
 import openapiPlugin from "../../plugins/openapi/mod.ts";
+import OTPMessageAuthentificationComponent from "../../providers/auth-otp-message/mod.ts";
+import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";
 import { mock, t } from "../../server/mock.ts";
 
-const { router } = await mock();
+setGlobalLogHandler(createConsoleLogHandler(LogLevel.DEBUG));
+
+const {
+	router,
+} = await mock(async ({
+	providers: { identity, kv },
+	components: { email, password, sequence, oneOf },
+}) => {
+	const message = new LoggerMessageProvider();
+	const otp = new OTPMessageAuthentificationComponent("otp", kv, message, {
+		digits: 6,
+	});
+	await identity.create({
+		displayName: "John Doe",
+	}, [{
+		id: "email",
+		...await email.initializeIdentityComponent({ value: "john@test.local" }),
+	}, {
+		id: "password",
+		...await password.initializeIdentityComponent({ value: "123" }),
+	}, {
+		id: "otp",
+		...await otp.initializeIdentityComponent({ value: "" }),
+	}]);
+	return {
+		auth: {
+			ceremony: sequence(email, password, otp),
+			accessTokenTTL: 1000 * 60 * 60 * 10,
+			refreshTokenTTL: 1000 * 60 * 60 * 24 * 7,
+		},
+	};
+});
 const app = router
 	.use(openapiPlugin({
 		info: {

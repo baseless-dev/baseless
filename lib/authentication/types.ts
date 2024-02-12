@@ -74,10 +74,7 @@ export const AtPathAuthenticationCeremonyComponentSchema = t.Union([
 	AuthenticationCeremonyComponentDoneSchema,
 	t.Object({
 		kind: t.Literal("choice"),
-		components: t.Array(t.Union([
-			AuthenticationCeremonyComponentPromptSchema,
-			AuthenticationCeremonyComponentDoneSchema,
-		])),
+		components: t.Array(AuthenticationCeremonyComponentPromptSchema),
 	}, { $id: "AtPathAuthenticationCeremonyComponentChoice" }),
 ], { $id: "AtPathAuthenticationCeremonyComponent" });
 

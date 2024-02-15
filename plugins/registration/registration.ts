@@ -114,8 +114,8 @@ export default class RegistrationService {
 				done: false,
 				first: false,
 				last,
-				forComponent: currentComponent as any,
-				validationComponent: {
+				component: currentComponent as any,
+				validation: {
 					...component.validationCodePrompt(),
 					id: "validation",
 				},
@@ -202,11 +202,12 @@ export default class RegistrationService {
 		const nextComponent = this.getCeremony(state);
 		if (
 			nextComponent.done === true ||
-			!("validationComponent" in nextComponent) ||
-			nextComponent.forComponent.id !== id
+			!("validation" in nextComponent) ||
+			nextComponent.validation.id !== id
 		) {
 			throw new RegistrationSendValidationCodeError();
 		}
+		id = nextComponent.component.id;
 		const identificator = this.#components.find((c) => c.id === id);
 		if (!identificator) {
 			throw new AuthenticationMissingIdentificatorError();
@@ -237,11 +238,12 @@ export default class RegistrationService {
 		const nextComponent = this.getCeremony(state);
 		if (
 			nextComponent.done === true ||
-			!("validationComponent" in nextComponent) ||
-			nextComponent.forComponent.id !== id
+			!("validation" in nextComponent) ||
+			nextComponent.validation.id !== id
 		) {
 			throw new RegistrationSendValidationCodeError();
 		}
+		id = nextComponent.component.id;
 		const identificator = this.#components.find((c) => c.id === id);
 		if (!identificator || !identificator.validateCode) {
 			throw new AuthenticationMissingIdentificatorError();

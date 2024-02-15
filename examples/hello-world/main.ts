@@ -4,6 +4,7 @@ import {
 	setGlobalLogHandler,
 } from "../../lib/logger.ts";
 import openapiPlugin from "../../plugins/openapi/mod.ts";
+import EmailAuthentificationComponent from "../../providers/auth-email/mod.ts";
 import OTPMessageAuthentificationComponent from "../../providers/auth-otp-message/mod.ts";
 import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";
 import { mock, t } from "../../server/mock.ts";
@@ -14,9 +15,15 @@ const {
 	router,
 } = await mock(async ({
 	providers: { identity, kv },
-	components: { email, password, sequence, oneOf },
+	components: { password, sequence, oneOf },
 }) => {
 	const message = new LoggerMessageProvider();
+	const email = new EmailAuthentificationComponent(
+		"email",
+		identity,
+		kv,
+		message,
+	);
 	const otp = new OTPMessageAuthentificationComponent("otp", kv, message, {
 		digits: 6,
 	});

@@ -43,6 +43,7 @@ export type MockResult = {
 };
 
 export type BuilderResult = {
+	providers?: Partial<MockResult["providers"]>;
 	auth?: Partial<
 		Omit<
 			AuthenticationOptions,
@@ -106,7 +107,7 @@ export async function mock(
 			sequence,
 		},
 	};
-	const { auth } = await builder?.(result) ?? {};
+	const { auth, providers } = await builder?.(result) ?? {};
 	const keys = auth?.keys ??
 		{ ...await generateKeyPair("PS512"), algo: "PS512" };
 	router = router
@@ -136,6 +137,7 @@ export async function mock(
 					email,
 					password,
 				),
+				...auth,
 			}),
 		)
 		.use(assetPlugin({

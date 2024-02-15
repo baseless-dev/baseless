@@ -1,9 +1,4 @@
-import {
-	createLogger,
-	type Logger,
-	LogLevel,
-	LogLevelMethod,
-} from "../../lib/logger.ts";
+import { createLogger } from "../../lib/logger.ts";
 import type { MessageProvider } from "../message.ts";
 import type { Message } from "../../lib/message/types.ts";
 
@@ -13,13 +8,7 @@ import type { Message } from "../../lib/message/types.ts";
 export class MemoryMessageProvider implements MessageProvider {
 	#logger = createLogger("message-logger");
 
-	#logMethod: keyof Logger;
-
 	messages: Message[] = [];
-
-	public constructor(logLevel = LogLevel.INFO) {
-		this.#logMethod = LogLevelMethod[logLevel];
-	}
 
 	// deno-lint-ignore require-await
 	public async send(message: Message): Promise<void> {

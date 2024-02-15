@@ -20,14 +20,7 @@ export type AuthenticationSendPromptResult = Static<
 export const AuthenticationCeremonyComponentPromptSchema = t.Object({
 	kind: t.Literal("prompt"),
 	id: t.String(),
-	prompt: t.Union([
-		t.Literal("email"),
-		t.Literal("oauth2"),
-		t.Literal("password"),
-		t.Literal("otp"),
-		t.Literal("totp"),
-		t.Literal("agreement"),
-	]),
+	prompt: t.String(),
 	options: t.Record(t.String(), t.Unknown()),
 }, { $id: "AuthenticationCeremonyComponentPrompt" });
 

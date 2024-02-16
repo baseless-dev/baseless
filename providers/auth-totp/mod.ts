@@ -1,32 +1,28 @@
-import type { Identity, IdentityComponent } from "../../lib/identity/types.ts";
 import { assertTOTPOptions, totp, type TOTPOptions } from "../../lib/otp.ts";
-import {
-	AuthenticationComponent,
-	AuthenticationComponentGetIdentityComponentMetaOptions,
-	AuthenticationComponentVerifyPromptOptions,
-} from "../auth_component.ts";
+import type { AuthenticationCeremonyComponentPrompt } from "../../lib/authentication/types.ts";
+import type { Identity, IdentityComponent } from "../../lib/identity/types.ts";
+import { AuthenticationProvider } from "../auth.ts";
 
-export default class TOTPAuthentificationComponent
-	extends AuthenticationComponent {
-	prompt = "totp" as const;
-	options: { digits: number; timeout: number };
+export default class TOTPAuthentificationProvider
+	extends AuthenticationProvider {
 	#totpOptions: Omit<TOTPOptions, "key">;
-	constructor(id: string, options: Omit<TOTPOptions, "key">) {
+
+	constructor(
+		id: string,
+		options: Omit<TOTPOptions, "key">,
+	) {
 		super(id);
 		assertTOTPOptions({ ...options, key: "" });
 		this.#totpOptions = options;
-		this.options = {
-			digits: options.digits ?? 6,
-			timeout: options.period ?? 60,
-		};
 	}
-	async initializeIdentityComponent(
-		{ value }: AuthenticationComponentGetIdentityComponentMetaOptions,
+
+	async configureIdentityComponent(
+		value: unknown,
 	): Promise<Omit<IdentityComponent, "id">> {
 		try {
 			const _ = await totp({
-				digits: this.options.digits,
-				period: this.options.timeout,
+				digits: this.#totpOptions.digits,
+				period: this.#totpOptions.period,
 				key: `${value}`,
 				time: Date.now(),
 			});
@@ -35,21 +31,38 @@ export default class TOTPAuthentificationComponent
 		}
 		return { meta: { key: `${value}` }, confirmed: true };
 	}
-	async verifyPrompt(
-		{ value, identity }: AuthenticationComponentVerifyPromptOptions,
+
+	signInPrompt(): AuthenticationCeremonyComponentPrompt {
+		return {
+			id: this.id,
+			kind: "prompt",
+			prompt: "totp",
+			options: {
+				digits: this.#totpOptions.digits,
+				period: this.#totpOptions.period,
+			},
+		};
+	}
+
+	async verifySignInPrompt(
+		{ value, identityComponent }: {
+			value: unknown;
+			identityId?: Identity["id"];
+			identityComponent?: IdentityComponent;
+		},
 	): Promise<boolean | Identity> {
-		if (!identity) {
+		if (!identityComponent) {
 			return false;
 		}
 		if (
-			"key" in identity.component.meta &&
-			typeof identity.component.meta.key === "string"
+			"key" in identityComponent.meta &&
+			typeof identityComponent.meta.key === "string"
 		) {
-			const half = this.options.timeout / 2;
+			const half = this.#totpOptions.period / 2;
 			for (const offset of [-half, 0, half]) {
 				const code = await totp({
 					...this.#totpOptions,
-					key: identity.component.meta.key,
+					key: identityComponent.meta.key,
 					time: Date.now() / 1000 + offset,
 				});
 				if (code === `${value}`) {

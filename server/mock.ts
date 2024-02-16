@@ -1,7 +1,7 @@
 import { generateKeyPair } from "../deps.ts";
 import { MemoryAssetProvider } from "../providers/asset-memory/mod.ts";
-import PasswordAuthentificationComponent from "../providers/auth-password/mod.ts";
-import EmailAuthentificationComponent from "../providers/auth-email/mod.ts";
+import PasswordAuthentificationProvider from "../providers/auth-password/mod.ts";
+import EmailAuthentificationProvider from "../providers/auth-email/mod.ts";
 import { MemoryCounterProvider } from "../providers/counter-memory/mod.ts";
 import { MemoryDocumentProvider } from "../providers/document-memory/mod.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
@@ -10,8 +10,8 @@ import { DocumentIdentityProvider } from "../providers/identity-document/mod.ts"
 import authenticationPlugin from "../plugins/authentication/mod.ts";
 import registrationPlugin from "../plugins/registration/mod.ts";
 import assetPlugin from "../plugins/asset/mod.ts";
-import OTPMessageAuthentificationComponent from "../providers/auth-otp-message/mod.ts";
-import TOTPAuthentificationComponent from "../providers/auth-totp/mod.ts";
+import OTPMessageAuthentificationProvider from "../providers/auth-otp-message/mod.ts";
+import TOTPAuthentificationProvider from "../providers/auth-totp/mod.ts";
 import type { AuthenticationOptions } from "../plugins/authentication/mod.ts";
 import { oneOf, sequence } from "../lib/authentication/types.ts";
 import { Router } from "../lib/router/router.ts";
@@ -33,10 +33,10 @@ export type MockResult = {
 		message: MemoryMessageProvider;
 	};
 	components: {
-		email: EmailAuthentificationComponent;
-		password: PasswordAuthentificationComponent;
-		otp: OTPMessageAuthentificationComponent;
-		totp: TOTPAuthentificationComponent;
+		email: EmailAuthentificationProvider;
+		password: PasswordAuthentificationProvider;
+		otp: OTPMessageAuthentificationProvider;
+		totp: TOTPAuthentificationProvider;
 		oneOf: typeof oneOf;
 		sequence: typeof sequence;
 	};
@@ -70,20 +70,25 @@ export async function mock(
 	const identity = new DocumentIdentityProvider(new MemoryDocumentProvider());
 	const session = new KVSessionProvider(new MemoryKVProvider());
 	const message = new MemoryMessageProvider();
-	const email = new EmailAuthentificationComponent(
+	const email = new EmailAuthentificationProvider(
 		"email",
 		identity,
 		kv,
 		message,
 	);
-	const password = new PasswordAuthentificationComponent(
+	const password = new PasswordAuthentificationProvider(
 		"password",
 		"lesalt",
 	);
-	const otp = new OTPMessageAuthentificationComponent("otp", kv, message, {
-		digits: 6,
-	});
-	const totp = new TOTPAuthentificationComponent("totp", {
+	const otp = new OTPMessageAuthentificationProvider(
+		"otp",
+		{
+			digits: 6,
+		},
+		kv,
+		message,
+	);
+	const totp = new TOTPAuthentificationProvider("totp", {
 		digits: 6,
 		period: 60,
 	});
@@ -120,9 +125,10 @@ export async function mock(
 				kv,
 				keys,
 				salt: "should probably be a secret more robust than this",
+				providers: [email, password],
 				ceremony: sequence(
-					email,
-					password,
+					email.toCeremonyComponent(),
+					password.toCeremonyComponent(),
 				),
 				...auth,
 			}),
@@ -133,9 +139,10 @@ export async function mock(
 				counter,
 				identity,
 				keys,
+				providers: [email, password],
 				ceremony: sequence(
-					email,
-					password,
+					email.toCeremonyComponent(),
+					password.toCeremonyComponent(),
 				),
 				...auth,
 			}),

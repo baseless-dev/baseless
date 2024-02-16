@@ -12,6 +12,7 @@ import {
 	RegistrationSubmitStateSchema,
 } from "../../lib/registration/types.ts";
 import { Router } from "../../lib/router/router.ts";
+import type { AuthenticationProvider } from "../../providers/auth.ts";
 import {
 	type CounterProvider,
 	slidingWindow,
@@ -35,6 +36,7 @@ export type RegistrationOptions = {
 	counter: CounterProvider;
 	identity: IdentityProvider;
 	keys: RegistrationKeys;
+	providers: AuthenticationProvider[];
 	ceremony: AuthenticationCeremonyComponent;
 	rateLimit?: RateLimitOptions;
 	allowAnonymousIdentity?: boolean;
@@ -70,6 +72,7 @@ export const registration = (
 				},
 				get registration() {
 					return new RegistrationService(
+						options.providers,
 						options.ceremony,
 						options.identity,
 						options.keys,

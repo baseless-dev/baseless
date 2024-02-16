@@ -51,24 +51,24 @@ Deno.test("Client Authentication", async (t) => {
 				[
 					{
 						id: "email",
-						identification: "john@test.local",
-						confirmed: true,
-						meta: {},
-					},
-					{
-						id: "password",
-						...await r.components.password.initializeIdentityComponent(
-							{ value: "123" },
+						...await r.components.email.configureIdentityComponent(
+							"john@test.local",
 						),
 					},
 					{
+						id: "password",
+						...await r.components.password.configureIdentityComponent("123"),
+					},
+					{
 						id: "otp",
-						confirmed: true,
-						meta: {},
+						...await r.components.otp.configureIdentityComponent(null),
 					},
 				],
 			);
 			const { publicKey, privateKey } = cachedKeys;
+			const email = r.components.email.toCeremonyComponent();
+			const password = r.components.password.toCeremonyComponent();
+			const otp = r.components.otp.toCeremonyComponent();
 			return {
 				auth: {
 					keys: { algo: "PS512", publicKey, privateKey },
@@ -76,14 +76,19 @@ Deno.test("Client Authentication", async (t) => {
 					allowAnonymousIdentity: true,
 					accessTokenTTL: 1_000,
 					refreshTokenTTL: 4_000,
+					providers: [
+						r.components.email,
+						r.components.password,
+						r.components.otp,
+					],
 					ceremony: r.components.oneOf(
 						r.components.sequence(
-							r.components.email,
-							r.components.password,
+							email,
+							password,
 						),
 						r.components.sequence(
-							r.components.email,
-							r.components.otp,
+							email,
+							otp,
 						),
 					),
 					components: [
@@ -163,7 +168,7 @@ Deno.test("Client Authentication", async (t) => {
 		assertEquals(result.last, false);
 		assertEquals(
 			result.component,
-			JSON.parse(JSON.stringify(email)),
+			email.toCeremonyComponent(),
 		);
 		await assertRejects(() => getCeremony(app, "invalid"));
 	});

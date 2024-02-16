@@ -2,24 +2,17 @@ import type { AuthenticationCeremonyComponentPrompt } from "../../lib/authentica
 import { IdentityNotFoundError } from "../../lib/identity/errors.ts";
 import type { Identity, IdentityComponent } from "../../lib/identity/types.ts";
 import { otp } from "../../lib/otp.ts";
-import {
-	AuthenticationComponent,
-	AuthenticationComponentGetIdentityComponentMetaOptions,
-	AuthenticationComponentSendValidationOptions,
-	AuthenticationComponentValidateCodeOptions,
-	AuthenticationComponentVerifyPromptOptions,
-} from "../auth_component.ts";
+import { AuthenticationProvider } from "../auth.ts";
 import type { IdentityProvider } from "../identity.ts";
 import type { KVProvider } from "../kv.ts";
 import type { MessageProvider } from "../message.ts";
 
-export default class EmailAuthentificationComponent
-	extends AuthenticationComponent {
-	prompt = "email" as const;
-	options = {};
+export default class EmailAuthenticationProvider
+	extends AuthenticationProvider {
 	#identityProvider: IdentityProvider;
 	#kvProvider: KVProvider;
 	#messageProvider: MessageProvider;
+
 	constructor(
 		id: string,
 		identityProvider: IdentityProvider,
@@ -31,27 +24,58 @@ export default class EmailAuthentificationComponent
 		this.#kvProvider = kvProvider;
 		this.#messageProvider = messageProvider;
 	}
-	// deno-lint-ignore require-await
-	async initializeIdentityComponent(
-		{ value }: AuthenticationComponentGetIdentityComponentMetaOptions,
+
+	configureIdentityComponent(
+		value: unknown,
 	): Promise<Omit<IdentityComponent, "id">> {
-		return { identification: `${value}`, meta: {}, confirmed: false };
+		return Promise.resolve({
+			identification: `${value}`,
+			meta: {},
+			confirmed: false,
+		});
 	}
-	async verifyPrompt(
-		{ value }: AuthenticationComponentVerifyPromptOptions,
+
+	signInPrompt(): AuthenticationCeremonyComponentPrompt {
+		return {
+			id: this.id,
+			kind: "prompt",
+			prompt: "email",
+			options: {},
+		};
+	}
+
+	async verifySignInPrompt(
+		options: {
+			value: unknown;
+			identityId: Identity["id"];
+			identityComponent: IdentityComponent;
+		},
 	): Promise<boolean | Identity> {
-		if (typeof value !== "string") {
+		if (typeof options.value !== "string") {
 			throw new IdentityNotFoundError();
 		}
 		const identity = await this.#identityProvider.getByIdentification(
 			this.id,
-			value,
+			options.value,
 		);
 		return identity;
 	}
-	async sendValidationCode(
-		{ identity }: AuthenticationComponentSendValidationOptions,
-	): Promise<void> {
+
+	validationPrompt(): undefined | AuthenticationCeremonyComponentPrompt {
+		return {
+			id: this.id,
+			kind: "prompt",
+			prompt: "otp",
+			options: {
+				digits: 8,
+			},
+		};
+	}
+
+	async sendValidationPrompt({ identity }: {
+		locale: string;
+		identity: Identity;
+	}): Promise<void> {
 		const code = otp({ digits: 8 });
 		await this.#kvProvider.put(["email-validation-code", identity.id], code, {
 			expiration: 60 * 1000 * 5,
@@ -62,23 +86,14 @@ export default class EmailAuthentificationComponent
 			text: `${code}`,
 		});
 	}
-	async validateCode(
-		{ identity, value }: AuthenticationComponentValidateCodeOptions,
-	): Promise<boolean> {
+
+	async verifyValidationPrompt({ identity, value }: {
+		value: unknown;
+		identity: Identity;
+	}): Promise<boolean> {
 		const code = await this.#kvProvider.get(
 			["email-validation-code", identity.id],
 		);
 		return code.value === `${value}`;
-	}
-	validationCodePrompt(): AuthenticationCeremonyComponentPrompt {
-		return {
-			id: "validation",
-			kind: "prompt",
-			prompt: "otp",
-			options: {
-				digits: 8,
-				timeout: 60 * 1000 * 5,
-			},
-		};
 	}
 }

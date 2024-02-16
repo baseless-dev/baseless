@@ -27,29 +27,37 @@ Deno.test("RegistrationService", async (t) => {
 			algo: "PS512",
 			...keyPair,
 		};
-		const email = new EmailAuthentificationComponent(
+		const emailProvider = new EmailAuthentificationComponent(
 			"email",
 			identity,
 			kv,
 			message,
 		);
-		const password = new PasswordAuthentificationComponent(
+		const passwordProvider = new PasswordAuthentificationComponent(
 			"password",
 			"lesalt",
 		);
-		const otp = new OTPMessageAuthentificationComponent(
+		const otpProvider = new OTPMessageAuthentificationComponent(
 			"otp",
-			kv,
-			message,
 			{
 				digits: 6,
 			},
+			kv,
+			message,
 		);
 		const ceremony = sequence(
-			email,
-			oneOf(password, otp),
+			emailProvider.toCeremonyComponent(),
+			oneOf(
+				passwordProvider.toCeremonyComponent(),
+				otpProvider.toCeremonyComponent(),
+			),
 		);
 		const register = new RegistrationService(
+			[
+				emailProvider,
+				passwordProvider,
+				otpProvider,
+			],
 			ceremony,
 			identity,
 			keys,
@@ -57,89 +65,87 @@ Deno.test("RegistrationService", async (t) => {
 		const john = await identity.create({}, [
 			{
 				id: "email",
-				...await email.initializeIdentityComponent({
-					value: "john@test.local",
-				}),
+				...await emailProvider.configureIdentityComponent("john@test.local"),
 			},
 			{
 				id: "password",
-				...await password.initializeIdentityComponent({ value: "123" }),
+				...await passwordProvider.configureIdentityComponent("123"),
 			},
 			{
 				id: "otp",
-				...await otp.initializeIdentityComponent({ value: "" }),
+				...await otpProvider.configureIdentityComponent(null),
 			},
 		]);
 		return {
 			register,
 			message,
-			email,
-			password,
-			otp,
+			emailProvider,
+			passwordProvider,
+			otpProvider,
 			john,
 		};
 	};
 
-	// await t.step("get ceremony", async () => {
-	// 	const { register } = await init();
-	// 	assertObjectMatch(
-	// 		await register.getCeremony(),
-	// 		{
-	// 			done: false,
-	// 			first: true,
-	// 			last: false,
-	// 			component: { id: "email" },
-	// 		},
-	// 	);
-	// });
+	await t.step("get ceremony", async () => {
+		const { register } = await init();
+		assertObjectMatch(
+			await register.getCeremony(),
+			{
+				done: false,
+				first: true,
+				last: false,
+				component: { id: "email" },
+			},
+		);
+	});
 
-	// await t.step("submit prompt", async () => {
-	// 	const { register } = await init();
+	await t.step("submit prompt", async () => {
+		const { register } = await init();
 
-	// 	const state1 = await register.submitPrompt("email", "jane@test.local");
-	// 	assertObjectMatch(
-	// 		state1,
-	// 		{
-	// 			components: [
-	// 				{
-	// 					id: "email",
-	// 					confirmed: false,
-	// 					identification: "jane@test.local",
-	// 				},
-	// 			],
-	// 		},
-	// 	);
-	// 	assert(state1.kind === "registration");
-	// 	assertObjectMatch(
-	// 		register.getCeremony(state1),
-	// 		{
-	// 			done: false,
-	// 			first: false,
-	// 			last: false,
-	// 			component: {
-	// 				id: "email",
-	// 			},
-	// 			validation: {
-	// 				id: "validation",
-	// 			},
-	// 		},
-	// 	);
-	// 	await assertRejects(() =>
-	// 		register.submitPrompt("validation", "123", state1)
-	// 	);
-	// });
+		const state1 = await register.submitPrompt("email", "jane@test.local");
+		assertObjectMatch(
+			state1,
+			{
+				components: [
+					{
+						id: "email",
+						confirmed: false,
+						identification: "jane@test.local",
+					},
+				],
+			},
+		);
+		assert(state1.kind === "registration");
+		assertObjectMatch(
+			register.getCeremony(state1),
+			{
+				done: false,
+				first: false,
+				last: false,
+				component: {
+					id: "email",
+				},
+				validation: {
+					id: "validation",
+				},
+			},
+		);
+		await assertRejects(() =>
+			register.submitPrompt("validation", "123", state1)
+		);
+	});
 
-	// await t.step("send validation code", async () => {
-	// 	const { register, message } = await init();
+	await t.step("send validation code", async () => {
+		const { register, message } = await init();
 
-	// 	const state1 = await register.submitPrompt("email", "jane@test.local");
-	// 	assert(state1.kind === "registration");
-	// 	assertEquals(
-	// 		await register.sendValidationCode("email", "en", state1),
-	// 		true,
-	// 	);
-	// 	assert(message.messages.at(-1));
-	// });
+		const state1 = await register.submitPrompt("email", "jane@test.local");
+		assert(state1.kind === "registration");
+		assertEquals(
+			await register.sendValidationCode("email", "en", state1),
+			true,
+		);
+		assert(message.messages.at(-1));
+	});
 
 	// await t.step("submit validation code", async () => {
 	// 	const { register, message } = await init();

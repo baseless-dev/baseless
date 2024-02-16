@@ -20,14 +20,14 @@ import {
 	RegistrationStateSchema,
 	RegistrationSubmitResult,
 } from "../../lib/registration/types.ts";
-import { AuthenticationComponent } from "../../providers/auth_component.ts";
+import type { AuthenticationProvider } from "../../providers/auth.ts";
 import type { IdentityProvider } from "../../providers/identity.ts";
 import type { AuthenticationKeys } from "../authentication/mod.ts";
 
 export default class RegistrationService {
 	#logger = createLogger("registration-service");
 	#ceremony: AuthenticationCeremonyComponent;
-	#components: AuthenticationComponent[];
+	#providers: AuthenticationProvider[];
 	#identityProvider: IdentityProvider;
 	#keys: AuthenticationKeys;
 	#rateLimit: {
@@ -37,6 +37,7 @@ export default class RegistrationService {
 	#sessionDuration: string;
 
 	constructor(
+		providers: AuthenticationProvider[],
 		ceremony: AuthenticationCeremonyComponent,
 		identityProvider: IdentityProvider,
 		keys: AuthenticationKeys,
@@ -46,11 +47,8 @@ export default class RegistrationService {
 		},
 		sessionDuration = "10m",
 	) {
+		this.#providers = providers;
 		this.#ceremony = ceremony;
-		this.#components = extract(ceremony)
-			.filter((c): c is AuthenticationComponent =>
-				c instanceof AuthenticationComponent
-			);
 		this.#identityProvider = identityProvider;
 		this.#keys = keys;
 		this.#rateLimit = rateLimit ?? { count: 5, interval: 1000 * 60 * 5 };
@@ -87,13 +85,14 @@ export default class RegistrationService {
 		const ceremonyComponent = getComponentAtPath(this.#ceremony, choices);
 		const lastComponent = state.components.at(-1);
 		if (lastComponent && !lastComponent.confirmed) {
-			const component = this.#components.find((c) => c.id === lastComponent.id);
+			const component = this.#providers.find((c) => c.id === lastComponent.id);
 			const nextComponent = this.getCeremony({
 				...state,
 				components: state.components.slice(0, -1),
 			});
+			const validationPrompt = component?.validationPrompt();
 			if (
-				!component || !component.validationCodePrompt ||
+				!component || !validationPrompt ||
 				nextComponent.done === true ||
 				!("component" in nextComponent)
 			) {
@@ -116,7 +115,7 @@ export default class RegistrationService {
 				last,
 				component: currentComponent as any,
 				validation: {
-					...component.validationCodePrompt(),
+					...validationPrompt,
 					id: "validation",
 				},
 			};
@@ -165,13 +164,13 @@ export default class RegistrationService {
 		) {
 			throw new RegistrationSubmitPromptError();
 		}
-		const identificator = this.#components.find((c) => c.id === id);
-		if (!identificator) {
+		const provider = this.#providers.find((c) => c.id === id);
+		if (!provider) {
 			throw new AuthenticationMissingIdentificatorError();
 		}
 		const identityComponent: IdentityComponent = {
 			id,
-			...await identificator.initializeIdentityComponent({ value }),
+			...await provider.configureIdentityComponent(value),
 		};
 
 		state.components.push(identityComponent);
@@ -208,18 +207,16 @@ export default class RegistrationService {
 			throw new RegistrationSendValidationCodeError();
 		}
 		id = nextComponent.component.id;
-		const identificator = this.#components.find((c) => c.id === id);
-		if (!identificator) {
+		const provider = this.#providers.find((c) => c.id === id);
+		if (!provider) {
 			throw new AuthenticationMissingIdentificatorError();
 		}
-		if (!identificator.sendValidationCode) {
-			return false;
-		}
-		await identificator.sendValidationCode({
+		await provider.sendValidationPrompt({
 			locale,
 			identity: {
 				id: state.identity,
-				component: state.components.at(-1)!,
+				components: state.components,
+				meta: {},
 			},
 		});
 		return true;
@@ -244,15 +241,16 @@ export default class RegistrationService {
 			throw new RegistrationSendValidationCodeError();
 		}
 		id = nextComponent.component.id;
-		const identificator = this.#components.find((c) => c.id === id);
-		if (!identificator || !identificator.validateCode) {
+		const provider = this.#providers.find((c) => c.id === id);
+		if (!provider) {
 			throw new AuthenticationMissingIdentificatorError();
 		}
-		const result = await identificator.validateCode({
+		const result = await provider.verifyValidationPrompt({
 			value,
 			identity: {
 				id: state.identity,
-				component: state.components.at(-1)!,
+				components: state.components,
+				meta: {},
 			},
 		});
 		if (result === false) {

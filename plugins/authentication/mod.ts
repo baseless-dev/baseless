@@ -28,6 +28,7 @@ import { createTokens } from "./create_tokens.ts";
 import SessionService from "./session.ts";
 import { Router } from "../../lib/router/router.ts";
 import { RateLimitedError } from "../../lib/errors.ts";
+import type { AuthenticationProvider } from "../../providers/auth.ts";
 
 export type AuthenticationKeys = {
 	algo: string;
@@ -47,6 +48,7 @@ export type AuthenticationOptions = {
 	session: SessionProvider;
 	keys: AuthenticationKeys;
 	salt: string;
+	providers: AuthenticationProvider[];
 	ceremony: AuthenticationCeremonyComponent;
 	rateLimit?: RateLimitOptions;
 	accessTokenTTL?: number;
@@ -131,6 +133,7 @@ export const authentication = (
 				},
 				get authentication() {
 					return new AuthenticationService(
+						options.providers,
 						options.ceremony,
 						options.identity,
 						options.keys,

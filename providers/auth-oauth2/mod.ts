@@ -1,69 +1,76 @@
+import type { AuthenticationCeremonyComponentPrompt } from "../../lib/authentication/types.ts";
 import { IdentityNotFoundError } from "../../lib/identity/errors.ts";
 import type { Identity, IdentityComponent } from "../../lib/identity/types.ts";
-import {
-	AuthenticationComponent,
-	AuthenticationComponentGetIdentityComponentMetaOptions,
-	AuthenticationComponentVerifyPromptOptions,
-} from "../auth_component.ts";
+import { AuthenticationProvider } from "../auth.ts";
 import type { IdentityProvider } from "../identity.ts";
 
-export default abstract class OAuth2AuthentificationComponent
-	extends AuthenticationComponent {
-	prompt = "oauth2" as const;
-	options: { authorizationUrl: string };
+export type OAuth2Options = {
+	authorizationUrl: URL;
+	tokenUrl: URL;
+	redirectUrl: URL;
+	clientId: string;
+	clientSecret: string;
+	scope?: string;
+};
+
+export default abstract class OAuth2AuthenticationProvider
+	extends AuthenticationProvider {
 	#identityProvider: IdentityProvider;
-	#authorizationUrl: URL;
-	#tokenUrl: URL;
-	#redirectUrl: URL;
-	#clientId: string;
-	#clientSecret: string;
-	#scope?: string;
+	#oauth2Options: OAuth2Options;
 
 	constructor(
 		id: string,
 		identityProvider: IdentityProvider,
-		options: {
-			authorizationUrl: string | URL;
-			tokenUrl: string | URL;
-			redirectUrl: string | URL;
-			clientId: string;
-			clientSecret: string;
-			scope?: string;
-		},
+		options: OAuth2Options,
 	) {
 		super(id);
 		this.#identityProvider = identityProvider;
-		this.#authorizationUrl = new URL(options.authorizationUrl.toString());
-		this.#tokenUrl = new URL(options.tokenUrl.toString());
-		this.#redirectUrl = new URL(options.redirectUrl.toString());
-		this.#clientId = options.clientId;
-		this.#clientSecret = options.clientSecret;
-		this.#scope = options.scope;
+		this.#oauth2Options = options;
+	}
 
-		const authorizationUrl = new URL(this.#authorizationUrl);
+	abstract retrieveIdentification(access_token: string): Promise<string>;
+
+	configureIdentityComponent(
+		value: unknown,
+	): Promise<Omit<IdentityComponent, "id">> {
+		return Promise.resolve({
+			identification: `${value}`,
+			meta: {},
+			confirmed: true,
+		});
+	}
+
+	signInPrompt(): AuthenticationCeremonyComponentPrompt {
+		const authorizationUrl = new URL(this.#oauth2Options.authorizationUrl);
 		authorizationUrl.searchParams.set("response_type", "code");
-		authorizationUrl.searchParams.set("client_id", this.#clientId);
-		if (this.#scope) {
-			authorizationUrl.searchParams.set("scope", this.#scope);
+		authorizationUrl.searchParams.set(
+			"client_id",
+			this.#oauth2Options.clientId,
+		);
+		if (this.#oauth2Options.scope) {
+			authorizationUrl.searchParams.set("scope", this.#oauth2Options.scope);
 		}
 		authorizationUrl.searchParams.set(
 			"redirect_uri",
-			this.#redirectUrl.toString(),
+			this.#oauth2Options.redirectUrl.toString(),
 		);
-		this.options = {
-			authorizationUrl: authorizationUrl.toString(),
+		return {
+			id: this.id,
+			kind: "prompt",
+			prompt: "oauth2",
+			options: {
+				authorizationUrl: authorizationUrl.toString(),
+				redirectUrl: this.#oauth2Options.redirectUrl.toString(),
+			},
 		};
 	}
 
-	// deno-lint-ignore require-await
-	async initializeIdentityComponent(
-		{ value }: AuthenticationComponentGetIdentityComponentMetaOptions,
-	): Promise<Omit<IdentityComponent, "id">> {
-		return { identification: `${value}`, meta: {}, confirmed: true };
-	}
-	abstract retrieveIdentification(access_token: string): Promise<string>;
-	async verifyPrompt(
-		{ value }: AuthenticationComponentVerifyPromptOptions,
+	async verifySignInPrompt(
+		{ value }: {
+			value: unknown;
+			identityId?: Identity["id"];
+			identityComponent?: IdentityComponent;
+		},
 	): Promise<boolean | Identity> {
 		if (
 			value && typeof value === "object" && "code" in value &&
@@ -71,18 +78,20 @@ export default abstract class OAuth2AuthentificationComponent
 		) {
 			const { code } = value;
 
-			const url = new URL(this.#tokenUrl);
+			const url = new URL(this.#oauth2Options.tokenUrl);
 			const headers = new Headers({
 				"Content-Type": "application/x-www-form-urlencoded",
 				"Accept": "application/json",
 				"Authorization": `Basic ${
-					btoa(`${this.#clientId}:${this.#clientSecret}`)
+					btoa(
+						`${this.#oauth2Options.clientId}:${this.#oauth2Options.clientSecret}`,
+					)
 				}`,
 			});
 			const body = new URLSearchParams();
 			body.set("grant_type", "authorization_code");
 			body.set("code", code);
-			body.set("redirect_uri", this.#redirectUrl.toString());
+			body.set("redirect_uri", this.#oauth2Options.redirectUrl.toString());
 
 			const response = await fetch(url, { method: "POST", headers, body });
 			// deno-lint-ignore no-explicit-any
@@ -99,5 +108,25 @@ export default abstract class OAuth2AuthentificationComponent
 			}
 		}
 		throw new IdentityNotFoundError();
+	}
+
+	setupPrompt(): AuthenticationCeremonyComponentPrompt {
+		return {
+			id: this.id,
+			kind: "prompt",
+			prompt: "oauth2",
+			options: {},
+		};
+	}
+
+	validationPrompt(): undefined | AuthenticationCeremonyComponentPrompt {
+		return {
+			id: this.id,
+			kind: "prompt",
+			prompt: "otp",
+			options: {
+				digits: 8,
+			},
+		};
 	}
 }

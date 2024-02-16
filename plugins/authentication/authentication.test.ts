@@ -22,29 +22,33 @@ Deno.test("AuthenticationService", async (t) => {
 			algo: "PS512",
 			...keyPair,
 		};
-		const email = new EmailAuthentificationComponent(
+		const emailProvider = new EmailAuthentificationComponent(
 			"email",
 			identity,
 			kv,
 			message,
 		);
-		const password = new PasswordAuthentificationComponent(
+		const passwordProvider = new PasswordAuthentificationComponent(
 			"password",
 			"lesalt",
 		);
-		const otp = new OTPMessageAuthentificationComponent(
+		const otpProvider = new OTPMessageAuthentificationComponent(
 			"otp",
-			kv,
-			message,
 			{
 				digits: 6,
 			},
+			kv,
+			message,
 		);
 		const ceremony = sequence(
-			email,
-			oneOf(password, otp),
+			emailProvider.toCeremonyComponent(),
+			oneOf(
+				passwordProvider.toCeremonyComponent(),
+				otpProvider.toCeremonyComponent(),
+			),
 		);
 		const auth = new AuthenticationService(
+			[emailProvider, passwordProvider, otpProvider],
 			ceremony,
 			identity,
 			keys,
@@ -52,25 +56,23 @@ Deno.test("AuthenticationService", async (t) => {
 		const john = await identity.create({}, [
 			{
 				id: "email",
-				...await email.initializeIdentityComponent({
-					value: "john@test.local",
-				}),
+				...await emailProvider.configureIdentityComponent("john@test.local"),
 			},
 			{
 				id: "password",
-				...await password.initializeIdentityComponent({ value: "123" }),
+				...await passwordProvider.configureIdentityComponent("123"),
 			},
 			{
 				id: "otp",
-				...await otp.initializeIdentityComponent({ value: "" }),
+				...await otpProvider.configureIdentityComponent(null),
 			},
 		]);
 		return {
 			auth,
 			message,
-			email,
-			password,
-			otp,
+			emailProvider,
+			passwordProvider,
+			otpProvider,
 			john,
 		};
 	};

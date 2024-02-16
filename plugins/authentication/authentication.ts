@@ -4,7 +4,6 @@ import {
 	AuthenticationSendPromptError,
 	AuthenticationSubmitPromptError,
 } from "../../lib/authentication/errors.ts";
-import { extract } from "../../lib/authentication/extract.ts";
 import { getComponentAtPath } from "../../lib/authentication/get_component_at_path.ts";
 import type {
 	AuthenticationCeremonyComponent,
@@ -15,14 +14,14 @@ import type {
 import { AuthenticationStateSchema } from "../../lib/authentication/types.ts";
 import type { Identity } from "../../lib/identity/types.ts";
 import { createLogger } from "../../lib/logger.ts";
-import { AuthenticationComponent } from "../../providers/auth_component.ts";
+import type { AuthenticationProvider } from "../../providers/auth.ts";
 import type { IdentityProvider } from "../../providers/identity.ts";
 import type { AuthenticationKeys } from "./mod.ts";
 
 export default class AuthenticationService {
 	#logger = createLogger("authentication-service");
 	#ceremony: AuthenticationCeremonyComponent;
-	#components: AuthenticationComponent[];
+	#providers: AuthenticationProvider[];
 	#identityProvider: IdentityProvider;
 	#keys: AuthenticationKeys;
 	#rateLimit: {
@@ -32,6 +31,7 @@ export default class AuthenticationService {
 	#sessionDuration: string;
 
 	constructor(
+		providers: AuthenticationProvider[],
 		ceremony: AuthenticationCeremonyComponent,
 		identityProvider: IdentityProvider,
 		keys: AuthenticationKeys,
@@ -41,11 +41,8 @@ export default class AuthenticationService {
 		},
 		sessionDuration = "10m",
 	) {
+		this.#providers = providers;
 		this.#ceremony = ceremony;
-		this.#components = extract(ceremony)
-			.filter((c): c is AuthenticationComponent =>
-				c instanceof AuthenticationComponent
-			);
 		this.#identityProvider = identityProvider;
 		this.#keys = keys;
 		this.#rateLimit = rateLimit ?? { count: 5, interval: 1000 * 60 * 5 };
@@ -114,20 +111,18 @@ export default class AuthenticationService {
 		) {
 			throw new AuthenticationSubmitPromptError();
 		}
-		const identificator = this.#components.find((c) => c.id === id);
-		if (!identificator) {
+		const provider = this.#providers.find((c) => c.id === id);
+		if (!provider) {
 			throw new AuthenticationMissingIdentificatorError();
 		}
 		const identity = state?.identity
 			? await this.#identityProvider.get(state.identity)
 			: undefined;
-		const result = await identificator.verifyPrompt({
+		const result = await provider.verifySignInPrompt({
 			value,
-			identity: identity
-				? {
-					id: identity.id,
-					component: identity.components.find((c) => c.id === id)!,
-				}
+			identityId: identity ? identity.id : undefined,
+			identityComponent: identity
+				? identity.components.find((c) => c.id === id)!
 				: undefined,
 		});
 		return result;
@@ -138,9 +133,6 @@ export default class AuthenticationService {
 		locale: string,
 		state?: AuthenticationState,
 	): Promise<boolean> {
-		if (!state?.identity) {
-			throw new AuthenticationSendPromptError();
-		}
 		const nextComponent = await this.getCeremony(state);
 		if (nextComponent.done === true) {
 			throw new AuthenticationSendPromptError();
@@ -157,24 +149,22 @@ export default class AuthenticationService {
 		) {
 			throw new AuthenticationSendPromptError();
 		}
-		const identificator = this.#components.find((c) => c.id === id);
-		if (!identificator) {
+		const provider = this.#providers.find((c) => c.id === id);
+		if (!provider) {
 			throw new AuthenticationMissingIdentificatorError();
 		}
-		if (identificator.sendPrompt) {
-			const identity = await this.#identityProvider.get(state.identity);
-			if (!identity.components.find((c) => c.id === id)) {
-				throw new AuthenticationSendPromptError();
-			}
-			await identificator.sendPrompt({
-				locale,
-				identity: {
-					id: identity.id,
-					component: identity.components.find((c) => c.id === id)!,
-				},
-			});
-			return true;
+		const identity = state?.identity
+			? await this.#identityProvider.get(state.identity)
+			: undefined;
+		const identityComponent = identity?.components.find((c) => c.id === id);
+		if (!identity || !identityComponent) {
+			return false;
 		}
-		return false;
+		await provider.sendSignInPrompt({
+			locale,
+			identityId: identity.id,
+			identityComponent,
+		});
+		return true;
 	}
 }

@@ -86,6 +86,7 @@ Deno.test("RegistrationService", async (t) => {
 		};
 	};
 
+	throw "REFACTOR!";
 	await t.step("get ceremony", async () => {
 		const { register } = await init();
 		assertObjectMatch(

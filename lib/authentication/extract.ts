@@ -1,12 +1,14 @@
 import type { AuthenticationCeremonyComponent } from "./types.ts";
+import equals from "./equals.ts";
 
 export function extract(
 	component: AuthenticationCeremonyComponent,
 ): AuthenticationCeremonyComponent[] {
-	if (component.kind === "sequence") {
-		return Array.from(new Set(component.components.flatMap(extract)));
-	} else if (component.kind === "choice") {
-		return Array.from(new Set(component.components.flatMap(extract)));
+	if (component.kind === "sequence" || component.kind === "choice") {
+		const components = component.components.flatMap(extract);
+		return components.filter((c, i) =>
+			components.findIndex(equals.bind(null, c)) === i
+		);
 	}
 	return [component];
 }

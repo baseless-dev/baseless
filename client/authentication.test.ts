@@ -54,6 +54,7 @@ Deno.test("Client Authentication", async (t) => {
 						...await r.components.email.configureIdentityComponent(
 							"john@test.local",
 						),
+						confirmed: true,
 					},
 					{
 						id: "password",

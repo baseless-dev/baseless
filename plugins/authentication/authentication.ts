@@ -157,7 +157,9 @@ export default class AuthenticationService {
 			? await this.#identityProvider.get(state.identity)
 			: undefined;
 		const identityComponent = identity?.components.find((c) => c.id === id);
-		if (!identity || !identityComponent) {
+		if (
+			!identity || !identityComponent || identityComponent.confirmed === false
+		) {
 			return false;
 		}
 		await provider.sendSignInPrompt({

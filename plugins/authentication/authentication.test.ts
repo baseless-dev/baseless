@@ -57,6 +57,7 @@ Deno.test("AuthenticationService", async (t) => {
 			{
 				id: "email",
 				...await emailProvider.configureIdentityComponent("john@test.local"),
+				confirmed: true,
 			},
 			{
 				id: "password",

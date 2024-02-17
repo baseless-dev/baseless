@@ -58,7 +58,10 @@ export default class EmailAuthenticationProvider
 			this.id,
 			options.value,
 		);
-		return identity;
+		if (identity.components.find((c) => c.id === this.id)?.confirmed) {
+			return identity;
+		}
+		return false;
 	}
 
 	validationPrompt(): undefined | AuthenticationCeremonyComponentPrompt {

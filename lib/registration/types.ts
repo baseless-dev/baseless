@@ -33,19 +33,6 @@ export type RegistrationCeremonyStateNext = Static<
 	typeof RegistrationCeremonyStateNextSchema
 >;
 
-export const RegistrationCeremonyStateValidationSchema = t.Object({
-	done: t.Literal(false),
-	component: AuthenticationCeremonyComponentPromptSchema,
-	validation: AuthenticationCeremonyComponentPromptSchema,
-	first: t.Boolean(),
-	last: t.Boolean(),
-	state: t.Optional(t.String()),
-}, { $id: "RegistrationCeremonyStateValidation" });
-
-export type RegistrationCeremonyStateValidation = Static<
-	typeof RegistrationCeremonyStateValidationSchema
->;
-
 export const RegistrationCeremonyStateDoneSchema = t.Object({
 	done: t.Literal(true),
 }, { $id: "RegistrationCeremonyStateDone" });
@@ -56,7 +43,6 @@ export type RegistrationCeremonyStateDone = Static<
 
 export const RegistrationCeremonyStateSchema = t.Union([
 	RegistrationCeremonyStateNextSchema,
-	RegistrationCeremonyStateValidationSchema,
 	RegistrationCeremonyStateDoneSchema,
 ], { $id: "RegistrationCeremonyState" });
 
@@ -89,7 +75,6 @@ export type RegistrationSubmitStateDone = Static<
 
 export const RegistrationSubmitStateSchema = t.Union([
 	RegistrationCeremonyStateNextSchema,
-	RegistrationCeremonyStateValidationSchema,
 	RegistrationSubmitStateDoneSchema,
 ], { $id: "AuthenticationSubmitState" });
 

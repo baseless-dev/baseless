@@ -5,6 +5,7 @@ import { getComponentAtPath } from "../../lib/authentication/get_component_at_pa
 import type {
 	AuthenticationCeremonyComponent,
 } from "../../lib/authentication/types.ts";
+import { oneOf } from "../../lib/authentication/types.ts";
 import { autoid } from "../../lib/autoid.ts";
 import type { Identity, IdentityComponent } from "../../lib/identity/types.ts";
 import { createLogger } from "../../lib/logger.ts";
@@ -82,43 +83,36 @@ export default class RegistrationService {
 			components: [],
 		};
 		const choices = state.components.map((c) => c.id) ?? [];
-		const ceremonyComponent = getComponentAtPath(this.#ceremony, choices);
+		let ceremonyComponent = getComponentAtPath(this.#ceremony, choices);
 		const lastComponent = state.components.at(-1);
 		if (lastComponent && !lastComponent.confirmed) {
-			const component = this.#providers.find((c) => c.id === lastComponent.id);
-			const nextComponent = this.getCeremony({
-				...state,
-				components: state.components.slice(0, -1),
-			});
-			const validationPrompt = component?.validationPrompt();
-			if (
-				!component || !validationPrompt ||
-				nextComponent.done === true ||
-				!("component" in nextComponent)
-			) {
+			const provider = this.#providers.find((c) => c.id === lastComponent.id);
+			if (!provider) {
 				throw new AuthenticationMissingIdentificatorError();
 			}
-			const currentComponent = nextComponent.component.kind === "choice"
-				? nextComponent.component.components.find((c) =>
-					c.kind === "prompt" && c.id === lastComponent.id
-				)
-				: nextComponent.component;
-			const last = !ceremonyComponent || ceremonyComponent.kind !== "prompt"
-				? false
-				: getComponentAtPath(this.#ceremony, [
-					...choices,
-					lastComponent.id,
-				])?.kind === "done";
-			return {
-				done: false,
-				first: false,
-				last,
-				component: currentComponent as any,
-				validation: {
-					...validationPrompt,
-					id: "validation",
-				},
-			};
+			ceremonyComponent = provider.validationPrompt();
+		} else if (ceremonyComponent) {
+			if (ceremonyComponent.kind === "prompt") {
+				const ceremonyComponentPrompt = ceremonyComponent;
+				const provider = this.#providers.find((c) =>
+					c.id === ceremonyComponentPrompt.id
+				);
+				if (!provider) {
+					throw new AuthenticationMissingIdentificatorError();
+				}
+				ceremonyComponent = provider.setupPrompt();
+			} else if (ceremonyComponent.kind === "choice") {
+				const components = ceremonyComponent.components.map((component) => {
+					const provider = this.#providers.find((c) => c.id === component.id);
+					if (!provider) {
+						throw new AuthenticationMissingIdentificatorError();
+					}
+					return provider.setupPrompt();
+				});
+				ceremonyComponent = oneOf(...components) as ReturnType<
+					typeof getComponentAtPath
+				>;
+			}
 		}
 		if (!ceremonyComponent || ceremonyComponent.kind === "done") {
 			return { done: true };
@@ -149,7 +143,7 @@ export default class RegistrationService {
 			components: [],
 		};
 		const nextComponent = this.getCeremony(state);
-		if (nextComponent.done === true || "validationComponent" in nextComponent) {
+		if (nextComponent.done === true) {
 			throw new RegistrationSubmitPromptError();
 		}
 		const currentComponent = nextComponent.component.kind === "choice"
@@ -168,12 +162,17 @@ export default class RegistrationService {
 		if (!provider) {
 			throw new AuthenticationMissingIdentificatorError();
 		}
-		const identityComponent: IdentityComponent = {
-			id,
-			...await provider.configureIdentityComponent(value),
-		};
 
-		state.components.push(identityComponent);
+		const result = await provider.submitSetupPrompt({
+			value,
+			identity: {
+				id: state.identity,
+				components: state.components,
+				meta: {},
+			},
+		});
+
+		state.components.push(result);
 
 		if (this.getCeremony(state).done === true) {
 			return {
@@ -199,14 +198,21 @@ export default class RegistrationService {
 			components: [],
 		};
 		const nextComponent = this.getCeremony(state);
-		if (
-			nextComponent.done === true ||
-			!("validation" in nextComponent) ||
-			nextComponent.validation.id !== id
-		) {
-			throw new RegistrationSendValidationCodeError();
+		if (nextComponent.done === true) {
+			throw new RegistrationSubmitPromptError();
 		}
-		id = nextComponent.component.id;
+		const currentComponent = nextComponent.component.kind === "choice"
+			? nextComponent.component.components.find((c) =>
+				c.kind === "prompt" && c.id === id
+			)
+			: nextComponent.component;
+
+		if (
+			!currentComponent || currentComponent.kind === "done" ||
+			currentComponent.id !== id
+		) {
+			throw new RegistrationSubmitPromptError();
+		}
 		const provider = this.#providers.find((c) => c.id === id);
 		if (!provider) {
 			throw new AuthenticationMissingIdentificatorError();
@@ -233,18 +239,31 @@ export default class RegistrationService {
 			components: [],
 		};
 		const nextComponent = this.getCeremony(state);
-		if (
-			nextComponent.done === true ||
-			!("validation" in nextComponent) ||
-			nextComponent.validation.id !== id
-		) {
-			throw new RegistrationSendValidationCodeError();
+		if (nextComponent.done === true) {
+			throw new RegistrationSubmitPromptError();
 		}
-		id = nextComponent.component.id;
+		const currentComponent = nextComponent.component.kind === "choice"
+			? nextComponent.component.components.find((c) =>
+				c.kind === "prompt" && c.id === id
+			)
+			: nextComponent.component;
+
+		if (
+			!currentComponent || currentComponent.kind === "done" ||
+			currentComponent.id !== id
+		) {
+			throw new RegistrationSubmitPromptError();
+		}
 		const provider = this.#providers.find((c) => c.id === id);
 		if (!provider) {
 			throw new AuthenticationMissingIdentificatorError();
 		}
+
+		const identityComponent = state.components.find((c) => c.id === id);
+		if (!identityComponent) {
+			throw new RegistrationSubmitValidationCodeError();
+		}
+
 		const result = await provider.verifyValidationPrompt({
 			value,
 			identity: {
@@ -253,20 +272,11 @@ export default class RegistrationService {
 				meta: {},
 			},
 		});
-		if (result === false) {
+
+		if (!result) {
 			throw new RegistrationSubmitValidationCodeError();
 		}
-
-		const identityComponent = {
-			...state.components.find((c) => c.id === id)!,
-			confirmed: true,
-		};
-		state.components.splice(
-			state.components.findIndex((c) => c.id === id),
-			1,
-			identityComponent,
-		);
-
+		identityComponent.confirmed = true;
 		if (this.getCeremony(state).done === true) {
 			return {
 				kind: "identity",

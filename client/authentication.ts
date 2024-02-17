@@ -219,7 +219,7 @@ export function assertPersistence(
 export class InvalidPersistenceError extends Error {}
 
 const authenticationApps = new Map<App["clientId"], AuthenticationApp>();
-function getAuthentication(app: App): AuthenticationApp {
+export function unsafe_getAuthentication(app: App): AuthenticationApp {
 	assertInitializedAuthentication(app);
 	return authenticationApps.get(app.clientId)!;
 }
@@ -249,17 +249,17 @@ export function fetchWithTokens(
 	init?: RequestInit,
 ): Promise<Response> {
 	assertInitializedAuthentication(app);
-	return getAuthentication(app).fetchWithTokens(input, init);
+	return unsafe_getAuthentication(app).fetchWithTokens(input, init);
 }
 
 export function getPersistence(app: App): Persistence {
 	assertInitializedAuthentication(app);
-	return getAuthentication(app).persistence;
+	return unsafe_getAuthentication(app).persistence;
 }
 
 export function setPersistence(app: App, persistence: Persistence): void {
 	assertInitializedAuthentication(app);
-	getAuthentication(app).persistence = persistence;
+	unsafe_getAuthentication(app).persistence = persistence;
 }
 
 export function onAuthenticationStateChange(
@@ -267,11 +267,11 @@ export function onAuthenticationStateChange(
 	listener: (identity: ID | undefined) => void,
 ): () => void {
 	assertInitializedAuthentication(app);
-	return getAuthentication(app).onAuthStateChange.listen(listener);
+	return unsafe_getAuthentication(app).onAuthStateChange.listen(listener);
 }
 
 export function getIdToken(app: App): string | undefined {
-	const auth = getAuthentication(app);
+	const auth = unsafe_getAuthentication(app);
 	return auth.tokens?.id_token;
 }
 
@@ -292,7 +292,7 @@ export async function getCeremony(
 	state?: string,
 ): Promise<AuthenticationCeremonyState> {
 	assertInitializedAuthentication(app);
-	const auth = getAuthentication(app);
+	const auth = unsafe_getAuthentication(app);
 	let method = "GET";
 	let body: string | undefined;
 	const headers = new Headers();
@@ -315,7 +315,7 @@ export async function getCeremony(
 }
 
 export async function signOut(app: App): Promise<void> {
-	const auth = getAuthentication(app);
+	const auth = unsafe_getAuthentication(app);
 	try {
 		const resp = await auth.fetchWithTokens(
 			`${auth.apiEndpoint}/sign-out`,
@@ -335,7 +335,7 @@ export async function submitPrompt(
 	state?: string,
 ): Promise<AuthenticationSubmitPromptState> {
 	assertInitializedAuthentication(app);
-	const auth = getAuthentication(app);
+	const auth = unsafe_getAuthentication(app);
 	const body = JSON.stringify({
 		component,
 		prompt,
@@ -350,7 +350,11 @@ export async function submitPrompt(
 	Assert(AuthenticationSubmitPromptStateSchema, result.data);
 	if (Value.Check(AuthenticationSubmitPromptStateDoneSchema, result.data)) {
 		const { access_token, id_token, refresh_token } = result.data;
-		getAuthentication(app).tokens = { access_token, id_token, refresh_token };
+		unsafe_getAuthentication(app).tokens = {
+			access_token,
+			id_token,
+			refresh_token,
+		};
 	}
 	return result.data;
 }
@@ -362,7 +366,7 @@ export async function sendPrompt(
 	state?: string,
 ): Promise<AuthenticationSendPromptResult> {
 	assertInitializedAuthentication(app);
-	const auth = getAuthentication(app);
+	const auth = unsafe_getAuthentication(app);
 	const body = JSON.stringify({ component, state, locale });
 	const resp = await auth.fetchWithTokens(
 		`${auth.apiEndpoint}/send-prompt`,

@@ -1,4 +1,4 @@
-import { Assert } from "../deps.ts";
+import { Assert, Value } from "../deps.ts";
 import {
 	type RegistrationCeremonyState,
 	RegistrationCeremonyStateSchema,
@@ -7,9 +7,11 @@ import {
 	RegistrationSubmitResult,
 	RegistrationSubmitResultSchema,
 	RegistrationSubmitState,
+	RegistrationSubmitStateDoneSchema,
 	RegistrationSubmitStateSchema,
 } from "../lib/registration/types.ts";
 import { type App, isApp } from "./app.ts";
+import { unsafe_getAuthentication } from "./authentication.ts";
 import { throwIfApiError } from "./errors.ts";
 
 export class RegistrationApp {
@@ -98,6 +100,14 @@ export async function submitPrompt(
 	const result = await resp.json();
 	throwIfApiError(result);
 	Assert(RegistrationSubmitStateSchema, result.data);
+	if (Value.Check(RegistrationSubmitStateDoneSchema, result.data)) {
+		const { access_token, id_token, refresh_token } = result.data;
+		unsafe_getAuthentication(app).tokens = {
+			access_token,
+			id_token,
+			refresh_token,
+		};
+	}
 	return result.data;
 }
 
@@ -144,5 +154,13 @@ export async function submitValidationCode(
 	const result = await resp.json();
 	throwIfApiError(result);
 	Assert(RegistrationSubmitStateSchema, result.data);
+	if (Value.Check(RegistrationSubmitStateDoneSchema, result.data)) {
+		const { access_token, id_token, refresh_token } = result.data;
+		unsafe_getAuthentication(app).tokens = {
+			access_token,
+			id_token,
+			refresh_token,
+		};
+	}
 	return result.data;
 }

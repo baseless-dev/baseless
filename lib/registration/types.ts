@@ -1,13 +1,8 @@
 import { Static, t } from "../../deps.ts";
 import {
 	AtPathAuthenticationCeremonyComponentSchema,
-	AuthenticationCeremonyComponentPromptSchema,
 } from "../authentication/types.ts";
-import {
-	IdentityComponentSchema,
-	IdentitySchema,
-	IDSchema,
-} from "../identity/types.ts";
+import { IdentityComponentSchema, IdentitySchema } from "../identity/types.ts";
 
 export const REGISTRATION_AUTOID_PREFIX = "rid_";
 
@@ -66,7 +61,9 @@ export type RegistrationSubmitResult = Static<
 
 export const RegistrationSubmitStateDoneSchema = t.Object({
 	done: t.Literal(true),
-	id: IDSchema,
+	access_token: t.String(),
+	id_token: t.String(),
+	refresh_token: t.Optional(t.String()),
 }, { $id: "RegistrationSubmitStateDone" });
 
 export type RegistrationSubmitStateDone = Static<

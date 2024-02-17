@@ -1,16 +1,13 @@
 import { Assert, type JWTPayload, jwtVerify, SignJWT } from "../../deps.ts";
 import { AuthenticationMissingIdentificatorError } from "../../lib/authentication/errors.ts";
-import { extract } from "../../lib/authentication/extract.ts";
 import { getComponentAtPath } from "../../lib/authentication/get_component_at_path.ts";
 import type {
 	AuthenticationCeremonyComponent,
 } from "../../lib/authentication/types.ts";
 import { oneOf } from "../../lib/authentication/types.ts";
 import { autoid } from "../../lib/autoid.ts";
-import type { Identity, IdentityComponent } from "../../lib/identity/types.ts";
 import { createLogger } from "../../lib/logger.ts";
 import {
-	RegistrationSendValidationCodeError,
 	RegistrationSubmitPromptError,
 	RegistrationSubmitValidationCodeError,
 } from "../../lib/registration/errors.ts";

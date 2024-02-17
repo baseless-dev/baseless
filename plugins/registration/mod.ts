@@ -18,6 +18,9 @@ import {
 	slidingWindow,
 } from "../../providers/counter.ts";
 import type { IdentityProvider } from "../../providers/identity.ts";
+import type { SessionProvider } from "../../providers/session.ts";
+import { createTokens } from "../authentication/create_tokens.ts";
+import SessionService from "../authentication/session.ts";
 import type { Context } from "./context.ts";
 import RegistrationService from "./registration.ts";
 
@@ -35,11 +38,14 @@ export type RateLimitOptions = {
 export type RegistrationOptions = {
 	counter: CounterProvider;
 	identity: IdentityProvider;
+	session: SessionProvider;
 	keys: RegistrationKeys;
 	providers: AuthenticationProvider[];
 	ceremony: AuthenticationCeremonyComponent;
 	rateLimit?: RateLimitOptions;
 	allowAnonymousIdentity?: boolean;
+	accessTokenTTL?: number;
+	refreshTokenTTL?: number;
 };
 
 const dataOrError = <T>(schema: TSchema): TSchema =>
@@ -78,6 +84,9 @@ export const registration = (
 						options.keys,
 						options.rateLimit,
 					);
+				},
+				get session() {
+					return new SessionService(options.session);
 				},
 			};
 
@@ -137,7 +146,7 @@ export const registration = (
 		})
 		.post(
 			"/submit-prompt",
-			async ({ body, registration, remoteAddress }) => {
+			async ({ body, registration, remoteAddress, session }) => {
 				try {
 					const state = body.state
 						? await registration.decryptRegistrationState(body.state)
@@ -165,8 +174,26 @@ export const registration = (
 						state,
 					);
 					if (result.kind === "identity") {
-						const id = { id: result.identity.id, meta: result.identity.meta };
-						return Response.json({ data: { done: true, id } });
+						// TODO session expiration
+						const id = await options.identity.get(result.identity.id);
+						const sessionData = await session.create(result.identity.id, {});
+						const { access_token, id_token, refresh_token } =
+							await createTokens(
+								id,
+								sessionData,
+								options.keys.algo,
+								options.keys.privateKey,
+								options.accessTokenTTL ?? 1000 * 60 * 10,
+								options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+							);
+						return Response.json({
+							data: {
+								done: true,
+								access_token,
+								id_token,
+								refresh_token,
+							},
+						});
 					}
 					const nextCeremonyComponent = await registration.getCeremony(result);
 					return Response.json({
@@ -263,7 +290,7 @@ export const registration = (
 		)
 		.post(
 			"/submit-validation-code",
-			async ({ body, registration, remoteAddress }) => {
+			async ({ body, registration, remoteAddress, session }) => {
 				try {
 					const state = body.state
 						? await registration.decryptRegistrationState(body.state)
@@ -291,8 +318,26 @@ export const registration = (
 						state,
 					);
 					if (result.kind === "identity") {
-						const id = { id: result.identity.id, meta: result.identity.meta };
-						return Response.json({ data: { done: true, id } });
+						// TODO session expiration
+						const id = await options.identity.get(result.identity.id);
+						const sessionData = await session.create(result.identity.id, {});
+						const { access_token, id_token, refresh_token } =
+							await createTokens(
+								id,
+								sessionData,
+								options.keys.algo,
+								options.keys.privateKey,
+								options.accessTokenTTL ?? 1000 * 60 * 10,
+								options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+							);
+						return Response.json({
+							data: {
+								done: true,
+								access_token,
+								id_token,
+								refresh_token,
+							},
+						});
 					}
 					const nextCeremonyComponent = await registration.getCeremony(result);
 					return Response.json({

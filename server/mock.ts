@@ -138,6 +138,7 @@ export async function mock(
 			registrationPlugin({
 				counter,
 				identity,
+				session,
 				keys,
 				providers: [email, password],
 				ceremony: sequence(

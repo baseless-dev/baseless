@@ -73,4 +73,8 @@ export default class TOTPAuthentificationProvider
 		}
 		return false;
 	}
+
+	setupPrompt(): undefined | AuthenticationCeremonyComponentPrompt {
+		return this.signInPrompt();
+	}
 }

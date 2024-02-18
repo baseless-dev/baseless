@@ -64,6 +64,10 @@ export default class EmailAuthenticationProvider
 		return false;
 	}
 
+	setupPrompt(): undefined | AuthenticationCeremonyComponentPrompt {
+		return this.signInPrompt();
+	}
+
 	validationPrompt(): undefined | AuthenticationCeremonyComponentPrompt {
 		return {
 			id: this.id,

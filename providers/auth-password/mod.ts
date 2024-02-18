@@ -54,4 +54,8 @@ export default class PasswordAuthenticationProvider
 		return "hash" in identityComponent.meta &&
 			identityComponent.meta.hash === hash;
 	}
+
+	setupPrompt(): undefined | AuthenticationCeremonyComponentPrompt {
+		return this.signInPrompt();
+	}
 }

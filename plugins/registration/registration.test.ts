@@ -8,7 +8,7 @@ import { generateKeyPair } from "../../deps.ts";
 import { oneOf, sequence } from "../../lib/authentication/types.ts";
 import { autoid } from "../../lib/autoid.ts";
 import EmailAuthentificationComponent from "../../providers/auth-email/mod.ts";
-import OTPMessageAuthentificationComponent from "../../providers/auth-otp-message/mod.ts";
+import OTPMemoryAuthentificationComponent from "../../providers/auth-otp-memory/mod.ts";
 import PasswordAuthentificationComponent from "../../providers/auth-password/mod.ts";
 import { MemoryDocumentProvider } from "../../providers/document-memory/mod.ts";
 import { DocumentIdentityProvider } from "../../providers/identity-document/mod.ts";
@@ -19,9 +19,9 @@ import RegistrationService from "./registration.ts";
 Deno.test("RegistrationService", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
 	const init = async () => {
-		const message = new MemoryMessageProvider();
-		const kv = new MemoryKVProvider();
-		const identity = new DocumentIdentityProvider(
+		const messageProvider = new MemoryMessageProvider();
+		const kvProvider = new MemoryKVProvider();
+		const identityProvider = new DocumentIdentityProvider(
 			new MemoryDocumentProvider(),
 		);
 		const keys = {
@@ -30,21 +30,19 @@ Deno.test("RegistrationService", async (t) => {
 		};
 		const emailProvider = new EmailAuthentificationComponent(
 			"email",
-			identity,
-			kv,
-			message,
+			identityProvider,
+			kvProvider,
+			messageProvider,
 		);
 		const passwordProvider = new PasswordAuthentificationComponent(
 			"password",
 			"lesalt",
 		);
-		const otpProvider = new OTPMessageAuthentificationComponent(
+		const otpProvider = new OTPMemoryAuthentificationComponent(
 			"otp",
 			{
 				digits: 6,
 			},
-			kv,
-			message,
 		);
 		const ceremony = sequence(
 			emailProvider.toCeremonyComponent(),
@@ -60,10 +58,10 @@ Deno.test("RegistrationService", async (t) => {
 				otpProvider,
 			],
 			ceremony,
-			identity,
+			identityProvider,
 			keys,
 		);
-		const john = await identity.create({}, [
+		const john = await identityProvider.create({}, [
 			{
 				id: "email",
 				...await emailProvider.configureIdentityComponent("john@test.local"),
@@ -80,7 +78,7 @@ Deno.test("RegistrationService", async (t) => {
 		]);
 		return {
 			register,
-			message,
+			messageProvider,
 			emailProvider,
 			passwordProvider,
 			otpProvider,
@@ -130,8 +128,8 @@ Deno.test("RegistrationService", async (t) => {
 				first: false,
 				last: false,
 				component: {
-					kind: "choice",
-					components: [{ id: "password" }, { id: "otp" }],
+					kind: "prompt",
+					id: "password",
 				},
 			},
 		);
@@ -177,7 +175,7 @@ Deno.test("RegistrationService", async (t) => {
 	});
 
 	await t.step("send validation code", async () => {
-		const { register, message } = await init();
+		const { register, messageProvider } = await init();
 
 		const state1 = await register.submitPrompt("email", "jane@test.local");
 		assert(state1.kind === "registration");
@@ -185,16 +183,16 @@ Deno.test("RegistrationService", async (t) => {
 			await register.sendValidationCode("email", "en", state1),
 			true,
 		);
-		assert(message.messages.at(-1));
+		assert(messageProvider.messages.at(-1)?.text);
 	});
 
 	await t.step("submit validation code", async () => {
-		const { register, message, emailProvider } = await init();
+		const { register, messageProvider, emailProvider } = await init();
 
 		const state1 = await register.submitPrompt("email", "jane@test.local");
 		assert(state1.kind === "registration");
 		await register.sendValidationCode("email", "en", state1);
-		const code = message.messages.at(-1)!.text;
+		const code = messageProvider.messages.at(-1)!.text;
 		assertObjectMatch(
 			await register.submitValidationCode("email", code, state1),
 			{
@@ -212,12 +210,12 @@ Deno.test("RegistrationService", async (t) => {
 	});
 
 	await t.step("submit last prompt returns an identity", async () => {
-		const { register, message } = await init();
+		const { register, messageProvider } = await init();
 
 		const state1 = await register.submitPrompt("email", "jane@test.local");
 		assert(state1.kind === "registration");
 		await register.sendValidationCode("email", "en", state1);
-		const code = message.messages.at(-1)!.text;
+		const code = messageProvider.messages.at(-1)!.text;
 		const state2 = await register.submitValidationCode("email", code, state1);
 		assert(state2.kind === "registration");
 		const state3 = await register.submitPrompt("password", "123", state2);

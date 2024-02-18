@@ -110,23 +110,7 @@ export default abstract class OAuth2AuthenticationProvider
 		throw new IdentityNotFoundError();
 	}
 
-	setupPrompt(): AuthenticationCeremonyComponentPrompt {
-		return {
-			id: this.id,
-			kind: "prompt",
-			prompt: "oauth2",
-			options: {},
-		};
-	}
-
-	validationPrompt(): undefined | AuthenticationCeremonyComponentPrompt {
-		return {
-			id: this.id,
-			kind: "prompt",
-			prompt: "otp",
-			options: {
-				digits: 8,
-			},
-		};
+	setupPrompt(): undefined | AuthenticationCeremonyComponentPrompt {
+		return this.signInPrompt();
 	}
 }

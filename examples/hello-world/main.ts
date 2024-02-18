@@ -5,7 +5,7 @@ import {
 } from "../../lib/logger.ts";
 import openapiPlugin from "../../plugins/openapi/mod.ts";
 import EmailAuthentificationComponent from "../../providers/auth-email/mod.ts";
-import OTPMessageAuthentificationComponent from "../../providers/auth-otp-message/mod.ts";
+import OTPLoggerAuthentificationComponent from "../../providers/auth-otp-logger/mod.ts";
 import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";
 import { mock, t } from "../../server/mock.ts";
 
@@ -24,13 +24,12 @@ const {
 		kv,
 		message,
 	);
-	const otp = new OTPMessageAuthentificationComponent(
+	const otp = new OTPLoggerAuthentificationComponent(
 		"otp",
 		{
 			digits: 6,
 		},
 		kv,
-		message,
 	);
 	await identity.create({
 		displayName: "John Doe",

@@ -2,7 +2,7 @@ import { assert, assertEquals, assertObjectMatch } from "../../deps.test.ts";
 import { generateKeyPair } from "../../deps.ts";
 import { oneOf, sequence } from "../../lib/authentication/types.ts";
 import EmailAuthentificationComponent from "../../providers/auth-email/mod.ts";
-import OTPMessageAuthentificationComponent from "../../providers/auth-otp-message/mod.ts";
+import OTPMemoryAuthentificationComponent from "../../providers/auth-otp-memory/mod.ts";
 import PasswordAuthentificationComponent from "../../providers/auth-password/mod.ts";
 import { MemoryDocumentProvider } from "../../providers/document-memory/mod.ts";
 import { DocumentIdentityProvider } from "../../providers/identity-document/mod.ts";
@@ -13,9 +13,9 @@ import AuthenticationService from "./authentication.ts";
 Deno.test("AuthenticationService", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
 	const init = async () => {
-		const message = new MemoryMessageProvider();
-		const kv = new MemoryKVProvider();
-		const identity = new DocumentIdentityProvider(
+		const messageProvider = new MemoryMessageProvider();
+		const kvProvider = new MemoryKVProvider();
+		const identityProvider = new DocumentIdentityProvider(
 			new MemoryDocumentProvider(),
 		);
 		const keys = {
@@ -24,21 +24,19 @@ Deno.test("AuthenticationService", async (t) => {
 		};
 		const emailProvider = new EmailAuthentificationComponent(
 			"email",
-			identity,
-			kv,
-			message,
+			identityProvider,
+			kvProvider,
+			messageProvider,
 		);
 		const passwordProvider = new PasswordAuthentificationComponent(
 			"password",
 			"lesalt",
 		);
-		const otpProvider = new OTPMessageAuthentificationComponent(
+		const otpProvider = new OTPMemoryAuthentificationComponent(
 			"otp",
 			{
 				digits: 6,
 			},
-			kv,
-			message,
 		);
 		const ceremony = sequence(
 			emailProvider.toCeremonyComponent(),
@@ -50,10 +48,10 @@ Deno.test("AuthenticationService", async (t) => {
 		const auth = new AuthenticationService(
 			[emailProvider, passwordProvider, otpProvider],
 			ceremony,
-			identity,
+			identityProvider,
 			keys,
 		);
-		const john = await identity.create({}, [
+		const john = await identityProvider.create({}, [
 			{
 				id: "email",
 				...await emailProvider.configureIdentityComponent("john@test.local"),
@@ -70,7 +68,7 @@ Deno.test("AuthenticationService", async (t) => {
 		]);
 		return {
 			auth,
-			message,
+			messageProvider,
 			emailProvider,
 			passwordProvider,
 			otpProvider,
@@ -110,8 +108,8 @@ Deno.test("AuthenticationService", async (t) => {
 	await t.step("send prompt", async () => {
 		const {
 			auth,
-			message,
 			john,
+			otpProvider,
 		} = await init();
 
 		assertEquals(
@@ -122,7 +120,7 @@ Deno.test("AuthenticationService", async (t) => {
 			),
 			true,
 		);
-		const code = message.messages.at(-1)?.text;
+		const code = otpProvider.codes.at(-1);
 		assert(code);
 		const result2 = await auth.submitPrompt(
 			"otp",

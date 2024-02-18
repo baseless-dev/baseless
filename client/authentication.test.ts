@@ -39,6 +39,7 @@ Deno.test("Client Authentication", async (t) => {
 			app: App;
 			signIn: (app: App) => Promise<void>;
 			messages: () => Message[];
+			codes: () => string[];
 		} & MockResult
 	> => {
 		let john: ID;
@@ -137,6 +138,9 @@ Deno.test("Client Authentication", async (t) => {
 			messages(): Message[] {
 				return result.providers.message.messages;
 			},
+			codes(): string[] {
+				return result.components.otp.codes;
+			},
 		};
 	};
 
@@ -195,7 +199,7 @@ Deno.test("Client Authentication", async (t) => {
 	});
 
 	await t.step("sendPrompt", async () => {
-		const { app, messages } = await initMockServer();
+		const { app, codes } = await initMockServer();
 		const result1 = await submitPrompt(
 			app,
 			"email",
@@ -208,7 +212,7 @@ Deno.test("Client Authentication", async (t) => {
 			"en",
 			result1.state,
 		);
-		const code = messages().at(-1)?.text;
+		const code = codes().at(-1);
 		assert(code && code.length === 6);
 		const result3 = await submitPrompt(
 			app,

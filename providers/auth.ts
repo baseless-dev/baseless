@@ -38,8 +38,8 @@ export abstract class AuthenticationProvider {
 		},
 	): Promise<boolean | Identity>;
 
-	setupPrompt(): AuthenticationCeremonyComponentPrompt {
-		return this.signInPrompt();
+	setupPrompt(): undefined | AuthenticationCeremonyComponentPrompt {
+		return undefined;
 	}
 
 	async submitSetupPrompt(options: {

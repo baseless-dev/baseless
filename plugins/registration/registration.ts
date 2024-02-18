@@ -3,6 +3,7 @@ import { AuthenticationMissingIdentificatorError } from "../../lib/authenticatio
 import { getComponentAtPath } from "../../lib/authentication/get_component_at_path.ts";
 import type {
 	AuthenticationCeremonyComponent,
+	AuthenticationCeremonyComponentPrompt,
 } from "../../lib/authentication/types.ts";
 import { oneOf } from "../../lib/authentication/types.ts";
 import { autoid } from "../../lib/autoid.ts";
@@ -107,10 +108,16 @@ export default class RegistrationService {
 						throw new AuthenticationMissingIdentificatorError();
 					}
 					return provider.setupPrompt();
-				});
-				ceremonyComponent = oneOf(...components) as ReturnType<
-					typeof getComponentAtPath
-				>;
+				}).filter((p): p is AuthenticationCeremonyComponentPrompt => !!p);
+				if (components.length === 1) {
+					ceremonyComponent = components[0]!;
+				} else if (components.length > 1) {
+					ceremonyComponent = oneOf(...components) as ReturnType<
+						typeof getComponentAtPath
+					>;
+				} else {
+					ceremonyComponent = undefined;
+				}
 			}
 		}
 		if (!ceremonyComponent || ceremonyComponent.kind === "done") {

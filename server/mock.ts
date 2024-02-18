@@ -10,7 +10,6 @@ import { DocumentIdentityProvider } from "../providers/identity-document/mod.ts"
 import authenticationPlugin from "../plugins/authentication/mod.ts";
 import registrationPlugin from "../plugins/registration/mod.ts";
 import assetPlugin from "../plugins/asset/mod.ts";
-import OTPMessageAuthentificationProvider from "../providers/auth-otp-message/mod.ts";
 import TOTPAuthentificationProvider from "../providers/auth-totp/mod.ts";
 import type { AuthenticationOptions } from "../plugins/authentication/mod.ts";
 import { oneOf, sequence } from "../lib/authentication/types.ts";
@@ -19,6 +18,7 @@ import { MemoryMessageProvider } from "../providers/message-memory/mod.ts";
 import type { Context as AuthenticationContext } from "../plugins/authentication/context.ts";
 import type { Context as RegistrationContext } from "../plugins/registration/context.ts";
 import type { Context as AssetContext } from "../plugins/asset/context.ts";
+import OTPMemoryAuthentificationProvider from "../providers/auth-otp-memory/mod.ts";
 
 export { t } from "../deps.ts";
 
@@ -35,7 +35,7 @@ export type MockResult = {
 	components: {
 		email: EmailAuthentificationProvider;
 		password: PasswordAuthentificationProvider;
-		otp: OTPMessageAuthentificationProvider;
+		otp: OTPMemoryAuthentificationProvider;
 		totp: TOTPAuthentificationProvider;
 		oneOf: typeof oneOf;
 		sequence: typeof sequence;
@@ -80,13 +80,11 @@ export async function mock(
 		"password",
 		"lesalt",
 	);
-	const otp = new OTPMessageAuthentificationProvider(
+	const otp = new OTPMemoryAuthentificationProvider(
 		"otp",
 		{
 			digits: 6,
 		},
-		kv,
-		message,
 	);
 	const totp = new TOTPAuthentificationProvider("totp", {
 		digits: 6,

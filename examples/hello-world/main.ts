@@ -24,24 +24,39 @@ const {
 		kv,
 		message,
 	);
-	const otp = new OTPMessageAuthentificationComponent("otp", kv, message, {
-		digits: 6,
-	});
+	const otp = new OTPMessageAuthentificationComponent(
+		"otp",
+		{
+			digits: 6,
+		},
+		kv,
+		message,
+	);
 	await identity.create({
 		displayName: "John Doe",
 	}, [{
 		id: "email",
-		...await email.initializeIdentityComponent({ value: "john@test.local" }),
+		...await email.configureIdentityComponent("john@test.local"),
+		confirmed: true,
 	}, {
 		id: "password",
-		...await password.initializeIdentityComponent({ value: "123" }),
+		...await password.configureIdentityComponent("123"),
 	}, {
 		id: "otp",
-		...await otp.initializeIdentityComponent({ value: "" }),
+		...await otp.configureIdentityComponent(""),
 	}]);
 	return {
 		auth: {
-			ceremony: sequence(email, password, otp),
+			providers: [
+				email,
+				password,
+				otp,
+			],
+			ceremony: sequence(
+				email.toCeremonyComponent(),
+				password.toCeremonyComponent(),
+				otp.toCeremonyComponent(),
+			),
 			accessTokenTTL: 1000 * 60 * 60 * 10,
 			refreshTokenTTL: 1000 * 60 * 60 * 24 * 7,
 		},

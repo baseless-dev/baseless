@@ -146,6 +146,7 @@ Deno.test("Client Registration", async (t) => {
 			done: false,
 			first: false,
 			last: false,
+			validating: true,
 			component: {
 				kind: "prompt",
 				id: "email",

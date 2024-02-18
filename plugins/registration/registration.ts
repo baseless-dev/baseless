@@ -80,6 +80,7 @@ export default class RegistrationService {
 			components: [],
 		};
 		const choices = state.components.map((c) => c.id) ?? [];
+		let validating = false;
 		let ceremonyComponent = getComponentAtPath(this.#ceremony, choices);
 		const lastComponent = state.components.at(-1);
 		if (lastComponent && !lastComponent.confirmed) {
@@ -88,6 +89,7 @@ export default class RegistrationService {
 				throw new AuthenticationMissingIdentificatorError();
 			}
 			ceremonyComponent = provider.validationPrompt();
+			validating = true;
 		} else if (ceremonyComponent) {
 			if (ceremonyComponent.kind === "prompt") {
 				const ceremonyComponentPrompt = ceremonyComponent;
@@ -125,6 +127,7 @@ export default class RegistrationService {
 			done: false,
 			first,
 			last,
+			validating,
 			component: ceremonyComponent,
 		};
 	}

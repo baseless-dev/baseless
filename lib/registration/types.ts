@@ -19,6 +19,7 @@ export type RegistrationState = Static<
 export const RegistrationCeremonyStateNextSchema = t.Object({
 	done: t.Literal(false),
 	component: AtPathAuthenticationCeremonyComponentSchema,
+	validating: t.Boolean(),
 	first: t.Boolean(),
 	last: t.Boolean(),
 	state: t.Optional(t.String()),

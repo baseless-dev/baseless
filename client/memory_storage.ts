@@ -1,6 +1,8 @@
 export default class MemoryStorage implements globalThis.Storage {
 	#kv = new Map<string, string>();
-	length = 0;
+	get length(): number {
+		return this.#kv.size;
+	}
 	clear(): void {
 		this.#kv.clear();
 	}
@@ -15,5 +17,11 @@ export default class MemoryStorage implements globalThis.Storage {
 	}
 	setItem(key: string, value: string): void {
 		this.#kv.set(key, value);
+	}
+	toJSON(): Record<string, string> {
+		return Object.fromEntries(this.#kv);
+	}
+	valueOf(): Record<string, string> {
+		return this.toJSON();
 	}
 }

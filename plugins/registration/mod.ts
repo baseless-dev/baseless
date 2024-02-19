@@ -1,4 +1,5 @@
 import { KeyLike, t, type TSchema } from "../../deps.ts";
+import { map } from "../../lib/authentication/map.ts";
 import { simplify } from "../../lib/authentication/simplify.ts";
 import {
 	AuthenticationCeremonyComponent,
@@ -64,9 +65,18 @@ export const registration = (
 	options: RegistrationOptions,
 ) => {
 	const logger = createLogger("registration-plugin");
-	options.ceremony = simplify(
-		sequence(options.ceremony, { kind: "done" as const }),
-	);
+	const setupableCeremony = map(options.ceremony, (component) => {
+		if (component.kind === "prompt") {
+			const provider = options.providers.find((c) => c.id === component.id);
+			const setupPrompt = provider?.setupPrompt();
+			return setupPrompt ? component : undefined;
+		}
+		return component;
+	});
+	if (!setupableCeremony) {
+		throw new Error("Invalid ceremony");
+	}
+	options.ceremony = simplify(sequence(setupableCeremony, { kind: "done" }));
 
 	return new Router()
 		.derive(({ request }) => {

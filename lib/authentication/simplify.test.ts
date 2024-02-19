@@ -44,6 +44,10 @@ Deno.test("simplify", () => {
 		sequence(email, password),
 	);
 	assertEquals(
+		simplify(sequence(email, email)),
+		email,
+	);
+	assertEquals(
 		simplify(sequence(email, sequence(password, otp))),
 		sequence(email, password, otp),
 	);

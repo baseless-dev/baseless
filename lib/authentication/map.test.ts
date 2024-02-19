@@ -1,12 +1,12 @@
 import { assertEquals } from "../../deps.test.ts";
-import { replace } from "./replace.ts";
+import { map } from "./map.ts";
 import {
 	type AuthenticationCeremonyComponent,
 	oneOf,
 	sequence,
 } from "./types.ts";
 
-Deno.test("replace", () => {
+Deno.test("map", () => {
 	const email: AuthenticationCeremonyComponent = {
 		kind: "prompt",
 		id: "email",
@@ -21,11 +21,17 @@ Deno.test("replace", () => {
 	};
 
 	assertEquals(
-		replace(sequence(email, password), email, password),
+		map(
+			sequence(email, password),
+			(component) => component === email ? password : component,
+		),
 		sequence(password, password),
 	);
 	assertEquals(
-		replace(oneOf(email, password), email, password),
+		map(
+			oneOf(email, password),
+			(component) => component === email ? password : component,
+		),
 		oneOf(password, password),
 	);
 });

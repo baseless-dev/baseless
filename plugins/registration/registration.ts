@@ -105,10 +105,9 @@ export default class RegistrationService {
 			} else if (ceremonyComponent.kind === "choice") {
 				const components = ceremonyComponent.components.map((component) => {
 					const provider = this.#providers.find((c) => c.id === component.id);
-					if (!provider) {
-						throw new AuthenticationMissingIdentificatorError();
+					if (provider) {
+						return provider.setupPrompt();
 					}
-					return provider.setupPrompt();
 				}).filter((p): p is AuthenticationCeremonyComponentPrompt => !!p);
 				if (components.length === 1) {
 					ceremonyComponent = components[0]!;

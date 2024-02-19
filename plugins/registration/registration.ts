@@ -7,6 +7,7 @@ import type {
 } from "../../lib/authentication/types.ts";
 import { oneOf } from "../../lib/authentication/types.ts";
 import { autoid } from "../../lib/autoid.ts";
+import type { Identity } from "../../lib/identity/types.ts";
 import { createLogger } from "../../lib/logger.ts";
 import {
 	RegistrationSubmitPromptError,
@@ -139,6 +140,25 @@ export default class RegistrationService {
 		};
 	}
 
+	async #createIdentityFromState(
+		state: RegistrationState,
+	): Promise<Identity> {
+		const components = [...state.components];
+		for (const provider of this.#providers) {
+			const setupPrompt = provider.setupPrompt();
+			if (!setupPrompt) {
+				components.push({
+					id: provider.id,
+					...await provider.configureIdentityComponent(null),
+				});
+			}
+		}
+		return await this.#identityProvider.create(
+			{},
+			components,
+		);
+	}
+
 	async submitPrompt(
 		id: string,
 		value: unknown,
@@ -184,10 +204,7 @@ export default class RegistrationService {
 		if (this.getCeremony(state).done === true) {
 			return {
 				kind: "identity",
-				identity: await this.#identityProvider.create(
-					{},
-					state.components,
-				),
+				identity: await this.#createIdentityFromState(state),
 			};
 		}
 
@@ -287,10 +304,7 @@ export default class RegistrationService {
 		if (this.getCeremony(state).done === true) {
 			return {
 				kind: "identity",
-				identity: await this.#identityProvider.create(
-					{},
-					state.components,
-				),
+				identity: await this.#createIdentityFromState(state),
 			};
 		}
 

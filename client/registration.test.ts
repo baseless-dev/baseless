@@ -9,7 +9,7 @@ import {
 	submitPrompt,
 	submitValidationCode,
 } from "./registration.ts";
-import type { Message } from "../lib/message/types.ts";
+import type { Notification } from "../lib/notification/types.ts";
 import { assertInitializedRegistration } from "./registration.ts";
 import {
 	RegistrationCeremonyStateNextSchema,
@@ -29,7 +29,7 @@ Deno.test("Client Registration", async (t) => {
 		{
 			identity: ID;
 			app: App;
-			messages: () => Message[];
+			notifications: () => Notification[];
 		} & MockResult
 	> => {
 		let john: ID;
@@ -110,8 +110,8 @@ Deno.test("Client Registration", async (t) => {
 			...result,
 			identity: john!,
 			app,
-			messages(): Message[] {
-				return result.providers.message.messages;
+			notifications(): Notification[] {
+				return result.providers.notification.notifications;
 			},
 		};
 	};
@@ -155,7 +155,7 @@ Deno.test("Client Registration", async (t) => {
 	});
 
 	await t.step("send validation code", async () => {
-		const { app, messages } = await initMockServer();
+		const { app, notifications } = await initMockServer();
 		const state1 = await submitPrompt(
 			app,
 			"email",
@@ -165,17 +165,17 @@ Deno.test("Client Registration", async (t) => {
 		assertEquals(await sendValidationCode(app, "email", "en", state1.state), {
 			sent: true,
 		});
-		const code = messages().at(-1)?.text;
+		const code = notifications().at(-1)?.content["text/x-otp-code"];
 		assert(code?.length === 8);
 	});
 
 	await t.step("submit validation code", async () => {
-		const { app, messages } = await initMockServer();
+		const { app, notifications } = await initMockServer();
 
 		const state1 = await submitPrompt(app, "email", "jane@test.local");
 		assert(state1.done === false);
 		await sendValidationCode(app, "email", "en", state1.state);
-		const code = messages().at(-1)!.text;
+		const code = notifications().at(-1)!.content["text/x-otp-code"];
 		const state2 = await submitValidationCode(
 			app,
 			"email",
@@ -186,12 +186,12 @@ Deno.test("Client Registration", async (t) => {
 	});
 
 	await t.step("submit last prompt returns an identity", async () => {
-		const { app, messages } = await initMockServer();
+		const { app, notifications } = await initMockServer();
 
 		const state1 = await submitPrompt(app, "email", "jane@test.local");
 		assert(state1.done === false);
 		await sendValidationCode(app, "email", "en", state1.state);
-		const code = messages().at(-1)!.text;
+		const code = notifications().at(-1)!.content["text/x-otp-code"];
 		const state2 = await submitValidationCode(
 			app,
 			"email",

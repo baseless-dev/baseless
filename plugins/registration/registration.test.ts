@@ -13,13 +13,13 @@ import PasswordAuthentificationComponent from "../../providers/auth-password/mod
 import { MemoryDocumentProvider } from "../../providers/document-memory/mod.ts";
 import { DocumentIdentityProvider } from "../../providers/identity-document/mod.ts";
 import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
-import { MemoryMessageProvider } from "../../providers/message-memory/mod.ts";
+import { MemoryNotificationProvider } from "../../providers/notification-memory/mod.ts";
 import RegistrationService from "./registration.ts";
 
 Deno.test("RegistrationService", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
 	const init = async () => {
-		const messageProvider = new MemoryMessageProvider();
+		const notificationProvider = new MemoryNotificationProvider();
 		const kvProvider = new MemoryKVProvider();
 		const identityProvider = new DocumentIdentityProvider(
 			new MemoryDocumentProvider(),
@@ -32,7 +32,7 @@ Deno.test("RegistrationService", async (t) => {
 			"email",
 			identityProvider,
 			kvProvider,
-			messageProvider,
+			notificationProvider,
 		);
 		const passwordProvider = new PasswordAuthentificationComponent(
 			"password",
@@ -78,7 +78,7 @@ Deno.test("RegistrationService", async (t) => {
 		]);
 		return {
 			register,
-			messageProvider,
+			notificationProvider,
 			emailProvider,
 			passwordProvider,
 			otpProvider,
@@ -175,7 +175,7 @@ Deno.test("RegistrationService", async (t) => {
 	});
 
 	await t.step("send validation code", async () => {
-		const { register, messageProvider } = await init();
+		const { register, notificationProvider } = await init();
 
 		const state1 = await register.submitPrompt("email", "jane@test.local");
 		assert(state1.kind === "registration");
@@ -183,16 +183,19 @@ Deno.test("RegistrationService", async (t) => {
 			await register.sendValidationCode("email", "en", state1),
 			true,
 		);
-		assert(messageProvider.messages.at(-1)?.text);
+		assert(
+			notificationProvider.notifications.at(-1)?.content["text/x-otp-code"],
+		);
 	});
 
 	await t.step("submit validation code", async () => {
-		const { register, messageProvider, emailProvider } = await init();
+		const { register, notificationProvider, emailProvider } = await init();
 
 		const state1 = await register.submitPrompt("email", "jane@test.local");
 		assert(state1.kind === "registration");
 		await register.sendValidationCode("email", "en", state1);
-		const code = messageProvider.messages.at(-1)!.text;
+		const code =
+			notificationProvider.notifications.at(-1)!.content["text/x-otp-code"];
 		assertObjectMatch(
 			await register.submitValidationCode("email", code, state1),
 			{
@@ -210,12 +213,13 @@ Deno.test("RegistrationService", async (t) => {
 	});
 
 	await t.step("submit last prompt returns an identity", async () => {
-		const { register, messageProvider } = await init();
+		const { register, notificationProvider } = await init();
 
 		const state1 = await register.submitPrompt("email", "jane@test.local");
 		assert(state1.kind === "registration");
 		await register.sendValidationCode("email", "en", state1);
-		const code = messageProvider.messages.at(-1)!.text;
+		const code =
+			notificationProvider.notifications.at(-1)!.content["text/x-otp-code"];
 		const state2 = await register.submitValidationCode("email", code, state1);
 		assert(state2.kind === "registration");
 		const state3 = await register.submitPrompt("password", "123", state2);

@@ -5,7 +5,7 @@ import * as counterErrors from "../lib/counter/errors.ts";
 import * as documentErrors from "../lib/document/errors.ts";
 import * as identityErrors from "../lib/identity/errors.ts";
 import * as kvErrors from "../lib/kv/errors.ts";
-import * as messageErrors from "../lib/message/errors.ts";
+import * as notificationErrors from "../lib/notification/errors.ts";
 import * as sessionErrors from "../lib/session/errors.ts";
 export * from "../lib/api.ts";
 export * from "../lib/authentication/errors.ts";
@@ -13,7 +13,7 @@ export * from "../lib/counter/errors.ts";
 export * from "../lib/document/errors.ts";
 export * from "../lib/identity/errors.ts";
 export * from "../lib/kv/errors.ts";
-export * from "../lib/message/errors.ts";
+export * from "../lib/notification/errors.ts";
 export * from "../lib/session/errors.ts";
 
 const errorMap = new Map<string, any>([
@@ -22,7 +22,7 @@ const errorMap = new Map<string, any>([
 	...Object.entries(documentErrors),
 	...Object.entries(identityErrors),
 	...Object.entries(kvErrors),
-	...Object.entries(messageErrors),
+	...Object.entries(notificationErrors),
 	...Object.entries(sessionErrors),
 ]);
 

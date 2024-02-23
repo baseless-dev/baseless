@@ -24,7 +24,7 @@ import {
 	signOut,
 	submitPrompt,
 } from "./authentication.ts";
-import type { Message } from "../lib/message/types.ts";
+import type { Notification } from "../lib/notification/types.ts";
 import {
 	AuthenticationCeremonyStateNextSchema,
 	AuthenticationSubmitPromptStateDoneSchema,
@@ -38,7 +38,7 @@ Deno.test("Client Authentication", async (t) => {
 			identity: ID;
 			app: App;
 			signIn: (app: App) => Promise<void>;
-			messages: () => Message[];
+			notifications: () => Notification[];
 			codes: () => string[];
 		} & MockResult
 	> => {
@@ -135,8 +135,8 @@ Deno.test("Client Authentication", async (t) => {
 					result.state,
 				);
 			},
-			messages(): Message[] {
-				return result.providers.message.messages;
+			notifications(): Notification[] {
+				return result.providers.notification.notifications;
 			},
 			codes(): string[] {
 				return result.components.otp.codes;

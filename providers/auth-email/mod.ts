@@ -5,24 +5,25 @@ import { otp } from "../../lib/otp.ts";
 import { AuthenticationProvider } from "../auth.ts";
 import type { IdentityProvider } from "../identity.ts";
 import type { KVProvider } from "../kv.ts";
-import type { MessageProvider } from "../message.ts";
+import type { NotificationProvider } from "../notification.ts";
+import { NotificationSendError } from "../../lib/notification/errors.ts";
 
 export default class EmailAuthenticationProvider
 	extends AuthenticationProvider {
 	#identityProvider: IdentityProvider;
 	#kvProvider: KVProvider;
-	#messageProvider: MessageProvider;
+	#notificationProvider: NotificationProvider;
 
 	constructor(
 		id: string,
 		identityProvider: IdentityProvider,
 		kvProvider: KVProvider,
-		messageProvider: MessageProvider,
+		notificationProvider: NotificationProvider,
 	) {
 		super(id);
 		this.#identityProvider = identityProvider;
 		this.#kvProvider = kvProvider;
-		this.#messageProvider = messageProvider;
+		this.#notificationProvider = notificationProvider;
 	}
 
 	configureIdentityComponent(
@@ -83,14 +84,20 @@ export default class EmailAuthenticationProvider
 		locale: string;
 		identity: Identity;
 	}): Promise<void> {
+		const identityComponent = identity.components.find((c) => c.id === this.id);
+		if (!identityComponent) {
+			throw new NotificationSendError();
+		}
 		const code = otp({ digits: 8 });
 		await this.#kvProvider.put(["email-validation-code", identity.id], code, {
 			expiration: 60 * 1000 * 5,
 		});
 		// TODO template?
-		this.#messageProvider.send({
-			recipient: identity.id,
-			text: `${code}`,
+		this.#notificationProvider.send(identityComponent.identification, {
+			subject: "Your verification code",
+			content: {
+				"text/x-otp-code": `${code}`,
+			},
 		});
 	}
 

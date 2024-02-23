@@ -1,7 +1,7 @@
 import { createLogger } from "../../lib/logger.ts";
-import type { Message } from "../../lib/message/types.ts";
-import { MessageSendError } from "../../lib/message/errors.ts";
-import type { MessageProvider } from "../message.ts";
+import type { Notification } from "../../lib/notification/types.ts";
+import { NotificationSendError } from "../../lib/notification/errors.ts";
+import type { NotificationProvider } from "../notification.ts";
 
 export type IAddress = {
 	email: string;
@@ -9,15 +9,17 @@ export type IAddress = {
 };
 
 /**
- * A mail provider that log every message
+ * A mail provider that log every notification
  */
-export class SendgridMessageProvider implements MessageProvider {
-	#logger = createLogger("sendgrid-message-provider");
+export class SendgridNotificationProvider implements NotificationProvider {
+	#logger = createLogger("sendgrid-notification");
 	#from: IAddress;
 	#apiKey: string;
 	#replyTo?: IAddress;
 	#templateId?: string;
 	#dynamicTemplateData?: Record<string, unknown>;
+
+	transport = "email";
 
 	public constructor(
 		options: {
@@ -37,25 +39,25 @@ export class SendgridMessageProvider implements MessageProvider {
 	}
 
 	/**
-	 * @throws {MessageSendError}
+	 * @throws {NotificationSendError}
 	 */
-	public async send(message: Message): Promise<void> {
+	public async send(
+		destination: unknown,
+		notification: Notification,
+	): Promise<void> {
 		try {
-			const content = [
-				{
-					type: "text/plain",
-					value: message.text,
+			const content = Object.entries(notification.content).reduce(
+				(contents, [type, content]) => {
+					return [...contents, { type, value: content }];
 				},
-			];
-			if (message.html) {
-				content.push({ type: "text/html", value: message.html });
-			}
+				[] as Array<{ type: string; value: string }>,
+			);
 			const body = {
 				personalizations: [{
-					to: [{ email: message.recipient }],
+					to: [{ email: destination }],
 					dynamicTemplateData: this.#dynamicTemplateData,
 				}],
-				subject: message.subject,
+				subject: notification.subject,
 				from: this.#from,
 				replyTo: this.#replyTo,
 				content,
@@ -70,8 +72,10 @@ export class SendgridMessageProvider implements MessageProvider {
 				body: JSON.stringify(body),
 			});
 		} catch (inner) {
-			this.#logger.error(`Error while sending message, got error : ${inner}`);
+			this.#logger.error(
+				`Error while sending notification, got error : ${inner}`,
+			);
 		}
-		throw new MessageSendError();
+		throw new NotificationSendError();
 	}
 }

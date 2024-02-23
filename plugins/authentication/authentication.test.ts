@@ -7,13 +7,13 @@ import PasswordAuthentificationComponent from "../../providers/auth-password/mod
 import { MemoryDocumentProvider } from "../../providers/document-memory/mod.ts";
 import { DocumentIdentityProvider } from "../../providers/identity-document/mod.ts";
 import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
-import { MemoryMessageProvider } from "../../providers/message-memory/mod.ts";
+import { MemoryNotificationProvider } from "../../providers/notification-memory/mod.ts";
 import AuthenticationService from "./authentication.ts";
 
 Deno.test("AuthenticationService", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
 	const init = async () => {
-		const messageProvider = new MemoryMessageProvider();
+		const notificationProvider = new MemoryNotificationProvider();
 		const kvProvider = new MemoryKVProvider();
 		const identityProvider = new DocumentIdentityProvider(
 			new MemoryDocumentProvider(),
@@ -26,7 +26,7 @@ Deno.test("AuthenticationService", async (t) => {
 			"email",
 			identityProvider,
 			kvProvider,
-			messageProvider,
+			notificationProvider,
 		);
 		const passwordProvider = new PasswordAuthentificationComponent(
 			"password",
@@ -68,7 +68,7 @@ Deno.test("AuthenticationService", async (t) => {
 		]);
 		return {
 			auth,
-			messageProvider,
+			notificationProvider,
 			emailProvider,
 			passwordProvider,
 			otpProvider,

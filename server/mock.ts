@@ -14,7 +14,7 @@ import TOTPAuthentificationProvider from "../providers/auth-totp/mod.ts";
 import type { AuthenticationOptions } from "../plugins/authentication/mod.ts";
 import { oneOf, sequence } from "../lib/authentication/types.ts";
 import { Router } from "../lib/router/router.ts";
-import { MemoryMessageProvider } from "../providers/message-memory/mod.ts";
+import { MemoryNotificationProvider } from "../providers/notification-memory/mod.ts";
 import type { Context as AuthenticationContext } from "../plugins/authentication/context.ts";
 import type { Context as RegistrationContext } from "../plugins/registration/context.ts";
 import type { Context as AssetContext } from "../plugins/asset/context.ts";
@@ -30,7 +30,7 @@ export type MockResult = {
 		asset: MemoryAssetProvider;
 		identity: DocumentIdentityProvider;
 		session: KVSessionProvider;
-		message: MemoryMessageProvider;
+		notification: MemoryNotificationProvider;
 	};
 	components: {
 		email: EmailAuthentificationProvider;
@@ -69,12 +69,12 @@ export async function mock(
 	const asset = new MemoryAssetProvider();
 	const identity = new DocumentIdentityProvider(new MemoryDocumentProvider());
 	const session = new KVSessionProvider(new MemoryKVProvider());
-	const message = new MemoryMessageProvider();
+	const notification = new MemoryNotificationProvider();
 	const email = new EmailAuthentificationProvider(
 		"email",
 		identity,
 		kv,
-		message,
+		notification,
 	);
 	const password = new PasswordAuthentificationProvider(
 		"password",
@@ -99,7 +99,7 @@ export async function mock(
 			asset,
 			identity,
 			session,
-			message,
+			notification,
 		},
 		components: {
 			email,

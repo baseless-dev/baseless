@@ -14,7 +14,7 @@ import { MemoryCounterProvider } from "../../providers/counter-memory/mod.ts";
 import { MemoryDocumentProvider } from "../../providers/document-memory/mod.ts";
 import { DocumentIdentityProvider } from "../../providers/identity-document/mod.ts";
 import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
-import { LoggerMessageProvider } from "../../providers/message-logger/mod.ts";
+import { LoggerNotificationProvider } from "../../providers/notification-logger/mod.ts";
 import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
 import authenticationPlugin from "../../plugins/authentication/mod.ts";
 import registrationPlugin from "../../plugins/registration/mod.ts";
@@ -29,12 +29,12 @@ const document = new MemoryDocumentProvider();
 const asset = new MemoryAssetProvider();
 const identity = new DocumentIdentityProvider(new MemoryDocumentProvider());
 const session = new KVSessionProvider(new MemoryKVProvider());
-const message = new LoggerMessageProvider();
+const notification = new LoggerNotificationProvider();
 const email = new EmailAuthentificationProvider(
 	"email",
 	identity,
 	kv,
-	message,
+	notification,
 );
 const password = new PasswordAuthentificationProvider(
 	"password",

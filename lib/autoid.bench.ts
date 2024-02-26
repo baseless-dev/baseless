@@ -1,12 +1,4 @@
-import {
-	autoid,
-	isAutoId,
-	krsautoid,
-	krsvautoid,
-	ksautoid,
-	ksvautoid,
-	vautoid,
-} from "./autoid.ts";
+import { autoid, isAutoId, krsautoid, ksautoid } from "./autoid.ts";
 
 Deno.bench(
 	"autoid with fixed length",
@@ -27,27 +19,6 @@ Deno.bench(
 	{ group: "autoid" },
 	() => {
 		krsautoid();
-	},
-);
-Deno.bench(
-	"autoid with variable length",
-	{ group: "autoid" },
-	() => {
-		vautoid();
-	},
-);
-Deno.bench(
-	"ksautoid with variable length",
-	{ group: "autoid" },
-	() => {
-		ksvautoid();
-	},
-);
-Deno.bench(
-	"krsautoid with variable length",
-	{ group: "autoid" },
-	() => {
-		krsvautoid();
 	},
 );
 

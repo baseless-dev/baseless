@@ -1,41 +1,56 @@
 import { assert } from "../deps.test.ts";
 import {
 	autoid,
+	AutoIdGenerator,
+	AutoIdStream,
 	krsautoid,
-	krsvautoid,
 	ksautoid,
-	ksvautoid,
-	vautoid,
 } from "./autoid.ts";
 
 Deno.test("AutoID", async (t) => {
 	await t.step("autoid", () => {
-		assert(autoid().length === 20);
+		assert(autoid().length === 22);
 		assert(autoid() !== autoid());
 	});
 
 	await t.step("ksautoid", () => {
-		assert(ksautoid().length === 28);
+		assert(ksautoid().length === 30);
 		assert(ksautoid() !== ksautoid());
 	});
 
 	await t.step("krsautoid", () => {
-		assert(krsautoid().length === 28);
+		assert(krsautoid().length === 30);
 		assert(krsautoid() !== krsautoid());
 	});
 
-	await t.step("vautoid", () => {
-		assert(vautoid("", 8).length === 8);
-		assert(vautoid("", 8) !== vautoid("", 8));
+	await t.step("AutoIdGenerator", async () => {
+		const gen = new AutoIdGenerator();
+		const id1 = gen.read();
+		await gen.write([0, 1, 2]);
+		const id2 = gen.read();
+		await gen.write([0, 1, 2]);
+		const id3 = gen.read();
+		assert(id1.length === 22);
+		assert(id2.length === 22);
+		assert(id3.length === 22);
+		assert(id2 !== id1);
+		assert(id3 !== id1);
+		assert(id3 !== id2);
 	});
 
-	await t.step("ksvautoid", () => {
-		assert(ksvautoid("", 8).length === 16);
-		assert(ksvautoid("", 8) !== ksvautoid("", 8));
-	});
-
-	await t.step("krsvautoid", () => {
-		assert(krsvautoid("", 8).length === 16);
-		assert(krsvautoid("", 8) !== krsvautoid("", 8));
+	await t.step("AutoIdStream", async () => {
+		const stream = new AutoIdStream();
+		const writer = stream.getWriter();
+		const id1 = stream.read();
+		await writer.write([0, 1, 2]);
+		const id2 = stream.read();
+		await writer.write([0, 1, 2]);
+		const id3 = stream.read();
+		assert(id1.length === 22);
+		assert(id2.length === 22);
+		assert(id3.length === 22);
+		assert(id2 !== id1);
+		assert(id3 !== id1);
+		assert(id3 !== id2);
 	});
 });

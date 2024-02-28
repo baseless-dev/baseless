@@ -1,4 +1,4 @@
-import { autoid } from "../../lib/autoid.ts";
+import { ruid } from "../../lib/autoid.ts";
 import {
 	IdentityCreateError,
 	IdentityDeleteError,
@@ -71,7 +71,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 		components: Identity["components"],
 	): Promise<Identity> {
 		try {
-			const id = autoid(IDENTITY_AUTOID_PREFIX);
+			const id = ruid(IDENTITY_AUTOID_PREFIX);
 			const atomic = this.#document.atomic()
 				.set([
 					this.#prefix,

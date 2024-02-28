@@ -6,7 +6,7 @@ import {
 	assertThrows,
 } from "../deps.test.ts";
 import { Assert, generateKeyPair } from "../deps.ts";
-import { autoid } from "../lib/autoid.ts";
+import { ruid } from "../lib/autoid.ts";
 import type { ID } from "../lib/identity/types.ts";
 import mock, { MockResult } from "../server/mock.ts";
 import { type App, initializeApp } from "./app.ts";
@@ -105,7 +105,7 @@ Deno.test("Client Authentication", async (t) => {
 		const routeHandler = await result.router.build();
 
 		const app = initializeApp({
-			clientId: autoid(),
+			clientId: ruid(),
 			apiEndpoint: "http://test.local/api",
 			async fetch(input, init): Promise<Response> {
 				const request = new Request(input, init);

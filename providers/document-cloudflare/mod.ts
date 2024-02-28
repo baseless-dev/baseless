@@ -1,7 +1,7 @@
 /// <reference types="https://esm.sh/@cloudflare/workers-types@4.20240117.0/index.d.ts" />
 
 import { Value } from "../../deps.ts";
-import { type AutoId, autoid } from "../../lib/autoid.ts";
+import { type AutoId, ruid } from "../../lib/autoid.ts";
 import {
 	DocumentAtomicError,
 	DocumentCreateError,
@@ -188,7 +188,7 @@ export class CloudFlareDocumentAtomic extends DocumentAtomic {
 	}
 
 	async commit(): Promise<DocumentAtomicsResult> {
-		const lock = autoid("lock-");
+		const lock = ruid("lock-");
 		const expireAt = new Date().getTime() + 1000 * 60 * 2;
 		let rollback = false;
 

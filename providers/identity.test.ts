@@ -6,7 +6,7 @@ import {
 	IdentitySchema,
 	IDSchema,
 } from "../lib/identity/types.ts";
-import { autoid } from "../lib/autoid.ts";
+import { ruid } from "../lib/autoid.ts";
 import { Value } from "../deps.ts";
 
 export default async function testIdentityProvider(
@@ -33,7 +33,7 @@ export default async function testIdentityProvider(
 		assertEquals(id1.meta, { foo: "foo" });
 		await assertRejects(() =>
 			ip.update({
-				id: autoid(IDENTITY_AUTOID_PREFIX),
+				id: ruid(IDENTITY_AUTOID_PREFIX),
 				meta: {},
 				components: [],
 			})

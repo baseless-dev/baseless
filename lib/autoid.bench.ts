@@ -1,28 +1,35 @@
-import { autoid, isAutoId, krsautoid, ksautoid } from "./autoid.ts";
+import { isAutoId, ksuid, rksuid, ruid, suid } from "./autoid.ts";
 
 Deno.bench(
-	"autoid with fixed length",
+	"ruid",
 	{ group: "autoid", baseline: true },
 	() => {
-		autoid();
+		ruid();
 	},
 );
 Deno.bench(
-	"ksautoid with fixed length",
+	"suid",
 	{ group: "autoid" },
 	() => {
-		ksautoid();
+		suid("foobar");
 	},
 );
 Deno.bench(
-	"krsautoid with fixed length",
+	"ksuid",
 	{ group: "autoid" },
 	() => {
-		krsautoid();
+		ksuid();
+	},
+);
+Deno.bench(
+	"rksuid",
+	{ group: "autoid" },
+	() => {
+		rksuid();
 	},
 );
 
-const id = autoid();
+const id = ruid();
 
 Deno.bench("isAutoId", () => {
 	isAutoId(id);

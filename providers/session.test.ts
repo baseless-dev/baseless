@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertRejects } from "../deps.test.ts";
 import type { SessionProvider } from "./session.ts";
-import { autoid } from "../lib/autoid.ts";
+import { ruid } from "../lib/autoid.ts";
 import { IDENTITY_AUTOID_PREFIX } from "../lib/identity/types.ts";
 import { type SessionData, SessionDataSchema } from "../lib/session/types.ts";
 import { Value } from "../deps.ts";
@@ -9,8 +9,8 @@ export default async function testSessionProvider(
 	session: SessionProvider,
 	t: Deno.TestContext,
 ): Promise<void> {
-	const identityId1 = autoid(IDENTITY_AUTOID_PREFIX);
-	const identityId2 = autoid(IDENTITY_AUTOID_PREFIX);
+	const identityId1 = ruid(IDENTITY_AUTOID_PREFIX);
+	const identityId2 = ruid(IDENTITY_AUTOID_PREFIX);
 	let sessionData1: SessionData | undefined;
 	let sessionData2: SessionData | undefined;
 
@@ -28,7 +28,7 @@ export default async function testSessionProvider(
 
 	await t.step("update", async () => {
 		const sessionData = await session.create(
-			autoid(IDENTITY_AUTOID_PREFIX),
+			ruid(IDENTITY_AUTOID_PREFIX),
 			{},
 		);
 		await session.update({ ...sessionData!, meta: { foo: "bar" } });

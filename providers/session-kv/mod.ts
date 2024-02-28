@@ -1,9 +1,4 @@
-import {
-	assertAutoId,
-	type AutoId,
-	autoid,
-	isAutoId,
-} from "../../lib/autoid.ts";
+import { assertAutoId, type AutoId, isAutoId, ruid } from "../../lib/autoid.ts";
 import { IDENTITY_AUTOID_PREFIX } from "../../lib/identity/types.ts";
 import { createLogger } from "../../lib/logger.ts";
 import {
@@ -46,7 +41,7 @@ export class KVSessionProvider implements SessionProvider {
 	): Promise<SessionData> {
 		try {
 			assertAutoId(identityId, IDENTITY_AUTOID_PREFIX);
-			const id = autoid(SESSION_AUTOID_PREFIX);
+			const id = ruid(SESSION_AUTOID_PREFIX);
 			const sessionData: SessionData = {
 				id,
 				identityId,

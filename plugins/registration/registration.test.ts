@@ -6,7 +6,7 @@ import {
 } from "../../deps.test.ts";
 import { generateKeyPair } from "../../deps.ts";
 import { oneOf, sequence } from "../../lib/authentication/types.ts";
-import { autoid } from "../../lib/autoid.ts";
+import { ruid } from "../../lib/autoid.ts";
 import EmailAuthentificationComponent from "../../providers/auth-email/mod.ts";
 import OTPMemoryAuthentificationComponent from "../../providers/auth-otp-memory/mod.ts";
 import PasswordAuthentificationComponent from "../../providers/auth-password/mod.ts";
@@ -100,7 +100,7 @@ Deno.test("RegistrationService", async (t) => {
 		assertObjectMatch(
 			await register.getCeremony({
 				kind: "registration",
-				identity: autoid("rid-"),
+				identity: ruid("rid-"),
 				components: [{
 					id: "email",
 					...await emailProvider.configureIdentityComponent("jane@test.local"),
@@ -116,7 +116,7 @@ Deno.test("RegistrationService", async (t) => {
 		assertObjectMatch(
 			await register.getCeremony({
 				kind: "registration",
-				identity: autoid("rid-"),
+				identity: ruid("rid-"),
 				components: [{
 					id: "email",
 					...await emailProvider.configureIdentityComponent("jane@test.local"),
@@ -136,7 +136,7 @@ Deno.test("RegistrationService", async (t) => {
 		assertObjectMatch(
 			await register.getCeremony({
 				kind: "registration",
-				identity: autoid("rid-"),
+				identity: ruid("rid-"),
 				components: [{
 					id: "email",
 					...await emailProvider.configureIdentityComponent("jane@test.local"),

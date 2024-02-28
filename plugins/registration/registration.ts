@@ -6,7 +6,7 @@ import type {
 	AuthenticationCeremonyComponentPrompt,
 } from "../../lib/authentication/types.ts";
 import { oneOf } from "../../lib/authentication/types.ts";
-import { autoid } from "../../lib/autoid.ts";
+import { ruid } from "../../lib/autoid.ts";
 import type { Identity } from "../../lib/identity/types.ts";
 import { createLogger } from "../../lib/logger.ts";
 import {
@@ -77,7 +77,7 @@ export default class RegistrationService {
 		state?: RegistrationState,
 	): RegistrationCeremonyState {
 		state ??= {
-			identity: autoid(REGISTRATION_AUTOID_PREFIX),
+			identity: ruid(REGISTRATION_AUTOID_PREFIX),
 			kind: "registration",
 			components: [],
 		};
@@ -164,7 +164,7 @@ export default class RegistrationService {
 		state?: RegistrationState,
 	): Promise<RegistrationSubmitResult> {
 		state ??= {
-			identity: autoid(REGISTRATION_AUTOID_PREFIX),
+			identity: ruid(REGISTRATION_AUTOID_PREFIX),
 			kind: "registration",
 			components: [],
 		};
@@ -216,7 +216,7 @@ export default class RegistrationService {
 		state?: RegistrationState,
 	): Promise<boolean> {
 		state ??= {
-			identity: autoid(REGISTRATION_AUTOID_PREFIX),
+			identity: ruid(REGISTRATION_AUTOID_PREFIX),
 			kind: "registration",
 			components: [],
 		};
@@ -257,7 +257,7 @@ export default class RegistrationService {
 		state?: RegistrationState,
 	): Promise<RegistrationSubmitResult> {
 		state ??= {
-			identity: autoid(REGISTRATION_AUTOID_PREFIX),
+			identity: ruid(REGISTRATION_AUTOID_PREFIX),
 			kind: "registration",
 			components: [],
 		};

@@ -6,14 +6,14 @@ const AutoIdChars =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const AutoIdCharsLength = AutoIdChars.length;
 const AutoIdBuffer = new Uint8Array(22);
-const KSAutoIdBuffer = new Uint8Array(32);
+const Int64Buffer = new Uint8Array(8);
 
 /**
- * Generate an AutoId
+ * Generate a Random AutoId
  * @param prefix The prefix for the AutoId
  * @returns An AutoId
  */
-export function autoid(prefix = ""): AutoId {
+export function ruid(prefix = ""): AutoId {
 	let result = prefix;
 
 	crypto.getRandomValues(AutoIdBuffer);
@@ -23,38 +23,65 @@ export function autoid(prefix = ""): AutoId {
 	return result as AutoId;
 }
 
-export function ksautoid(
+const encoder = new TextEncoder();
+
+/**
+ * Generate a Seeded AutoId
+ * @param seed The seed for the AutoId
+ * @param prefix The prefix for the AutoId
+ * @returns An AutoId
+ */
+export function suid(
+	seed: string | Uint8Array,
 	prefix = "",
-	time = Date.now(),
+): AutoId {
+	const gen = new AutoIdGenerator(prefix);
+	gen.write(seed instanceof Uint8Array ? seed : encoder.encode(seed));
+	return gen.read() as AutoId;
+}
+
+/**
+ * Generate a K-Sorted AutoId
+ * @param prefix The prefix for the AutoId
+ * @param time The time to use for the AutoId
+ * @returns An AutoId
+ */
+export function ksuid(
+	prefix = "",
+	time = Date.now() - 1708922339824,
 ): AutoId {
 	if (time > Number.MAX_SAFE_INTEGER || time < 0) {
 		throw new RangeError("The time is out of range");
 	}
 	let result = prefix;
-	new DataView(KSAutoIdBuffer.buffer).setBigInt64(0, BigInt(time), false);
-	crypto.getRandomValues(KSAutoIdBuffer.subarray(8));
-	for (let i = 0; i < 30; ++i) {
-		result += AutoIdChars.charAt(KSAutoIdBuffer[i] % AutoIdCharsLength);
+	new DataView(Int64Buffer.buffer).setBigInt64(0, BigInt(time), false);
+	for (let i = 0; i < 8; ++i) {
+		result += AutoIdChars.charAt(Int64Buffer[i] % AutoIdCharsLength);
 	}
-	return result as AutoId;
+	return ruid(result);
 }
 
-export function krsautoid(
+/**
+ * Generate a Reverse K-Sorted AutoId
+ * @param prefix The prefix for the AutoId
+ * @param time The time to use for the AutoId
+ * @returns An AutoId
+ */
+export function rksuid(
 	prefix = "",
 	time = Date.now() - 1708922339824,
 ): AutoId {
-	return ksautoid(prefix, Number.MAX_SAFE_INTEGER - time);
+	return ksuid(prefix, Number.MAX_SAFE_INTEGER - time);
 }
 
 export function isAutoId(
 	value?: unknown,
 	prefix = "",
-	length = 22,
 ): value is AutoId {
 	const pl = prefix.length;
 	return !!value && typeof value === "string" &&
 		value.startsWith(prefix) &&
-		new RegExp(`^[${AutoIdChars}]{${length}}$`).test(value.substring(pl));
+		new RegExp(`^[${AutoIdChars}]{22,30}$`).test(value.substring(pl));
 }
 
 /**
@@ -74,9 +101,8 @@ export function assertAutoId(
 
 export class InvalidAutoIdError extends Error {}
 
-export class AutoIdGenerator {
+class AutoIdGenerator {
 	#prefix: string;
-	#length: number;
 	#hash: [number, number, number, number] = [
 		1779033703,
 		3144134277,
@@ -84,9 +110,8 @@ export class AutoIdGenerator {
 		2773480762,
 	];
 
-	constructor(prefix = "", length = 22) {
+	constructor(prefix = "") {
 		this.#prefix = prefix;
-		this.#length = length;
 	}
 
 	write(chunk: ArrayLike<number>): void {
@@ -101,32 +126,31 @@ export class AutoIdGenerator {
 			this.#hash[2],
 			this.#hash[3],
 		);
-		const buffer = new Uint8Array(this.#length);
-		for (let i = 0; i < this.#length; ++i) {
-			buffer[i] = rand();
+		for (let i = 0; i < 22; ++i) {
+			AutoIdBuffer[i] = rand();
 		}
-		for (let i = 0; i < this.#length; ++i) {
-			autoid += AutoIdChars.charAt(buffer[i] % AutoIdCharsLength);
+		for (let i = 0; i < 22; ++i) {
+			autoid += AutoIdChars.charAt(AutoIdBuffer[i] % AutoIdCharsLength);
 		}
 		return autoid as AutoId;
 	}
 }
 
-export class AutoIdStream extends WritableStream<ArrayLike<number>> {
-	#gen: AutoIdGenerator;
-	public constructor(prefix = "") {
-		super({
-			write: (chunk) => {
-				this.#gen.write(chunk);
-			},
-		});
-		this.#gen = new AutoIdGenerator(prefix);
-	}
+// class AutoIdStream extends WritableStream<ArrayLike<number>> {
+// 	#gen: AutoIdGenerator;
+// 	public constructor(prefix = "") {
+// 		super({
+// 			write: (chunk) => {
+// 				this.#gen.write(chunk);
+// 			},
+// 		});
+// 		this.#gen = new AutoIdGenerator(prefix);
+// 	}
 
-	read(): AutoId {
-		return this.#gen.read();
-	}
-}
+// 	read(): AutoId {
+// 		return this.#gen.read();
+// 	}
+// }
 
 /**
  * Create a 128 hash of a string

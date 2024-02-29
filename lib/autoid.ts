@@ -23,8 +23,6 @@ export function ruid(prefix = ""): AutoId {
 	return result as AutoId;
 }
 
-const encoder = new TextEncoder();
-
 /**
  * Generate a Seeded AutoId
  * @param seed The seed for the AutoId
@@ -35,9 +33,9 @@ export function suid(
 	seed: string | Uint8Array,
 	prefix = "",
 ): AutoId {
-	const gen = new AutoIdGenerator(prefix);
+	gen.reset();
 	gen.write(seed instanceof Uint8Array ? seed : encoder.encode(seed));
-	return gen.read() as AutoId;
+	return (prefix + gen.read()) as AutoId;
 }
 
 /**
@@ -112,6 +110,15 @@ class AutoIdGenerator {
 
 	constructor(prefix = "") {
 		this.#prefix = prefix;
+	}
+
+	reset(hash: [number, number, number, number] = [
+		1779033703,
+		3144134277,
+		1013904242,
+		2773480762,
+	]): void {
+		this.#hash = hash;
 	}
 
 	write(chunk: ArrayLike<number>): void {
@@ -211,3 +218,6 @@ function sfc32(a: number, b: number, c: number, d: number): () => number {
 		return (t >>> 0);
 	};
 }
+
+const encoder = new TextEncoder();
+const gen = new AutoIdGenerator();

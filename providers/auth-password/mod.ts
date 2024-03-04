@@ -1,4 +1,4 @@
-import { encodeBase64 } from "../../deps.ts";
+import { encodeBase64 } from "https://deno.land/std@0.213.0/encoding/base64.ts";
 import type { AuthenticationCeremonyComponentPrompt } from "../../lib/authentication/types.ts";
 import type { Identity, IdentityComponent } from "../../lib/identity/types.ts";
 import { AuthenticationProvider } from "../auth.ts";

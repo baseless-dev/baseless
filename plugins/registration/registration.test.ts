@@ -3,8 +3,8 @@ import {
 	assertEquals,
 	assertObjectMatch,
 	assertRejects,
-} from "../../deps.test.ts";
-import { generateKeyPair } from "../../deps.ts";
+} from "https://deno.land/std@0.213.0/assert/mod.ts";
+import { generateKeyPair } from "npm:jose@5.2.0";
 import { oneOf, sequence } from "../../lib/authentication/types.ts";
 import { ruid } from "../../lib/autoid.ts";
 import EmailAuthentificationComponent from "../../providers/auth-email/mod.ts";

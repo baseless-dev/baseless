@@ -1,4 +1,4 @@
-import { assertEquals, assertObjectMatch } from "../deps.test.ts";
+import { assertObjectMatch } from "https://deno.land/std@0.213.0/assert/mod.ts";
 import type { NotificationProvider } from "./notification.ts";
 import type { Notification } from "../lib/notification/types.ts";
 

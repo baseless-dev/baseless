@@ -1,4 +1,4 @@
-import { t } from "../../deps.ts";
+import { t } from "../../lib/typebox.ts";
 import { Router } from "./router.ts";
 
 const auth = new Router()

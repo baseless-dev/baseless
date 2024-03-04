@@ -1,5 +1,4 @@
 import {
-	DocumentAtomicError,
 	DocumentCreateError,
 	DocumentDeleteError,
 	DocumentNotFoundError,

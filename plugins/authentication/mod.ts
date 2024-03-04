@@ -1,4 +1,5 @@
-import { jwtVerify, type KeyLike, t, type TSchema } from "../../deps.ts";
+import { jwtVerify, type KeyLike } from "npm:jose@5.2.0";
+import { t, type TSchema } from "../../lib/typebox.ts";
 import {
 	AuthenticationSubmitPromptError,
 	MissingRefreshTokenError,

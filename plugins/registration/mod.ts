@@ -1,4 +1,5 @@
-import { KeyLike, t, type TSchema } from "../../deps.ts";
+import { t, type TSchema } from "../../lib/typebox.ts";
+import type { KeyLike } from "npm:jose@5.2.0";
 import { map } from "../../lib/authentication/map.ts";
 import { simplify } from "../../lib/authentication/simplify.ts";
 import {
@@ -6,7 +7,6 @@ import {
 	sequence,
 } from "../../lib/authentication/types.ts";
 import { RateLimitedError } from "../../lib/errors.ts";
-import { createLogger } from "../../lib/logger.ts";
 import {
 	RegistrationCeremonyStateSchema,
 	RegistrationSendValidationCodeResultSchema,
@@ -64,7 +64,6 @@ const dataOrError = <T>(schema: TSchema): TSchema =>
 export const registration = (
 	options: RegistrationOptions,
 ) => {
-	const logger = createLogger("registration-plugin");
 	const setupableCeremony = map(options.ceremony, (component) => {
 		if (component.kind === "prompt") {
 			const provider = options.providers.find((c) => c.id === component.id);

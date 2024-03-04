@@ -4,8 +4,9 @@ import {
 	assertNotEquals,
 	assertRejects,
 	assertThrows,
-} from "../deps.test.ts";
-import { Assert, generateKeyPair } from "../deps.ts";
+} from "https://deno.land/std@0.213.0/assert/mod.ts";
+import { generateKeyPair } from "npm:jose@5.2.0";
+import { Assert } from "../lib/typebox.ts";
 import { ruid } from "../lib/autoid.ts";
 import type { ID } from "../lib/identity/types.ts";
 import mock, { MockResult } from "../server/mock.ts";

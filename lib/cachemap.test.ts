@@ -1,4 +1,4 @@
-import { assertEquals } from "../deps.test.ts";
+import { assertEquals } from "https://deno.land/std@0.213.0/assert/mod.ts";
 import { CacheMap } from "./cachemap.ts";
 
 Deno.test("set", () => {

@@ -1,4 +1,4 @@
-import { type KeyLike, SignJWT } from "../../deps.ts";
+import { type KeyLike, SignJWT } from "npm:jose@5.2.0";
 import type { ID } from "../../lib/identity/types.ts";
 import type { SessionData } from "../../lib/session/types.ts";
 

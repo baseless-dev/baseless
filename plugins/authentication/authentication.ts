@@ -1,4 +1,5 @@
-import { Assert, type JWTPayload, jwtVerify, SignJWT } from "../../deps.ts";
+import { type JWTPayload, jwtVerify, SignJWT } from "npm:jose@5.2.0";
+import { Assert } from "../../lib/typebox.ts";
 import {
 	AuthenticationMissingIdentificatorError,
 	AuthenticationSendPromptError,
@@ -8,7 +9,6 @@ import { getComponentAtPath } from "../../lib/authentication/get_component_at_pa
 import type {
 	AuthenticationCeremonyComponent,
 	AuthenticationCeremonyState,
-	AuthenticationSendPromptResult,
 	AuthenticationState,
 } from "../../lib/authentication/types.ts";
 import { AuthenticationStateSchema } from "../../lib/authentication/types.ts";

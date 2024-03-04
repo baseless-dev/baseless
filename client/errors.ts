@@ -1,4 +1,4 @@
-import { Value } from "../deps.ts";
+import { Value } from "../lib/typebox.ts";
 import { type ApiResponseData, ApiResponseErrorSchema } from "../lib/api.ts";
 import * as authErrors from "../lib/authentication/errors.ts";
 import * as counterErrors from "../lib/counter/errors.ts";
@@ -16,6 +16,7 @@ export * from "../lib/kv/errors.ts";
 export * from "../lib/notification/errors.ts";
 export * from "../lib/session/errors.ts";
 
+// deno-lint-ignore no-explicit-any
 const errorMap = new Map<string, any>([
 	...Object.entries(authErrors),
 	...Object.entries(counterErrors),

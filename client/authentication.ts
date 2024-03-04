@@ -12,7 +12,7 @@ import {
 import { EventEmitter } from "../lib/event_emitter.ts";
 import { type ID, IDSchema } from "../lib/identity/types.ts";
 import { type App, isApp } from "./app.ts";
-import { Assert, Value } from "../deps.ts";
+import { Assert, Value } from "../lib/typebox.ts";
 import { throwIfApiError } from "./errors.ts";
 import MemoryStorage from "./memory_storage.ts";
 

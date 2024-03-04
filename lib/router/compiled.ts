@@ -1,5 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
-import { TypeCheck, TypeCompiler, TypeGuard } from "../../deps.ts";
+import { TypeGuard } from "npm:@sinclair/typebox@0.32.13/type";
+import {
+	TypeCheck,
+	TypeCompiler,
+} from "npm:@sinclair/typebox@0.32.13/compiler";
 import type {
 	ContextDeriver,
 	Handler,

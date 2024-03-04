@@ -1,4 +1,4 @@
-import { generateKeyPair } from "../deps.ts";
+import { generateKeyPair } from "npm:jose@5.2.0";
 import { MemoryAssetProvider } from "../providers/asset-memory/mod.ts";
 import PasswordAuthentificationProvider from "../providers/auth-password/mod.ts";
 import EmailAuthentificationProvider from "../providers/auth-email/mod.ts";
@@ -19,8 +19,6 @@ import type { Context as AuthenticationContext } from "../plugins/authentication
 import type { Context as RegistrationContext } from "../plugins/registration/context.ts";
 import type { Context as AssetContext } from "../plugins/asset/context.ts";
 import OTPMemoryAuthentificationProvider from "../providers/auth-otp-memory/mod.ts";
-
-export { t } from "../deps.ts";
 
 export type MockResult = {
 	router: Router<AuthenticationContext & RegistrationContext & AssetContext>;
@@ -110,7 +108,7 @@ export async function mock(
 			sequence,
 		},
 	};
-	const { auth, providers } = await builder?.(result) ?? {};
+	const { auth } = await builder?.(result) ?? {};
 	const keys = auth?.keys ??
 		{ ...await generateKeyPair("PS512"), algo: "PS512" };
 	router = router

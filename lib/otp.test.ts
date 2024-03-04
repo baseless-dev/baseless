@@ -1,4 +1,7 @@
-import { assertEquals, assertRejects } from "../deps.test.ts";
+import {
+	assertEquals,
+	assertRejects,
+} from "https://deno.land/std@0.213.0/assert/mod.ts";
 import { generateKey, hotp, totp } from "./otp.ts";
 
 Deno.test("One Time Password", async (t) => {

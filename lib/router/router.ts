@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any ban-types
-import { FormatRegistry } from "../../deps.ts";
+import { FormatRegistry } from "npm:@sinclair/typebox@0.32.13/type";
 import type { MaybePromise } from "../types.ts";
 import type { MaybeCallable } from "../types.ts";
 import makeCompiledRouter from "./compiled.ts";

@@ -1,6 +1,6 @@
 /// <reference types="https://esm.sh/@cloudflare/workers-types@4.20240117.0/index.d.ts" />
 
-import { Value } from "../../deps.ts";
+import { Value } from "../../lib/typebox.ts";
 import { type AutoId, ruid } from "../../lib/autoid.ts";
 import {
 	DocumentAtomicError,

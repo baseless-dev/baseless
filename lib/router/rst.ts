@@ -3,7 +3,6 @@ import {
 	type Handler,
 	isRouteSegmentSimilar,
 	type Method,
-	type Route,
 	type Routes,
 	type RouteSegment,
 	RouteSegmentHandler,
@@ -35,6 +34,7 @@ function parseSegment(
 	segments: string[],
 	method: Method,
 	handler: Handler,
+	// deno-lint-ignore no-explicit-any
 	definition: Definition<any, any, any, any>,
 ): RouteSegment {
 	if (segments.length === 0) {

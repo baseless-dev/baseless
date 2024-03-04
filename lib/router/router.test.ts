@@ -1,5 +1,5 @@
-import { assertObjectMatch } from "../../deps.test.ts";
-import { t } from "../../deps.ts";
+import { assertObjectMatch } from "https://deno.land/std@0.213.0/assert/mod.ts";
+import { t } from "../../lib/typebox.ts";
 import { Router } from "./router.ts";
 
 async function extractResponse(

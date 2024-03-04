@@ -1,4 +1,4 @@
-import { type Static, t } from "../../deps.ts";
+import { type Static, t } from "../../lib/typebox.ts";
 
 export type DocumentKey = string[];
 export type DocumentData = unknown;

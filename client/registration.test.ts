@@ -1,4 +1,5 @@
-import { Assert, generateKeyPair } from "../deps.ts";
+import { generateKeyPair } from "npm:jose@5.2.0";
+import { Assert } from "../lib/typebox.ts";
 import { ruid } from "../lib/autoid.ts";
 import type { ID } from "../lib/identity/types.ts";
 import mock, { type MockResult } from "../server/mock.ts";
@@ -19,7 +20,7 @@ import {
 	assertEquals,
 	assertObjectMatch,
 	assertRejects,
-} from "../deps.test.ts";
+} from "https://deno.land/std@0.213.0/assert/mod.ts";
 import { sendValidationCode } from "./registration.ts";
 import { initializeAuthentication, signOut } from "./authentication.ts";
 

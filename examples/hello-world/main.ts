@@ -5,8 +5,6 @@ import {
 } from "../../lib/logger.ts";
 import { Router } from "../../lib/router/router.ts";
 import openapiPlugin from "../../plugins/openapi/mod.ts";
-import { MemoryAssetProvider } from "../../providers/asset-memory/mod.ts";
-import TOTPAuthentificationProvider from "../../providers/auth-totp/mod.ts";
 import OTPLoggerAuthentificationProvider from "../../providers/auth-otp-logger/mod.ts";
 import EmailAuthentificationProvider from "../../providers/auth-email/mod.ts";
 import PasswordAuthentificationProvider from "../../providers/auth-password/mod.ts";
@@ -18,15 +16,14 @@ import { LoggerNotificationProvider } from "../../providers/notification-logger/
 import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
 import authenticationPlugin from "../../plugins/authentication/mod.ts";
 import registrationPlugin from "../../plugins/registration/mod.ts";
-import { generateKeyPair, t } from "../../deps.ts";
+import { generateKeyPair } from "npm:jose@5.2.0";
+import { t } from "../../lib/typebox.ts";
 import { oneOf, sequence } from "../../lib/authentication/types.ts";
 
 setGlobalLogHandler(createConsoleLogHandler(LogLevel.DEBUG));
 
 const counter = new MemoryCounterProvider();
 const kv = new MemoryKVProvider();
-const document = new MemoryDocumentProvider();
-const asset = new MemoryAssetProvider();
 const identity = new DocumentIdentityProvider(new MemoryDocumentProvider());
 const session = new KVSessionProvider(new MemoryKVProvider());
 const notification = new LoggerNotificationProvider();
@@ -47,10 +44,6 @@ const otp = new OTPLoggerAuthentificationProvider(
 	},
 	kv,
 );
-const totp = new TOTPAuthentificationProvider("totp", {
-	digits: 6,
-	period: 60,
-});
 
 await identity.create({
 	displayName: "John Doe",

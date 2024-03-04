@@ -1,4 +1,7 @@
-import { decodeBase32, encodeBase32 } from "../deps.ts";
+import {
+	decodeBase32,
+	encodeBase32,
+} from "https://deno.land/std@0.213.0/encoding/base32.ts";
 
 export type OTPAlgorithm = "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
 

@@ -1,4 +1,4 @@
-import { assertObjectMatch } from "../../deps.test.ts";
+import { assertObjectMatch } from "https://deno.land/std@0.213.0/assert/mod.ts";
 import { parseRST } from "./rst.ts";
 
 Deno.test("const", () => {

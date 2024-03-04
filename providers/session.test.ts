@@ -1,9 +1,13 @@
-import { assert, assertEquals, assertRejects } from "../deps.test.ts";
+import {
+	assert,
+	assertEquals,
+	assertRejects,
+} from "https://deno.land/std@0.213.0/assert/mod.ts";
 import type { SessionProvider } from "./session.ts";
 import { ruid } from "../lib/autoid.ts";
 import { IDENTITY_AUTOID_PREFIX } from "../lib/identity/types.ts";
 import { type SessionData, SessionDataSchema } from "../lib/session/types.ts";
-import { Value } from "../deps.ts";
+import { Value } from "../lib/typebox.ts";
 
 export default async function testSessionProvider(
 	session: SessionProvider,

@@ -1,5 +1,9 @@
 import type { DocumentProvider } from "./document.ts";
-import { assert, assertEquals, assertRejects } from "../deps.test.ts";
+import {
+	assert,
+	assertEquals,
+	assertRejects,
+} from "https://deno.land/std@0.213.0/assert/mod.ts";
 
 export default async function testDocumentProvider(
 	provider: DocumentProvider,

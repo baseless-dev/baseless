@@ -1,4 +1,4 @@
-import { assertEquals } from "../deps.test.ts";
+import { assertEquals } from "https://deno.land/std@0.213.0/assert/mod.ts";
 import type { CounterProvider } from "./counter.ts";
 
 export default async function testCounterProvider(

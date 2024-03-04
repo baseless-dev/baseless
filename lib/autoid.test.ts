@@ -1,4 +1,4 @@
-import { assert } from "../deps.test.ts";
+import { assert } from "https://deno.land/std@0.213.0/assert/mod.ts";
 import { ksuid, rksuid, ruid, suid } from "./autoid.ts";
 
 Deno.test("AutoID", async (t) => {

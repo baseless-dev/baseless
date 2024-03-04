@@ -1,4 +1,4 @@
-import { assertEquals } from "../../deps.test.ts";
+import { assertEquals } from "https://deno.land/std@0.213.0/assert/mod.ts";
 import { extract } from "./extract.ts";
 import {
 	type AuthenticationCeremonyComponent,

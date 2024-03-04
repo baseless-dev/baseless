@@ -38,6 +38,7 @@ export default class OTPMemoryAuthentificationProvider
 		};
 	}
 
+	// deno-lint-ignore require-await
 	async sendSignInPrompt({ identityId }: {
 		locale: string;
 		identityId?: Identity["id"];
@@ -49,6 +50,7 @@ export default class OTPMemoryAuthentificationProvider
 		}
 	}
 
+	// deno-lint-ignore require-await
 	async verifySignInPrompt(
 		{ value, identityId }: {
 			value: unknown;

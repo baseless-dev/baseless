@@ -1,4 +1,8 @@
-import { assert, assertEquals, assertRejects } from "../deps.test.ts";
+import {
+	assert,
+	assertEquals,
+	assertRejects,
+} from "https://deno.land/std@0.213.0/assert/mod.ts";
 import type { IdentityProvider } from "./identity.ts";
 import {
 	type Identity,
@@ -7,7 +11,7 @@ import {
 	IDSchema,
 } from "../lib/identity/types.ts";
 import { ruid } from "../lib/autoid.ts";
-import { Value } from "../deps.ts";
+import { Value } from "../lib/typebox.ts";
 
 export default async function testIdentityProvider(
 	ip: IdentityProvider,

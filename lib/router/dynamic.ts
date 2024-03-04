@@ -1,4 +1,5 @@
-import { TypeGuard, Value } from "../../deps.ts";
+import { Value } from "../../lib/typebox.ts";
+import { TypeGuard } from "npm:@sinclair/typebox@0.32.13/type";
 import type {
 	ContextDeriver,
 	Method,

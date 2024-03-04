@@ -1,11 +1,9 @@
-import { Assert, Value } from "../deps.ts";
+import { Assert, Value } from "../lib/typebox.ts";
 import {
 	type RegistrationCeremonyState,
 	RegistrationCeremonyStateSchema,
 	RegistrationSendValidationCodeResult,
 	RegistrationSendValidationCodeResultSchema,
-	RegistrationSubmitResult,
-	RegistrationSubmitResultSchema,
 	RegistrationSubmitState,
 	RegistrationSubmitStateDoneSchema,
 	RegistrationSubmitStateSchema,

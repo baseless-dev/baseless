@@ -1,7 +1,7 @@
+// deno-lint-ignore-file no-explicit-any
 import ts from "npm:typescript";
 import {
 	dirname,
-	fromFileUrl,
 	globToRegExp,
 	join,
 	relative,

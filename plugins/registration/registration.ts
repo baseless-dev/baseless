@@ -1,4 +1,5 @@
-import { Assert, type JWTPayload, jwtVerify, SignJWT } from "../../deps.ts";
+import { type JWTPayload, jwtVerify, SignJWT } from "npm:jose@5.2.0";
+import { Assert } from "../../lib/typebox.ts";
 import { AuthenticationMissingIdentificatorError } from "../../lib/authentication/errors.ts";
 import { getComponentAtPath } from "../../lib/authentication/get_component_at_path.ts";
 import type {

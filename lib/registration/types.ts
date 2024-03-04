@@ -1,4 +1,4 @@
-import { Static, t } from "../../deps.ts";
+import { Static, t } from "../../lib/typebox.ts";
 import {
 	AtPathAuthenticationCeremonyComponentSchema,
 } from "../authentication/types.ts";

@@ -21,18 +21,34 @@ import {
 
 FormatRegistry.Set("path", (value) => typeof value === "string");
 
-export type Plugin<TContext extends {} = {}> = MaybeCallable<
-	MaybePromise<Router<TContext>>,
-	[ReadonlyArray<Route>]
->;
+export type Plugin<TContext extends {} = {}, TDependencies extends {} = {}> =
+	MaybeCallable<
+		MaybePromise<Router<TContext, TDependencies>>,
+		[ReadonlyArray<Route>]
+	>;
 
 export type PluginWithPrefix<TContext extends {} = {}> = {
 	plugin: Plugin<TContext>;
 	prefix: string;
 };
 
+export type RouterExtendsPlugin<R1, R2> = R1 extends Router<infer Context, any>
+	? R2 extends Router<any, infer Dependencies>
+		? Context extends Dependencies ? R2
+		: { error: "Router does not implement dependencies." }
+	: R2
+	: R2;
+
+export type RouterMergePlugin<R, P> = R extends
+	Router<infer Context, infer Dependencies>
+	? P extends Plugin<infer PluginContext, infer PluginDependencies>
+		? Router<Context & PluginContext, Dependencies>
+	: R
+	: R;
+
 export class Router<
 	TContext extends {} = {},
+	TDependencies extends {} = {},
 > {
 	#decorators: Array<ContextDecorator<any>> = [];
 	#derivers: Array<ContextDeriver<any>> = [];
@@ -60,7 +76,7 @@ export class Router<
 
 	decorate<const TNewContext extends {}>(
 		decorator: ContextDecorator<TNewContext>,
-	): Router<TContext & TNewContext> {
+	): Router<TContext & TNewContext, TDependencies> {
 		return new Router(
 			[...this.#decorators, decorator],
 			this.#derivers,
@@ -71,7 +87,7 @@ export class Router<
 
 	derive<const TNewContext extends {}>(
 		deriver: ContextDeriver<TNewContext>,
-	): Router<TContext & TNewContext> {
+	): Router<TContext & TNewContext, TDependencies> {
 		return new Router(
 			this.#decorators,
 			[...this.#derivers, deriver],
@@ -81,33 +97,41 @@ export class Router<
 	}
 
 	use<
-		const TNewContext extends {},
-		const TPlugin extends Plugin<TNewContext>,
-	>(plugin: TPlugin): Router<TContext & TNewContext>;
+		const TPluginContext extends {},
+		const TPluginDependencies extends {},
+		const TPlugin extends Plugin<TPluginContext, TPluginDependencies>,
+	>(
+		plugin: RouterExtendsPlugin<Router<TContext, TDependencies>, TPlugin>,
+	): RouterMergePlugin<Router<TContext, TDependencies>, TPlugin>;
 	use<
-		const TNewContext extends {},
-		const TPlugin extends Plugin<TNewContext>,
-	>(prefix: string, plugin: TPlugin): Router<TContext & TNewContext>;
+		const TPluginContext extends {},
+		const TPluginDependencies extends {},
+		const TPlugin extends Plugin<TPluginContext, TPluginDependencies>,
+	>(
+		prefix: string,
+		plugin: RouterExtendsPlugin<Router<TContext, TDependencies>, TPlugin>,
+	): RouterMergePlugin<Router<TContext, TDependencies>, TPlugin>;
 	use<
-		const TNewContext extends {},
-		const TPlugin extends Plugin<TNewContext>,
+		const TPluginContext extends {},
+		const TPluginDependencies extends {},
+		const TPlugin extends Plugin<TPluginContext, TPluginDependencies>,
 	>(
 		prefix: string | TPlugin,
-		plugin?: TPlugin,
-	): Router<TContext & TNewContext> {
+		plugin?: RouterExtendsPlugin<Router<TContext, TDependencies>, TPlugin>,
+	): RouterMergePlugin<Router<TContext, TDependencies>, TPlugin> {
 		if (typeof prefix !== "string") {
-			plugin = prefix;
+			plugin = prefix as any;
 			prefix = "";
 		}
 		return new Router(
 			this.#decorators,
 			this.#derivers,
 			[...this.#plugins, {
-				plugin: plugin!,
+				plugin: plugin as any,
 				prefix,
 			}],
 			this.#routes,
-		);
+		) as any;
 	}
 
 	#defineRoute(
@@ -115,7 +139,7 @@ export class Router<
 		method: Method,
 		handler: Handler,
 		definition: Definition<any, any, any, any>,
-	): Router<TContext> {
+	): Router<TContext, TDependencies> {
 		return new Router(
 			this.#decorators,
 			this.#derivers,
@@ -141,7 +165,7 @@ export class Router<
 			any
 		>,
 		const THandler extends Handler<
-			TContext,
+			TContext & TDependencies,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -149,7 +173,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Router<TContext> {
+	): Router<TContext, TDependencies> {
 		return this.#defineRoute(path, "CONNECT", handler, { ...definition });
 	}
 
@@ -162,7 +186,7 @@ export class Router<
 			any
 		>,
 		const THandler extends Handler<
-			TContext,
+			TContext & TDependencies,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -170,7 +194,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Router<TContext> {
+	): Router<TContext, TDependencies> {
 		return this.#defineRoute(path, "DELETE", handler, { ...definition });
 	}
 
@@ -183,7 +207,7 @@ export class Router<
 			any
 		>,
 		const THandler extends Handler<
-			TContext,
+			TContext & TDependencies,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -191,7 +215,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Router<TContext> {
+	): Router<TContext, TDependencies> {
 		return this.#defineRoute(path, "GET", handler, { ...definition });
 	}
 
@@ -204,7 +228,7 @@ export class Router<
 			any
 		>,
 		const THandler extends Handler<
-			TContext,
+			TContext & TDependencies,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -212,7 +236,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Router<TContext> {
+	): Router<TContext, TDependencies> {
 		return this.#defineRoute(path, "HEAD", handler, { ...definition });
 	}
 
@@ -225,7 +249,7 @@ export class Router<
 			any
 		>,
 		const THandler extends Handler<
-			TContext,
+			TContext & TDependencies,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -233,7 +257,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Router<TContext> {
+	): Router<TContext, TDependencies> {
 		return this.#defineRoute(path, "PATCH", handler, { ...definition });
 	}
 
@@ -246,7 +270,7 @@ export class Router<
 			any
 		>,
 		const THandler extends Handler<
-			TContext,
+			TContext & TDependencies,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -254,7 +278,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Router<TContext> {
+	): Router<TContext, TDependencies> {
 		return this.#defineRoute(path, "POST", handler, { ...definition });
 	}
 
@@ -267,7 +291,7 @@ export class Router<
 			any
 		>,
 		const THandler extends Handler<
-			TContext,
+			TContext & TDependencies,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -275,7 +299,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Router<TContext> {
+	): Router<TContext, TDependencies> {
 		return this.#defineRoute(path, "PUT", handler, { ...definition });
 	}
 
@@ -288,7 +312,7 @@ export class Router<
 			any
 		>,
 		const THandler extends Handler<
-			TContext,
+			TContext & TDependencies,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -296,7 +320,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Router<TContext> {
+	): Router<TContext, TDependencies> {
 		return this.#defineRoute(path, "OPTIONS", handler, { ...definition });
 	}
 
@@ -309,7 +333,7 @@ export class Router<
 			any
 		>,
 		const THandler extends Handler<
-			TContext,
+			TContext & TDependencies,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -317,7 +341,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Router<TContext> {
+	): Router<TContext, TDependencies> {
 		return this.#defineRoute(path, "TRACE", handler, { ...definition });
 	}
 
@@ -330,7 +354,7 @@ export class Router<
 			any
 		>,
 		const THandler extends Handler<
-			TContext,
+			TContext & TDependencies,
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -338,7 +362,7 @@ export class Router<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Router<TContext> {
+	): Router<TContext, TDependencies> {
 		return this
 			.#defineRoute(path, "CONNECT", handler, { ...definition })
 			.#defineRoute(path, "DELETE", handler, { ...definition })
@@ -358,7 +382,7 @@ export class Router<
 		for (const plugin of this.#plugins) {
 			const result = plugin.plugin instanceof Function
 				? await plugin.plugin(routes)
-				: plugin.plugin as Router<any>;
+				: plugin.plugin as Router<any, any>;
 			decorators.push(...result.#decorators);
 			derivers.push(...result.#derivers);
 			routes.push(...result.#routes.map((route) => ({

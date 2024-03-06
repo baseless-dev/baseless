@@ -1,41 +1,34 @@
 // deno-lint-ignore-file no-explicit-any
-import { type OpenAPIV3, t, type TSchema, TypeGuard } from "../../deps.ts";
+import { t, type TSchema } from "../../lib/typebox.ts";
+import { TypeGuard } from "npm:@sinclair/typebox@0.32.13/type";
+import type { OpenAPIV3 } from "npm:openapi-types@12.1.3";
 import { Router } from "../../lib/router/router.ts";
 import type { Definition, Route, Routes } from "../../lib/router/types.ts";
+import { OpenAPIConfiguration } from "./configuration.ts";
 
-export type OpenAPIOptions<TPath> = {
-	path?: TPath;
-	info: OpenAPIV3.InfoObject;
-	servers?: OpenAPIV3.ServerObject[];
-	tags?: string[];
-};
-
-export const openapi = <Path extends string = "/openapi.json">({
-	path = "/openapi.json" as Path,
-	info,
-	servers,
-	tags,
-}: OpenAPIOptions<Path> = {
-	path: "/openapi.json" as Path,
-	info: {
-		title: "OpenAPI Reference",
-		description: "The OpenAPI documentation for this API",
-		version: "0.0.0-0",
-	},
-}) =>
+export const openapi = (
+	builder?:
+		| OpenAPIConfiguration
+		| ((configuration: OpenAPIConfiguration) => OpenAPIConfiguration),
+) =>
 (routes: ReadonlyArray<Route>) => {
+	const configuration = builder instanceof OpenAPIConfiguration
+		? builder.build()
+		: builder
+		? builder(new OpenAPIConfiguration()).build()
+		: new OpenAPIConfiguration().build();
 	let cachedDocument: string;
 	return new Router()
-		.get(path, ({ request, query }) => {
+		.get(configuration.path, ({ request, query }) => {
 			if (request.headers.get("accept")?.includes("text/html")) {
 				const swagger = `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>${info.title}</title>
-	<meta name="description" content="${info.description}" />
-	<meta name="og:description" content="${info.description}" />
+	<title>${configuration.info.title}</title>
+	<meta name="description" content="${configuration.info.description}" />
+	<meta name="og:description" content="${configuration.info.description}" />
 	<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
 </head>
 <body>
@@ -49,9 +42,9 @@ export const openapi = <Path extends string = "/openapi.json">({
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>${info.title}</title>
-	<meta name="description" content="${info.description}" />
-	<meta name="og:description" content="${info.description}" />
+	<title>${configuration.info.title}</title>
+	<meta name="description" content="${configuration.info.description}" />
+	<meta name="og:description" content="${configuration.info.description}" />
 	<style>body { margin: 0 }</style>
 </head>
 <body>
@@ -69,8 +62,8 @@ export const openapi = <Path extends string = "/openapi.json">({
 						[...routes],
 					),
 					openapi: "3.1.0",
-					info,
-					servers,
+					info: configuration.info,
+					servers: configuration.servers,
 				};
 				cachedDocument = JSON.stringify(document);
 			}
@@ -79,9 +72,9 @@ export const openapi = <Path extends string = "/openapi.json">({
 			});
 		}, {
 			detail: {
-				summary: info.title,
-				description: info.description,
-				tags: tags ?? ["OpenAPI"],
+				summary: configuration.info.title,
+				description: configuration.info.description,
+				tags: configuration.tags ?? ["OpenAPI"],
 			},
 			query: t.Object({
 				view: t.Optional(

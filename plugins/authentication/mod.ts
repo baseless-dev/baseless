@@ -1,4 +1,4 @@
-import { jwtVerify, type KeyLike } from "npm:jose@5.2.0";
+import { jwtVerify } from "npm:jose@5.2.0";
 import { t, type TSchema } from "../../lib/typebox.ts";
 import {
 	AuthenticationSubmitPromptError,
@@ -7,7 +7,6 @@ import {
 } from "../../lib/authentication/errors.ts";
 import { simplify } from "../../lib/authentication/simplify.ts";
 import {
-	type AuthenticationCeremonyComponent,
 	AuthenticationCeremonyStateSchema,
 	AuthenticationSendPromptResultSchema,
 	AuthenticationSubmitPromptStateSchema,
@@ -16,47 +15,15 @@ import {
 import { assertAutoId, isAutoId } from "../../lib/autoid.ts";
 import { createLogger } from "../../lib/logger.ts";
 import { SESSION_AUTOID_PREFIX } from "../../lib/session/types.ts";
-import {
-	type CounterProvider,
-	slidingWindow,
-} from "../../providers/counter.ts";
-import type { IdentityProvider } from "../../providers/identity.ts";
-import type { KVProvider } from "../../providers/kv.ts";
-import type { SessionProvider } from "../../providers/session.ts";
+import { slidingWindow } from "../../providers/counter.ts";
 import AuthenticationService from "./authentication.ts";
 import type { Context, TokenData } from "./context.ts";
 import { createTokens } from "./create_tokens.ts";
 import SessionService from "./session.ts";
 import { Router } from "../../lib/router/router.ts";
 import { RateLimitedError } from "../../lib/errors.ts";
-import type { AuthenticationProvider } from "../../providers/auth.ts";
-
-export type AuthenticationKeys = {
-	algo: string;
-	privateKey: KeyLike;
-	publicKey: KeyLike;
-};
-
-export type RateLimitOptions = {
-	count: number;
-	interval: number;
-};
-
-export type AuthenticationOptions = {
-	counter: CounterProvider;
-	kv: KVProvider;
-	identity: IdentityProvider;
-	session: SessionProvider;
-	keys: AuthenticationKeys;
-	salt: string;
-	providers: AuthenticationProvider[];
-	ceremony: AuthenticationCeremonyComponent;
-	rateLimit?: RateLimitOptions;
-	accessTokenTTL?: number;
-	refreshTokenTTL?: number;
-	allowAnonymousIdentity?: boolean;
-	highRiskActionTimeWindow?: number;
-};
+import { AuthenticationConfiguration } from "./configuration.ts";
+import type { CounterService } from "../counter/counter.ts";
 
 const dataOrError = <T>(schema: TSchema): TSchema =>
 	t.Union([
@@ -71,14 +38,21 @@ const dataOrError = <T>(schema: TSchema): TSchema =>
 	});
 
 export const authentication = (
-	options: AuthenticationOptions,
+	builder:
+		| AuthenticationConfiguration
+		| ((
+			configuration: AuthenticationConfiguration,
+		) => AuthenticationConfiguration),
 ) => {
 	const logger = createLogger("authentication-plugin");
-	options.ceremony = simplify(
-		sequence(options.ceremony, { kind: "done" as const }),
+	const configuration = builder instanceof AuthenticationConfiguration
+		? builder.build()
+		: builder(new AuthenticationConfiguration()).build();
+	const ceremony = simplify(
+		sequence(configuration.ceremony, { kind: "done" as const }),
 	);
 
-	return new Router()
+	return new Router<{}, { counter: CounterService }>()
 		.derive(async ({ request }) => {
 			let authenticationToken: TokenData | undefined;
 			if (request.headers.has("Authorization")) {
@@ -89,10 +63,10 @@ export const authentication = (
 					try {
 						const { payload } = await jwtVerify(
 							accessToken,
-							options.keys.publicKey,
+							configuration.keys.publicKey,
 						);
 						if (isAutoId(payload.sub, SESSION_AUTOID_PREFIX)) {
-							const sessionData = await options.session.get(
+							const sessionData = await configuration.sessionProvider.get(
 								payload.sub,
 							).catch((
 								_,
@@ -130,15 +104,15 @@ export const authentication = (
 					return authenticationToken;
 				},
 				get session() {
-					return new SessionService(options.session);
+					return new SessionService(configuration.sessionProvider);
 				},
 				get authentication() {
 					return new AuthenticationService(
-						options.providers,
-						options.ceremony,
-						options.identity,
-						options.keys,
-						options.rateLimit,
+						configuration.authenticationProviders,
+						ceremony,
+						configuration.identityProvider,
+						configuration.keys,
+						configuration.rateLimit,
 					);
 				},
 			};
@@ -184,23 +158,25 @@ export const authentication = (
 				}
 				const { payload } = await jwtVerify(
 					refreshToken,
-					options.keys.publicKey,
+					configuration.keys.publicKey,
 				);
 				const { sub: sessionId, scope } = payload;
 				assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
 				const sessionData = await session.get(sessionId);
-				const id = await options.identity.get(sessionData.identityId);
+				const id = await configuration.identityProvider.get(
+					sessionData.identityId,
+				);
 				await session.update(
 					sessionData,
-					options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+					configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
 				);
 				const { access_token, id_token } = await createTokens(
 					id,
 					sessionData,
-					options.keys.algo,
-					options.keys.privateKey,
-					options.accessTokenTTL ?? 1000 * 60 * 10,
-					options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+					configuration.keys.algo,
+					configuration.keys.privateKey,
+					configuration.accessTokenTTL ?? 1000 * 60 * 10,
+					configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
 					`${scope}`,
 				);
 				return Response.json({
@@ -290,25 +266,25 @@ export const authentication = (
 		})
 		.post(
 			"/submit-prompt",
-			async ({ body, authentication, remoteAddress, session }) => {
+			async ({ body, authentication, remoteAddress, session, counter }) => {
 				try {
 					const state = body.state
 						? await authentication.decryptAuthenticationState(body.state)
 						: { kind: "authentication" as const, choices: [] };
 
-					const interval = options.rateLimit?.interval ?? 60 * 1000;
+					const interval = configuration.rateLimit?.interval ?? 60 * 1000;
 					const keys = [
 						"authentication",
 						"submitprompt",
 						state?.identity ?? remoteAddress,
 						slidingWindow(interval).toString(),
 					];
-					const counter = await options.counter.increment(
+					const count = await counter.increment(
 						keys,
 						1,
 						interval,
 					);
-					if (counter > 10) {
+					if (count > 10) {
 						throw new RateLimitedError();
 					}
 
@@ -335,17 +311,17 @@ export const authentication = (
 						if (!identityId) {
 							return Response.json({ error: UnauthorizedError.name });
 						}
-						const id = await options.identity.get(identityId);
+						const id = await configuration.identityProvider.get(identityId);
 						// TODO session expiration
 						const sessionData = await session.create(identityId, {});
 						const { access_token, id_token, refresh_token } =
 							await createTokens(
 								id,
 								sessionData,
-								options.keys.algo,
-								options.keys.privateKey,
-								options.accessTokenTTL ?? 1000 * 60 * 10,
-								options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+								configuration.keys.algo,
+								configuration.keys.privateKey,
+								configuration.accessTokenTTL ?? 1000 * 60 * 10,
+								configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
 							);
 						return Response.json({
 							data: {
@@ -389,61 +365,65 @@ export const authentication = (
 				},
 			},
 		)
-		.post("/send-prompt", async ({ body, authentication, remoteAddress }) => {
-			try {
-				const state = body.state
-					? await authentication.decryptAuthenticationState(body.state)
-					: undefined;
-				const interval = options.rateLimit?.interval ?? 60 * 1000;
-				const keys = [
-					"authentication",
-					"sendprompt",
-					state?.identity ?? remoteAddress,
-					slidingWindow(interval).toString(),
-				];
-				const counter = await options.counter.increment(
-					keys,
-					1,
-					interval,
-				);
-				if (counter > 10) {
-					throw new RateLimitedError();
-				}
+		.post(
+			"/send-prompt",
+			async ({ body, authentication, remoteAddress, counter }) => {
+				try {
+					const state = body.state
+						? await authentication.decryptAuthenticationState(body.state)
+						: undefined;
+					const interval = configuration.rateLimit?.interval ?? 60 * 1000;
+					const keys = [
+						"authentication",
+						"sendprompt",
+						state?.identity ?? remoteAddress,
+						slidingWindow(interval).toString(),
+					];
+					const count = await counter.increment(
+						keys,
+						1,
+						interval,
+					);
+					if (count > 10) {
+						throw new RateLimitedError();
+					}
 
-				const result = await authentication.sendPrompt(
-					body.component,
-					body.locale,
-					state,
-				);
-				return Response.json({
-					data: {
-						sent: result,
-					},
-				});
-			} catch (error) {
-				return Response.json({ error: error.name });
-			}
-		}, {
-			detail: {
-				summary: "Send sign in prompt",
-				tags: ["Authentication"],
+					const result = await authentication.sendPrompt(
+						body.component,
+						body.locale,
+						state,
+					);
+					return Response.json({
+						data: {
+							sent: result,
+						},
+					});
+				} catch (error) {
+					return Response.json({ error: error.name });
+				}
 			},
-			body: t.Object({
-				component: t.String({ description: "The authentication component" }),
-				state: t.Optional(t.String({ description: "Encrypted state" })),
-				locale: t.String(),
-			}),
-			response: {
-				200: {
-					description: "The send prompt result",
-					content: {
-						"application/json": {
-							schema: dataOrError(AuthenticationSendPromptResultSchema),
+			{
+				detail: {
+					summary: "Send sign in prompt",
+					tags: ["Authentication"],
+				},
+				body: t.Object({
+					component: t.String({ description: "The authentication component" }),
+					state: t.Optional(t.String({ description: "Encrypted state" })),
+					locale: t.String(),
+				}),
+				response: {
+					200: {
+						description: "The send prompt result",
+						content: {
+							"application/json": {
+								schema: dataOrError(AuthenticationSendPromptResultSchema),
+							},
 						},
 					},
 				},
 			},
-		});
+		);
 };
 
 export default authentication;

@@ -4,7 +4,7 @@ import {
 	setGlobalLogHandler,
 } from "../../lib/logger.ts";
 import { Router } from "../../lib/router/router.ts";
-import openapiPlugin from "../../plugins/openapi/mod.ts";
+import openapi from "../../plugins/openapi/mod.ts";
 import OTPLoggerAuthentificationProvider from "../../providers/auth-otp-logger/mod.ts";
 import EmailAuthentificationProvider from "../../providers/auth-email/mod.ts";
 import PasswordAuthentificationProvider from "../../providers/auth-password/mod.ts";
@@ -107,12 +107,13 @@ const app = new Router()
 			refreshTokenTTL: 1000 * 60 * 60 * 24 * 7,
 		}),
 	)
-	.use(openapiPlugin({
-		info: {
-			title: "Hello World Documentation",
-			version: "0.0.1",
-		},
-	}))
+	.use(openapi((config) =>
+		config
+			.setInfo({
+				title: "Hello World Documentation",
+				version: "0.0.1",
+			})
+	))
 	.get(
 		"/api/v1/hello/{world}",
 		({ params, query }) =>

@@ -7,11 +7,13 @@ import { MemoryDocumentProvider } from "../providers/document-memory/mod.ts";
 import { MemoryKVProvider } from "../providers/kv-memory/mod.ts";
 import { KVSessionProvider } from "../providers/session-kv/mod.ts";
 import { DocumentIdentityProvider } from "../providers/identity-document/mod.ts";
-import authenticationPlugin from "../plugins/authentication/mod.ts";
-import registrationPlugin from "../plugins/registration/mod.ts";
-import assetPlugin from "../plugins/asset/mod.ts";
+import counter from "../plugins/counter/mod.ts";
+import kv from "../plugins/kv/mod.ts";
+import authentication from "../plugins/authentication/mod.ts";
+import registration from "../plugins/registration/mod.ts";
+import openapi from "../plugins/openapi/mod.ts";
+import asset from "../plugins/asset/mod.ts";
 import TOTPAuthentificationProvider from "../providers/auth-totp/mod.ts";
-import type { AuthenticationOptions } from "../plugins/authentication/mod.ts";
 import { oneOf, sequence } from "../lib/authentication/types.ts";
 import { Router } from "../lib/router/router.ts";
 import { MemoryNotificationProvider } from "../providers/notification-memory/mod.ts";
@@ -19,6 +21,7 @@ import type { Context as AuthenticationContext } from "../plugins/authentication
 import type { Context as RegistrationContext } from "../plugins/registration/context.ts";
 import type { Context as AssetContext } from "../plugins/asset/context.ts";
 import OTPMemoryAuthentificationProvider from "../providers/auth-otp-memory/mod.ts";
+import { AuthenticationConfiguration } from "../plugins/authentication/configuration.ts";
 
 export type MockResult = {
 	router: Router<AuthenticationContext & RegistrationContext & AssetContext>;
@@ -42,37 +45,34 @@ export type MockResult = {
 
 export type BuilderResult = {
 	providers?: Partial<MockResult["providers"]>;
-	auth?: Partial<
-		Omit<
-			AuthenticationOptions,
-			"counter" | "kv" | "identity" | "session"
-		>
-	>;
+	auth?: AuthenticationConfiguration;
 };
 
 export async function mock(): Promise<MockResult>;
 export async function mock(
 	builder: (
-		result: MockResult,
+		result: Omit<MockResult, "router">,
 	) => void | BuilderResult | Promise<void | BuilderResult>,
 ): Promise<MockResult>;
 export async function mock(
 	builder?: (
-		result: MockResult,
+		result: Omit<MockResult, "router">,
 	) => void | BuilderResult | Promise<void | BuilderResult>,
 ): Promise<MockResult> {
-	const counter = new MemoryCounterProvider();
-	const kv = new MemoryKVProvider();
-	const document = new MemoryDocumentProvider();
-	const asset = new MemoryAssetProvider();
-	const identity = new DocumentIdentityProvider(new MemoryDocumentProvider());
-	const session = new KVSessionProvider(new MemoryKVProvider());
-	const notification = new MemoryNotificationProvider();
+	const counterProvider = new MemoryCounterProvider();
+	const kvProvider = new MemoryKVProvider();
+	const documentProvider = new MemoryDocumentProvider();
+	const assetProvider = new MemoryAssetProvider();
+	const identityProvider = new DocumentIdentityProvider(
+		new MemoryDocumentProvider(),
+	);
+	const sessionProvider = new KVSessionProvider(new MemoryKVProvider());
+	const notificationProvider = new MemoryNotificationProvider();
 	const email = new EmailAuthentificationProvider(
 		"email",
-		identity,
-		kv,
-		notification,
+		identityProvider,
+		kvProvider,
+		notificationProvider,
 	);
 	const password = new PasswordAuthentificationProvider(
 		"password",
@@ -88,16 +88,14 @@ export async function mock(
 		digits: 6,
 		period: 60,
 	});
-	let router = new Router();
 	const result = {
-		router,
 		providers: {
-			kv,
-			document,
-			asset,
-			identity,
-			session,
-			notification,
+			kv: kvProvider,
+			document: documentProvider,
+			asset: assetProvider,
+			identity: identityProvider,
+			session: sessionProvider,
+			notification: notificationProvider,
 		},
 		components: {
 			email,
@@ -108,45 +106,43 @@ export async function mock(
 			sequence,
 		},
 	};
+	const keys = { ...await generateKeyPair("PS512"), algo: "PS512" };
 	const { auth } = await builder?.(result) ?? {};
-	const keys = auth?.keys ??
-		{ ...await generateKeyPair("PS512"), algo: "PS512" };
-	router = router
-		.use(
-			"/api/authentication",
-			authenticationPlugin({
-				counter,
-				identity,
-				session,
-				kv,
-				keys,
-				salt: "should probably be a secret more robust than this",
-				providers: [email, password],
-				ceremony: sequence(
-					email.toCeremonyComponent(),
-					password.toCeremonyComponent(),
-				),
-				...auth,
-			}),
-		)
-		.use(
-			"/api/registration",
-			registrationPlugin({
-				counter,
-				identity,
-				session,
-				keys,
-				providers: [email, password],
-				ceremony: sequence(
-					email.toCeremonyComponent(),
-					password.toCeremonyComponent(),
-				),
-				...auth,
-			}),
-		)
-		.use(assetPlugin({
-			asset,
-		}));
+	let authConfig = auth ?? new AuthenticationConfiguration();
+	authConfig = authConfig
+		.setIdentityProvider(identityProvider)
+		.setSessionProvider(sessionProvider)
+		.setKeys(keys)
+		.setSalt("lesalt")
+		.setAuthenticationProviders([email, password])
+		.setCeremony(
+			sequence(
+				email.toCeremonyComponent(),
+				password.toCeremonyComponent(),
+			),
+		);
+
+	const router = new Router()
+		.use(asset((config) => config.setAssetProvider(assetProvider)))
+		.use(kv((config) => config.setKVProvider(kvProvider)))
+		.use(counter((config) => config.setCounterProvider(counterProvider)))
+		.use(authentication(authConfig))
+		.use(openapi());
+	// .use(
+	// 	"/api/registration",
+	// 	registrationPlugin({
+	// 		counterProvider,
+	// 		identityProvider,
+	// 		sessionProvider,
+	// 		keys,
+	// 		providers: [email, password],
+	// 		ceremony: sequence(
+	// 			email.toCeremonyComponent(),
+	// 			password.toCeremonyComponent(),
+	// 		),
+	// 		...auth,
+	// 	}),
+	// )
 	return {
 		...result,
 		router,

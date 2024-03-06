@@ -1,19 +1,20 @@
-import type { AssetProvider } from "../../providers/asset.ts";
 import { Router } from "../../lib/router/router.ts";
 import type { Context } from "./context.ts";
 import { AssetService } from "./asset.ts";
-
-export type AssetOptions = {
-	asset: AssetProvider;
-};
+import { AssetConfiguration } from "./configuration.ts";
 
 export const asset = (
-	options: AssetOptions,
+	builder:
+		| AssetConfiguration
+		| ((configuration: AssetConfiguration) => AssetConfiguration),
 ) => {
+	const configuration = builder instanceof AssetConfiguration
+		? builder.build()
+		: builder(new AssetConfiguration()).build();
 	return new Router()
 		.derive(() => {
 			const context: Context = {
-				asset: new AssetService(options.asset),
+				asset: new AssetService(configuration.assetProvider),
 			};
 			return context;
 		})

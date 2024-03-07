@@ -14,98 +14,102 @@ import { DocumentIdentityProvider } from "../../providers/identity-document/mod.
 import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
 import { LoggerNotificationProvider } from "../../providers/notification-logger/mod.ts";
 import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
-import authenticationPlugin from "../../plugins/authentication/mod.ts";
-import registrationPlugin from "../../plugins/registration/mod.ts";
+import authentication from "../../plugins/authentication/mod.ts";
+import registration from "../../plugins/registration/mod.ts";
 import { generateKeyPair } from "npm:jose@5.2.0";
 import { t } from "../../lib/typebox.ts";
-import { oneOf, sequence } from "../../lib/authentication/types.ts";
+import { sequence } from "../../lib/authentication/types.ts";
+import { AuthenticationConfiguration } from "../../plugins/authentication/configuration.ts";
+import { RegistrationConfiguration } from "../../plugins/registration/configuration.ts";
+import kv from "../../plugins/kv/mod.ts";
+import counter from "../../plugins/counter/mod.ts";
+import identity from "../../plugins/identity/mod.ts";
+import session from "../../plugins/session/mod.ts";
 
 setGlobalLogHandler(createConsoleLogHandler(LogLevel.DEBUG));
 
-const counter = new MemoryCounterProvider();
-const kv = new MemoryKVProvider();
-const identity = new DocumentIdentityProvider(new MemoryDocumentProvider());
-const session = new KVSessionProvider(new MemoryKVProvider());
-const notification = new LoggerNotificationProvider();
-const email = new EmailAuthentificationProvider(
-	"email",
-	identity,
-	kv,
-	notification,
+const counterProvider = new MemoryCounterProvider();
+const kvProvider = new MemoryKVProvider();
+const identityProvider = new DocumentIdentityProvider(
+	new MemoryDocumentProvider(),
 );
-const password = new PasswordAuthentificationProvider(
+const sessionProvider = new KVSessionProvider(new MemoryKVProvider());
+const notificationProvider = new LoggerNotificationProvider();
+const emailProvider = new EmailAuthentificationProvider(
+	"email",
+	identityProvider,
+	kvProvider,
+	notificationProvider,
+);
+const passwordProvider = new PasswordAuthentificationProvider(
 	"password",
 	"lesalt",
 );
-const otp = new OTPLoggerAuthentificationProvider(
+const otpProvider = new OTPLoggerAuthentificationProvider(
 	"otp",
 	{
 		digits: 6,
 	},
-	kv,
+	kvProvider,
 );
 
-await identity.create({
+await identityProvider.create({
 	displayName: "John Doe",
 }, [{
 	id: "email",
-	...await email.configureIdentityComponent("john@test.local"),
+	...await emailProvider.configureIdentityComponent("john@test.local"),
 	confirmed: true,
 }, {
 	id: "password",
-	...await password.configureIdentityComponent("123"),
+	...await passwordProvider.configureIdentityComponent("123"),
 }, {
 	id: "otp",
-	...await otp.configureIdentityComponent(""),
+	...await otpProvider.configureIdentityComponent(""),
 }]);
 const keys = { ...await generateKeyPair("PS512"), algo: "PS512" };
 
+const authenticationConfiguration = new AuthenticationConfiguration()
+	.setKeys(keys)
+	.setSalt("lesalt")
+	.setAuthenticationProviders([
+		emailProvider,
+		passwordProvider,
+		otpProvider,
+	])
+	.setCeremony(
+		sequence(
+			emailProvider.toCeremonyComponent(),
+			passwordProvider.toCeremonyComponent(),
+			otpProvider.toCeremonyComponent(),
+		),
+	);
+const registrationConfiguration = new RegistrationConfiguration()
+	.setKeys(keys)
+	.setAuthenticationProviders([
+		emailProvider,
+		passwordProvider,
+		otpProvider,
+	])
+	.setCeremony(
+		sequence(
+			emailProvider.toCeremonyComponent(),
+			passwordProvider.toCeremonyComponent(),
+			otpProvider.toCeremonyComponent(),
+		),
+	);
+
 const app = new Router()
+	.use(kv((config) => config.setKVProvider(kvProvider)))
+	.use(counter((config) => config.setCounterProvider(counterProvider)))
+	.use(identity((config) => config.setIdentityProvider(identityProvider)))
+	.use(session((config) => config.setSessionProvider(sessionProvider)))
 	.use(
 		"/api/authentication",
-		authenticationPlugin({
-			counter,
-			identity,
-			session,
-			kv,
-			keys,
-			salt: "lesalt",
-			providers: [
-				email,
-				password,
-				otp,
-			],
-			ceremony: sequence(
-				email.toCeremonyComponent(),
-				otp.toCeremonyComponent(),
-				password.toCeremonyComponent(),
-			),
-			accessTokenTTL: 1000 * 60 * 60 * 10,
-			refreshTokenTTL: 1000 * 60 * 60 * 24 * 7,
-		}),
+		authentication(authenticationConfiguration),
 	)
 	.use(
 		"/api/registration",
-		registrationPlugin({
-			counter,
-			identity,
-			session,
-			keys,
-			providers: [
-				email,
-				password,
-				otp,
-			],
-			ceremony: sequence(
-				email.toCeremonyComponent(),
-				oneOf(
-					password.toCeremonyComponent(),
-					otp.toCeremonyComponent(),
-				),
-			),
-			accessTokenTTL: 1000 * 60 * 60 * 10,
-			refreshTokenTTL: 1000 * 60 * 60 * 24 * 7,
-		}),
+		registration(registrationConfiguration),
 	)
 	.use(openapi((config) =>
 		config

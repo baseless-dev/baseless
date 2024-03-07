@@ -3,12 +3,12 @@ import type { KVProvider } from "../../providers/kv.ts";
 export class KVConfiguration {
 	#kvProvider?: KVProvider;
 
-	constructor(counterProvider?: KVProvider) {
-		this.#kvProvider = counterProvider;
+	constructor(kvProvider?: KVProvider) {
+		this.#kvProvider = kvProvider;
 	}
 
-	setKVProvider(counterProvider: KVProvider): KVConfiguration {
-		return new KVConfiguration(counterProvider);
+	setKVProvider(kvProvider: KVProvider): KVConfiguration {
+		return new KVConfiguration(kvProvider);
 	}
 
 	// deno-lint-ignore explicit-function-return-type

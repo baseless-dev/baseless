@@ -1,6 +1,6 @@
 import { Router } from "../../lib/router/router.ts";
 import { CounterConfiguration } from "./configuration.ts";
-import type { Context } from "./context.ts";
+import type { CounterContext } from "./context.ts";
 import { CounterService } from "./counter.ts";
 
 export const counter = (
@@ -15,7 +15,7 @@ export const counter = (
 		: builder(new CounterConfiguration()).build();
 	return new Router()
 		.derive(() => {
-			const context: Context = {
+			const context: CounterContext = {
 				counter: new CounterService(configuration.counterProvider),
 			};
 			return context;

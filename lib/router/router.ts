@@ -51,20 +51,20 @@ export class Router<
 	TDependencies extends {} = {},
 > {
 	#decorators: Array<ContextDecorator<any>> = [];
-	#derivers: Array<ContextDeriver<any>> = [];
+	#derivers: Array<ContextDeriver<any, any>> = [];
 	#plugins: Array<PluginWithPrefix<any>> = [];
 	#routes: Routes = [];
 
 	constructor();
 	constructor(
 		decorators: Array<ContextDecorator<any>>,
-		derivers: Array<ContextDeriver<any>>,
+		derivers: Array<ContextDeriver<any, any>>,
 		plugins: Array<PluginWithPrefix<any>>,
 		routes: Routes,
 	);
 	constructor(
 		decorators?: Array<ContextDecorator<any>>,
-		derivers?: Array<ContextDeriver<any>>,
+		derivers?: Array<ContextDeriver<any, any>>,
 		plugins?: Array<PluginWithPrefix<any>>,
 		routes?: Routes,
 	) {
@@ -86,7 +86,7 @@ export class Router<
 	}
 
 	derive<const TNewContext extends {}>(
-		deriver: ContextDeriver<TNewContext>,
+		deriver: ContextDeriver<TNewContext, TContext & TDependencies>,
 	): Router<TContext & TNewContext, TDependencies> {
 		return new Router(
 			this.#decorators,

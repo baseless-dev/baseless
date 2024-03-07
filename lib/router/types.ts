@@ -1,4 +1,4 @@
-// deno-lint-ignore-file no-explicit-any
+// deno-lint-ignore-file no-explicit-any ban-types
 import {
 	type Static,
 	t,
@@ -74,9 +74,12 @@ export type ContextDecorator<T extends Record<string, unknown>> = MaybeCallable<
 	MaybePromise<T>
 >;
 
-export type ContextDeriver<T extends Record<string, unknown>> = MaybeCallable<
+export type ContextDeriver<
+	T extends Record<string, unknown>,
+	TContext extends {},
+> = MaybeCallable<
 	MaybePromise<T>,
-	[{ request: Request }]
+	[{ request: Request } & TContext]
 >;
 
 export type RequestHandler = (request: Request) => Promise<Response>;

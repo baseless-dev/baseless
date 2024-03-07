@@ -1,6 +1,5 @@
 import type { SessionData } from "../../lib/session/types.ts";
 import type AuthenticationService from "./authentication.ts";
-import type SessionService from "./session.ts";
 
 export type TokenData = {
 	lastAuthorizationTime: number;
@@ -8,9 +7,8 @@ export type TokenData = {
 	sessionData: SessionData;
 };
 
-export interface Context {
+export interface AuthenticationContext {
 	readonly remoteAddress: string;
 	readonly authenticationToken: TokenData | undefined;
 	readonly authentication: AuthenticationService;
-	readonly session: SessionService;
 }

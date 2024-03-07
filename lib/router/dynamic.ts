@@ -12,7 +12,7 @@ export default function makeDynamicRouter(
 	rst: RouteSegment[],
 	context: Record<string, unknown>,
 	// deno-lint-ignore no-explicit-any
-	derivers: Array<ContextDeriver<any>>,
+	derivers: Array<ContextDeriver<any, any>>,
 ): RequestHandler {
 	const [regexp, routes] = routeSegmentsToRegExp(rst);
 	return async (request: Request) => {

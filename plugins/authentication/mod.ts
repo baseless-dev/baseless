@@ -1,3 +1,4 @@
+// deno-lint-ignore-file ban-types
 import { jwtVerify } from "npm:jose@5.2.0";
 import { t, type TSchema } from "../../lib/typebox.ts";
 import {
@@ -17,13 +18,14 @@ import { createLogger } from "../../lib/logger.ts";
 import { SESSION_AUTOID_PREFIX } from "../../lib/session/types.ts";
 import { slidingWindow } from "../../providers/counter.ts";
 import AuthenticationService from "./authentication.ts";
-import type { Context, TokenData } from "./context.ts";
+import type { AuthenticationContext, TokenData } from "./context.ts";
 import { createTokens } from "./create_tokens.ts";
-import SessionService from "./session.ts";
 import { Router } from "../../lib/router/router.ts";
 import { RateLimitedError } from "../../lib/errors.ts";
 import { AuthenticationConfiguration } from "./configuration.ts";
 import type { CounterService } from "../counter/counter.ts";
+import type { IdentityService } from "../identity/identity.ts";
+import type { SessionService } from "../session/session.ts";
 
 const dataOrError = <T>(schema: TSchema): TSchema =>
 	t.Union([
@@ -52,8 +54,15 @@ export const authentication = (
 		sequence(configuration.ceremony, { kind: "done" as const }),
 	);
 
-	return new Router<{}, { counter: CounterService }>()
-		.derive(async ({ request }) => {
+	return new Router<
+		{},
+		{
+			counter: CounterService;
+			identity: IdentityService;
+			session: SessionService;
+		}
+	>()
+		.derive(async ({ request, session, identity }) => {
 			let authenticationToken: TokenData | undefined;
 			if (request.headers.has("Authorization")) {
 				const authorization = request.headers.get("Authorization") ?? "";
@@ -66,7 +75,7 @@ export const authentication = (
 							configuration.keys.publicKey,
 						);
 						if (isAutoId(payload.sub, SESSION_AUTOID_PREFIX)) {
-							const sessionData = await configuration.sessionProvider.get(
+							const sessionData = await session.get(
 								payload.sub,
 							).catch((
 								_,
@@ -96,21 +105,18 @@ export const authentication = (
 
 			const remoteAddress = request.headers.get("X-Real-Ip") ?? "";
 
-			const context: Context = {
+			const context: AuthenticationContext = {
 				get remoteAddress() {
 					return remoteAddress;
 				},
 				get authenticationToken() {
 					return authenticationToken;
 				},
-				get session() {
-					return new SessionService(configuration.sessionProvider);
-				},
 				get authentication() {
 					return new AuthenticationService(
 						configuration.authenticationProviders,
 						ceremony,
-						configuration.identityProvider,
+						identity,
 						configuration.keys,
 						configuration.rateLimit,
 					);
@@ -150,7 +156,7 @@ export const authentication = (
 				},
 			},
 		})
-		.post("/refresh-tokens", async ({ body, session }) => {
+		.post("/refresh-tokens", async ({ body, session, identity }) => {
 			try {
 				const refreshToken = body.refresh_token;
 				if (!refreshToken) {
@@ -163,9 +169,7 @@ export const authentication = (
 				const { sub: sessionId, scope } = payload;
 				assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
 				const sessionData = await session.get(sessionId);
-				const id = await configuration.identityProvider.get(
-					sessionData.identityId,
-				);
+				const id = await identity.get(sessionData.identityId);
 				await session.update(
 					sessionData,
 					configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
@@ -266,7 +270,9 @@ export const authentication = (
 		})
 		.post(
 			"/submit-prompt",
-			async ({ body, authentication, remoteAddress, session, counter }) => {
+			async (
+				{ body, authentication, remoteAddress, session, identity, counter },
+			) => {
 				try {
 					const state = body.state
 						? await authentication.decryptAuthenticationState(body.state)
@@ -311,7 +317,7 @@ export const authentication = (
 						if (!identityId) {
 							return Response.json({ error: UnauthorizedError.name });
 						}
-						const id = await configuration.identityProvider.get(identityId);
+						const id = await identity.get(identityId);
 						// TODO session expiration
 						const sessionData = await session.create(identityId, {});
 						const { access_token, id_token, refresh_token } =

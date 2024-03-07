@@ -8,20 +8,18 @@ type Options = {
 		privateKey: KeyLike;
 		publicKey: KeyLike;
 	};
-	salt?: string;
 	authenticationProviders?: AuthenticationProvider[];
 	ceremony?: AuthenticationCeremonyComponent;
 	rateLimit?: {
 		count: number;
 		interval: number;
 	};
+	registrationTTL?: number;
 	accessTokenTTL?: number;
 	refreshTokenTTL?: number;
-	allowAnonymousIdentity?: boolean;
-	highRiskActionTimeWindow?: number;
 };
 
-export class AuthenticationConfiguration {
+export class RegistrationConfiguration {
 	#options?: Options;
 
 	constructor(options?: Options) {
@@ -34,26 +32,17 @@ export class AuthenticationConfiguration {
 			privateKey: KeyLike;
 			publicKey: KeyLike;
 		},
-	): AuthenticationConfiguration {
-		return new AuthenticationConfiguration({
+	): RegistrationConfiguration {
+		return new RegistrationConfiguration({
 			...this.#options,
 			keys,
 		});
 	}
 
-	setSalt(
-		salt: string,
-	): AuthenticationConfiguration {
-		return new AuthenticationConfiguration({
-			...this.#options,
-			salt,
-		});
-	}
-
 	setAuthenticationProviders(
 		authenticationProviders: AuthenticationProvider[],
-	): AuthenticationConfiguration {
-		return new AuthenticationConfiguration({
+	): RegistrationConfiguration {
+		return new RegistrationConfiguration({
 			...this.#options,
 			authenticationProviders: [...authenticationProviders],
 		});
@@ -61,8 +50,8 @@ export class AuthenticationConfiguration {
 
 	setCeremony(
 		ceremony: AuthenticationCeremonyComponent,
-	): AuthenticationConfiguration {
-		return new AuthenticationConfiguration({
+	): RegistrationConfiguration {
+		return new RegistrationConfiguration({
 			...this.#options,
 			ceremony,
 		});
@@ -73,17 +62,26 @@ export class AuthenticationConfiguration {
 			count: number;
 			interval: number;
 		},
-	): AuthenticationConfiguration {
-		return new AuthenticationConfiguration({
+	): RegistrationConfiguration {
+		return new RegistrationConfiguration({
 			...this.#options,
 			rateLimit,
 		});
 	}
 
+	setRegistrationTTL(
+		registrationTTL: number,
+	): RegistrationConfiguration {
+		return new RegistrationConfiguration({
+			...this.#options,
+			registrationTTL,
+		});
+	}
+
 	setAccessTokenTTL(
 		accessTokenTTL: number,
-	): AuthenticationConfiguration {
-		return new AuthenticationConfiguration({
+	): RegistrationConfiguration {
+		return new RegistrationConfiguration({
 			...this.#options,
 			accessTokenTTL,
 		});
@@ -91,19 +89,10 @@ export class AuthenticationConfiguration {
 
 	setRefreshTokenTTL(
 		refreshTokenTTL: number,
-	): AuthenticationConfiguration {
-		return new AuthenticationConfiguration({
+	): RegistrationConfiguration {
+		return new RegistrationConfiguration({
 			...this.#options,
 			refreshTokenTTL,
-		});
-	}
-
-	setAllowAnonymousIdentity(
-		allowAnonymousIdentity: boolean,
-	): AuthenticationConfiguration {
-		return new AuthenticationConfiguration({
-			...this.#options,
-			allowAnonymousIdentity,
 		});
 	}
 
@@ -111,9 +100,6 @@ export class AuthenticationConfiguration {
 	build() {
 		if (!this.#options?.keys) {
 			throw new Error("Keys must be provided.");
-		}
-		if (!this.#options?.salt) {
-			throw new Error("Salt must be provided.");
 		}
 		if (!this.#options?.authenticationProviders) {
 			throw new Error("Authentication providers must be provided.");
@@ -123,19 +109,16 @@ export class AuthenticationConfiguration {
 		}
 		return Object.freeze({
 			keys: this.#options?.keys,
-			salt: this.#options?.salt,
 			authenticationProviders: this.#options?.authenticationProviders,
 			ceremony: this.#options?.ceremony,
 			rateLimit: Object.freeze(
 				this.#options?.rateLimit ??
 					{ count: 10, interval: 1000 * 60 * 2 },
 			),
+			registrationTTL: this.#options?.registrationTTL ?? 1000 * 60 * 15,
 			accessTokenTTL: this.#options?.accessTokenTTL ?? 1000 * 60 * 15,
 			refreshTokenTTL: this.#options?.refreshTokenTTL ??
 				1000 * 60 * 60 * 24 * 7,
-			allowAnonymousIdentity: this.#options?.allowAnonymousIdentity ?? false,
-			highRiskActionTimeWindow: this.#options?.highRiskActionTimeWindow ??
-				1000 * 60 * 5,
 		});
 	}
 }

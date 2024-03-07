@@ -14,7 +14,7 @@ import type {
 export default function makeCompiledRouter(
 	rst: RouteSegment[],
 	context: Record<string, unknown>,
-	derivers: Array<ContextDeriver<any>>,
+	derivers: Array<ContextDeriver<any, any>>,
 ): RequestHandler {
 	const { code, handlers, definitions } = getRouterCode(rst);
 	return Function("data", code)({ handlers, definitions, context, derivers });

@@ -1,11 +1,8 @@
+// deno-lint-ignore-file ban-types
 import { t, type TSchema } from "../../lib/typebox.ts";
-import type { KeyLike } from "npm:jose@5.2.0";
 import { map } from "../../lib/authentication/map.ts";
 import { simplify } from "../../lib/authentication/simplify.ts";
-import {
-	AuthenticationCeremonyComponent,
-	sequence,
-} from "../../lib/authentication/types.ts";
+import { sequence } from "../../lib/authentication/types.ts";
 import { RateLimitedError } from "../../lib/errors.ts";
 import {
 	RegistrationCeremonyStateSchema,
@@ -13,41 +10,14 @@ import {
 	RegistrationSubmitStateSchema,
 } from "../../lib/registration/types.ts";
 import { Router } from "../../lib/router/router.ts";
-import type { AuthenticationProvider } from "../../providers/auth.ts";
-import {
-	type CounterProvider,
-	slidingWindow,
-} from "../../providers/counter.ts";
-import type { IdentityProvider } from "../../providers/identity.ts";
-import type { SessionProvider } from "../../providers/session.ts";
+import { slidingWindow } from "../../providers/counter.ts";
 import { createTokens } from "../authentication/create_tokens.ts";
-import SessionService from "../authentication/session.ts";
-import type { Context } from "./context.ts";
+import type { RegistrationContext } from "./context.ts";
 import RegistrationService from "./registration.ts";
-
-export type RegistrationKeys = {
-	algo: string;
-	privateKey: KeyLike;
-	publicKey: KeyLike;
-};
-
-export type RateLimitOptions = {
-	count: number;
-	interval: number;
-};
-
-export type RegistrationOptions = {
-	counter: CounterProvider;
-	identity: IdentityProvider;
-	session: SessionProvider;
-	keys: RegistrationKeys;
-	providers: AuthenticationProvider[];
-	ceremony: AuthenticationCeremonyComponent;
-	rateLimit?: RateLimitOptions;
-	allowAnonymousIdentity?: boolean;
-	accessTokenTTL?: number;
-	refreshTokenTTL?: number;
-};
+import { RegistrationConfiguration } from "./configuration.ts";
+import type { CounterService } from "../counter/counter.ts";
+import type { IdentityService } from "../identity/identity.ts";
+import type { SessionService } from "../session/session.ts";
 
 const dataOrError = <T>(schema: TSchema): TSchema =>
 	t.Union([
@@ -62,11 +32,20 @@ const dataOrError = <T>(schema: TSchema): TSchema =>
 	});
 
 export const registration = (
-	options: RegistrationOptions,
+	builder:
+		| RegistrationConfiguration
+		| ((
+			configuration: RegistrationConfiguration,
+		) => RegistrationConfiguration),
 ) => {
-	const setupableCeremony = map(options.ceremony, (component) => {
+	const configuration = builder instanceof RegistrationConfiguration
+		? builder.build()
+		: builder(new RegistrationConfiguration()).build();
+	const setupableCeremony = map(configuration.ceremony, (component) => {
 		if (component.kind === "prompt") {
-			const provider = options.providers.find((c) => c.id === component.id);
+			const provider = configuration.authenticationProviders.find((c) =>
+				c.id === component.id
+			);
 			const setupPrompt = provider?.setupPrompt();
 			return setupPrompt ? component : undefined;
 		}
@@ -75,27 +54,30 @@ export const registration = (
 	if (!setupableCeremony) {
 		throw new Error("Invalid ceremony");
 	}
-	options.ceremony = simplify(sequence(setupableCeremony, { kind: "done" }));
+	const ceremony = simplify(
+		sequence(setupableCeremony, { kind: "done" as const }),
+	);
 
-	return new Router()
-		.derive(({ request }) => {
+	return new Router<{}, {
+		counter: CounterService;
+		identity: IdentityService;
+		session: SessionService;
+	}>()
+		.derive(({ request, identity }) => {
 			const remoteAddress = request.headers.get("X-Real-Ip") ?? "";
 
-			const context: Context = {
+			const context: RegistrationContext = {
 				get remoteAddress() {
 					return remoteAddress;
 				},
 				get registration() {
 					return new RegistrationService(
-						options.providers,
-						options.ceremony,
-						options.identity,
-						options.keys,
-						options.rateLimit,
+						configuration.authenticationProviders,
+						ceremony,
+						identity,
+						configuration.keys,
+						configuration.rateLimit,
 					);
-				},
-				get session() {
-					return new SessionService(options.session);
 				},
 			};
 
@@ -155,25 +137,27 @@ export const registration = (
 		})
 		.post(
 			"/submit-prompt",
-			async ({ body, registration, remoteAddress, session }) => {
+			async (
+				{ body, registration, remoteAddress, session, counter, identity },
+			) => {
 				try {
 					const state = body.state
 						? await registration.decryptRegistrationState(body.state)
 						: undefined;
 
-					const interval = options.rateLimit?.interval ?? 60 * 1000;
+					const interval = configuration.rateLimit?.interval ?? 60 * 1000;
 					const keys = [
 						"registration",
 						"submitprompt",
 						remoteAddress,
 						slidingWindow(interval).toString(),
 					];
-					const counter = await options.counter.increment(
+					const count = await counter.increment(
 						keys,
 						1,
 						interval,
 					);
-					if (counter > 10) {
+					if (count > 10) {
 						throw new RateLimitedError();
 					}
 
@@ -184,16 +168,16 @@ export const registration = (
 					);
 					if (result.kind === "identity") {
 						// TODO session expiration
-						const id = await options.identity.get(result.identity.id);
+						const id = await identity.get(result.identity.id);
 						const sessionData = await session.create(result.identity.id, {});
 						const { access_token, id_token, refresh_token } =
 							await createTokens(
 								id,
 								sessionData,
-								options.keys.algo,
-								options.keys.privateKey,
-								options.accessTokenTTL ?? 1000 * 60 * 10,
-								options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+								configuration.keys.algo,
+								configuration.keys.privateKey,
+								configuration.accessTokenTTL ?? 1000 * 60 * 10,
+								configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
 							);
 						return Response.json({
 							data: {
@@ -239,25 +223,25 @@ export const registration = (
 		)
 		.post(
 			"/send-validation-code",
-			async ({ body, registration, remoteAddress }) => {
+			async ({ body, registration, remoteAddress, counter }) => {
 				try {
 					const state = body.state
 						? await registration.decryptRegistrationState(body.state)
 						: undefined;
 
-					const interval = options.rateLimit?.interval ?? 60 * 1000;
+					const interval = configuration.rateLimit?.interval ?? 60 * 1000;
 					const keys = [
 						"registration",
 						"sendvalidationcode",
 						remoteAddress,
 						slidingWindow(interval).toString(),
 					];
-					const counter = await options.counter.increment(
+					const count = await counter.increment(
 						keys,
 						1,
 						interval,
 					);
-					if (counter > 10) {
+					if (count > 10) {
 						throw new RateLimitedError();
 					}
 
@@ -299,25 +283,27 @@ export const registration = (
 		)
 		.post(
 			"/submit-validation-code",
-			async ({ body, registration, remoteAddress, session }) => {
+			async (
+				{ body, registration, remoteAddress, session, counter, identity },
+			) => {
 				try {
 					const state = body.state
 						? await registration.decryptRegistrationState(body.state)
 						: undefined;
 
-					const interval = options.rateLimit?.interval ?? 60 * 1000;
+					const interval = configuration.rateLimit?.interval ?? 60 * 1000;
 					const keys = [
 						"registration",
 						"submitvalidationcode",
 						remoteAddress,
 						slidingWindow(interval).toString(),
 					];
-					const counter = await options.counter.increment(
+					const count = await counter.increment(
 						keys,
 						1,
 						interval,
 					);
-					if (counter > 10) {
+					if (count > 10) {
 						throw new RateLimitedError();
 					}
 
@@ -328,16 +314,16 @@ export const registration = (
 					);
 					if (result.kind === "identity") {
 						// TODO session expiration
-						const id = await options.identity.get(result.identity.id);
+						const id = await identity.get(result.identity.id);
 						const sessionData = await session.create(result.identity.id, {});
 						const { access_token, id_token, refresh_token } =
 							await createTokens(
 								id,
 								sessionData,
-								options.keys.algo,
-								options.keys.privateKey,
-								options.accessTokenTTL ?? 1000 * 60 * 10,
-								options.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+								configuration.keys.algo,
+								configuration.keys.privateKey,
+								configuration.accessTokenTTL ?? 1000 * 60 * 10,
+								configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
 							);
 						return Response.json({
 							data: {

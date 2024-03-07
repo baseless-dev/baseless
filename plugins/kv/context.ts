@@ -1,5 +1,5 @@
 import type { KVService } from "./kv.ts";
 
-export interface Context {
+export interface KVContext {
 	readonly kv: KVService;
 }

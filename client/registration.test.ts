@@ -1,8 +1,8 @@
-import { generateKeyPair } from "npm:jose@5.2.0";
+// import { generateKeyPair } from "npm:jose@5.2.0";
 import { Assert } from "../lib/typebox.ts";
 import { ruid } from "../lib/autoid.ts";
 import type { ID } from "../lib/identity/types.ts";
-import mock, { type MockResult } from "../server/mock.ts";
+import mock from "../server/mock.ts";
 import { type App, initializeApp } from "./app.ts";
 import {
 	getCeremony,
@@ -23,71 +23,78 @@ import {
 } from "https://deno.land/std@0.213.0/assert/mod.ts";
 import { sendValidationCode } from "./registration.ts";
 import { initializeAuthentication, signOut } from "./authentication.ts";
+import { oneOf, sequence } from "../lib/authentication/types.ts";
 
 Deno.test("Client Registration", async (t) => {
-	let cachedKeys: Awaited<ReturnType<typeof generateKeyPair>> | undefined;
 	const initMockServer = async (): Promise<
 		{
 			identity: ID;
 			app: App;
 			notifications: () => Notification[];
-		} & MockResult
+		} & Awaited<ReturnType<typeof mock>>
 	> => {
 		let john: ID;
-		const result = await mock(async (r) => {
-			if (!cachedKeys) {
-				cachedKeys = await generateKeyPair("PS512");
-			}
-			john = await r.providers.identity.create(
+		const result = await mock(async ({
+			identityProvider,
+			emailProvider,
+			passwordProvider,
+			otpProvider,
+			authenticationConfiguration,
+			registrationConfiguration,
+		}) => {
+			john = await identityProvider.create(
 				{},
 				[
 					{
 						id: "email",
-						...await r.components.email.configureIdentityComponent(
+						...await emailProvider.configureIdentityComponent(
 							"john@test.local",
 						),
 						confirmed: true,
 					},
 					{
 						id: "password",
-						...await r.components.password.configureIdentityComponent("123"),
+						...await passwordProvider.configureIdentityComponent("123"),
 					},
 					{
 						id: "otp",
-						confirmed: true,
-						meta: {},
+						...await otpProvider.configureIdentityComponent(null),
 					},
 				],
 			);
-			const { publicKey, privateKey } = cachedKeys;
-			return {
-				auth: {
-					keys: { algo: "PS512", publicKey, privateKey },
-					salt: "foobar",
-					allowAnonymousIdentity: true,
-					accessTokenTTL: 1_000,
-					refreshTokenTTL: 4_000,
-					providers: [
-						r.components.email,
-						r.components.password,
-						r.components.otp,
-					],
-					ceremony: r.components.oneOf(
-						r.components.sequence(
-							r.components.email.toCeremonyComponent(),
-							r.components.password.toCeremonyComponent(),
-						),
-						r.components.sequence(
-							r.components.email.toCeremonyComponent(),
-							r.components.otp.toCeremonyComponent(),
-						),
+			const email = emailProvider.toCeremonyComponent();
+			const password = passwordProvider.toCeremonyComponent();
+			const otp = otpProvider.toCeremonyComponent();
+			authenticationConfiguration = authenticationConfiguration
+				.setAllowAnonymousIdentity(true)
+				.setAccessTokenTTL(1_000)
+				.setRefreshTokenTTL(4_000)
+				.setCeremony(oneOf(
+					sequence(
+						email,
+						password,
 					),
-					components: [
-						r.components.email,
-						r.components.password,
-						r.components.otp,
-					],
-				},
+					sequence(
+						email,
+						otp,
+					),
+				));
+			registrationConfiguration = registrationConfiguration
+				.setAccessTokenTTL(1_000)
+				.setRefreshTokenTTL(4_000)
+				.setCeremony(oneOf(
+					sequence(
+						email,
+						password,
+					),
+					sequence(
+						email,
+						otp,
+					),
+				));
+			return {
+				authenticationConfiguration,
+				registrationConfiguration,
 			};
 		});
 
@@ -112,7 +119,7 @@ Deno.test("Client Registration", async (t) => {
 			identity: john!,
 			app,
 			notifications(): Notification[] {
-				return result.providers.notification.notifications;
+				return result.notificationProvider.notifications;
 			},
 		};
 	};
@@ -123,14 +130,14 @@ Deno.test("Client Registration", async (t) => {
 	});
 
 	await t.step("getCeremony", async () => {
-		const { app, components: { email } } = await initMockServer();
+		const { app, emailProvider } = await initMockServer();
 		const result = await getCeremony(app);
 		Assert(RegistrationCeremonyStateNextSchema, result);
 		assertEquals(result.first, true);
 		assertEquals(result.last, false);
 		assertEquals(
 			result.component,
-			email.toCeremonyComponent(),
+			emailProvider.toCeremonyComponent(),
 		);
 		await assertRejects(() => getCeremony(app, "invalid"));
 	});

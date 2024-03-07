@@ -1,4 +1,4 @@
-import { type JWTPayload, jwtVerify, SignJWT } from "npm:jose@5.2.0";
+import { type JWTPayload, jwtVerify, KeyLike, SignJWT } from "npm:jose@5.2.0";
 import { Assert } from "../../lib/typebox.ts";
 import {
 	AuthenticationMissingIdentificatorError,
@@ -16,14 +16,17 @@ import type { Identity } from "../../lib/identity/types.ts";
 import { createLogger } from "../../lib/logger.ts";
 import type { AuthenticationProvider } from "../../providers/auth.ts";
 import type { IdentityProvider } from "../../providers/identity.ts";
-import type { AuthenticationKeys } from "./mod.ts";
 
 export default class AuthenticationService {
 	#logger = createLogger("authentication-service");
 	#ceremony: AuthenticationCeremonyComponent;
 	#providers: AuthenticationProvider[];
 	#identityProvider: IdentityProvider;
-	#keys: AuthenticationKeys;
+	#keys: {
+		algo: string;
+		privateKey: KeyLike;
+		publicKey: KeyLike;
+	};
 	#rateLimit: {
 		count: number;
 		interval: number;
@@ -34,7 +37,11 @@ export default class AuthenticationService {
 		providers: AuthenticationProvider[],
 		ceremony: AuthenticationCeremonyComponent,
 		identityProvider: IdentityProvider,
-		keys: AuthenticationKeys,
+		keys: {
+			algo: string;
+			privateKey: KeyLike;
+			publicKey: KeyLike;
+		},
 		rateLimit?: {
 			count: number;
 			interval: number;

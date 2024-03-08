@@ -10,7 +10,8 @@ type Options = {
 	};
 	salt?: string;
 	authenticationProviders?: AuthenticationProvider[];
-	ceremony?: AuthenticationCeremonyComponent;
+	authenticationCeremony?: AuthenticationCeremonyComponent;
+	registrationCeremony?: AuthenticationCeremonyComponent;
 	rateLimit?: {
 		count: number;
 		interval: number;
@@ -59,12 +60,21 @@ export class AuthenticationConfiguration {
 		});
 	}
 
-	setCeremony(
-		ceremony: AuthenticationCeremonyComponent,
+	setAuthenticationCeremony(
+		authenticationCeremony: AuthenticationCeremonyComponent,
 	): AuthenticationConfiguration {
 		return new AuthenticationConfiguration({
 			...this.#options,
-			ceremony,
+			authenticationCeremony,
+		});
+	}
+
+	setRegistrationCeremony(
+		registrationCeremony: AuthenticationCeremonyComponent,
+	): AuthenticationConfiguration {
+		return new AuthenticationConfiguration({
+			...this.#options,
+			registrationCeremony,
 		});
 	}
 
@@ -118,14 +128,16 @@ export class AuthenticationConfiguration {
 		if (!this.#options?.authenticationProviders) {
 			throw new Error("Authentication providers must be provided.");
 		}
-		if (!this.#options?.ceremony) {
-			throw new Error("A ceremony must be provided.");
+		if (!this.#options?.authenticationCeremony) {
+			throw new Error("An authentication ceremony must be provided.");
 		}
 		return Object.freeze({
 			keys: this.#options?.keys,
 			salt: this.#options?.salt,
 			authenticationProviders: this.#options?.authenticationProviders,
-			ceremony: this.#options?.ceremony,
+			authenticationCeremony: this.#options?.authenticationCeremony,
+			registrationCeremony: this.#options?.registrationCeremony ??
+				this.#options?.authenticationCeremony,
 			rateLimit: Object.freeze(
 				this.#options?.rateLimit ??
 					{ count: 10, interval: 1000 * 60 * 2 },

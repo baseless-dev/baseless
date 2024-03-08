@@ -40,7 +40,6 @@ Deno.test("Client Registration", async (t) => {
 			passwordProvider,
 			otpProvider,
 			authenticationConfiguration,
-			registrationConfiguration,
 		}) => {
 			john = await identityProvider.create(
 				{},
@@ -69,20 +68,7 @@ Deno.test("Client Registration", async (t) => {
 				.setAllowAnonymousIdentity(true)
 				.setAccessTokenTTL(1_000)
 				.setRefreshTokenTTL(4_000)
-				.setCeremony(oneOf(
-					sequence(
-						email,
-						password,
-					),
-					sequence(
-						email,
-						otp,
-					),
-				));
-			registrationConfiguration = registrationConfiguration
-				.setAccessTokenTTL(1_000)
-				.setRefreshTokenTTL(4_000)
-				.setCeremony(oneOf(
+				.setAuthenticationCeremony(oneOf(
 					sequence(
 						email,
 						password,
@@ -94,7 +80,6 @@ Deno.test("Client Registration", async (t) => {
 				));
 			return {
 				authenticationConfiguration,
-				registrationConfiguration,
 			};
 		});
 
@@ -102,7 +87,7 @@ Deno.test("Client Registration", async (t) => {
 
 		const app = initializeApp({
 			clientId: ruid(),
-			apiEndpoint: "http://test.local/api",
+			apiEndpoint: "http://test.local",
 			async fetch(input, init): Promise<Response> {
 				const request = new Request(input, init);
 				return await routeHandler(
@@ -111,8 +96,8 @@ Deno.test("Client Registration", async (t) => {
 			},
 		});
 
-		initializeAuthentication(app, "http://test.local/api/authentication");
-		initializeRegistration(app, "http://test.local/api/registration");
+		initializeAuthentication(app, "http://test.local/authentication");
+		initializeRegistration(app, "http://test.local/registration");
 
 		return {
 			...result,

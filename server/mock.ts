@@ -2,10 +2,8 @@ import type { IdentityContext } from "../plugins/identity/context.ts";
 import type { KVContext } from "../plugins/kv/context.ts";
 import type { SessionContext } from "../plugins/session/context.ts";
 import type { AuthenticationContext } from "../plugins/authentication/context.ts";
-import type { RegistrationContext } from "../plugins/registration/context.ts";
 import type { AssetContext } from "../plugins/asset/context.ts";
 import { AuthenticationConfiguration } from "../plugins/authentication/configuration.ts";
-import { RegistrationConfiguration } from "../plugins/registration/configuration.ts";
 import { Router } from "../lib/router/router.ts";
 import { MemoryAssetProvider } from "../providers/asset-memory/mod.ts";
 import OTPMemoryAuthentificationProvider from "../providers/auth-otp-memory/mod.ts";
@@ -26,7 +24,6 @@ import identity from "../plugins/identity/mod.ts";
 import session from "../plugins/session/mod.ts";
 import authentication from "../plugins/authentication/mod.ts";
 import openapi from "../plugins/openapi/mod.ts";
-import registration from "../plugins/registration/mod.ts";
 import { sequence } from "../lib/authentication/types.ts";
 
 export type BuilderOptions = {
@@ -38,7 +35,6 @@ export type BuilderOptions = {
 	sessionProvider: KVSessionProvider;
 	notificationProvider: MemoryNotificationProvider;
 	authenticationConfiguration: AuthenticationConfiguration;
-	registrationConfiguration: RegistrationConfiguration;
 	emailProvider: EmailAuthentificationProvider;
 	passwordProvider: PasswordAuthentificationProvider;
 	otpProvider: OTPMemoryAuthentificationProvider;
@@ -46,13 +42,11 @@ export type BuilderOptions = {
 };
 export type BuilderResult = {
 	authenticationConfiguration?: AuthenticationConfiguration;
-	registrationConfiguration?: RegistrationConfiguration;
 };
 
 export type MockResult = {
 	router: Router<
 		& AuthenticationContext
-		& RegistrationContext
 		& AssetContext
 		& IdentityContext
 		& KVContext
@@ -109,21 +103,7 @@ export async function mock(
 			otpProvider,
 			totpProvider,
 		])
-		.setCeremony(
-			sequence(
-				emailProvider.toCeremonyComponent(),
-				passwordProvider.toCeremonyComponent(),
-			),
-		);
-	let registrationConfiguration = new RegistrationConfiguration()
-		.setKeys(keys)
-		.setAuthenticationProviders([
-			emailProvider,
-			passwordProvider,
-			otpProvider,
-			totpProvider,
-		])
-		.setCeremony(
+		.setAuthenticationCeremony(
 			sequence(
 				emailProvider.toCeremonyComponent(),
 				passwordProvider.toCeremonyComponent(),
@@ -139,7 +119,6 @@ export async function mock(
 		sessionProvider,
 		notificationProvider,
 		authenticationConfiguration,
-		registrationConfiguration,
 		emailProvider,
 		passwordProvider,
 		otpProvider,
@@ -149,17 +128,13 @@ export async function mock(
 	if (result.authenticationConfiguration) {
 		authenticationConfiguration = result.authenticationConfiguration;
 	}
-	if (result.registrationConfiguration) {
-		registrationConfiguration = result.registrationConfiguration;
-	}
 	const router = new Router()
 		.use(asset((config) => config.setAssetProvider(assetProvider)))
 		.use(kv((config) => config.setKVProvider(kvProvider)))
 		.use(counter((config) => config.setCounterProvider(counterProvider)))
 		.use(identity((config) => config.setIdentityProvider(identityProvider)))
 		.use(session((config) => config.setSessionProvider(sessionProvider)))
-		.use("/api/authentication", authentication(authenticationConfiguration))
-		.use("/api/registration", registration(registrationConfiguration))
+		.use(authentication(authenticationConfiguration))
 		.use(openapi());
 	return {
 		...options,

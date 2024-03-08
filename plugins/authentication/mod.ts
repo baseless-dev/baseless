@@ -8,6 +8,7 @@ import {
 } from "../../lib/authentication/errors.ts";
 import { simplify } from "../../lib/authentication/simplify.ts";
 import {
+	AuthenticationCeremonyComponent,
 	AuthenticationCeremonyStateSchema,
 	AuthenticationSendPromptResultSchema,
 	AuthenticationSubmitPromptStateSchema,
@@ -26,6 +27,13 @@ import { AuthenticationConfiguration } from "./configuration.ts";
 import type { CounterService } from "../counter/counter.ts";
 import type { IdentityService } from "../identity/identity.ts";
 import type { SessionService } from "../session/session.ts";
+import RegistrationService from "./registration.ts";
+import { map } from "../../lib/authentication/map.ts";
+import {
+	RegistrationCeremonyStateSchema,
+	RegistrationSendValidationCodeResultSchema,
+	RegistrationSubmitStateSchema,
+} from "../../lib/registration/types.ts";
 
 const dataOrError = <T>($id: string, schema: TSchema): TSchema =>
 	t.Union([
@@ -51,8 +59,28 @@ export const authentication = (
 	const configuration = builder instanceof AuthenticationConfiguration
 		? builder.build()
 		: builder(new AuthenticationConfiguration()).build();
-	const ceremony = simplify(
-		sequence(configuration.ceremony, { kind: "done" as const }),
+
+	const authenticationCeremony = simplify(
+		sequence(configuration.authenticationCeremony, { kind: "done" as const }),
+	);
+	const setupableCeremony = map(
+		configuration.registrationCeremony,
+		(component) => {
+			if (component.kind === "prompt") {
+				const provider = configuration.authenticationProviders.find((c) =>
+					c.id === component.id
+				);
+				const setupPrompt = provider?.setupPrompt();
+				return setupPrompt ? component : undefined;
+			}
+			return component;
+		},
+	);
+	if (!setupableCeremony) {
+		throw new Error("Invalid registration ceremony");
+	}
+	const registrationCeremony = simplify(
+		sequence(setupableCeremony, { kind: "done" as const }),
 	);
 
 	return new Router<
@@ -116,7 +144,16 @@ export const authentication = (
 				get authentication() {
 					return new AuthenticationService(
 						configuration.authenticationProviders,
-						ceremony,
+						authenticationCeremony,
+						identity,
+						configuration.keys,
+						configuration.rateLimit,
+					);
+				},
+				get registration() {
+					return new RegistrationService(
+						configuration.authenticationProviders,
+						registrationCeremony,
 						identity,
 						configuration.keys,
 						configuration.rateLimit,
@@ -125,105 +162,113 @@ export const authentication = (
 			};
 			return context;
 		})
-		.post("/sign-out", async ({ session, authenticationToken }) => {
-			try {
-				if (authenticationToken) {
-					const sessionId = authenticationToken.sessionData.id;
-					await session.destroy(sessionId).catch((_) => {});
-					return Response.json({ data: { ok: true } });
+		.post(
+			"/authentication/sign-out",
+			async ({ session, authenticationToken }) => {
+				try {
+					if (authenticationToken) {
+						const sessionId = authenticationToken.sessionData.id;
+						await session.destroy(sessionId).catch((_) => {});
+						return Response.json({ data: { ok: true } });
+					}
+					return Response.json({ error: UnauthorizedError.name });
+				} catch (error) {
+					return Response.json({ error: error.name });
 				}
-				return Response.json({ error: UnauthorizedError.name });
-			} catch (error) {
-				return Response.json({ error: error.name });
-			}
-		}, {
-			detail: {
-				summary: "Sign out current session",
-				tags: ["Authentication"],
 			},
-			headers: t.Object({
-				"authorization": t.String(),
-			}),
-			response: {
-				200: {
-					description: "Sign out confirmation",
-					content: {
-						"application/json": {
-							schema: dataOrError(
-								"SignOutResponse",
-								t.Object({
-									ok: t.Literal(true),
-								}),
-							),
+			{
+				detail: {
+					summary: "Sign out current session",
+					tags: ["Authentication"],
+				},
+				headers: t.Object({
+					"authorization": t.String(),
+				}),
+				response: {
+					200: {
+						description: "Sign out confirmation",
+						content: {
+							"application/json": {
+								schema: dataOrError(
+									"SignOutResponse",
+									t.Object({
+										ok: t.Literal(true),
+									}),
+								),
+							},
 						},
 					},
 				},
 			},
-		})
-		.post("/refresh-tokens", async ({ body, session, identity }) => {
-			try {
-				const refreshToken = body.refresh_token;
-				if (!refreshToken) {
-					return Response.json({ error: MissingRefreshTokenError.name });
+		)
+		.post(
+			"/authentication/refresh-tokens",
+			async ({ body, session, identity }) => {
+				try {
+					const refreshToken = body.refresh_token;
+					if (!refreshToken) {
+						return Response.json({ error: MissingRefreshTokenError.name });
+					}
+					const { payload } = await jwtVerify(
+						refreshToken,
+						configuration.keys.publicKey,
+					);
+					const { sub: sessionId, scope } = payload;
+					assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
+					const sessionData = await session.get(sessionId);
+					const id = await identity.get(sessionData.identityId);
+					await session.update(
+						sessionData,
+						configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+					);
+					const { access_token, id_token } = await createTokens(
+						id,
+						sessionData,
+						configuration.keys.algo,
+						configuration.keys.privateKey,
+						configuration.accessTokenTTL ?? 1000 * 60 * 10,
+						configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+						`${scope}`,
+					);
+					return Response.json({
+						data: {
+							access_token,
+							id_token,
+							refresh_token: refreshToken,
+						},
+					});
+				} catch (error) {
+					return Response.json({ error: error.name });
 				}
-				const { payload } = await jwtVerify(
-					refreshToken,
-					configuration.keys.publicKey,
-				);
-				const { sub: sessionId, scope } = payload;
-				assertAutoId(sessionId, SESSION_AUTOID_PREFIX);
-				const sessionData = await session.get(sessionId);
-				const id = await identity.get(sessionData.identityId);
-				await session.update(
-					sessionData,
-					configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
-				);
-				const { access_token, id_token } = await createTokens(
-					id,
-					sessionData,
-					configuration.keys.algo,
-					configuration.keys.privateKey,
-					configuration.accessTokenTTL ?? 1000 * 60 * 10,
-					configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
-					`${scope}`,
-				);
-				return Response.json({
-					data: {
-						access_token,
-						id_token,
-						refresh_token: refreshToken,
-					},
-				});
-			} catch (error) {
-				return Response.json({ error: error.name });
-			}
-		}, {
-			detail: {
-				summary: "Get access token from refresh token",
-				tags: ["Authentication"],
 			},
-			body: t.Object({
-				"refresh_token": t.String(),
-			}),
-			response: {
-				200: {
-					description: "Refreshed tokens",
-					content: {
-						"application/json": {
-							schema: dataOrError(
-								"RefreshTokensResponse",
-								t.Object({
-									access_token: t.String(),
-									id_token: t.String(),
-									refresh_token: t.String(),
-								}),
-							),
+			{
+				detail: {
+					summary: "Get access token from refresh token",
+					tags: ["Authentication"],
+				},
+				body: t.Object({
+					"refresh_token": t.String(),
+				}),
+				response: {
+					200: {
+						description: "Refreshed tokens",
+						content: {
+							"application/json": {
+								schema: dataOrError(
+									"RefreshTokensResponse",
+									t.Object({
+										access_token: t.String(),
+										id_token: t.String(),
+										refresh_token: t.String(),
+									}),
+								),
+							},
 						},
 					},
 				},
 			},
-		})
-		.get("/ceremony", async ({ authentication }) => {
+		)
+		.get("/authentication/ceremony", async ({ authentication }) => {
 			try {
 				const data = await authentication.getCeremony();
 				return Response.json({ data });
@@ -249,7 +294,7 @@ export const authentication = (
 				},
 			},
 		})
-		.post("/ceremony", async ({ body, authentication }) => {
+		.post("/authentication/ceremony", async ({ body, authentication }) => {
 			try {
 				const state = await authentication.decryptAuthenticationState(
 					body.state,
@@ -282,7 +327,7 @@ export const authentication = (
 			},
 		})
 		.post(
-			"/submit-prompt",
+			"/authentication/submit-prompt",
 			async (
 				{ body, authentication, remoteAddress, session, identity, counter },
 			) => {
@@ -388,7 +433,7 @@ export const authentication = (
 			},
 		)
 		.post(
-			"/send-prompt",
+			"/authentication/send-prompt",
 			async ({ body, authentication, remoteAddress, counter }) => {
 				try {
 					const state = body.state
@@ -442,6 +487,305 @@ export const authentication = (
 								schema: dataOrError(
 									"AuthenticationSendPromptResponse",
 									AuthenticationSendPromptResultSchema,
+								),
+							},
+						},
+					},
+				},
+			},
+		)
+		.get("/registration/ceremony", async ({ registration }) => {
+			try {
+				const data = await registration.getCeremony();
+				return Response.json({ data });
+			} catch (error) {
+				return Response.json({ error: error.name });
+			}
+		}, {
+			detail: {
+				summary: "Get the registration ceremony",
+				tags: ["Registration"],
+			},
+			response: {
+				200: {
+					description: "Registration ceremony",
+					content: {
+						"application/json": {
+							schema: dataOrError(
+								"RegistrationCeremonyResponse",
+								RegistrationCeremonyStateSchema,
+							),
+						},
+					},
+				},
+			},
+		})
+		.post("/registration/ceremony", async ({ body, registration }) => {
+			try {
+				const state = await registration.decryptRegistrationState(
+					body.state,
+				);
+				const data = await registration.getCeremony(state);
+				return Response.json({ data });
+			} catch (error) {
+				return Response.json({ error: error.name });
+			}
+		}, {
+			detail: {
+				summary: "Get the registration ceremony from an encrypted state",
+				tags: ["Registration"],
+			},
+			body: t.Object({
+				state: t.String({ description: "Encrypted state" }),
+			}),
+			response: {
+				200: {
+					description: "Registration ceremony",
+					content: {
+						"application/json": {
+							schema: dataOrError(
+								"RegistrationCeremonyResponse",
+								RegistrationCeremonyStateSchema,
+							),
+						},
+					},
+				},
+			},
+		})
+		.post(
+			"/registration/submit-prompt",
+			async (
+				{ body, registration, remoteAddress, session, counter, identity },
+			) => {
+				try {
+					const state = body.state
+						? await registration.decryptRegistrationState(body.state)
+						: undefined;
+
+					const interval = configuration.rateLimit?.interval ?? 60 * 1000;
+					const keys = [
+						"registration",
+						"submitprompt",
+						remoteAddress,
+						slidingWindow(interval).toString(),
+					];
+					const count = await counter.increment(
+						keys,
+						1,
+						interval,
+					);
+					if (count > 10) {
+						throw new RateLimitedError();
+					}
+
+					const result = await registration.submitPrompt(
+						body.component,
+						body.prompt,
+						state,
+					);
+					if (result.kind === "identity") {
+						// TODO session expiration
+						const id = await identity.get(result.identity.id);
+						const sessionData = await session.create(result.identity.id, {});
+						const { access_token, id_token, refresh_token } =
+							await createTokens(
+								id,
+								sessionData,
+								configuration.keys.algo,
+								configuration.keys.privateKey,
+								configuration.accessTokenTTL ?? 1000 * 60 * 10,
+								configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+							);
+						return Response.json({
+							data: {
+								done: true,
+								access_token,
+								id_token,
+								refresh_token,
+							},
+						});
+					}
+					const nextCeremonyComponent = await registration.getCeremony(result);
+					return Response.json({
+						data: {
+							...nextCeremonyComponent,
+							state: await registration.encryptRegistrationState(result),
+						},
+					});
+				} catch (error) {
+					return Response.json({ error: error.name });
+				}
+			},
+			{
+				detail: {
+					summary: "Submit registration prompt",
+					tags: ["Registration"],
+				},
+				body: t.Object({
+					component: t.String({ description: "The authentication component" }),
+					prompt: t.Any(),
+					state: t.Optional(t.String({ description: "Encrypted state" })),
+				}),
+				response: {
+					200: {
+						description: "The registration prompt result",
+						content: {
+							"application/json": {
+								schema: dataOrError(
+									"RegistrationSubmitResponse",
+									RegistrationSubmitStateSchema,
+								),
+							},
+						},
+					},
+				},
+			},
+		)
+		.post(
+			"/registration/send-validation-code",
+			async ({ body, registration, remoteAddress, counter }) => {
+				try {
+					const state = body.state
+						? await registration.decryptRegistrationState(body.state)
+						: undefined;
+
+					const interval = configuration.rateLimit?.interval ?? 60 * 1000;
+					const keys = [
+						"registration",
+						"sendvalidationcode",
+						remoteAddress,
+						slidingWindow(interval).toString(),
+					];
+					const count = await counter.increment(
+						keys,
+						1,
+						interval,
+					);
+					if (count > 10) {
+						throw new RateLimitedError();
+					}
+
+					const result = await registration.sendValidationCode(
+						body.component,
+						body.locale,
+						state,
+					);
+					return Response.json({
+						data: {
+							sent: result,
+						},
+					});
+				} catch (error) {
+					return Response.json({ error: error.name });
+				}
+			},
+			{
+				detail: {
+					summary: "Send registration validation code",
+					tags: ["Registration"],
+				},
+				body: t.Object({
+					component: t.String({ description: "The authentication component" }),
+					state: t.Optional(t.String({ description: "Encrypted state" })),
+					locale: t.String({ description: "The locale" }),
+				}),
+				response: {
+					200: {
+						description: "The send validation code result",
+						content: {
+							"application/json": {
+								schema: dataOrError(
+									"RegistrationSendValidationCodeResponse",
+									RegistrationSendValidationCodeResultSchema,
+								),
+							},
+						},
+					},
+				},
+			},
+		)
+		.post(
+			"/registration/submit-validation-code",
+			async (
+				{ body, registration, remoteAddress, session, counter, identity },
+			) => {
+				try {
+					const state = body.state
+						? await registration.decryptRegistrationState(body.state)
+						: undefined;
+
+					const interval = configuration.rateLimit?.interval ?? 60 * 1000;
+					const keys = [
+						"registration",
+						"submitvalidationcode",
+						remoteAddress,
+						slidingWindow(interval).toString(),
+					];
+					const count = await counter.increment(
+						keys,
+						1,
+						interval,
+					);
+					if (count > 10) {
+						throw new RateLimitedError();
+					}
+
+					const result = await registration.submitValidationCode(
+						body.component,
+						body.code,
+						state,
+					);
+					if (result.kind === "identity") {
+						// TODO session expiration
+						const id = await identity.get(result.identity.id);
+						const sessionData = await session.create(result.identity.id, {});
+						const { access_token, id_token, refresh_token } =
+							await createTokens(
+								id,
+								sessionData,
+								configuration.keys.algo,
+								configuration.keys.privateKey,
+								configuration.accessTokenTTL ?? 1000 * 60 * 10,
+								configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
+							);
+						return Response.json({
+							data: {
+								done: true,
+								access_token,
+								id_token,
+								refresh_token,
+							},
+						});
+					}
+					const nextCeremonyComponent = await registration.getCeremony(result);
+					return Response.json({
+						data: {
+							...nextCeremonyComponent,
+							state: await registration.encryptRegistrationState(result),
+						},
+					});
+				} catch (error) {
+					return Response.json({ error: error.name });
+				}
+			},
+			{
+				detail: {
+					summary: "Submit registration validation code",
+					tags: ["Registration"],
+				},
+				body: t.Object({
+					component: t.String({ description: "The authentication component" }),
+					code: t.String({ description: "The validation code" }),
+					state: t.Optional(t.String({ description: "Encrypted state" })),
+				}),
+				response: {
+					200: {
+						description: "The registration prompt result",
+						content: {
+							"application/json": {
+								schema: dataOrError(
+									"RegistrationSubmitResponse",
+									RegistrationSubmitStateSchema,
 								),
 							},
 						},

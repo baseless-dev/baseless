@@ -79,7 +79,7 @@ Deno.test("Client Authentication", async (t) => {
 				.setAllowAnonymousIdentity(true)
 				.setAccessTokenTTL(1_000)
 				.setRefreshTokenTTL(4_000)
-				.setCeremony(oneOf(
+				.setAuthenticationCeremony(oneOf(
 					sequence(
 						email,
 						password,
@@ -98,7 +98,7 @@ Deno.test("Client Authentication", async (t) => {
 
 		const app = initializeApp({
 			clientId: ruid(),
-			apiEndpoint: "http://test.local/api",
+			apiEndpoint: "http://test.local",
 			async fetch(input, init): Promise<Response> {
 				const request = new Request(input, init);
 				return await routeHandler(
@@ -107,7 +107,7 @@ Deno.test("Client Authentication", async (t) => {
 			},
 		});
 
-		initializeAuthentication(app, "http://test.local/api/authentication");
+		initializeAuthentication(app, "http://test.local/authentication");
 
 		return {
 			...result,

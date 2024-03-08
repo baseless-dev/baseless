@@ -15,12 +15,10 @@ import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
 import { LoggerNotificationProvider } from "../../providers/notification-logger/mod.ts";
 import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
 import authentication from "../../plugins/authentication/mod.ts";
-import registration from "../../plugins/registration/mod.ts";
 import { generateKeyPair } from "npm:jose@5.2.0";
 import { t } from "../../lib/typebox.ts";
 import { sequence } from "../../lib/authentication/types.ts";
 import { AuthenticationConfiguration } from "../../plugins/authentication/configuration.ts";
-import { RegistrationConfiguration } from "../../plugins/registration/configuration.ts";
 import kv from "../../plugins/kv/mod.ts";
 import counter from "../../plugins/counter/mod.ts";
 import identity from "../../plugins/identity/mod.ts";
@@ -76,21 +74,7 @@ const authenticationConfiguration = new AuthenticationConfiguration()
 		passwordProvider,
 		otpProvider,
 	])
-	.setCeremony(
-		sequence(
-			emailProvider.toCeremonyComponent(),
-			passwordProvider.toCeremonyComponent(),
-			otpProvider.toCeremonyComponent(),
-		),
-	);
-const registrationConfiguration = new RegistrationConfiguration()
-	.setKeys(keys)
-	.setAuthenticationProviders([
-		emailProvider,
-		passwordProvider,
-		otpProvider,
-	])
-	.setCeremony(
+	.setAuthenticationCeremony(
 		sequence(
 			emailProvider.toCeremonyComponent(),
 			passwordProvider.toCeremonyComponent(),
@@ -103,23 +87,10 @@ const app = new Router()
 	.use(counter((config) => config.setCounterProvider(counterProvider)))
 	.use(identity((config) => config.setIdentityProvider(identityProvider)))
 	.use(session((config) => config.setSessionProvider(sessionProvider)))
-	.use(
-		"/api/authentication",
-		authentication(authenticationConfiguration),
-	)
-	.use(
-		"/api/registration",
-		registration(registrationConfiguration),
-	)
-	.use(openapi((config) =>
-		config
-			.setInfo({
-				title: "Hello World Documentation",
-				version: "0.0.1",
-			})
-	))
+	.use(authentication(authenticationConfiguration))
+	.use(openapi())
 	.get(
-		"/api/v1/hello/{world}",
+		"hello/{world}",
 		({ params, query }) =>
 			new Response(
 				`Hello, ${decodeURIComponent(params.world)}${query.exclamation ?? "!"}`,
@@ -165,7 +136,6 @@ await Deno.serve({
 	hostname: "localhost",
 	signal: abortController.signal,
 }, async (req, _info) => {
-	// const waitUntil: PromiseLike<void>[] = [];
 	const res = await handle(req);
 	res.headers.set(
 		"Access-Control-Allow-Origin",

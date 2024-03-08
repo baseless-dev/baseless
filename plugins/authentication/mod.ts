@@ -27,7 +27,7 @@ import type { CounterService } from "../counter/counter.ts";
 import type { IdentityService } from "../identity/identity.ts";
 import type { SessionService } from "../session/session.ts";
 
-const dataOrError = <T>(schema: TSchema): TSchema =>
+const dataOrError = <T>($id: string, schema: TSchema): TSchema =>
 	t.Union([
 		t.Object({
 			data: schema,
@@ -36,6 +36,7 @@ const dataOrError = <T>(schema: TSchema): TSchema =>
 			error: t.String({ description: "Error code" }),
 		}, { $id: "AuthenticationErrorObject", description: "Error object" }),
 	], {
+		$id,
 		description: "Either an error object or the actual response",
 	});
 
@@ -148,9 +149,12 @@ export const authentication = (
 					description: "Sign out confirmation",
 					content: {
 						"application/json": {
-							schema: dataOrError(t.Object({
-								ok: t.Literal(true),
-							})),
+							schema: dataOrError(
+								"SignOutResponse",
+								t.Object({
+									ok: t.Literal(true),
+								}),
+							),
 						},
 					},
 				},
@@ -206,11 +210,14 @@ export const authentication = (
 					description: "Refreshed tokens",
 					content: {
 						"application/json": {
-							schema: dataOrError(t.Object({
-								access_token: t.String(),
-								id_token: t.String(),
-								refresh_token: t.String(),
-							})),
+							schema: dataOrError(
+								"RefreshTokensResponse",
+								t.Object({
+									access_token: t.String(),
+									id_token: t.String(),
+									refresh_token: t.String(),
+								}),
+							),
 						},
 					},
 				},
@@ -233,7 +240,10 @@ export const authentication = (
 					description: "Authentication ceremony",
 					content: {
 						"application/json": {
-							schema: dataOrError(AuthenticationCeremonyStateSchema),
+							schema: dataOrError(
+								"AuthenticationCeremonyResponse",
+								AuthenticationCeremonyStateSchema,
+							),
 						},
 					},
 				},
@@ -262,7 +272,10 @@ export const authentication = (
 					description: "Authentication ceremony",
 					content: {
 						"application/json": {
-							schema: dataOrError(AuthenticationCeremonyStateSchema),
+							schema: dataOrError(
+								"AuthenticationCeremonyResponse",
+								AuthenticationCeremonyStateSchema,
+							),
 						},
 					},
 				},
@@ -364,7 +377,10 @@ export const authentication = (
 						description: "The sign in prompt result",
 						content: {
 							"application/json": {
-								schema: dataOrError(AuthenticationSubmitPromptStateSchema),
+								schema: dataOrError(
+									"AuthenticationSubmitPromptResponse",
+									AuthenticationSubmitPromptStateSchema,
+								),
 							},
 						},
 					},
@@ -423,7 +439,10 @@ export const authentication = (
 						description: "The send prompt result",
 						content: {
 							"application/json": {
-								schema: dataOrError(AuthenticationSendPromptResultSchema),
+								schema: dataOrError(
+									"AuthenticationSendPromptResponse",
+									AuthenticationSendPromptResultSchema,
+								),
 							},
 						},
 					},

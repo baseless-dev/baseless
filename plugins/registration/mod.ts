@@ -19,7 +19,7 @@ import type { CounterService } from "../counter/counter.ts";
 import type { IdentityService } from "../identity/identity.ts";
 import type { SessionService } from "../session/session.ts";
 
-const dataOrError = <T>(schema: TSchema): TSchema =>
+const dataOrError = <T>($id: string, schema: TSchema): TSchema =>
 	t.Union([
 		t.Object({
 			data: schema,
@@ -28,6 +28,7 @@ const dataOrError = <T>(schema: TSchema): TSchema =>
 			error: t.String({ description: "Error code" }),
 		}, { $id: "AuthenticationErrorObject", description: "Error object" }),
 	], {
+		$id,
 		description: "Either an error object or the actual response",
 	});
 
@@ -100,7 +101,10 @@ export const registration = (
 					description: "Registration ceremony",
 					content: {
 						"application/json": {
-							schema: dataOrError(RegistrationCeremonyStateSchema),
+							schema: dataOrError(
+								"RegistrationCeremonyResponse",
+								RegistrationCeremonyStateSchema,
+							),
 						},
 					},
 				},
@@ -129,7 +133,10 @@ export const registration = (
 					description: "Registration ceremony",
 					content: {
 						"application/json": {
-							schema: dataOrError(RegistrationCeremonyStateSchema),
+							schema: dataOrError(
+								"RegistrationCeremonyResponse",
+								RegistrationCeremonyStateSchema,
+							),
 						},
 					},
 				},
@@ -214,7 +221,10 @@ export const registration = (
 						description: "The registration prompt result",
 						content: {
 							"application/json": {
-								schema: dataOrError(RegistrationSubmitStateSchema),
+								schema: dataOrError(
+									"RegistrationSubmitResponse",
+									RegistrationSubmitStateSchema,
+								),
 							},
 						},
 					},
@@ -274,7 +284,10 @@ export const registration = (
 						description: "The send validation code result",
 						content: {
 							"application/json": {
-								schema: dataOrError(RegistrationSendValidationCodeResultSchema),
+								schema: dataOrError(
+									"RegistrationSendValidationCodeResponse",
+									RegistrationSendValidationCodeResultSchema,
+								),
 							},
 						},
 					},
@@ -360,7 +373,10 @@ export const registration = (
 						description: "The registration prompt result",
 						content: {
 							"application/json": {
-								schema: dataOrError(RegistrationSubmitStateSchema),
+								schema: dataOrError(
+									"RegistrationSubmitResponse",
+									RegistrationSubmitStateSchema,
+								),
 							},
 						},
 					},

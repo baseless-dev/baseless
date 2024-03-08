@@ -3,6 +3,8 @@ import { CounterConfiguration } from "./configuration.ts";
 import type { CounterContext } from "./context.ts";
 import { CounterService } from "./counter.ts";
 
+export { CounterConfiguration } from "./configuration.ts";
+
 export const counter = (
 	builder:
 		| CounterConfiguration

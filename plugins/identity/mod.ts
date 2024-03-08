@@ -3,6 +3,8 @@ import { IdentityConfiguration } from "./configuration.ts";
 import type { IdentityContext } from "./context.ts";
 import { IdentityService } from "./identity.ts";
 
+export { IdentityConfiguration } from "./configuration.ts";
+
 export const identity = (
 	builder:
 		| IdentityConfiguration

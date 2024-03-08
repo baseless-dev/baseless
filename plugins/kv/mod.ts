@@ -3,6 +3,8 @@ import { KVConfiguration } from "./configuration.ts";
 import type { KVContext } from "./context.ts";
 import { KVService } from "./kv.ts";
 
+export { KVConfiguration } from "./configuration.ts";
+
 export const kv = (
 	builder:
 		| KVConfiguration

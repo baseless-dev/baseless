@@ -6,6 +6,8 @@ import { Router } from "../../lib/router/router.ts";
 import type { Definition, Route, Routes } from "../../lib/router/types.ts";
 import { OpenAPIConfiguration } from "./configuration.ts";
 
+export { OpenAPIConfiguration } from "./configuration.ts";
+
 export const openapi = (
 	builder?:
 		| OpenAPIConfiguration

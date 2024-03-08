@@ -3,26 +3,28 @@ import {
 	LogLevel,
 	setGlobalLogHandler,
 } from "../../lib/logger.ts";
-import { Router } from "../../lib/router/router.ts";
-import openapi from "../../plugins/openapi/mod.ts";
+import {
+	authentication,
+	AuthenticationConfiguration,
+	counter,
+	EmailAuthentificationProvider,
+	identity,
+	kv,
+	PasswordAuthentificationProvider,
+	Router,
+	sequence,
+	session,
+	t,
+} from "../../prelude.ts";
 import OTPLoggerAuthentificationProvider from "../../providers/auth-otp-logger/mod.ts";
-import EmailAuthentificationProvider from "../../providers/auth-email/mod.ts";
-import PasswordAuthentificationProvider from "../../providers/auth-password/mod.ts";
 import { MemoryCounterProvider } from "../../providers/counter-memory/mod.ts";
 import { MemoryDocumentProvider } from "../../providers/document-memory/mod.ts";
 import { DocumentIdentityProvider } from "../../providers/identity-document/mod.ts";
 import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
 import { LoggerNotificationProvider } from "../../providers/notification-logger/mod.ts";
 import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
-import authentication from "../../plugins/authentication/mod.ts";
 import { generateKeyPair } from "npm:jose@5.2.0";
-import { t } from "../../lib/typebox.ts";
-import { sequence } from "../../lib/authentication/types.ts";
-import { AuthenticationConfiguration } from "../../plugins/authentication/configuration.ts";
-import kv from "../../plugins/kv/mod.ts";
-import counter from "../../plugins/counter/mod.ts";
-import identity from "../../plugins/identity/mod.ts";
-import session from "../../plugins/session/mod.ts";
+import openapi from "../../plugins/openapi/mod.ts";
 
 setGlobalLogHandler(createConsoleLogHandler(LogLevel.DEBUG));
 

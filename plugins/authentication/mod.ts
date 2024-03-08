@@ -8,7 +8,6 @@ import {
 } from "../../lib/authentication/errors.ts";
 import { simplify } from "../../lib/authentication/simplify.ts";
 import {
-	AuthenticationCeremonyComponent,
 	AuthenticationCeremonyStateSchema,
 	AuthenticationSendPromptResultSchema,
 	AuthenticationSubmitPromptStateSchema,
@@ -34,6 +33,8 @@ import {
 	RegistrationSendValidationCodeResultSchema,
 	RegistrationSubmitStateSchema,
 } from "../../lib/registration/types.ts";
+
+export { AuthenticationConfiguration } from "./configuration.ts";
 
 const dataOrError = <T>($id: string, schema: TSchema): TSchema =>
 	t.Union([

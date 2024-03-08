@@ -3,6 +3,8 @@ import type { AssetContext } from "./context.ts";
 import { AssetService } from "./asset.ts";
 import { AssetConfiguration } from "./configuration.ts";
 
+export { AssetConfiguration } from "./configuration.ts";
+
 export const asset = (
 	builder:
 		| AssetConfiguration

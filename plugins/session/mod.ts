@@ -3,6 +3,8 @@ import { SessionConfiguration } from "./configuration.ts";
 import type { SessionContext } from "./context.ts";
 import { SessionService } from "./session.ts";
 
+export { SessionConfiguration } from "./configuration.ts";
+
 export const session = (
 	builder:
 		| SessionConfiguration

@@ -11,7 +11,7 @@ import type {
 	RouteSegment,
 } from "./types.ts";
 
-export default function makeCompiledRouter(
+export function makeCompiled(
 	rst: RouteSegment[],
 	context: Record<string, unknown>,
 	derivers: Array<ContextDeriver<any, any>>,
@@ -19,6 +19,8 @@ export default function makeCompiledRouter(
 	const { code, handlers, definitions } = getRouterCode(rst);
 	return Function("data", code)({ handlers, definitions, context, derivers });
 }
+
+export default makeCompiled;
 
 export type DefinitionSchemas = {
 	params?: TypeCheck<any>;

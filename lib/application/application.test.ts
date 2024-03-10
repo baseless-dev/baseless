@@ -1,6 +1,6 @@
 import { assertObjectMatch } from "https://deno.land/std@0.213.0/assert/mod.ts";
-import { t } from "../../lib/typebox.ts";
-import { Router } from "./router.ts";
+import { t } from "../typebox.ts";
+import { Application } from "./application.ts";
 
 async function extractResponse(
 	handler: Promise<Response>,
@@ -18,7 +18,7 @@ async function extractResponse(
 }
 
 Deno.test("route", async () => {
-	const handle = await new Router()
+	const handle = await new Application()
 		.get(
 			"/foo",
 			(_) => Response.json("foo"),

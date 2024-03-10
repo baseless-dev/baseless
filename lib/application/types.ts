@@ -6,7 +6,7 @@ import {
 	TObject,
 	type TSchema,
 	TString,
-} from "../../lib/typebox.ts";
+} from "../typebox.ts";
 import type { MaybeCallable, MaybePromise, Pretty, Split } from "../types.ts";
 
 export type Method =

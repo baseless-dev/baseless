@@ -1,4 +1,4 @@
-import { Router } from "../../lib/router/router.ts";
+import { Application } from "../../lib/application/application.ts";
 import { KVConfiguration } from "./configuration.ts";
 import type { KVContext } from "./context.ts";
 import { KVService } from "./kv.ts";
@@ -15,7 +15,7 @@ export const kv = (
 	const configuration = builder instanceof KVConfiguration
 		? builder.build()
 		: builder(new KVConfiguration()).build();
-	return new Router()
+	return new Application()
 		.derive(() => {
 			const context: KVContext = {
 				kv: new KVService(configuration.kvProvider),

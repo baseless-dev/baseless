@@ -20,7 +20,7 @@ import { slidingWindow } from "../../providers/counter.ts";
 import AuthenticationService from "./authentication.ts";
 import type { AuthenticationContext, TokenData } from "./context.ts";
 import { createTokens } from "./create_tokens.ts";
-import { Router } from "../../lib/router/router.ts";
+import { Application } from "../../lib/application/application.ts";
 import { RateLimitedError } from "../../lib/errors.ts";
 import { AuthenticationConfiguration } from "./configuration.ts";
 import type { CounterService } from "../counter/counter.ts";
@@ -84,7 +84,7 @@ export const authentication = (
 		sequence(setupableCeremony, { kind: "done" as const }),
 	);
 
-	return new Router<
+	return new Application<
 		{},
 		{
 			counter: CounterService;

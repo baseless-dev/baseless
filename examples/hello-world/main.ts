@@ -4,6 +4,7 @@ import {
 	setGlobalLogHandler,
 } from "../../lib/logger.ts";
 import {
+	Application,
 	authentication,
 	AuthenticationConfiguration,
 	counter,
@@ -11,7 +12,6 @@ import {
 	identity,
 	kv,
 	PasswordAuthentificationProvider,
-	Router,
 	sequence,
 	session,
 	t,
@@ -84,7 +84,7 @@ const authenticationConfiguration = new AuthenticationConfiguration()
 		),
 	);
 
-const app = new Router()
+const app = new Application()
 	.use(kv((config) => config.setKVProvider(kvProvider)))
 	.use(counter((config) => config.setCounterProvider(counterProvider)))
 	.use(identity((config) => config.setIdentityProvider(identityProvider)))
@@ -125,6 +125,15 @@ const app = new Router()
 			},
 		},
 	);
+
+/*
+
+.on("authentication:register", async ({ document }) => {})
+.on("authentication:sign-in", async ({ document }) => {})
+.on("authentication:sign-out", async ({ document }) => {})
+.on("authentication:rate-limited", async ({ document }) => {})
+
+*/
 
 const handle = await app.build();
 

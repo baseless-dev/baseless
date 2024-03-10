@@ -4,7 +4,7 @@ import type { SessionContext } from "../plugins/session/context.ts";
 import type { AuthenticationContext } from "../plugins/authentication/context.ts";
 import type { AssetContext } from "../plugins/asset/context.ts";
 import { AuthenticationConfiguration } from "../plugins/authentication/configuration.ts";
-import { Router } from "../lib/router/router.ts";
+import { Application } from "../lib/application/application.ts";
 import { MemoryAssetProvider } from "../providers/asset-memory/mod.ts";
 import OTPMemoryAuthentificationProvider from "../providers/auth-otp-memory/mod.ts";
 import TOTPAuthentificationProvider from "../providers/auth-totp/mod.ts";
@@ -45,7 +45,7 @@ export type BuilderResult = {
 };
 
 export type MockResult = {
-	router: Router<
+	router: Application<
 		& AuthenticationContext
 		& AssetContext
 		& IdentityContext
@@ -128,7 +128,7 @@ export async function mock(
 	if (result.authenticationConfiguration) {
 		authenticationConfiguration = result.authenticationConfiguration;
 	}
-	const router = new Router()
+	const router = new Application()
 		.use(asset((config) => config.setAssetProvider(assetProvider)))
 		.use(kv((config) => config.setKVProvider(kvProvider)))
 		.use(counter((config) => config.setCounterProvider(counterProvider)))

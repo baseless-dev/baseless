@@ -1,4 +1,4 @@
-import { Router } from "../../lib/router/router.ts";
+import { Application } from "../../lib/application/application.ts";
 import { CounterConfiguration } from "./configuration.ts";
 import type { CounterContext } from "./context.ts";
 import { CounterService } from "./counter.ts";
@@ -15,7 +15,7 @@ export const counter = (
 	const configuration = builder instanceof CounterConfiguration
 		? builder.build()
 		: builder(new CounterConfiguration()).build();
-	return new Router()
+	return new Application()
 		.derive(() => {
 			const context: CounterContext = {
 				counter: new CounterService(configuration.counterProvider),

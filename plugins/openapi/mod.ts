@@ -2,8 +2,8 @@
 import { t, type TSchema } from "../../lib/typebox.ts";
 import { TypeGuard } from "npm:@sinclair/typebox@0.32.13/type";
 import type { OpenAPIV3 } from "npm:openapi-types@12.1.3";
-import { Router } from "../../lib/router/router.ts";
-import type { Definition, Route, Routes } from "../../lib/router/types.ts";
+import { Application } from "../../lib/application/application.ts";
+import type { Definition, Route, Routes } from "../../lib/application/types.ts";
 import { OpenAPIConfiguration } from "./configuration.ts";
 
 export { OpenAPIConfiguration } from "./configuration.ts";
@@ -20,7 +20,7 @@ export const openapi = (
 		? builder(new OpenAPIConfiguration()).build()
 		: new OpenAPIConfiguration().build();
 	let cachedDocument: string;
-	return new Router()
+	return new Application()
 		.get(configuration.path, ({ request, query }) => {
 			if (request.headers.get("accept")?.includes("text/html")) {
 				const swagger = `<!DOCTYPE html>

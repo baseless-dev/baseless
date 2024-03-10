@@ -1,4 +1,4 @@
-import { Value } from "../../lib/typebox.ts";
+import { Value } from "../typebox.ts";
 import { TypeGuard } from "npm:@sinclair/typebox@0.32.13/type";
 import type {
 	ContextDeriver,
@@ -8,7 +8,7 @@ import type {
 	RouteSegmentHandler,
 } from "./types.ts";
 
-export default function makeDynamicRouter(
+export function makeDynamic(
 	rst: RouteSegment[],
 	context: Record<string, unknown>,
 	// deno-lint-ignore no-explicit-any
@@ -119,6 +119,8 @@ export default function makeDynamicRouter(
 		}
 	};
 }
+
+export default makeDynamic;
 
 /**
  * Transform a route segment into a regular expression.

@@ -1,7 +1,7 @@
-import { t } from "../../lib/typebox.ts";
-import { Router } from "./router.ts";
+import { t } from "../typebox.ts";
+import { Application } from "./application.ts";
 
-const auth = new Router()
+const auth = new Application()
 	.post(
 		"/login",
 		({ body }) => Response.json(body),
@@ -13,7 +13,7 @@ const auth = new Router()
 		},
 	);
 
-const app = new Router()
+const app = new Application()
 	.get(
 		"/users/{id}",
 		({ params }) => {

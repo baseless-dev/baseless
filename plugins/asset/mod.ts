@@ -1,4 +1,4 @@
-import { Router } from "../../lib/router/router.ts";
+import { Application } from "../../lib/application/application.ts";
 import type { AssetContext } from "./context.ts";
 import { AssetService } from "./asset.ts";
 import { AssetConfiguration } from "./configuration.ts";
@@ -13,7 +13,7 @@ export const asset = (
 	const configuration = builder instanceof AssetConfiguration
 		? builder.build()
 		: builder(new AssetConfiguration()).build();
-	return new Router()
+	return new Application()
 		.derive(() => {
 			const context: AssetContext = {
 				asset: new AssetService(configuration.assetProvider),

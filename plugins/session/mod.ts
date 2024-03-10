@@ -1,4 +1,4 @@
-import { Router } from "../../lib/router/router.ts";
+import { Application } from "../../lib/application/application.ts";
 import { SessionConfiguration } from "./configuration.ts";
 import type { SessionContext } from "./context.ts";
 import { SessionService } from "./session.ts";
@@ -15,7 +15,7 @@ export const session = (
 	const configuration = builder instanceof SessionConfiguration
 		? builder.build()
 		: builder(new SessionConfiguration()).build();
-	return new Router()
+	return new Application()
 		.derive(() => {
 			const context: SessionContext = {
 				session: new SessionService(configuration.sessionProvider),

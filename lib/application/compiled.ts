@@ -10,6 +10,7 @@ import type {
 	RequestHandler,
 	RouteSegment,
 } from "./types.ts";
+import { ContextualizedEventEmitter } from "./event_emitter.ts";
 
 export function makeCompiled(
 	rst: RouteSegment[],
@@ -17,7 +18,13 @@ export function makeCompiled(
 	derivers: Array<ContextDeriver<any, any>>,
 ): RequestHandler {
 	const { code, handlers, definitions } = getRouterCode(rst);
-	return Function("data", code)({ handlers, definitions, context, derivers });
+	return Function("data", code)({
+		handlers,
+		definitions,
+		context,
+		derivers,
+		ContextualizedEventEmitter,
+	});
 }
 
 export default makeCompiled;
@@ -41,7 +48,7 @@ export function getRouterCode(
 	const definitions: DefinitionSchemas[] = [];
 
 	// deno-fmt-ignore
-	const code = `const { handlers, definitions, context, derivers } = data;
+	const code = `const { handlers, definitions, context, derivers, ContextualizedEventEmitter } = data;
 	return async function router(request, ...args) {
 	  try {
 	    const url = new URL(request.url);
@@ -199,7 +206,15 @@ function codeForRouteSegment(
 			        : derive,
 			    );
 			  }
-			  return await handlers[${id}]({ request, params, headers, query, body, ...requestContext });
+			  return await handlers[${id}]({
+			    request,
+			    params,
+			    headers,
+			    query,
+			    body,
+			    ...requestContext,
+			    events: new ContextualizedEventEmitter(requestContext, context.events),
+			  });
 			}`.replace(/\n\t*/g, ieol)+ieol;
 			first = false;
 		}

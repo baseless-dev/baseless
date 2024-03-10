@@ -8,6 +8,7 @@ import {
 	TString,
 } from "../typebox.ts";
 import type { MaybeCallable, MaybePromise, Pretty, Split } from "../types.ts";
+import type { Application } from "./application.ts";
 
 export type Method =
 	| "CONNECT"
@@ -179,3 +180,53 @@ export function ExtractParamsAsSchemaRuntime<const Value extends string>(
 	}
 	return t.Object(props) as any;
 }
+
+export type Plugin<
+	TContext extends {} = {},
+	TEvents extends Record<string, any[]> = {},
+	TContextDeps extends {} = {},
+	TEventDeps extends Record<string, any[]> = {},
+> = MaybeCallable<
+	MaybePromise<Application<TContext, TEvents, TContextDeps, TEventDeps>>,
+	[ReadonlyArray<Route>]
+>;
+
+export type PluginWithPrefix = {
+	plugin: Plugin<any, any, any>;
+	prefix: string;
+};
+
+declare const DependenciesNotMetError: unique symbol;
+
+// deno-fmt-ignore
+export type ApplicationExtendsPlugin<TApplication, TPlugin> = TApplication extends
+	Application<infer Context, infer Events>
+	? TPlugin extends Application<any, any, infer ContextDeps, infer EventDeps>
+		? Context extends ContextDeps
+			? Events extends EventDeps
+				? TPlugin
+				: { [DependenciesNotMetError]: "Some events marked as dependencies aren't registered." }
+			: { [DependenciesNotMetError]: "Some context as dependencies aren't registered." }
+	: TPlugin
+	: TPlugin;
+
+export type ApplicationMergePlugin<TApplication, TPlugin> = TApplication extends
+	Application<infer Context, infer Events, infer ContextDeps, infer EventDeps>
+	? TPlugin extends Plugin<
+		infer PluginContext,
+		infer PluginEvents,
+		infer PluginContextDeps,
+		infer PluginEventDeps
+	> ? Application<
+			Context & PluginContext,
+			Events & PluginEvents,
+			ContextDeps & PluginContextDeps,
+			EventDeps & PluginEventDeps
+		>
+	: TApplication
+	: TApplication;
+
+export type EventListener = {
+	event: string;
+	handler: (...args: any[]) => MaybePromise<void>;
+};

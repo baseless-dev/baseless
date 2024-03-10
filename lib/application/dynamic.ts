@@ -7,6 +7,7 @@ import type {
 	RouteSegment,
 	RouteSegmentHandler,
 } from "./types.ts";
+import { ContextualizedEventEmitter } from "./event_emitter.ts";
 
 export function makeDynamic(
 	rst: RouteSegment[],
@@ -104,12 +105,16 @@ export function makeDynamic(
 					);
 				}
 				return await op.handler({
+					...requestContext,
 					request,
 					params,
 					headers,
 					query,
 					body,
-					...requestContext,
+					events: new ContextualizedEventEmitter(
+						requestContext,
+						context.events as any,
+					),
 				});
 			}
 			return new Response(null, { status: 404 });

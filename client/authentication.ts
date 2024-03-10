@@ -25,7 +25,7 @@ class AuthenticationApp {
 	#expireTimeout?: number;
 	#persistence: Persistence;
 	#storage: Storage;
-	#onAuthStateChange: EventEmitter<[ID | undefined]>;
+	#events: EventEmitter<{ onAuthenticationStateChange: [id: ID | undefined] }>;
 
 	constructor(
 		app: App,
@@ -44,7 +44,7 @@ class AuthenticationApp {
 			: this.#persistence === "session"
 			? globalThis.sessionStorage
 			: new MemoryStorage();
-		this.#onAuthStateChange = new EventEmitter<[ID | undefined]>();
+		this.#events = new EventEmitter();
 
 		const tokensString = this.#storage.getItem(
 			`baseless_${app.clientId}_tokens`,
@@ -113,8 +113,10 @@ class AuthenticationApp {
 		return this.#storage;
 	}
 
-	get onAuthStateChange(): EventEmitter<[ID | undefined]> {
-		return this.#onAuthStateChange;
+	get events(): EventEmitter<
+		{ onAuthenticationStateChange: [id: ID | undefined] }
+	> {
+		return this.#events;
 	}
 
 	get tokens(): AuthenticationTokens | undefined {
@@ -142,7 +144,7 @@ class AuthenticationApp {
 			const expiration = parseInt(refreshTokenExp ?? accessTokenExp, 10);
 			this.#tokens = tokens;
 			this.#accessTokenExpiration = parseInt(accessTokenExp, 10);
-			this.#onAuthStateChange.emit(identity);
+			this.#events.emit("onAuthenticationStateChange", identity);
 			this.#expireTimeout = setTimeout(
 				() => {
 					this.tokens = undefined;
@@ -156,7 +158,7 @@ class AuthenticationApp {
 		} else {
 			this.#tokens = undefined;
 			this.#accessTokenExpiration = undefined;
-			this.#onAuthStateChange.emit(undefined);
+			this.#events.emit("onAuthenticationStateChange", undefined);
 			this.#storage.removeItem(`baseless_${this.#app.clientId}_tokens`);
 		}
 	}
@@ -267,7 +269,10 @@ export function onAuthenticationStateChange(
 	listener: (identity: ID | undefined) => void,
 ): () => void {
 	assertInitializedAuthentication(app);
-	return unsafe_getAuthentication(app).onAuthStateChange.listen(listener);
+	return unsafe_getAuthentication(app).events.on(
+		"onAuthenticationStateChange",
+		listener,
+	);
 }
 
 export function getIdToken(app: App): string | undefined {

@@ -124,16 +124,18 @@ const app = new Application()
 				},
 			},
 		},
-	);
-
-/*
-
-.on("authentication:register", async ({ document }) => {})
-.on("authentication:sign-in", async ({ document }) => {})
-.on("authentication:sign-out", async ({ document }) => {})
-.on("authentication:rate-limited", async ({ document }) => {})
-
-*/
+	)
+	.on("authentication:register", async ({ kv }, identity) => {
+		const user = {
+			id: identity.id,
+			email: identity.components.find((c) => c.id === "email")
+				?.identification,
+		};
+		await kv.put(
+			["users", identity.id],
+			JSON.stringify(user),
+		);
+	});
 
 const handle = await app.build();
 

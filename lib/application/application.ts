@@ -1,134 +1,174 @@
 // deno-lint-ignore-file no-explicit-any ban-types
 import { FormatRegistry } from "npm:@sinclair/typebox@0.32.13/type";
-import type { MaybePromise } from "../types.ts";
-import type { MaybeCallable } from "../types.ts";
 import { makeCompiled } from "./compiled.ts";
 import { makeDynamic } from "./dynamic.ts";
 import { parseRST } from "./rst.ts";
 import {
+	ApplicationExtendsPlugin,
+	ApplicationMergePlugin,
 	type ContextDecorator,
 	type ContextDeriver,
 	type Definition,
+	type EventListener,
 	ExtractParamsAsSchemaRuntime,
 	type ExtractPathParams,
 	type ExtractPathParamsAsSchema,
 	type Handler,
 	type Method,
+	type Plugin,
+	PluginWithPrefix,
 	type RequestHandler,
-	type Route,
 	type Routes,
 } from "./types.ts";
+import type { MaybePromise } from "../types.ts";
+import { EventEmitter, type ReadonlyEventEmitter } from "../event_emitter.ts";
 
 FormatRegistry.Set("path", (value) => typeof value === "string");
 
-export type Plugin<TContext extends {} = {}, TDependencies extends {} = {}> =
-	MaybeCallable<
-		MaybePromise<Application<TContext, TDependencies>>,
-		[ReadonlyArray<Route>]
-	>;
-
-export type PluginWithPrefix<TContext extends {} = {}> = {
-	plugin: Plugin<TContext>;
-	prefix: string;
-};
-
-export type ApplicationExtendsPlugin<R1, R2> = R1 extends
-	Application<infer Context, any>
-	? R2 extends Application<any, infer Dependencies>
-		? Context extends Dependencies ? R2
-		: { error: "Application does not implement dependencies." }
-	: R2
-	: R2;
-
-export type ApplicationMergePlugin<R, P> = R extends
-	Application<infer Context, infer Dependencies>
-	? P extends Plugin<infer PluginContext, infer PluginDependencies>
-		? Application<Context & PluginContext, Dependencies>
-	: R
-	: R;
-
 export class Application<
 	TContext extends {} = {},
-	TDependencies extends {} = {},
+	TEvents extends Record<string, any[]> = {},
+	TContextDeps extends {} = {},
+	TEventDeps extends Record<string, any[]> = {},
 > {
 	#decorators: Array<ContextDecorator<any>> = [];
 	#derivers: Array<ContextDeriver<any, any>> = [];
-	#plugins: Array<PluginWithPrefix<any>> = [];
+	#plugins: Array<PluginWithPrefix> = [];
 	#routes: Routes = [];
+	#events: Array<EventListener> = [];
 
 	constructor();
 	constructor(
 		decorators: Array<ContextDecorator<any>>,
 		derivers: Array<ContextDeriver<any, any>>,
-		plugins: Array<PluginWithPrefix<any>>,
+		plugins: Array<PluginWithPrefix>,
 		routes: Routes,
+		events: Array<EventListener>,
 	);
 	constructor(
 		decorators?: Array<ContextDecorator<any>>,
 		derivers?: Array<ContextDeriver<any, any>>,
-		plugins?: Array<PluginWithPrefix<any>>,
+		plugins?: Array<PluginWithPrefix>,
 		routes?: Routes,
+		events?: Array<EventListener>,
 	) {
 		this.#decorators = [...decorators ?? []];
 		this.#derivers = [...derivers ?? []];
 		this.#plugins = [...plugins ?? []];
 		this.#routes = [...routes ?? []];
+		this.#events = [...events ?? []];
 	}
 
 	decorate<const TNewContext extends {}>(
 		decorator: ContextDecorator<TNewContext>,
-	): Application<TContext & TNewContext, TDependencies> {
+	): Application<TContext & TNewContext, TEvents, TContextDeps, TEventDeps> {
 		return new Application(
 			[...this.#decorators, decorator],
 			this.#derivers,
 			this.#plugins,
 			this.#routes,
+			this.#events,
 		);
 	}
 
 	derive<const TNewContext extends {}>(
-		deriver: ContextDeriver<TNewContext, TContext & TDependencies>,
-	): Application<TContext & TNewContext, TDependencies> {
+		deriver: ContextDeriver<
+			TNewContext,
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> }
+		>,
+	): Application<TContext & TNewContext, TEvents, TContextDeps, TEventDeps> {
 		return new Application(
 			this.#decorators,
 			[...this.#derivers, deriver],
 			this.#plugins,
 			this.#routes,
+			this.#events,
+		);
+	}
+
+	register<
+		const TEvent extends string,
+		const TArgs extends any[],
+	>(): Application<
+		TContext,
+		& TEvents
+		& {
+			[event in TEvent]: TArgs;
+		},
+		TContextDeps,
+		TEventDeps
+	> {
+		return new Application(
+			this.#decorators,
+			this.#derivers,
+			this.#plugins,
+			this.#routes,
+			this.#events,
 		);
 	}
 
 	use<
 		const TPluginContext extends {},
-		const TPluginDependencies extends {},
-		const TPlugin extends Plugin<TPluginContext, TPluginDependencies>,
+		const TPluginEvents extends Record<string, any[]>,
+		const TPluginContextDeps extends {},
+		const TPluginEventDeps extends Record<string, any[]>,
+		const TPlugin extends Plugin<
+			TPluginContext,
+			TPluginEvents,
+			TPluginContextDeps,
+			TPluginEventDeps
+		>,
 	>(
 		plugin: ApplicationExtendsPlugin<
-			Application<TContext, TDependencies>,
+			Application<TContext, TEvents, TContextDeps, TEventDeps>,
 			TPlugin
 		>,
-	): ApplicationMergePlugin<Application<TContext, TDependencies>, TPlugin>;
+	): ApplicationMergePlugin<
+		Application<TContext, TEvents, TContextDeps, TEventDeps>,
+		TPlugin
+	>;
 	use<
 		const TPluginContext extends {},
-		const TPluginDependencies extends {},
-		const TPlugin extends Plugin<TPluginContext, TPluginDependencies>,
+		const TPluginEvents extends Record<string, any[]>,
+		const TPluginContextDeps extends {},
+		const TPluginEventDeps extends Record<string, any[]>,
+		const TPlugin extends Plugin<
+			TPluginContext,
+			TPluginEvents,
+			TPluginContextDeps,
+			TPluginEventDeps
+		>,
 	>(
 		prefix: string,
 		plugin: ApplicationExtendsPlugin<
-			Application<TContext, TDependencies>,
+			Application<TContext, TEvents, TContextDeps, TEventDeps>,
 			TPlugin
 		>,
-	): ApplicationMergePlugin<Application<TContext, TDependencies>, TPlugin>;
+	): ApplicationMergePlugin<
+		Application<TContext, TEvents, TContextDeps, TEventDeps>,
+		TPlugin
+	>;
 	use<
 		const TPluginContext extends {},
-		const TPluginDependencies extends {},
-		const TPlugin extends Plugin<TPluginContext, TPluginDependencies>,
+		const TPluginEvents extends Record<string, any[]>,
+		const TPluginContextDeps extends {},
+		const TPluginEventDeps extends Record<string, any[]>,
+		const TPlugin extends Plugin<
+			TPluginContext,
+			TPluginEvents,
+			TPluginContextDeps,
+			TPluginEventDeps
+		>,
 	>(
 		prefix: string | TPlugin,
 		plugin?: ApplicationExtendsPlugin<
-			Application<TContext, TDependencies>,
+			Application<TContext, TEvents, TContextDeps, TEventDeps>,
 			TPlugin
 		>,
-	): ApplicationMergePlugin<Application<TContext, TDependencies>, TPlugin> {
+	): ApplicationMergePlugin<
+		Application<TContext, TEvents, TContextDeps, TEventDeps>,
+		TPlugin
+	> {
 		if (typeof prefix !== "string") {
 			plugin = prefix as any;
 			prefix = "";
@@ -141,7 +181,24 @@ export class Application<
 				prefix,
 			}],
 			this.#routes,
+			this.#events,
 		) as any;
+	}
+
+	on<TEvent extends keyof TEvents>(
+		event: TEvent,
+		handler: (
+			context: TContext & TContextDeps,
+			...args: TEvents[TEvent]
+		) => MaybePromise<void>,
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
+		return new Application(
+			this.#decorators,
+			this.#derivers,
+			this.#plugins,
+			this.#routes,
+			[...this.#events, { event, handler } as EventListener],
+		);
 	}
 
 	#defineRoute(
@@ -149,7 +206,7 @@ export class Application<
 		method: Method,
 		handler: Handler,
 		definition: Definition<any, any, any, any>,
-	): Application<TContext, TDependencies> {
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
 		return new Application(
 			this.#decorators,
 			this.#derivers,
@@ -163,6 +220,7 @@ export class Application<
 					params: definition.params ?? ExtractParamsAsSchemaRuntime(path),
 				},
 			}],
+			this.#events,
 		);
 	}
 
@@ -175,7 +233,7 @@ export class Application<
 			any
 		>,
 		const THandler extends Handler<
-			TContext & TDependencies,
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> },
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -183,7 +241,7 @@ export class Application<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Application<TContext, TDependencies> {
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
 		return this.#defineRoute(path, "CONNECT", handler, { ...definition });
 	}
 
@@ -196,7 +254,7 @@ export class Application<
 			any
 		>,
 		const THandler extends Handler<
-			TContext & TDependencies,
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> },
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -204,7 +262,7 @@ export class Application<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Application<TContext, TDependencies> {
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
 		return this.#defineRoute(path, "DELETE", handler, { ...definition });
 	}
 
@@ -217,7 +275,7 @@ export class Application<
 			any
 		>,
 		const THandler extends Handler<
-			TContext & TDependencies,
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> },
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -225,7 +283,7 @@ export class Application<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Application<TContext, TDependencies> {
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
 		return this.#defineRoute(path, "GET", handler, { ...definition });
 	}
 
@@ -238,7 +296,7 @@ export class Application<
 			any
 		>,
 		const THandler extends Handler<
-			TContext & TDependencies,
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> },
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -246,7 +304,7 @@ export class Application<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Application<TContext, TDependencies> {
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
 		return this.#defineRoute(path, "HEAD", handler, { ...definition });
 	}
 
@@ -259,7 +317,7 @@ export class Application<
 			any
 		>,
 		const THandler extends Handler<
-			TContext & TDependencies,
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> },
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -267,7 +325,7 @@ export class Application<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Application<TContext, TDependencies> {
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
 		return this.#defineRoute(path, "PATCH", handler, { ...definition });
 	}
 
@@ -280,7 +338,7 @@ export class Application<
 			any
 		>,
 		const THandler extends Handler<
-			TContext & TDependencies,
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> },
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -288,7 +346,7 @@ export class Application<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Application<TContext, TDependencies> {
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
 		return this.#defineRoute(path, "POST", handler, { ...definition });
 	}
 
@@ -301,7 +359,7 @@ export class Application<
 			any
 		>,
 		const THandler extends Handler<
-			TContext & TDependencies,
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> },
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -309,7 +367,7 @@ export class Application<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Application<TContext, TDependencies> {
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
 		return this.#defineRoute(path, "PUT", handler, { ...definition });
 	}
 
@@ -322,7 +380,7 @@ export class Application<
 			any
 		>,
 		const THandler extends Handler<
-			TContext & TDependencies,
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> },
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -330,7 +388,7 @@ export class Application<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Application<TContext, TDependencies> {
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
 		return this.#defineRoute(path, "OPTIONS", handler, { ...definition });
 	}
 
@@ -343,7 +401,7 @@ export class Application<
 			any
 		>,
 		const THandler extends Handler<
-			TContext & TDependencies,
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> },
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -351,7 +409,7 @@ export class Application<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Application<TContext, TDependencies> {
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
 		return this.#defineRoute(path, "TRACE", handler, { ...definition });
 	}
 
@@ -364,7 +422,7 @@ export class Application<
 			any
 		>,
 		const THandler extends Handler<
-			TContext & TDependencies,
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> },
 			ExtractPathParams<TPath>,
 			TDefinition
 		>,
@@ -372,7 +430,7 @@ export class Application<
 		path: TPath,
 		handler: THandler,
 		definition?: TDefinition,
-	): Application<TContext, TDependencies> {
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
 		return this
 			.#defineRoute(path, "CONNECT", handler, { ...definition })
 			.#defineRoute(path, "DELETE", handler, { ...definition })
@@ -400,7 +458,13 @@ export class Application<
 				path: `${plugin.prefix}${route.path}`,
 			})));
 		}
-		const context = {};
+		const events = new EventEmitter();
+		for (const { event, handler } of this.#events) {
+			events.on(event as never, handler);
+		}
+		const context = {
+			events,
+		};
 		for (const decorator of decorators) {
 			const result = decorator instanceof Function
 				? await decorator()

@@ -33,6 +33,7 @@ import {
 	RegistrationSendValidationCodeResultSchema,
 	RegistrationSubmitStateSchema,
 } from "../../lib/registration/types.ts";
+import type { Identity } from "../../lib/identity/types.ts";
 
 export { AuthenticationConfiguration } from "./configuration.ts";
 
@@ -86,12 +87,18 @@ export const authentication = (
 
 	return new Application<
 		{},
+		{},
 		{
 			counter: CounterService;
 			identity: IdentityService;
 			session: SessionService;
-		}
+		},
+		{}
 	>()
+		.register<"authentication:register", [identity: Identity]>()
+		.register<"authentication:sign-in", [identity: Identity]>()
+		.register<"authentication:sign-out", [sessionId: string]>()
+		.register<"authentication:rate-limited", [subject: string]>()
 		.derive(async ({ request, session, identity }) => {
 			let authenticationToken: TokenData | undefined;
 			if (request.headers.has("Authorization")) {
@@ -165,11 +172,12 @@ export const authentication = (
 		})
 		.post(
 			"/authentication/sign-out",
-			async ({ session, authenticationToken }) => {
+			async ({ session, authenticationToken, events }) => {
 				try {
 					if (authenticationToken) {
 						const sessionId = authenticationToken.sessionData.id;
 						await session.destroy(sessionId).catch((_) => {});
+						await events.emit("authentication:sign-out", sessionId);
 						return Response.json({ data: { ok: true } });
 					}
 					return Response.json({ error: UnauthorizedError.name });
@@ -330,7 +338,15 @@ export const authentication = (
 		.post(
 			"/authentication/submit-prompt",
 			async (
-				{ body, authentication, remoteAddress, session, identity, counter },
+				{
+					body,
+					authentication,
+					remoteAddress,
+					session,
+					identity,
+					counter,
+					events,
+				},
 			) => {
 				try {
 					const state = body.state
@@ -388,6 +404,7 @@ export const authentication = (
 								configuration.accessTokenTTL ?? 1000 * 60 * 10,
 								configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
 							);
+						await events.emit("authentication:sign-in", id);
 						return Response.json({
 							data: {
 								done: true,
@@ -556,7 +573,15 @@ export const authentication = (
 		.post(
 			"/registration/submit-prompt",
 			async (
-				{ body, registration, remoteAddress, session, counter, identity },
+				{
+					body,
+					registration,
+					remoteAddress,
+					session,
+					counter,
+					identity,
+					events,
+				},
 			) => {
 				try {
 					const state = body.state
@@ -597,6 +622,8 @@ export const authentication = (
 								configuration.accessTokenTTL ?? 1000 * 60 * 10,
 								configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
 							);
+						await events.emit("authentication:register", id);
+						await events.emit("authentication:sign-in", id);
 						return Response.json({
 							data: {
 								done: true,
@@ -708,7 +735,15 @@ export const authentication = (
 		.post(
 			"/registration/submit-validation-code",
 			async (
-				{ body, registration, remoteAddress, session, counter, identity },
+				{
+					body,
+					registration,
+					remoteAddress,
+					session,
+					counter,
+					identity,
+					events,
+				},
 			) => {
 				try {
 					const state = body.state
@@ -749,6 +784,8 @@ export const authentication = (
 								configuration.accessTokenTTL ?? 1000 * 60 * 10,
 								configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 7,
 							);
+						await events.emit("authentication:register", id);
+						await events.emit("authentication:sign-in", id);
 						return Response.json({
 							data: {
 								done: true,

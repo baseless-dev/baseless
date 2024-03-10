@@ -94,7 +94,7 @@ Deno.test("Client Authentication", async (t) => {
 			};
 		});
 
-		const routeHandler = await result.router.build();
+		const routeHandler = await result.application.build();
 
 		const app = initializeApp({
 			clientId: ruid(),

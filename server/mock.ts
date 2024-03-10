@@ -45,7 +45,7 @@ export type BuilderResult = {
 };
 
 export type MockResult = {
-	router: Application<
+	application: Application<
 		& AuthenticationContext
 		& AssetContext
 		& IdentityContext
@@ -128,7 +128,7 @@ export async function mock(
 	if (result.authenticationConfiguration) {
 		authenticationConfiguration = result.authenticationConfiguration;
 	}
-	const router = new Application()
+	const application = new Application()
 		.use(asset((config) => config.setAssetProvider(assetProvider)))
 		.use(kv((config) => config.setKVProvider(kvProvider)))
 		.use(counter((config) => config.setCounterProvider(counterProvider)))
@@ -138,7 +138,7 @@ export async function mock(
 		.use(openapi());
 	return {
 		...options,
-		router,
+		application,
 	};
 }
 

@@ -83,7 +83,7 @@ Deno.test("Client Registration", async (t) => {
 			};
 		});
 
-		const routeHandler = await result.router.build();
+		const routeHandler = await result.application.build();
 
 		const app = initializeApp({
 			clientId: ruid(),
@@ -155,9 +155,12 @@ Deno.test("Client Registration", async (t) => {
 			"jane@test.local",
 		);
 		Assert(RegistrationCeremonyStateNextSchema, state1);
-		assertEquals(await sendValidationCode(app, "email", "en", state1.state), {
-			sent: true,
-		});
+		assertEquals(
+			await sendValidationCode(app, "email", "en", state1.state),
+			{
+				sent: true,
+			},
+		);
 		const code = notifications().at(-1)?.content["text/x-otp-code"];
 		assert(code?.length === 8);
 	});
@@ -192,7 +195,12 @@ Deno.test("Client Registration", async (t) => {
 			state1.state,
 		);
 		assert(state2.done === false);
-		const state3 = await submitPrompt(app, "password", "123", state2.state);
+		const state3 = await submitPrompt(
+			app,
+			"password",
+			"123",
+			state2.state,
+		);
 		assert(state3.done === true);
 		await signOut(app);
 	});

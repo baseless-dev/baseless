@@ -2,7 +2,7 @@ import type {
 	Document,
 	DocumentData,
 	DocumentKey,
-} from "../../lib/document.ts";
+} from "../../lib/document/types.ts";
 import type {
 	DocumentAtomic,
 	DocumentGetOptions,

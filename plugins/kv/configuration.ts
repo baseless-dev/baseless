@@ -1,4 +1,4 @@
-import type { KVProvider } from "../../providers/kv.ts";
+import type { KVProvider } from "../../providers/kv/provider.ts";
 
 export class KVConfiguration {
 	#kvProvider?: KVProvider;

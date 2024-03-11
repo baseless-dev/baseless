@@ -1,5 +1,5 @@
 import type { KeyLike } from "npm:jose@5.2.0";
-import type { AuthenticationProvider } from "../../providers/auth.ts";
+import type { AuthenticationProvider } from "../../providers/auth/provider.ts";
 import type { AuthenticationCeremonyComponent } from "../../lib/authentication/types.ts";
 
 type Options = {

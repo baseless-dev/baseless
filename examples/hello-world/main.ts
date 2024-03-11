@@ -16,13 +16,13 @@ import {
 	session,
 	t,
 } from "../../prelude.ts";
-import OTPLoggerAuthentificationProvider from "../../providers/auth-otp-logger/mod.ts";
-import { MemoryCounterProvider } from "../../providers/counter-memory/mod.ts";
-import { MemoryDocumentProvider } from "../../providers/document-memory/mod.ts";
-import { DocumentIdentityProvider } from "../../providers/identity-document/mod.ts";
-import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
-import { LoggerNotificationProvider } from "../../providers/notification-logger/mod.ts";
-import { KVSessionProvider } from "../../providers/session-kv/mod.ts";
+import OTPLoggerAuthentificationProvider from "../../providers/auth/otp-logger/mod.ts";
+import { MemoryCounterProvider } from "../../providers/counter/memory/mod.ts";
+import { MemoryDocumentProvider } from "../../providers/document/memory/mod.ts";
+import { DocumentIdentityProvider } from "../../providers/identity/document/mod.ts";
+import { MemoryKVProvider } from "../../providers/kv/memory/mod.ts";
+import { LoggerNotificationProvider } from "../../providers/notification/logger/mod.ts";
+import { KVSessionProvider } from "../../providers/session/kv/mod.ts";
 import { generateKeyPair } from "npm:jose@5.2.0";
 import openapi from "../../plugins/openapi/mod.ts";
 
@@ -124,18 +124,7 @@ const app = new Application()
 				},
 			},
 		},
-	)
-	.on("authentication:register", async ({ kv }, identity) => {
-		const user = {
-			id: identity.id,
-			email: identity.components.find((c) => c.id === "email")
-				?.identification,
-		};
-		await kv.put(
-			["users", identity.id],
-			JSON.stringify(user),
-		);
-	});
+	);
 
 const handle = await app.build();
 

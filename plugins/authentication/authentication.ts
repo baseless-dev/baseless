@@ -14,8 +14,8 @@ import type {
 import { AuthenticationStateSchema } from "../../lib/authentication/types.ts";
 import type { Identity } from "../../lib/identity/types.ts";
 import { createLogger } from "../../lib/logger.ts";
-import type { AuthenticationProvider } from "../../providers/auth.ts";
-import type { IdentityProvider } from "../../providers/identity.ts";
+import type { AuthenticationProvider } from "../../providers/auth/provider.ts";
+import type { IdentityProvider } from "../../providers/identity/provider.ts";
 
 export default class AuthenticationService {
 	#logger = createLogger("authentication-service");

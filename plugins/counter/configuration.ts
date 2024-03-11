@@ -1,4 +1,4 @@
-import type { CounterProvider } from "../../providers/counter.ts";
+import type { CounterProvider } from "../../providers/counter/provider.ts";
 
 export class CounterConfiguration {
 	#counterProvider?: CounterProvider;

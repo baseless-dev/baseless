@@ -1,4 +1,4 @@
-import type { IdentityProvider } from "../../providers/identity.ts";
+import type { IdentityProvider } from "../../providers/identity/provider.ts";
 
 export class IdentityConfiguration {
 	#identityProvider?: IdentityProvider;

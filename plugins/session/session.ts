@@ -1,6 +1,6 @@
 import type { AutoId } from "../../lib/autoid.ts";
 import type { SessionData } from "../../lib/session/types.ts";
-import type { SessionProvider } from "../../providers/session.ts";
+import type { SessionProvider } from "../../providers/session/provider.ts";
 
 export class SessionService {
 	#identityProvider: SessionProvider;

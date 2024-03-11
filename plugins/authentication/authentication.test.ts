@@ -5,13 +5,13 @@ import {
 } from "https://deno.land/std@0.213.0/assert/mod.ts";
 import { generateKeyPair } from "npm:jose@5.2.0";
 import { oneOf, sequence } from "../../lib/authentication/types.ts";
-import EmailAuthentificationComponent from "../../providers/auth-email/mod.ts";
-import OTPMemoryAuthentificationComponent from "../../providers/auth-otp-memory/mod.ts";
-import PasswordAuthentificationComponent from "../../providers/auth-password/mod.ts";
-import { MemoryDocumentProvider } from "../../providers/document-memory/mod.ts";
-import { DocumentIdentityProvider } from "../../providers/identity-document/mod.ts";
-import { MemoryKVProvider } from "../../providers/kv-memory/mod.ts";
-import { MemoryNotificationProvider } from "../../providers/notification-memory/mod.ts";
+import EmailAuthentificationComponent from "../../providers/auth/email/mod.ts";
+import OTPMemoryAuthentificationComponent from "../../providers/auth/otp-memory/mod.ts";
+import PasswordAuthentificationComponent from "../../providers/auth/password/mod.ts";
+import { MemoryDocumentProvider } from "../../providers/document/memory/mod.ts";
+import { DocumentIdentityProvider } from "../../providers/identity/document/mod.ts";
+import { MemoryKVProvider } from "../../providers/kv/memory/mod.ts";
+import { MemoryNotificationProvider } from "../../providers/notification/memory/mod.ts";
 import AuthenticationService from "./authentication.ts";
 
 Deno.test("AuthenticationService", async (t) => {

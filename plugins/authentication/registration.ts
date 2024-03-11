@@ -21,8 +21,8 @@ import {
 	RegistrationStateSchema,
 	RegistrationSubmitResult,
 } from "../../lib/registration/types.ts";
-import type { AuthenticationProvider } from "../../providers/auth.ts";
-import type { IdentityProvider } from "../../providers/identity.ts";
+import type { AuthenticationProvider } from "../../providers/auth/provider.ts";
+import type { IdentityProvider } from "../../providers/identity/provider.ts";
 
 export default class RegistrationService {
 	#logger = createLogger("registration-service");

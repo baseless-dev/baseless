@@ -1,4 +1,4 @@
-import type { AssetProvider } from "../../providers/asset.ts";
+import type { AssetProvider } from "../../providers/asset/provider.ts";
 
 export class AssetConfiguration {
 	#assetProvider?: AssetProvider;

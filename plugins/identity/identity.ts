@@ -1,6 +1,6 @@
 import type { AutoId } from "../../lib/autoid.ts";
 import type { Identity } from "../../lib/identity/types.ts";
-import type { IdentityProvider } from "../../providers/identity.ts";
+import type { IdentityProvider } from "../../providers/identity/provider.ts";
 
 export class IdentityService {
 	#identityProvider: IdentityProvider;

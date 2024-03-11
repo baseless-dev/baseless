@@ -1,4 +1,4 @@
-import type { SessionProvider } from "../../providers/session.ts";
+import type { SessionProvider } from "../../providers/session/provider.ts";
 
 export class SessionConfiguration {
 	#sessionProvider?: SessionProvider;

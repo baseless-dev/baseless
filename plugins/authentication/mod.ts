@@ -16,7 +16,7 @@ import {
 import { assertAutoId, isAutoId } from "../../lib/autoid.ts";
 import { createLogger } from "../../lib/logger.ts";
 import { SESSION_AUTOID_PREFIX } from "../../lib/session/types.ts";
-import { slidingWindow } from "../../providers/counter.ts";
+import { slidingWindow } from "../../providers/counter/provider.ts";
 import AuthenticationService from "./authentication.ts";
 import type { AuthenticationContext, TokenData } from "./context.ts";
 import { createTokens } from "./create_tokens.ts";

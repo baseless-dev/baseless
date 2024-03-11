@@ -5,7 +5,7 @@ import type {
 	KVListResult,
 	KVProvider,
 	KVPutOptions,
-} from "../../providers/kv.ts";
+} from "../../providers/kv/provider.ts";
 
 export class KVService {
 	#kvProvider: KVProvider;

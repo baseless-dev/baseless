@@ -13,8 +13,8 @@ import {
 	DocumentAtomic,
 	type DocumentAtomicsResult,
 	type DocumentGetOptions,
+	DocumentListEntry,
 	type DocumentListOptions,
-	type DocumentListResult,
 	DocumentProvider,
 } from "../provider.ts";
 
@@ -77,17 +77,15 @@ export class WebStorageDocumentProvider extends DocumentProvider {
 		return documents;
 	}
 
-	// deno-lint-ignore require-await
-	async list(
-		{ prefix, cursor, limit }: DocumentListOptions,
-	): Promise<DocumentListResult> {
+	async *list(
+		{ limit, cursor, prefix }: DocumentListOptions,
+	): AsyncIterableIterator<DocumentListEntry> {
 		const prefixString = keyPathToKeyString([this.#prefix, ...prefix]);
 		const prefixLength = prefixString.length;
 		const cursorString = keyPathToKeyString([
 			this.#prefix,
 			...(cursor ? keyStringToKeyPath(atob(cursor)) : []),
 		]);
-		const keys: DocumentKey[] = [];
 		let count = 0;
 		limit ??= Number.MAX_VALUE;
 		for (let i = 0, l = this.#storage.length; i < l && count < limit; ++i) {
@@ -100,17 +98,15 @@ export class WebStorageDocumentProvider extends DocumentProvider {
 				const keyPath = keyStringToKeyPath(
 					key.substring(this.#prefix.length + 1),
 				);
-				keys.push(keyPath);
+				yield {
+					document: await this.get(keyPath),
+					cursor: btoa(key.substring(this.#prefix.length + 1)),
+				};
 				if (count >= limit) {
 					break;
 				}
 			}
 		}
-		const done = count !== limit;
-		return {
-			keys,
-			cursor: done ? undefined : btoa(keyPathToKeyString(keys.at(-1)!)),
-		};
 	}
 
 	// deno-lint-ignore require-await

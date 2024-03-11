@@ -9,8 +9,8 @@ import {
 	DocumentAtomic,
 	type DocumentAtomicsResult,
 	type DocumentGetOptions,
+	DocumentListEntry,
 	type DocumentListOptions,
-	type DocumentListResult,
 	DocumentProvider,
 } from "../provider.ts";
 
@@ -55,8 +55,9 @@ export class MemoryDocumentProvider extends DocumentProvider {
 		return documents;
 	}
 
-	// deno-lint-ignore require-await
-	async list(options: DocumentListOptions): Promise<DocumentListResult> {
+	async *list(
+		options: DocumentListOptions,
+	): AsyncIterableIterator<DocumentListEntry> {
 		const keyStrings: string[] = [];
 		const prefixString = keyPathToKeyString(options.prefix);
 		const prefixLength = prefixString.length;
@@ -70,25 +71,19 @@ export class MemoryDocumentProvider extends DocumentProvider {
 		keyStrings.sort();
 		let keyLength = 0;
 		const cursor = options.cursor ? atob(options.cursor) : undefined;
-		let limitReached = false;
-		const keys: DocumentKey[] = [];
 		for (const keyString of keyStrings) {
 			if (cursor && keyString <= cursor) {
 				continue;
 			}
-			keys.push(keyStringToKeyPath(keyString));
+			yield {
+				document: structuredClone(this.#storage.get(keyString)!) as Document,
+				cursor: btoa(keyString),
+			};
 			keyLength += 1;
 			if (options.limit && keyLength >= options.limit) {
-				limitReached = true;
 				break;
 			}
 		}
-		return {
-			keys,
-			cursor: keyStrings.length > 0 && limitReached
-				? btoa(keyPathToKeyString(keys.at(-1)!))
-				: undefined,
-		};
 	}
 
 	// deno-lint-ignore require-await

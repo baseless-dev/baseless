@@ -69,50 +69,40 @@ export default async function testDocumentProvider(
 
 	await t.step("list", async () => {
 		{
-			const results = await provider.list({ prefix: ["users"] });
-			assertEquals(results.keys.length, 3);
-			assertEquals(results.cursor, undefined);
-			assertEquals(results.keys, [
-				["users", "foo"],
-				["users", "jane"],
-				["users", "john"],
-			]);
+			const results = await Array.fromAsync(
+				provider.list({ prefix: ["users"] }),
+			);
+			assertEquals(results.length, 3);
+			assertEquals(results[0].document.key, ["users", "foo"]);
+			assertEquals(results[1].document.key, ["users", "jane"]);
+			assertEquals(results[2].document.key, ["users", "john"]);
 		}
 		{
-			const results1 = await provider.list({ prefix: ["users"], limit: 1 });
-			assertEquals(results1.keys.length, 1);
-			assert(!!results1.cursor);
-			assertEquals(results1.keys, [
-				["users", "foo"],
-			]);
-			const results2 = await provider.list({
+			const results1 = await Array.fromAsync(
+				provider.list({ prefix: ["users"], limit: 1 }),
+			);
+			assertEquals(results1.length, 1);
+			assertEquals(results1[0].document.key, ["users", "foo"]);
+			const results2 = await Array.fromAsync(provider.list({
 				prefix: ["users"],
 				limit: 1,
-				cursor: results1.cursor,
-			});
-			assertEquals(results2.keys.length, 1);
-			assert(!!results2.cursor);
-			assertEquals(results2.keys, [
-				["users", "jane"],
-			]);
-			const results3 = await provider.list({
+				cursor: results1[0].cursor,
+			}));
+			assertEquals(results2.length, 1);
+			assertEquals(results2[0].document.key, ["users", "jane"]);
+			const results3 = await Array.fromAsync(provider.list({
 				prefix: ["users"],
 				limit: 1,
-				cursor: results2.cursor,
-			});
-			assertEquals(results3.keys.length, 1);
-			assert(!!results3.cursor);
-			assertEquals(results3.keys, [
-				["users", "john"],
-			]);
-			const results4 = await provider.list({
+				cursor: results2[0].cursor,
+			}));
+			assertEquals(results3.length, 1);
+			assertEquals(results3[0].document.key, ["users", "john"]);
+			const results4 = await Array.fromAsync(provider.list({
 				prefix: ["users"],
 				limit: 1,
-				cursor: results3.cursor,
-			});
-			assertEquals(results4.keys.length, 0);
-			assertEquals(results4.cursor, undefined);
-			assertEquals(results4.keys, []);
+				cursor: results3[0].cursor,
+			}));
+			assertEquals(results4.length, 0);
 		}
 	});
 

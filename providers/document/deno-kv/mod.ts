@@ -15,8 +15,8 @@ import {
 	DocumentAtomic,
 	type DocumentAtomicsResult,
 	type DocumentGetOptions,
+	DocumentListEntry,
 	type DocumentListOptions,
-	type DocumentListResult,
 	DocumentProvider,
 } from "../provider.ts";
 
@@ -68,22 +68,24 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 		return documents;
 	}
 
-	async list(options: DocumentListOptions): Promise<DocumentListResult> {
-		const keys: DocumentKey[] = [];
-		const results = await this.#storage.list({ prefix: options.prefix }, {
+	async *list(
+		options: DocumentListOptions,
+	): AsyncIterableIterator<DocumentListEntry> {
+		const iter = this.#storage.list({ prefix: options.prefix }, {
 			consistency: "eventual",
 			limit: options.limit,
 			cursor: options.cursor,
 		});
-		for await (const result of results) {
-			if (result.versionstamp) {
-				keys.push(result.key as DocumentKey);
-			}
+		for await (const entry of iter) {
+			yield {
+				document: {
+					key: entry.key as DocumentKey,
+					data: entry.value,
+					versionstamp: entry.versionstamp,
+				},
+				cursor: iter.cursor,
+			};
 		}
-		return {
-			keys,
-			cursor: results.cursor ? results.cursor : undefined,
-		};
 	}
 
 	async create(

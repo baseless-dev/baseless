@@ -14,10 +14,10 @@ export interface DocumentListOptions {
 	readonly limit?: number;
 }
 
-export interface DocumentListResult {
-	readonly keys: ReadonlyArray<DocumentKey>;
-	readonly cursor?: string;
-}
+export type DocumentListEntry = {
+	cursor: string;
+	document: Document;
+};
 
 export interface DocumentAtomicsResult {
 	ok: boolean;
@@ -81,7 +81,9 @@ export abstract class DocumentProvider {
 		options?: DocumentGetOptions,
 	): Promise<Array<Document>>;
 
-	abstract list(options: DocumentListOptions): Promise<DocumentListResult>;
+	abstract list(
+		options: DocumentListOptions,
+	): AsyncIterableIterator<DocumentListEntry>;
 
 	abstract create(
 		key: DocumentKey,

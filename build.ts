@@ -88,7 +88,7 @@ const entrypoints = await Array.fromAsync(walk(import.meta.dirname!, {
 		globToRegExp(
 			join(
 				import.meta.dirname!,
-				"providers/{asset-denofs,kv-denokv,document-denokv}/**/*",
+				"providers/*/deno-*/**/*",
 			),
 		),
 	],

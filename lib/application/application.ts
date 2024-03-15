@@ -59,6 +59,28 @@ export class Application<
 		this.#events = [...events ?? []];
 	}
 
+	demands<const TNewContextDeps extends {}>(): Application<
+		TContext,
+		TEvents,
+		TContextDeps & TNewContextDeps,
+		TEventDeps
+	>;
+	demands<
+		const TEvent extends string,
+		const TArgs extends any[],
+	>(): Application<
+		TContext,
+		TEvents,
+		TContextDeps,
+		& TEventDeps
+		& {
+			[event in TEvent]: TArgs;
+		}
+	>;
+	demands(): any {
+		return this as any;
+	}
+
 	decorate<const TNewContext extends {}>(
 		decorator: ContextDecorator<TNewContext>,
 	): Application<TContext & TNewContext, TEvents, TContextDeps, TEventDeps> {
@@ -86,7 +108,7 @@ export class Application<
 		);
 	}
 
-	register<
+	emits<
 		const TEvent extends string,
 		const TArgs extends any[],
 	>(): Application<

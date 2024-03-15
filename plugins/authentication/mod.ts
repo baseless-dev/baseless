@@ -1,4 +1,3 @@
-// deno-lint-ignore-file ban-types
 import { jwtVerify } from "npm:jose@5.2.0";
 import { t, type TSchema } from "../../lib/typebox.ts";
 import {
@@ -23,9 +22,6 @@ import { createTokens } from "./create_tokens.ts";
 import { Application } from "../../lib/application/application.ts";
 import { RateLimitedError } from "../../lib/errors.ts";
 import { AuthenticationConfiguration } from "./configuration.ts";
-import type { CounterService } from "../counter/counter.ts";
-import type { IdentityService } from "../identity/identity.ts";
-import type { SessionService } from "../session/session.ts";
 import RegistrationService from "./registration.ts";
 import { map } from "../../lib/authentication/map.ts";
 import {
@@ -34,6 +30,9 @@ import {
 	RegistrationSubmitStateSchema,
 } from "../../lib/registration/types.ts";
 import type { Identity } from "../../lib/identity/types.ts";
+import type { CounterContext } from "../counter/context.ts";
+import type { SessionContext } from "../session/context.ts";
+import type { IdentityContext } from "../identity/context.ts";
 
 export { AuthenticationConfiguration } from "./configuration.ts";
 
@@ -85,20 +84,14 @@ export const authentication = (
 		sequence(setupableCeremony, { kind: "done" as const }),
 	);
 
-	return new Application<
-		{},
-		{},
-		{
-			counter: CounterService;
-			identity: IdentityService;
-			session: SessionService;
-		},
-		{}
-	>()
-		.register<"authentication:register", [identity: Identity]>()
-		.register<"authentication:sign-in", [identity: Identity]>()
-		.register<"authentication:sign-out", [sessionId: string]>()
-		.register<"authentication:rate-limited", [subject: string]>()
+	return new Application()
+		.demands<CounterContext>()
+		.demands<SessionContext>()
+		.demands<IdentityContext>()
+		.emits<"authentication:register", [identity: Identity]>()
+		.emits<"authentication:sign-in", [identity: Identity]>()
+		.emits<"authentication:sign-out", [sessionId: string]>()
+		.emits<"authentication:rate-limited", [subject: string]>()
 		.derive(async ({ request, session, identity }) => {
 			let authenticationToken: TokenData | undefined;
 			if (request.headers.has("Authorization")) {

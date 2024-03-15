@@ -10,8 +10,10 @@ export {
 	type Static,
 	type TArray,
 	type TObject,
+	type TRecord,
 	type TSchema,
 	type TString,
+	type TUnknown,
 	Type as t,
 } from "npm:@sinclair/typebox@0.32.13";
 

@@ -8,14 +8,14 @@ import {
 	authentication,
 	AuthenticationConfiguration,
 	counter,
-	EmailAuthentificationProvider,
 	identity,
 	kv,
-	PasswordAuthentificationProvider,
 	sequence,
 	session,
 	t,
 } from "../../prelude.ts";
+import EmailAuthentificationProvider from "../../providers/auth/email/mod.ts";
+import PasswordAuthentificationProvider from "../../providers/auth/password/mod.ts";
 import OTPLoggerAuthentificationProvider from "../../providers/auth/otp-logger/mod.ts";
 import { MemoryCounterProvider } from "../../providers/counter/memory/mod.ts";
 import { MemoryDocumentProvider } from "../../providers/document/memory/mod.ts";

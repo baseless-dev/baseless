@@ -207,6 +207,88 @@ export class Application<
 		) as any;
 	}
 
+	proxy<
+		const TDefinition extends Pick<
+			Definition<
+				any,
+				any,
+				any,
+				any
+			>,
+			"params"
+		>,
+		const THandler extends Handler<
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> },
+			{},
+			TDefinition
+		>,
+	>(
+		application: Application,
+		handler: THandler,
+		definition?: TDefinition,
+	): Application<TContext, TEvents, TContextDeps, TEventDeps>;
+	proxy<
+		const TPath extends string,
+		const TDefinition extends Pick<
+			Definition<
+				ExtractPathParamsAsSchema<TPath>,
+				any,
+				any,
+				any
+			>,
+			"params"
+		>,
+		const THandler extends Handler<
+			TContext & TContextDeps & { events: ReadonlyEventEmitter<TEvents> },
+			ExtractPathParams<TPath>,
+			TDefinition
+		>,
+	>(
+		prefix: TPath,
+		application: Application,
+		handler: THandler,
+		definition?: TDefinition,
+	): Application<TContext, TEvents, TContextDeps, TEventDeps>;
+	proxy(
+		prefix_or_application: string | Application,
+		application_or_handler:
+			| Application
+			| ((context: any) => Response | Promise<Response>),
+		handler_or_definition?:
+			| ((context: any) => Response | Promise<Response>)
+			| Definition<any, any, any, any>,
+		definition?: Definition<any, any, any, any>,
+	): Application<TContext, TEvents, TContextDeps, TEventDeps> {
+		const prefix = typeof prefix_or_application === "string"
+			? prefix_or_application
+			: "";
+		const application = typeof prefix_or_application === "string"
+			? application_or_handler as Application
+			: prefix_or_application;
+		const handler = typeof application_or_handler === "function"
+			? application_or_handler
+			: handler_or_definition as ((
+				context: any,
+			) => Response | Promise<Response>);
+		definition = typeof application_or_handler === "function"
+			? definition
+			: handler_or_definition as Definition<any, any, any, any>;
+		return new Application(
+			this.#decorators,
+			this.#derivers,
+			this.#plugins,
+			[
+				...this.#routes,
+				...application.#routes.map((route) => ({
+					...route,
+					path: `${prefix}${route.path}`,
+					handler,
+				})),
+			],
+			this.#events,
+		);
+	}
+
 	on<TEvent extends keyof TEvents>(
 		event: TEvent,
 		handler: (

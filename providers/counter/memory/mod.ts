@@ -1,4 +1,4 @@
-import { CacheMap } from "../../../lib/cachemap.ts";
+import { CacheMap } from "../../../lib/collections/cachemap.ts";
 import type { CounterProvider } from "../provider.ts";
 
 function keyPathToKeyString(key: string[]): string {
@@ -6,7 +6,7 @@ function keyPathToKeyString(key: string[]): string {
 }
 
 export class MemoryCounterProvider implements CounterProvider {
-	#keys: CacheMap<string, number>;
+	#keys: CacheMap<number>;
 	constructor() {
 		this.#keys = new CacheMap();
 	}

@@ -1,3 +1,4 @@
+import OrderedMap from "../../../lib/collections/orderedmap.ts";
 import {
 	DocumentCreateError,
 	DocumentNotFoundError,
@@ -24,7 +25,7 @@ function keyStringToKeyPath(key: string): string[] {
 
 export class MemoryDocumentProvider extends DocumentProvider {
 	#logger = createLogger("document-memory");
-	#storage = new Map<string, Document>();
+	#storage = new OrderedMap<string, Document>();
 
 	// deno-lint-ignore require-await
 	async get<Data = unknown>(
@@ -58,30 +59,24 @@ export class MemoryDocumentProvider extends DocumentProvider {
 	async *list(
 		options: DocumentListOptions,
 	): AsyncIterableIterator<DocumentListEntry> {
-		const keyStrings: string[] = [];
+		const cursorString = options.cursor ? atob(options.cursor) : "";
 		const prefixString = keyPathToKeyString(options.prefix);
 		const prefixLength = prefixString.length;
-		for (const keyString of this.#storage.keys()) {
+		let count = 0;
+		for (const [keyString, document] of this.#storage) {
 			if (
-				keyString.substring(0, prefixLength) === prefixString
+				keyString.substring(0, prefixLength) === prefixString &&
+				keyString > cursorString
 			) {
-				keyStrings.push(keyString);
-			}
-		}
-		keyStrings.sort();
-		let keyLength = 0;
-		const cursor = options.cursor ? atob(options.cursor) : undefined;
-		for (const keyString of keyStrings) {
-			if (cursor && keyString <= cursor) {
-				continue;
-			}
-			yield {
-				document: structuredClone(this.#storage.get(keyString)!) as Document,
-				cursor: btoa(keyString),
-			};
-			keyLength += 1;
-			if (options.limit && keyLength >= options.limit) {
-				break;
+				const cursor = btoa(keyString);
+				yield {
+					cursor,
+					document,
+				};
+				count += 1;
+				if (options.limit && count >= options.limit) {
+					break;
+				}
 			}
 		}
 	}
@@ -152,11 +147,11 @@ export class MemoryDocumentProvider extends DocumentProvider {
 
 export class MemoryDocumentAtomic extends DocumentAtomic {
 	#provider: MemoryDocumentProvider;
-	#storage: Map<string, Document>;
+	#storage: OrderedMap<string, Document>;
 
 	constructor(
 		provider: MemoryDocumentProvider,
-		storage: Map<string, Document>,
+		storage: OrderedMap<string, Document>,
 	) {
 		super();
 		this.#provider = provider;

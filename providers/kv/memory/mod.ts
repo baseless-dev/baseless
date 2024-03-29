@@ -1,4 +1,4 @@
-import { CacheMap } from "../../../lib/cachemap.ts";
+import { CacheMap } from "../../../lib/collections/cachemap.ts";
 import { KVKeyNotFoundError } from "../../../lib/kv/errors.ts";
 import { createLogger } from "../../../lib/logger.ts";
 import type {
@@ -36,7 +36,7 @@ function keyStringToKeyPath(key: string): string[] {
 
 export class MemoryKVProvider implements KVProvider {
 	#logger = createLogger("kv-memory");
-	#cache = new CacheMap<string, Item>();
+	#cache = new CacheMap<Item>();
 
 	/**
 	 * @throws {KVKeyNotFoundError}

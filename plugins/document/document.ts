@@ -6,10 +6,10 @@ import type {
 import type {
 	DocumentAtomic,
 	DocumentGetOptions,
+	DocumentListEntry,
 	DocumentListOptions,
-	DocumentListResult,
 	DocumentProvider,
-} from "../../providers/document.ts";
+} from "../../providers/document/provider.ts";
 
 export class DocumentService {
 	#documentProvider: DocumentProvider;
@@ -20,25 +20,25 @@ export class DocumentService {
 		this.#documentProvider = documentProvider;
 	}
 
-	get<Data = unknown>(
+	get(
 		key: DocumentKey,
 		options?: DocumentGetOptions | undefined,
 	): Promise<Document> {
 		return this.#documentProvider.get(key, options);
 	}
 
-	getMany<Data = unknown>(
+	getMany(
 		keys: DocumentKey[],
 		options?: DocumentGetOptions | undefined,
 	): Promise<Document[]> {
 		return this.#documentProvider.getMany(keys, options);
 	}
 
-	list(options: DocumentListOptions): Promise<DocumentListResult> {
+	list(options: DocumentListOptions): AsyncIterableIterator<DocumentListEntry> {
 		return this.#documentProvider.list(options);
 	}
 
-	async create<Data = unknown>(
+	async create(
 		key: DocumentKey,
 		data: DocumentData,
 	): Promise<void> {
@@ -47,7 +47,7 @@ export class DocumentService {
 		// TODO life cycle
 	}
 
-	async update<Data = unknown>(
+	async update(
 		key: DocumentKey,
 		data: DocumentData,
 	): Promise<void> {
@@ -56,7 +56,7 @@ export class DocumentService {
 		// TODO life cycle
 	}
 
-	async patch<Data = unknown>(
+	async patch(
 		key: DocumentKey,
 		data: DocumentData,
 	): Promise<void> {

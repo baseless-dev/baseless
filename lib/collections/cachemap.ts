@@ -1,14 +1,28 @@
-import OrderedMap from "./orderedmap.ts";
+interface Map<K, V> {
+	clear(): void;
+	delete(key: K): boolean;
+	get(key: K): V | undefined;
+	has(key: K): boolean;
+	set(key: K, value: V): this;
+	[Symbol.iterator](): IterableIterator<[K, V]>;
+	entries(): IterableIterator<[K, V]>;
+	keys(): IterableIterator<K>;
+	readonly size: number;
+}
+
+interface MapConstructor {
+	new <K, V>(entries?: Iterable<[K, V]>): Map<K, V>;
+}
 
 export class CacheMap<V = unknown> {
-	#map: OrderedMap<string, { value: V; expiration?: number }>;
+	#map: Map<string, { value: V; expiration?: number }>;
 
-	public constructor();
-	public constructor(initialMap: Iterable<[string, V]>);
-	public constructor(initialMap?: Iterable<[string, V]>) {
-		this.#map = new OrderedMap(
+	public constructor(
+		initialMap?: Iterable<[string, V]>,
+		mapConstructor: MapConstructor = Map,
+	) {
+		this.#map = new mapConstructor(
 			Array.from(initialMap ?? []).map(([key, value]) => [key, { value }]),
-			(a: string, b: string) => a.localeCompare(b),
 		);
 	}
 

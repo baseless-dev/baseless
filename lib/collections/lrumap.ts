@@ -1,5 +1,7 @@
+import LinkedList from "./linkedlist.ts";
+
 export class LRUMap<K = string, V = unknown> {
-	#keyStack: Array<K>;
+	#list: LinkedList<K>;
 	#capacity: number;
 	#map: Map<K, V>;
 
@@ -10,12 +12,12 @@ export class LRUMap<K = string, V = unknown> {
 		initialMap?: Iterable<[K, V]>,
 	) {
 		this.#capacity = capacity;
-		this.#keyStack = [];
+		this.#list = new LinkedList<K>();
 		this.#map = new Map(initialMap);
 	}
 
 	public get size(): number {
-		return this.#map.size;
+		return this.#list.size;
 	}
 
 	public get capacity(): number {
@@ -23,14 +25,14 @@ export class LRUMap<K = string, V = unknown> {
 	}
 
 	public clear(): void {
-		this.#keyStack = [];
+		this.#list.clear();
 		this.#map.clear();
 	}
 
 	public delete(key: K): boolean {
 		if (this.#map.has(key)) {
-			const i = this.#keyStack.indexOf(key);
-			this.#keyStack.splice(i, 1);
+			const node = this.#list.findFirstNode((v) => v === key)!;
+			this.#list.removeNode(node);
 			this.#map.delete(key);
 			return true;
 		}
@@ -54,12 +56,12 @@ export class LRUMap<K = string, V = unknown> {
 	}
 
 	public get(key: K): V | undefined {
-		const i = this.#keyStack.indexOf(key);
-		if (i > 0) {
-			this.#keyStack.splice(i, 1);
-			this.#keyStack.unshift(key);
+		if (this.#map.has(key)) {
+			const node = this.#list.findFirstNode((v) => v === key)!;
+			this.#list.removeNode(node);
+			this.#list.addFirst(key);
+			return this.#map.get(key);
 		}
-		return this.#map.get(key);
 	}
 
 	public has(key: K): boolean {
@@ -72,19 +74,20 @@ export class LRUMap<K = string, V = unknown> {
 		}
 	}
 
-	public set(key: K, value: V): void {
-		if (!this.has(key)) {
+	public set(key: K, value: V): this {
+		if (!this.#map.has(key)) {
 			if (this.size >= this.capacity) {
-				const luKey = this.#keyStack.pop();
+				const luKey = this.#list.removeLast();
 				if (luKey) {
 					this.#map.delete(luKey);
 				} else {
 					throw new LruMapOverCapacityError();
 				}
 			}
-			this.#keyStack.unshift(key);
+			this.#list.addFirst(key);
 		}
 		this.#map.set(key, value);
+		return this;
 	}
 
 	public *values(): IterableIterator<V> {

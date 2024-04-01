@@ -4,26 +4,15 @@ export class OrderedMap<K = string, V = unknown> {
 	#sortedKeys: Array<K>;
 	#map: Map<K, V>;
 	#compareFn: CompareFn<K>;
-	#needSorting: boolean;
 
-	public constructor();
-	public constructor(initialMap: Iterable<[K, V]>, compareFn: CompareFn<K>);
 	public constructor(
 		initialMap?: Iterable<[K, V]>,
 		compareFn?: CompareFn<K>,
 	) {
 		this.#sortedKeys = [];
-		this.#needSorting = true;
 		this.#map = new Map(initialMap);
 		this.#compareFn = compareFn ??
 			((a: string, b: string) => a.localeCompare(b)) as any;
-	}
-
-	#sortKeys(): void {
-		if (this.#needSorting) {
-			this.#sortedKeys.sort(this.#compareFn);
-			this.#needSorting = false;
-		}
 	}
 
 	public get size(): number {
@@ -31,7 +20,6 @@ export class OrderedMap<K = string, V = unknown> {
 	}
 
 	public clear(): void {
-		this.#needSorting = false;
 		this.#sortedKeys = [];
 		this.#map.clear();
 	}
@@ -71,18 +59,18 @@ export class OrderedMap<K = string, V = unknown> {
 	}
 
 	public *keys(): IterableIterator<K> {
-		this.#sortKeys();
 		for (const key of this.#sortedKeys) {
 			yield key;
 		}
 	}
 
-	public set(key: K, value: V): void {
+	public set(key: K, value: V): this {
 		if (!this.has(key)) {
-			this.#needSorting = true;
-			this.#sortedKeys.push(key);
+			const i = this.#sortedKeys.findIndex((k) => this.#compareFn(k, key) > 0);
+			this.#sortedKeys.splice(i, 0, key);
 		}
 		this.#map.set(key, value);
+		return this;
 	}
 
 	public *values(): IterableIterator<V> {

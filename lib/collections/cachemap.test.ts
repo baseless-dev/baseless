@@ -1,12 +1,13 @@
 import { assertEquals } from "https://deno.land/std@0.213.0/assert/mod.ts";
 import { CacheMap } from "./cachemap.ts";
+import { OrderedMap } from "./orderedmap.ts";
 
 Deno.test("CacheMap", async (t) => {
 	await t.step("set/get/has/delete/clear", async () => {
-		const map = new CacheMap();
-		map.set("a", "1");
-		map.set("b", "2");
+		const map = new CacheMap(undefined, OrderedMap);
 		map.set("c", "3", 100);
+		map.set("b", "2");
+		map.set("a", "1");
 		assertEquals(map.get("a"), "1");
 		assertEquals(map.get("b"), "2");
 		assertEquals(map.get("c"), "3");
@@ -22,7 +23,7 @@ Deno.test("CacheMap", async (t) => {
 		assertEquals(map.has("b"), false);
 	});
 	await t.step("keys/values/entries/forEach", () => {
-		const map = new CacheMap();
+		const map = new CacheMap(undefined, OrderedMap);
 		map.set("c", "3");
 		map.set("b", "2");
 		map.set("a", "1");

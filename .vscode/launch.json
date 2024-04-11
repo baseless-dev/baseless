@@ -11,7 +11,6 @@
 			"program": "${workspaceFolder}/build.ts",
 			"cwd": "${workspaceFolder}/",
 			"env": {
-				"DENO_DIR": ".deno"
 			},
 			"runtimeExecutable": "/home/grenierdev/.deno/bin/deno",
 			"runtimeArgs": [
@@ -28,7 +27,6 @@
 			"program": "${workspaceFolder}/examples/hello-world/main.ts",
 			"cwd": "${workspaceFolder}/examples/hello-world",
 			"env": {
-				"DENO_DIR": ".deno"
 			},
 			"envFile": "${workspaceFolder}/examples/hello-world/.env",
 			"runtimeExecutable": "/home/grenierdev/.deno/bin/deno",

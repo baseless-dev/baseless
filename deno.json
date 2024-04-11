@@ -16,18 +16,18 @@
 		"ignoreDeprecations": "5.0"
 	},
 	"tasks": {
-		"start:hello-world": "DENO_DIR=.deno deno run --watch --unstable-kv --allow-read --allow-write --allow-env --allow-net --allow-sys ./examples/hello-world/server.ts",
-		"bundle:hello-world": "DENO_DIR=.deno deno run -A ./cli/bundle.ts --entry ./examples/hello-world/server.ts --dist ./examples/hello-world/dist --show-deps 4",
-		"build": "DENO_DIR=.deno deno run -A ./build.ts",
-		"fmt": "DENO_DIR=.deno deno fmt",
-		"lint": "DENO_DIR=.deno deno lint",
-		"cache": "DENO_DIR=.deno deno cache",
-		"check": "DENO_DIR=.deno deno check client/**/*.ts",
-		"info": "DENO_DIR=.deno deno info",
-		"bench": "DENO_DIR=.deno deno bench -A --unstable-kv",
-		"test": "DENO_DIR=.deno deno test -A --unstable-kv --fail-fast --coverage=coverage",
-		"test:fast": "DENO_DIR=.deno deno test -A --unstable-kv --parallel --fail-fast",
-		"coverage": "DENO_DIR=.deno deno coverage coverage"
+		"start:hello-world": "deno run --watch --unstable-kv --allow-read --allow-write --allow-env --allow-net --allow-sys ./examples/hello-world/server.ts",
+		"bundle:hello-world": "deno run -A ./cli/bundle.ts --entry ./examples/hello-world/server.ts --dist ./examples/hello-world/dist --show-deps 4",
+		"build": "deno run -A ./build.ts",
+		"fmt": "deno fmt",
+		"lint": "deno lint",
+		"cache": "deno cache",
+		"check": "deno check client/**/*.ts",
+		"info": "deno info",
+		"bench": "deno bench -A --unstable-kv",
+		"test": "deno test -A --unstable-kv --fail-fast --coverage=coverage",
+		"test:fast": "deno test -A --unstable-kv --parallel --fail-fast",
+		"coverage": "deno coverage coverage"
 	},
 	"exclude": [".deno/", "npm/", "coverage/", "**/.deno"],
 	"lint": {

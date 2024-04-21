@@ -60,7 +60,7 @@ export class Application<
 	}
 
 	demands<const TNewContextDeps extends {}>(): Application<
-		TContext,
+		TContext & TNewContextDeps,
 		TEvents,
 		TContextDeps & TNewContextDeps,
 		TEventDeps
@@ -70,7 +70,10 @@ export class Application<
 		const TArgs extends any[],
 	>(): Application<
 		TContext,
-		TEvents,
+		& TEvents
+		& {
+			[event in TEvent]: TArgs;
+		},
 		TContextDeps,
 		& TEventDeps
 		& {

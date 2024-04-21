@@ -5,6 +5,7 @@ export { kv, KVConfiguration } from "./plugins/kv/mod.ts";
 export { counter, CounterConfiguration } from "./plugins/counter/mod.ts";
 export { identity, IdentityConfiguration } from "./plugins/identity/mod.ts";
 export { session, SessionConfiguration } from "./plugins/session/mod.ts";
+export { document, DocumentConfiguration } from "./plugins/document/mod.ts";
 export {
 	authentication,
 	AuthenticationConfiguration,

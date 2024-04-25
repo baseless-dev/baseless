@@ -92,7 +92,7 @@ function base62(buffer: Uint8Array): string {
 			const acc = buffer[i] + remainder * 256;
 			const q = Math.floor(acc / 62);
 			remainder = acc % 62;
-			if (q > 0) {
+			if (pointer > 0 || q > 0) {
 				buffer[pointer++] = q;
 			}
 		}

@@ -1,17 +1,10 @@
-import { isAutoId, ksuid, rksuid, ruid, suid } from "./autoid.ts";
+import { isAutoId, ksuid, rksuid, ruid } from "./autoid.ts";
 
 Deno.bench(
 	"ruid",
 	{ group: "autoid", baseline: true },
 	() => {
 		ruid();
-	},
-);
-Deno.bench(
-	"suid",
-	{ group: "autoid" },
-	() => {
-		suid("foobar");
 	},
 );
 Deno.bench(

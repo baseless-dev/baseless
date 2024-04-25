@@ -3,10 +3,37 @@ declare const ERROR: unique symbol;
 export type AutoId = string;
 
 const AutoIdChars =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 const AutoIdCharsLength = AutoIdChars.length;
-const AutoIdBuffer = new Uint8Array(22);
+const AutoIdCharsBaseLength = Math.log2(256) / Math.log2(AutoIdCharsLength);
+const AutoIdBuffer = new Uint8Array(16);
 const Int64Buffer = new Uint8Array(8);
+
+function base62(buffer: Uint8Array): string {
+	const length = Math.ceil(buffer.length * AutoIdCharsBaseLength);
+	let result = "";
+
+	let input = Array.from(buffer);
+	while (input.length > 0) {
+		const quotients = [];
+		let remainder = 0;
+
+		for (const digit of input) {
+			const acc = digit + remainder * 256;
+			const q = Math.floor(acc / 62);
+			remainder = acc % 62;
+
+			if (quotients.length > 0 || q > 0) {
+				quotients.push(q);
+			}
+		}
+
+		result = AutoIdChars[remainder] + result;
+		input = quotients;
+	}
+
+	return result.padStart(length, "0");
+}
 
 /**
  * Generate a Random AutoId
@@ -14,13 +41,8 @@ const Int64Buffer = new Uint8Array(8);
  * @returns An AutoId
  */
 export function ruid(prefix = ""): AutoId {
-	let result = prefix;
-
 	crypto.getRandomValues(AutoIdBuffer);
-	for (let i = 0; i < 22; ++i) {
-		result += AutoIdChars.charAt(AutoIdBuffer[i] % AutoIdCharsLength);
-	}
-	return result as AutoId;
+	return prefix + base62(AutoIdBuffer) as AutoId;
 }
 
 /**
@@ -51,12 +73,8 @@ export function ksuid(
 	if (time > Number.MAX_SAFE_INTEGER || time < 0) {
 		throw new RangeError("The time is out of range");
 	}
-	let result = prefix;
 	new DataView(Int64Buffer.buffer).setBigInt64(0, BigInt(time), false);
-	for (let i = 0; i < 8; ++i) {
-		result += AutoIdChars.charAt(Int64Buffer[i] % AutoIdCharsLength);
-	}
-	return ruid(result);
+	return ruid(prefix + base62(Int64Buffer));
 }
 
 /**
@@ -79,7 +97,7 @@ export function isAutoId(
 	const pl = prefix.length;
 	return !!value && typeof value === "string" &&
 		value.startsWith(prefix) &&
-		new RegExp(`^[${AutoIdChars}]{22,30}$`).test(value.substring(pl));
+		new RegExp(`^[${AutoIdChars}]{22,33}$`).test(value.substring(pl));
 }
 
 /**

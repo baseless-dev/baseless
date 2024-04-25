@@ -1,9 +1,10 @@
 import { assert } from "https://deno.land/std@0.213.0/assert/mod.ts";
 import { ksuid, rksuid, ruid, suid } from "./autoid.ts";
+import { assertEquals } from "https://deno.land/std@0.213.0/assert/assert_equals.ts";
 
 Deno.test("AutoID", async (t) => {
 	await t.step("ruid", () => {
-		assert(ruid().length === 22);
+		assertEquals(ruid().length, 22);
 		assert(ruid() !== ruid());
 	});
 
@@ -13,12 +14,12 @@ Deno.test("AutoID", async (t) => {
 	});
 
 	await t.step("ksuid", () => {
-		assert(ksuid().length === 30);
+		assert(ksuid().length === 33);
 		assert(ksuid() !== ksuid());
 	});
 
 	await t.step("rksuid", () => {
-		assert(rksuid().length === 30);
+		assert(rksuid().length === 33);
 		assert(rksuid() !== rksuid());
 	});
 });

@@ -4,6 +4,7 @@ export type AutoId = string;
 
 const AutoIdBuffer = new Uint8Array(15);
 const Int64Buffer = new Uint8Array(8);
+const DataViewInt64 = new DataView(Int64Buffer.buffer);
 
 /**
  * Generate a Random AutoId
@@ -28,7 +29,7 @@ export function ksuid(
 	if (time > Number.MAX_SAFE_INTEGER || time < 0) {
 		throw new RangeError("The time is out of range");
 	}
-	new DataView(Int64Buffer.buffer).setBigInt64(0, BigInt(time), false);
+	DataViewInt64.setBigInt64(0, BigInt(time), false);
 	return ruid(prefix + base62(Int64Buffer));
 }
 

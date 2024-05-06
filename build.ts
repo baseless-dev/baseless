@@ -190,8 +190,14 @@ await mkdir(join(import.meta.dirname!, "./npm"));
 							const mapTo = importMap.get(node.moduleSpecifier.text)!;
 							node.moduleSpecifier.text = mapTo.node;
 						} else if (virtualFiles.has(node.moduleSpecifier.text)) {
-							node.moduleSpecifier.text =
-								virtualFiles.get(node.moduleSpecifier.text)!.as;
+							const as = relative(
+								dirname(entrypoint.path),
+								join(
+									import.meta.dirname!,
+									virtualFiles.get(node.moduleSpecifier.text)!.as,
+								),
+							);
+							node.moduleSpecifier.text = as;
 						} else if (node.moduleSpecifier.text.match(/^(https?:\/\/|npm:)/)) {
 							console.error(
 								colors.red(`×`) +
@@ -215,8 +221,14 @@ await mkdir(join(import.meta.dirname!, "./npm"));
 							const mapTo = importMap.get(node.moduleSpecifier.text)!;
 							node.moduleSpecifier.text = mapTo.node;
 						} else if (virtualFiles.has(node.moduleSpecifier.text)) {
-							node.moduleSpecifier.text =
-								virtualFiles.get(node.moduleSpecifier.text)!.as;
+							const as = relative(
+								dirname(entrypoint.path),
+								join(
+									import.meta.dirname!,
+									virtualFiles.get(node.moduleSpecifier.text)!.as,
+								),
+							);
+							node.moduleSpecifier.text = as;
 						} else if (node.moduleSpecifier.text.match(/^(https?:\/\/|npm:)/)) {
 							console.error(
 								colors.red(`×`) +
@@ -296,8 +308,14 @@ await mkdir(join(import.meta.dirname!, "./npm"));
 							const mapTo = importMap.get(node.moduleSpecifier.text)!;
 							node.moduleSpecifier.text = mapTo.node;
 						} else if (virtualFiles.has(node.moduleSpecifier.text)) {
-							node.moduleSpecifier.text =
-								virtualFiles.get(node.moduleSpecifier.text)!.as;
+							const as = relative(
+								dirname(entrypoint.path),
+								join(
+									import.meta.dirname!,
+									virtualFiles.get(node.moduleSpecifier.text)!.as,
+								),
+							);
+							node.moduleSpecifier.text = as;
 						} else if (node.moduleSpecifier.text.match(/^(https?:\/\/|npm:)/)) {
 							console.error(
 								colors.red(`×`) +
@@ -325,8 +343,14 @@ await mkdir(join(import.meta.dirname!, "./npm"));
 							const mapTo = importMap.get(node.moduleSpecifier.text)!;
 							node.moduleSpecifier.text = mapTo.node;
 						} else if (virtualFiles.has(node.moduleSpecifier.text)) {
-							node.moduleSpecifier.text =
-								virtualFiles.get(node.moduleSpecifier.text)!.as;
+							const as = relative(
+								dirname(entrypoint.path),
+								join(
+									import.meta.dirname!,
+									virtualFiles.get(node.moduleSpecifier.text)!.as,
+								),
+							);
+							node.moduleSpecifier.text = as;
 						} else if (node.moduleSpecifier.text.match(/^(https?:\/\/|npm:)/)) {
 							console.error(
 								colors.red(`×`) +
@@ -417,8 +441,14 @@ await mkdir(join(import.meta.dirname!, "./npm"));
 							const mapTo = importMap.get(node.moduleSpecifier.text)!;
 							node.moduleSpecifier.text = mapTo.browser;
 						} else if (virtualFiles.has(node.moduleSpecifier.text)) {
-							node.moduleSpecifier.text =
-								virtualFiles.get(node.moduleSpecifier.text)!.as;
+							const as = relative(
+								dirname(entrypoint.path),
+								join(
+									import.meta.dirname!,
+									virtualFiles.get(node.moduleSpecifier.text)!.as,
+								),
+							);
+							node.moduleSpecifier.text = as;
 						} else if (node.moduleSpecifier.text.match(/^(https?:\/\/|npm:)/)) {
 							console.error(
 								colors.red(`×`) +
@@ -446,8 +476,14 @@ await mkdir(join(import.meta.dirname!, "./npm"));
 							const mapTo = importMap.get(node.moduleSpecifier.text)!;
 							node.moduleSpecifier.text = mapTo.browser;
 						} else if (virtualFiles.has(node.moduleSpecifier.text)) {
-							node.moduleSpecifier.text =
-								virtualFiles.get(node.moduleSpecifier.text)!.as;
+							const as = relative(
+								dirname(entrypoint.path),
+								join(
+									import.meta.dirname!,
+									virtualFiles.get(node.moduleSpecifier.text)!.as,
+								),
+							);
+							node.moduleSpecifier.text = as;
 						} else if (node.moduleSpecifier.text.match(/^(https?:\/\/|npm:)/)) {
 							console.error(
 								colors.red(`×`) +

@@ -3,6 +3,7 @@ import {
 	IdentityCreateError,
 	IdentityDeleteError,
 	IdentityNotFoundError,
+	IdentityUpdateError,
 } from "../../../lib/identity/errors.ts";
 import {
 	type Identity,
@@ -172,7 +173,7 @@ export class DocumentIdentityProvider implements IdentityProvider {
 
 			await atomic.commit();
 		} catch (_error) {
-			throw new IdentityDeleteError();
+			throw new IdentityUpdateError();
 		}
 	}
 

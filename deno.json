@@ -29,7 +29,7 @@
 		"test:fast": "deno test -A --unstable-kv --parallel --fail-fast",
 		"coverage": "deno coverage coverage"
 	},
-	"exclude": [".deno/", "npm/", "coverage/", "**/.deno"],
+	"exclude": ["npm/", "coverage/"],
 	"lint": {
 		"rules": {
 			"tags": ["recommended"],

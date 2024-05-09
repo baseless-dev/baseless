@@ -37,3 +37,6 @@ export class AuthenticationCeremonyComponentPromptError extends Error {
 export class MissingRefreshTokenError extends Error {
 	name = "MissingRefreshTokenError" as const;
 }
+export class SendSignInPromptError extends Error {
+	name = "SendSignInPromptError" as const;
+}

@@ -48,7 +48,10 @@ export class SendgridNotificationProvider implements NotificationProvider {
 		try {
 			const content = Object.entries(notification.content).reduce(
 				(contents, [type, content]) => {
-					return [...contents, { type, value: content }];
+					if (type === "text/plain" || type === "text/html") {
+						return [...contents, { type, value: content }];
+					}
+					return contents;
 				},
 				[] as Array<{ type: string; value: string }>,
 			);
@@ -71,6 +74,7 @@ export class SendgridNotificationProvider implements NotificationProvider {
 				},
 				body: JSON.stringify(body),
 			});
+			return;
 		} catch (inner) {
 			this.#logger.error(
 				`Error while sending notification, got error : ${inner}`,

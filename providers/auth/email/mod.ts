@@ -96,10 +96,12 @@ export default class EmailAuthenticationProvider
 			expiration: 60 * 1000 * 5,
 		});
 		// TODO template?
-		this.#notificationProvider.send(identityComponent.identification, {
+		await this.#notificationProvider.send(identityComponent.identification, {
 			subject: "Your verification code",
 			content: {
 				"text/x-otp-code": `${code}`,
+				"text/plain": `Your verification code is ${code}`,
+				"text/html": `Your verification code is <strong>${code}</strong>`,
 			},
 		});
 	}

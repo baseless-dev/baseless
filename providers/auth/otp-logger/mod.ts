@@ -5,7 +5,7 @@ import type {
 	IdentityComponent,
 } from "../../../lib/identity/types.ts";
 import { AuthenticationProvider } from "../provider.ts";
-import type { KVProvider } from "../../kv.ts";
+import type { KVProvider } from "../../kv/provider.ts";
 import { createLogger } from "../../../lib/logger.ts";
 
 export default class OTPLoggerAuthentificationProvider
@@ -60,7 +60,6 @@ export default class OTPLoggerAuthentificationProvider
 					expiration: this.#ttl,
 				},
 			);
-			this.#logger.info(`Code: ${code}`);
 		}
 	}
 

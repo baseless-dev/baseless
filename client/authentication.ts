@@ -195,7 +195,7 @@ class AuthenticationApp {
 			const result = await resp.json();
 			throwIfApiError(result);
 			Assert(AuthenticationTokensSchema, result.data);
-			this.#tokens = result.data;
+			this.tokens = result.data;
 		}
 
 		if (this.#tokens?.access_token) {

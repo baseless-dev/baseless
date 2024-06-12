@@ -2,10 +2,10 @@ import {
 	type Static,
 	type TSchema,
 	TypeBoxError,
-} from "npm:@sinclair/typebox@0.32.13/type";
-import { Value } from "npm:@sinclair/typebox@0.32.13/value";
+} from "npm:@sinclair/typebox@0.32.31/type";
+import { Value } from "npm:@sinclair/typebox@0.32.31/value";
 
-export { Value } from "npm:@sinclair/typebox@0.32.13/value";
+export { Value } from "npm:@sinclair/typebox@0.32.31/value";
 export {
 	type Static,
 	type TArray,
@@ -15,7 +15,7 @@ export {
 	type TString,
 	type TUnknown,
 	Type as t,
-} from "npm:@sinclair/typebox@0.32.13";
+} from "npm:@sinclair/typebox@0.32.31";
 
 export function Assert<T extends TSchema>(
 	schema: T,

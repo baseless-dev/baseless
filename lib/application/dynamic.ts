@@ -1,5 +1,5 @@
 import { Value } from "../typebox.ts";
-import { TypeGuard } from "npm:@sinclair/typebox@0.32.13/type";
+import { TypeGuard } from "npm:@sinclair/typebox@0.32.31/type";
 import type {
 	ContextDeriver,
 	Method,
@@ -82,7 +82,7 @@ export function makeDynamic(
 						body = Object.fromEntries(
 							new URLSearchParams(await request.text()),
 						);
-					} else if (contentType === "multipart/form-data") {
+					} else if (contentType?.startsWith("multipart/form-data")) {
 						const form = await request.formData();
 						body = Array.from(form.keys()).reduce((body, key) => {
 							const values = form.getAll(key);

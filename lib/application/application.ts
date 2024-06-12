@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any ban-types
-import { FormatRegistry } from "npm:@sinclair/typebox@0.32.13/type";
+import { FormatRegistry } from "npm:@sinclair/typebox@0.32.31/type";
 import { makeCompiled } from "./compiled.ts";
 import { makeDynamic } from "./dynamic.ts";
 import { parseRST } from "./rst.ts";

@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { t, type TSchema } from "../../lib/typebox.ts";
-import { TypeGuard } from "npm:@sinclair/typebox@0.32.13/type";
+import { TypeGuard } from "npm:@sinclair/typebox@0.32.31/type";
 import type { OpenAPIV3 } from "npm:openapi-types@12.1.3";
 import { Application } from "../../lib/application/application.ts";
 import type { Definition, Route, Routes } from "../../lib/application/types.ts";

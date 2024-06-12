@@ -27,20 +27,20 @@ const writeText = (path: string, content: string) =>
 	Deno.writeTextFile(path, content);
 
 const importMap: Map<string, { browser: string; node: string }> = new Map([
-	["npm:@sinclair/typebox@0.32.13/type", {
-		browser: "https://cdn.skypack.dev/@sinclair/typebox@0.32.13/type",
+	["npm:@sinclair/typebox@0.32.31/type", {
+		browser: "https://cdn.skypack.dev/@sinclair/typebox@0.32.31/type",
 		node: "@sinclair/typebox/type",
 	}],
-	["npm:@sinclair/typebox@0.32.13/value", {
-		browser: "https://cdn.skypack.dev/@sinclair/typebox@0.32.13/value",
+	["npm:@sinclair/typebox@0.32.31/value", {
+		browser: "https://cdn.skypack.dev/@sinclair/typebox@0.32.31/value",
 		node: "@sinclair/typebox/value",
 	}],
-	["npm:@sinclair/typebox@0.32.13/compiler", {
-		browser: "https://cdn.skypack.dev/@sinclair/typebox@0.32.13/compiler",
+	["npm:@sinclair/typebox@0.32.31/compiler", {
+		browser: "https://cdn.skypack.dev/@sinclair/typebox@0.32.31/compiler",
 		node: "@sinclair/typebox/compiler",
 	}],
-	["npm:@sinclair/typebox@0.32.13", {
-		browser: "https://cdn.skypack.dev/@sinclair/typebox@0.32.13",
+	["npm:@sinclair/typebox@0.32.31", {
+		browser: "https://cdn.skypack.dev/@sinclair/typebox@0.32.31",
 		node: "@sinclair/typebox",
 	}],
 	["npm:jose@5.2.0", {
@@ -560,7 +560,7 @@ await writeText(
 			},
 			type: "module",
 			dependencies: {
-				"@sinclair/typebox": "0.32.13",
+				"@sinclair/typebox": "0.32.31",
 				jose: "5.2.0",
 			},
 			devDependencies: {

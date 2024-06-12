@@ -1,9 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
-import { TypeGuard } from "npm:@sinclair/typebox@0.32.13/type";
+import { TypeGuard } from "npm:@sinclair/typebox@0.32.31/type";
 import {
 	TypeCheck,
 	TypeCompiler,
-} from "npm:@sinclair/typebox@0.32.13/compiler";
+} from "npm:@sinclair/typebox@0.32.31/compiler";
 import type {
 	ContextDeriver,
 	Handler,
@@ -187,7 +187,7 @@ function codeForRouteSegment(
 				  else if (contentType === "application/x-www-form-urlencoded") {
 				    body = Object.fromEntries(new URLSearchParams(await request.text()));
 				  }
-				  else if (contentType === "multipart/form-data") {
+				  else if (contentType?.startsWith("multipart/form-data")) {
 				    const form = await request.formData();
 				    body = Array.from(form.keys()).reduce((body, key) => {
 				      const values = form.getAll(key);

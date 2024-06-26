@@ -1,6 +1,7 @@
 import { assertObjectMatch } from "https://deno.land/std@0.213.0/assert/mod.ts";
 import { t as tb } from "../typebox.ts";
 import { Application } from "./application.ts";
+import makeDynamic from "./dynamic.ts";
 
 async function extractResponse(
 	handler: Promise<Response>,
@@ -50,12 +51,16 @@ Deno.test("route", async (t) => {
 			.build(false);
 
 		assertObjectMatch(
-			await extractResponse(handle(new Request("https://testb.local/foo"))),
+			await extractResponse(
+				handle(new Request("https://testb.local/foo")),
+			),
 			{ body: `"foo"` },
 		);
 		assertObjectMatch(
 			await extractResponse(
-				handle(new Request("https://testb.local/foo", { method: "POST" })),
+				handle(
+					new Request("https://testb.local/foo", { method: "POST" }),
+				),
 			),
 			{ body: `"bar"` },
 		);

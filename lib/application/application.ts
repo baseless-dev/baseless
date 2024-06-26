@@ -324,7 +324,8 @@ export class Application<
 				handler,
 				definition: {
 					...definition,
-					params: definition.params ?? ExtractParamsAsSchemaRuntime(path),
+					params: definition.params ??
+						ExtractParamsAsSchemaRuntime(path),
 				},
 			}],
 			this.#events,
@@ -578,9 +579,8 @@ export class Application<
 				: decorator;
 			Object.assign(context, result);
 		}
-		const rst = parseRST(routes);
 		return aot
-			? makeCompiled(rst, context, derivers)
-			: makeDynamic(rst, context, derivers);
+			? makeCompiled(parseRST(routes), context, derivers)
+			: makeDynamic(routes, context, derivers);
 	}
 }

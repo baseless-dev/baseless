@@ -1,17 +1,12 @@
 // deno-lint-ignore-file explicit-function-return-type require-await no-unused-vars
-import {
-	assert,
-	assertEquals,
-	assertNotEquals,
-	assertThrows,
-} from "@std/assert";
+import { assert, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
 import {
 	Application,
 	PickAtPath,
 	RpcDefinitionWithoutSecurity,
 	RpcDefinitionWithSecurity,
 } from "./application.ts";
-import { Any, Static, TVoid, Type } from "@sinclair/typebox";
+import { Any, Static, TOptional, TString, TVoid, Type } from "@sinclair/typebox";
 import { ID } from "../core/id.ts";
 import { First, Prettify, Split, UnionToTuple } from "../core/types.ts";
 
@@ -39,7 +34,7 @@ Deno.test("Application", async (t) => {
 				},
 			})
 			.rpc(["authentication", "getCeremony"], {
-				input: Type.Void(),
+				input: Type.Union([Type.String(), Type.Undefined()]),
 				output: Type.Unknown(),
 				handler: async ({ input }) => {
 					return input;
@@ -104,30 +99,30 @@ Deno.test("Application", async (t) => {
 			: never;
 		type RpcTupleVoid = UnionToTuple<RpcUnionVoid>;
 
-		function clientRpc<
-			const TPath extends RpcTupleVoid[number]["path"],
-			const RpcDefinition extends PickAtPath<RpcTupleVoid, TPath>,
-		>(
-			path: TPath,
-		): Promise<Static<RpcDefinition["output"]>>;
-		function clientRpc<
-			const TPath extends RpcTupleNonVoid[number]["path"],
-			const RpcDefinition extends PickAtPath<RpcTupleNonVoid, TPath>,
-		>(
-			path: TPath,
-			input: Static<RpcDefinition["input"]>,
-		): Promise<Static<RpcDefinition["output"]>>;
-		function clientRpc(path: any, input?: any): any {
-			throw "TODO";
+		class Client {
+			rpc<
+				const TPath extends RpcTupleVoid[number]["path"],
+				const RpcDefinition extends PickAtPath<RpcTupleVoid, TPath>,
+			>(
+				path: TPath,
+			): Promise<Static<RpcDefinition["output"]>>;
+			rpc<
+				const TPath extends RpcTupleNonVoid[number]["path"],
+				const RpcDefinition extends PickAtPath<RpcTupleNonVoid, TPath>,
+			>(
+				path: TPath,
+				input: Static<RpcDefinition["input"]>,
+			): Promise<Static<RpcDefinition["output"]>>;
+			rpc(path: any, input?: any): any {
+				throw "TODO";
+			}
 		}
 
-		const client = {
-			rpc: {} as any,
-		};
+		const client = new Client();
 
-		clientRpc(["hello", "world"], "foobar");
-		clientRpc(["authentication", "getCeremony"]);
-		client.rpc.hello.world("foobar");
-		client.rpc.authentication.getCeremony();
+		const r1 = await client.rpc(["hello", "world"], "foobar");
+		const r2 = await client.rpc(["authentication", "getCeremony"], undefined);
+		// const r1 = await client.rpc.hello.world("foobar");
+		// const r2 = await client.rpc.authentication.getCeremony(undefined);
 	});
 });

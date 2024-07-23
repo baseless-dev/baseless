@@ -123,9 +123,7 @@ export function ksuid(
 		counter = counter_or_prefix;
 	} else if (typeof counter_or_prefix === "string") {
 		prefix = counter_or_prefix;
-		counter = typeof counter === "number"
-			? counter
-			: Date.now() - KSUID_EPOCH;
+		counter = typeof counter === "number" ? counter : Date.now() - KSUID_EPOCH;
 	}
 	if (counter > Number.MAX_SAFE_INTEGER || counter < 0) {
 		throw new RangeError(

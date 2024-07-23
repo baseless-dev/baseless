@@ -8,11 +8,12 @@ import {
 import {
 	Application,
 	PickAtPath,
+	RpcDefinitionWithoutSecurity,
 	RpcDefinitionWithSecurity,
 } from "./application.ts";
-import { Static, Type } from "@sinclair/typebox";
+import { Any, Static, TVoid, Type } from "@sinclair/typebox";
 import { ID } from "../core/id.ts";
-import { Prettify } from "../core/types.ts";
+import { First, Prettify, Split, UnionToTuple } from "../core/types.ts";
 
 Deno.test("Application", async (t) => {
 	await t.step("id", async () => {
@@ -38,7 +39,7 @@ Deno.test("Application", async (t) => {
 				},
 			})
 			.rpc(["authentication", "getCeremony"], {
-				input: Type.Unknown(),
+				input: Type.Void(),
 				output: Type.Unknown(),
 				handler: async ({ input }) => {
 					return input;
@@ -81,53 +82,52 @@ Deno.test("Application", async (t) => {
 			);
 
 		// deno-fmt-ignore
-		type TClientRpc = (typeof app) extends Application<any, infer TRpc, any, any, any, any, any>
-			? { [K in keyof TRpc]: TRpc[K] extends RpcDefinitionWithSecurity<infer P, any, infer I, infer O> ? RpcDefinitionWithSecurity<P, {}, I, O> : never }
+		type RpcUnionNonVoid = (typeof app) extends Application<any, infer TRpc, any, any, any, any, any>
+			? {
+				[K in keyof TRpc]: TRpc[K] extends RpcDefinitionWithSecurity<infer P, any, infer I, infer O>
+					? I extends TVoid
+						? never
+						: RpcDefinitionWithSecurity<P, never, I, O>
+					: never
+			}[number]
 			: never;
+		type RpcTupleNonVoid = UnionToTuple<RpcUnionNonVoid>;
+		// deno-fmt-ignore
+		type RpcUnionVoid = (typeof app) extends Application<any, infer TRpc, any, any, any, any, any>
+			? {
+				[K in keyof TRpc]: TRpc[K] extends RpcDefinitionWithSecurity<infer P, any, infer I, infer O>
+					? I extends TVoid
+						? RpcDefinitionWithSecurity<P, never, I, O>
+						: never
+					: never
+			}[number]
+			: never;
+		type RpcTupleVoid = UnionToTuple<RpcUnionVoid>;
 
-		type B = Prettify<TClientRpc>;
+		function clientRpc<
+			const TPath extends RpcTupleVoid[number]["path"],
+			const RpcDefinition extends PickAtPath<RpcTupleVoid, TPath>,
+		>(
+			path: TPath,
+		): Promise<Static<RpcDefinition["output"]>>;
+		function clientRpc<
+			const TPath extends RpcTupleNonVoid[number]["path"],
+			const RpcDefinition extends PickAtPath<RpcTupleNonVoid, TPath>,
+		>(
+			path: TPath,
+			input: Static<RpcDefinition["input"]>,
+		): Promise<Static<RpcDefinition["output"]>>;
+		function clientRpc(path: any, input?: any): any {
+			throw "TODO";
+		}
 
-		// function clientRpc1<
-		// 	const TPath extends TClientRpc[number]["path"],
-		// 	RpcDefinition extends PickAtPath<TClientRpc, TPath>,
-		// >(
-		// 	path: TPath,
-		// 	input: Static<RpcDefinition["input"]>,
-		// ): Promise<Static<RpcDefinition["output"]>> {
-		// 	throw "TODO";
-		// }
+		const client = {
+			rpc: {} as any,
+		};
 
-		// // deno-fmt-ignore
-		// type ArrayToObject<T extends unknown[], I, O> = T extends [infer Item, ...infer Rest]
-		// 	? Item extends string
-		// 		? { [K in Item]: ArrayToObject<Rest, I, O> }
-		// 		: never
-		// 		: (input: I) => Promise<O>;
-
-		// interface ClientRpc extends
-		// 	ArrayToObject<
-		// 		TClientRpc[number]["path"],
-		// 		Static<TClientRpc[number]["input"]>,
-		// 		Static<TClientRpc[number]["output"]>
-		// 	> {}
-
-		// // TODO create proxy from Application
-		// const clientRpc2: ClientRpc = {} as never;
-
-		// const result1 = await clientRpc1(["hello", "world"], "foobar");
-		// const result2 = await clientRpc1(
-		// 	["authentication", "getCeremony"],
-		// 	"foobar",
-		// );
-		// // const result3 = await clientRpc2.hello.world("foobar");
-
-		// client.rpc(["hello", "world"], "foobar");
-		// client.rpc.hello.world("foobar");
-		// client.document(["settings"]).get();
-		// client.document.settings.get();
-		// client.collection(["posts", "po_123", "comments"]).list();
-		// client.collection(["posts", "po_123", "comments"]).get("com_123");
-		// client.collection.posts["po_123"].comments.list();
-		// client.collection.posts["po_123"].comments.get("com_123");
+		clientRpc(["hello", "world"], "foobar");
+		clientRpc(["authentication", "getCeremony"]);
+		client.rpc.hello.world("foobar");
+		client.rpc.authentication.getCeremony();
 	});
 });

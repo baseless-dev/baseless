@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any ban-types
 import { type Static, type TSchema } from "@sinclair/typebox";
-import { type Identity } from "../core/identity.ts";
+import { type Identity } from "@baseless/core/identity";
 
 export type Path = Array<string>;
 

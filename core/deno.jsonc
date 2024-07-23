@@ -1,8 +1,19 @@
 {
 	"name": "@baseless/core",
-	"version": "0.0.1",
+	"version": "0.3.0-rc.1",
 	"exports": {
-		"./id.ts": "./id.ts",
-		"./identity.ts": "./identity.ts"
+		".": "./mod.ts",
+		"./id": "./id.ts",
+		"./identity": "./identity.ts",
+		"./types": "./types.ts"
+	},
+	"publish": {
+		"include": [
+			"LICENSE",
+			"*.ts"
+		],
+		"exclude": [
+			"*.test.ts"
+		]
 	}
 }

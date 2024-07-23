@@ -31,6 +31,9 @@
   "remote": {},
   "workspace": {
     "dependencies": [
+      "jsr:@baseless/client@^0.3.0",
+      "jsr:@baseless/core@^0.3.0",
+      "jsr:@baseless/server@^0.3.0",
       "jsr:@std/assert@1.0.0",
       "jsr:@std/encoding@1.0.1",
       "npm:@sinclair/typebox@0.32.34"

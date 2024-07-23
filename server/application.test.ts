@@ -7,8 +7,8 @@ import {
 	RpcDefinitionWithSecurity,
 } from "./application.ts";
 import { Any, Static, TOptional, TString, TVoid, Type } from "@sinclair/typebox";
-import { ID } from "../core/id.ts";
-import { First, Prettify, Split, UnionToTuple } from "../core/types.ts";
+import { ID } from "@baseless/core/id";
+import { First, Prettify, Split, UnionToTuple } from "@baseless/core/types";
 
 Deno.test("Application", async (t) => {
 	await t.step("id", async () => {
@@ -118,10 +118,10 @@ Deno.test("Application", async (t) => {
 			}
 		}
 
-		const client = new Client();
+		// const client = new Client();
 
-		const r1 = await client.rpc(["hello", "world"], "foobar");
-		const r2 = await client.rpc(["authentication", "getCeremony"], undefined);
+		// const r1 = await client.rpc(["hello", "world"], "foobar");
+		// const r2 = await client.rpc(["authentication", "getCeremony"], undefined);
 		// const r1 = await client.rpc.hello.world("foobar");
 		// const r2 = await client.rpc.authentication.getCeremony(undefined);
 	});

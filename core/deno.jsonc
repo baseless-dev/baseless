@@ -1,0 +1,8 @@
+{
+	"name": "@baseless/core",
+	"version": "0.0.1",
+	"exports": {
+		"./id.ts": "./id.ts",
+		"./identity.ts": "./identity.ts"
+	}
+}

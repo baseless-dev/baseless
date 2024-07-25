@@ -4,103 +4,104 @@ import { type Identity } from "@baseless/core/identity";
 
 export type Path = Array<string>;
 
-export type ContextConstructor<Context, NewContext> = (
-	options: { request: Request; context: Context },
-) => Promise<NewContext>;
+export type Context<TDecoration> = {
+	request: Request;
+} & TDecoration;
+
+export type Decorator<TContext, TDecoration> = (
+	context: Context<TContext>,
+) => Promise<TDecoration>;
 
 export interface RpcDefinitionWithoutSecurity<
-	Path,
-	Context,
-	Input extends TSchema,
-	Output extends TSchema,
+	TPath,
+	TDecoration,
+	TInput extends TSchema,
+	TOutput extends TSchema,
 > {
-	path: Path;
-	input: Input;
-	output: Output;
+	path: TPath;
+	input: TInput;
+	output: TOutput;
 	handler: (options: {
-		context: Context;
-		input: Static<Input>;
-	}) => Promise<Static<Output>>;
+		context: Context<TDecoration>;
+		input: Static<TInput>;
+	}) => Promise<Static<TOutput>>;
 }
 
 export interface RpcDefinitionWithSecurity<
-	Path,
-	Context,
-	Input extends TSchema,
-	Output extends TSchema,
-> extends RpcDefinitionWithoutSecurity<Path, Context, Input, Output> {
-	security: (context: Context) => "allow" | "deny" | undefined;
+	TPath,
+	TDecoration,
+	TInput extends TSchema,
+	TOutput extends TSchema,
+> extends RpcDefinitionWithoutSecurity<TPath, TDecoration, TInput, TOutput> {
+	security: (options: { context: Context<TDecoration> }) => "allow" | "deny" | undefined;
 }
 
 export type RpcDefinition<
-	Path,
-	Context,
-	Input extends TSchema,
-	Output extends TSchema,
+	TPath,
+	TDecoration,
+	TInput extends TSchema,
+	TOutput extends TSchema,
 > =
-	| RpcDefinitionWithoutSecurity<Path, Context, Input, Output>
-	| RpcDefinitionWithSecurity<Path, Context, Input, Output>;
+	| RpcDefinitionWithoutSecurity<TPath, TDecoration, TInput, TOutput>
+	| RpcDefinitionWithSecurity<TPath, TDecoration, TInput, TOutput>;
 
 export interface EventDefinitionWithoutSecurity<
-	Path,
-	Context,
-	Payload extends TSchema,
+	TPath,
+	TPayloadSchema extends TSchema,
 > {
-	path: Path;
-	payload: Payload;
+	path: TPath;
+	payload: TPayloadSchema;
 }
 
 export interface EventDefinitionWithSecurity<
-	Path,
-	Context,
-	Payload extends TSchema,
-> extends EventDefinitionWithoutSecurity<Path, Context, Payload> {
-	security: (context: Context) => "subscribe" | "publish" | undefined;
+	TPath,
+	TDecoration,
+	TPayloadSchema extends TSchema,
+> extends EventDefinitionWithoutSecurity<TPath, TPayloadSchema> {
+	security: (options: { context: Context<TDecoration> }) => "subscribe" | "publish" | undefined;
 }
 
-export type EventDefinition<Path, Context, Payload extends TSchema> =
-	| EventDefinitionWithoutSecurity<Path, Context, Payload>
-	| EventDefinitionWithSecurity<Path, Context, Payload>;
+export type EventDefinition<TPath, TContext, TPayloadSchema extends TSchema> =
+	| EventDefinitionWithoutSecurity<TPath, TPayloadSchema>
+	| EventDefinitionWithSecurity<TPath, TContext, TPayloadSchema>;
 
 export interface DocumentDefinitionWithoutSecurity<
-	Path,
-	Context,
-	Schema extends TSchema,
+	TPath,
+	TDocumentSchema extends TSchema,
 > {
-	path: Path;
-	schema: Schema;
+	path: TPath;
+	schema: TDocumentSchema;
 }
 
 export interface DocumentDefinitionWithSecurity<
-	Path,
-	Context,
-	Schema extends TSchema,
-> extends DocumentDefinitionWithoutSecurity<Path, Context, Schema> {
+	TPath,
+	TDecoration,
+	TDocumentSchema extends TSchema,
+> extends DocumentDefinitionWithoutSecurity<TPath, TDocumentSchema> {
 	security: (
-		context: Context,
+		options: { context: Context<TDecoration> },
 	) => "subscribe" | "read" | "update" | "delete" | undefined;
 }
 
-export type DocumentDefinition<Path, Context, Schema extends TSchema> =
-	| DocumentDefinitionWithoutSecurity<Path, Context, Schema>
-	| DocumentDefinitionWithSecurity<Path, Context, Schema>;
+export type DocumentDefinition<TPath, TContext, TDocumentSchema extends TSchema> =
+	| DocumentDefinitionWithoutSecurity<TPath, TDocumentSchema>
+	| DocumentDefinitionWithSecurity<TPath, TContext, TDocumentSchema>;
 
 export interface CollectionDefinitionWithoutSecurity<
-	Path,
-	Context,
-	Schema extends TSchema,
+	TPath,
+	TCollectionSchema extends TSchema,
 > {
-	path: Path;
-	schema: Schema;
+	path: TPath;
+	schema: TCollectionSchema;
 }
 
 export interface CollectionDefinitionWithSecurity<
-	Path,
-	Context,
-	Schema extends TSchema,
-> extends CollectionDefinitionWithoutSecurity<Path, Context, Schema> {
+	TPath,
+	TDecoration,
+	TCollectionSchema extends TSchema,
+> extends CollectionDefinitionWithoutSecurity<TPath, TCollectionSchema> {
 	security: (
-		context: Context,
+		options: { context: Context<TDecoration> },
 	) =>
 		| "subscribe"
 		| "list"
@@ -111,38 +112,39 @@ export interface CollectionDefinitionWithSecurity<
 		| undefined;
 }
 
-export type CollectionDefinition<Path, Context, Schema extends TSchema> =
-	| CollectionDefinitionWithoutSecurity<Path, Context, Schema>
-	| CollectionDefinitionWithSecurity<Path, Context, Schema>;
+export type CollectionDefinition<TPath, TContext, TCollectionSchema extends TSchema> =
+	| CollectionDefinitionWithoutSecurity<TPath, TCollectionSchema>
+	| CollectionDefinitionWithSecurity<TPath, TContext, TCollectionSchema>;
 
-export interface EventListener<Path, Context, Payload extends TSchema> {
-	path: Path;
+export interface EventListener<TPath, TDecoration, TPayloadSchema extends TSchema> {
+	path: TPath;
 	handler: (options: {
-		context: Context;
-		payload: Static<Payload>;
+		context: Context<TDecoration>;
+		payload: Static<TPayloadSchema>;
 	}) => Promise<void>;
 }
 
-export interface DocumentAtomicListener<Path, Context, Schema extends TSchema> {
-	path: Path;
+export interface DocumentAtomicListener<TPath, TDecoration, TDocumentSchema extends TSchema> {
+	path: TPath;
 	handler: (options: {
-		context: Context;
-		document: Static<Schema>;
+		context: Context<TDecoration>;
+		document: Static<TDocumentSchema>;
 		atomic: unknown;
 	}) => Promise<void>;
 }
 
-export interface DocumentListener<Path, Context, Schema extends TSchema> {
-	path: Path;
+export interface DocumentListener<TPath, TDecoration, TDocumentSchema extends TSchema> {
+	path: TPath;
 	handler: (options: {
-		context: Context;
-		document: Static<Schema>;
+		context: Context<TDecoration>;
+		document: Static<TDocumentSchema>;
 	}) => Promise<void>;
 }
 
-export interface IdentityListener<Context> {
+export interface IdentityListener<TDecoration> {
 	handler: (
-		options: { context: Context; identity: Identity },
+		context: Context<TDecoration>,
+		identity: Identity,
 	) => Promise<void>;
 }
 
@@ -152,7 +154,7 @@ export type PickAtPath<TEvent extends Array<{ path: any }>, Path> = {
 }[number];
 
 export class Application<
-	TContext extends {} = {},
+	TDecoration extends {} = {},
 	TRpc extends Array<RpcDefinition<any, any, any, any>> = [],
 	TEvent extends Array<EventDefinition<any, any, any>> = [],
 	TDocument extends Array<DocumentDefinition<any, any, any>> = [],
@@ -160,7 +162,7 @@ export class Application<
 	TFile extends Array<unknown> = [],
 	TFolder extends Array<unknown> = [],
 > {
-	#context: Array<ContextConstructor<any, any>>;
+	#decorator: Array<Decorator<any, any>>;
 	#rpc: Array<RpcDefinition<any, any, any, any>>;
 	#event: Array<EventDefinition<any, any, any>>;
 	#document: Array<DocumentDefinition<any, any, any>>;
@@ -178,7 +180,7 @@ export class Application<
 
 	constructor();
 	constructor(
-		contextConstructors: Array<ContextConstructor<any, any>>,
+		contextConstructors: Array<Decorator<any, any>>,
 		rpc: Array<RpcDefinition<any, any, any, any>>,
 		event: Array<EventDefinition<any, any, any>>,
 		document: Array<DocumentDefinition<any, any, any>>,
@@ -197,7 +199,7 @@ export class Application<
 		identityDeletedListeners: Array<IdentityListener<any>>,
 	);
 	constructor(
-		context?: Array<ContextConstructor<any, any>>,
+		context?: Array<Decorator<any, any>>,
 		rpc?: Array<RpcDefinition<any, any, any, any>>,
 		event?: Array<EventDefinition<any, any, any>>,
 		document?: Array<DocumentDefinition<any, any, any>>,
@@ -215,7 +217,7 @@ export class Application<
 		identityUpdatedListeners?: Array<IdentityListener<any>>,
 		identityDeletedListeners?: Array<IdentityListener<any>>,
 	) {
-		this.#context = [...context ?? []];
+		this.#decorator = [...context ?? []];
 		this.#rpc = [...rpc ?? []];
 		this.#event = [...event ?? []];
 		this.#document = [...document ?? []];
@@ -234,10 +236,44 @@ export class Application<
 		this.#identityDeletedListeners = [...identityDeletedListeners ?? []];
 	}
 
-	context<const TNewContext extends {}>(
-		ctor: ContextConstructor<TContext, TNewContext>,
+	inspect(): {
+		decorator: Array<Decorator<any, any>>;
+		rpc: Array<RpcDefinition<any, any, any, any>>;
+		event: Array<EventDefinition<any, any, any>>;
+		document: Array<DocumentDefinition<any, any, any>>;
+		collection: Array<CollectionDefinition<any, any, any>>;
+		eventListeners: Array<EventListener<any, any, any>>;
+		documentAtomicSetListeners: Array<DocumentAtomicListener<any, any, any>>;
+		documentSetListeners: Array<DocumentListener<any, any, any>>;
+		documentAtomicDeleteListeners: Array<
+			DocumentAtomicListener<any, any, any>
+		>;
+		documentDeleteListeners: Array<DocumentListener<any, any, any>>;
+		identityCreatedListeners: Array<IdentityListener<any>>;
+		identityUpdatedListeners: Array<IdentityListener<any>>;
+		identityDeletedListeners: Array<IdentityListener<any>>;
+	} {
+		return {
+			decorator: [...this.#decorator],
+			rpc: [...this.#rpc],
+			event: [...this.#event],
+			document: [...this.#document],
+			collection: [...this.#collection],
+			eventListeners: [...this.#eventListeners],
+			documentAtomicSetListeners: [...this.#documentAtomicSetListeners],
+			documentSetListeners: [...this.#documentSetListeners],
+			documentAtomicDeleteListeners: [...this.#documentAtomicDeleteListeners],
+			documentDeleteListeners: [...this.#documentDeleteListeners],
+			identityCreatedListeners: [...this.#identityCreatedListeners],
+			identityUpdatedListeners: [...this.#identityUpdatedListeners],
+			identityDeletedListeners: [...this.#identityDeletedListeners],
+		};
+	}
+
+	decorate<const TNewContext extends {}>(
+		decorator: Decorator<TDecoration, TNewContext>,
 	): Application<
-		TContext & TNewContext,
+		TDecoration & TNewContext,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -246,7 +282,7 @@ export class Application<
 		TFolder
 	> {
 		return new Application(
-			[...this.#context, ctor],
+			[...this.#decorator, decorator],
 			this.#rpc,
 			this.#event,
 			this.#document,
@@ -269,12 +305,12 @@ export class Application<
 	>(
 		path: TPath,
 		options: Omit<
-			RpcDefinitionWithoutSecurity<TPath, TContext, TInput, TOutput>,
+			RpcDefinitionWithoutSecurity<TPath, TDecoration, TInput, TOutput>,
 			"path"
 		>,
 	): Application<
-		TContext,
-		TRpc | [RpcDefinitionWithoutSecurity<TPath, TContext, TInput, TOutput>],
+		TDecoration,
+		TRpc | [RpcDefinitionWithoutSecurity<TPath, TDecoration, TInput, TOutput>],
 		TEvent,
 		TDocument,
 		TCollection,
@@ -288,12 +324,12 @@ export class Application<
 	>(
 		path: TPath,
 		options: Omit<
-			RpcDefinitionWithSecurity<TPath, TContext, TInput, TOutput>,
+			RpcDefinitionWithSecurity<TPath, TDecoration, TInput, TOutput>,
 			"path"
 		>,
 	): Application<
-		TContext,
-		TRpc | [RpcDefinitionWithSecurity<TPath, TContext, TInput, TOutput>],
+		TDecoration,
+		TRpc | [RpcDefinitionWithSecurity<TPath, TDecoration, TInput, TOutput>],
 		TEvent,
 		TDocument,
 		TCollection,
@@ -305,7 +341,7 @@ export class Application<
 		options: any,
 	): any {
 		return new Application(
-			this.#context,
+			this.#decorator,
 			[...this.#rpc, { path, ...options }],
 			this.#event,
 			this.#document,
@@ -324,13 +360,13 @@ export class Application<
 	emits<const TPath extends Path, const TPayload extends TSchema>(
 		path: TPath,
 		options: Omit<
-			EventDefinitionWithoutSecurity<TPath, TContext, TPayload>,
+			EventDefinitionWithoutSecurity<TPath, TPayload>,
 			"path"
 		>,
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
-		TEvent | [EventDefinitionWithoutSecurity<TPath, TContext, TPayload>],
+		TEvent | [EventDefinitionWithoutSecurity<TPath, TPayload>],
 		TDocument,
 		TCollection,
 		TFile,
@@ -339,13 +375,13 @@ export class Application<
 	emits<const TPath extends Path, const TPayload extends TSchema>(
 		path: TPath,
 		options: Omit<
-			EventDefinitionWithSecurity<TPath, TContext, TPayload>,
+			EventDefinitionWithSecurity<TPath, TDecoration, TPayload>,
 			"path"
 		>,
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
-		TEvent | [EventDefinitionWithSecurity<TPath, TContext, TPayload>],
+		TEvent | [EventDefinitionWithSecurity<TPath, TDecoration, TPayload>],
 		TDocument,
 		TCollection,
 		TFile,
@@ -356,7 +392,7 @@ export class Application<
 		options: any,
 	): any {
 		return new Application(
-			this.#context,
+			this.#decorator,
 			this.#rpc,
 			[...this.#event, { path, ...options }],
 			this.#document,
@@ -375,15 +411,15 @@ export class Application<
 	document<const TPath extends Path, const Schema extends TSchema>(
 		path: TPath,
 		options: Omit<
-			DocumentDefinitionWithoutSecurity<TPath, TContext, Schema>,
+			DocumentDefinitionWithoutSecurity<TPath, Schema>,
 			"path"
 		>,
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument | [
-			DocumentDefinitionWithoutSecurity<TPath, TContext, Schema>,
+			DocumentDefinitionWithoutSecurity<TPath, Schema>,
 		],
 		TCollection,
 		TFile,
@@ -392,14 +428,14 @@ export class Application<
 	document<const TPath extends Path, const Schema extends TSchema>(
 		path: TPath,
 		options: Omit<
-			DocumentDefinitionWithSecurity<TPath, TContext, Schema>,
+			DocumentDefinitionWithSecurity<TPath, TDecoration, Schema>,
 			"path"
 		>,
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
 		TEvent,
-		TDocument | [DocumentDefinitionWithSecurity<TPath, TContext, Schema>],
+		TDocument | [DocumentDefinitionWithSecurity<TPath, TDecoration, Schema>],
 		TCollection,
 		TFile,
 		TFolder
@@ -409,7 +445,7 @@ export class Application<
 		options: any,
 	): any {
 		return new Application(
-			this.#context,
+			this.#decorator,
 			this.#rpc,
 			this.#event,
 			[...this.#document, { path, ...options }],
@@ -428,16 +464,16 @@ export class Application<
 	collection<const TPath extends Path, const Schema extends TSchema>(
 		path: TPath,
 		options: Omit<
-			CollectionDefinitionWithoutSecurity<TPath, TContext, Schema>,
+			CollectionDefinitionWithoutSecurity<TPath, Schema>,
 			"path"
 		>,
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument,
 		TCollection | [
-			CollectionDefinitionWithoutSecurity<TPath, TContext, Schema>,
+			CollectionDefinitionWithoutSecurity<TPath, Schema>,
 		],
 		TFile,
 		TFolder
@@ -445,16 +481,16 @@ export class Application<
 	collection<const TPath extends Path, const Schema extends TSchema>(
 		path: TPath,
 		options: Omit<
-			CollectionDefinitionWithSecurity<TPath, TContext, Schema>,
+			CollectionDefinitionWithSecurity<TPath, TDecoration, Schema>,
 			"path"
 		>,
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument,
 		TCollection | [
-			CollectionDefinitionWithSecurity<TPath, TContext, Schema>,
+			CollectionDefinitionWithSecurity<TPath, TDecoration, Schema>,
 		],
 		TFile,
 		TFolder
@@ -464,7 +500,7 @@ export class Application<
 		options: any,
 	): any {
 		return new Application(
-			this.#context,
+			this.#decorator,
 			this.#rpc,
 			this.#event,
 			this.#document,
@@ -487,11 +523,11 @@ export class Application<
 		path: TPath,
 		handler: EventListener<
 			TPath,
-			TContext,
+			TDecoration,
 			TEventDefinition["payload"]
 		>["handler"],
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -500,7 +536,7 @@ export class Application<
 		TFolder
 	> {
 		return new Application(
-			this.#context,
+			this.#decorator,
 			this.#rpc,
 			this.#event,
 			this.#document,
@@ -523,11 +559,11 @@ export class Application<
 		path: TPath,
 		handler: DocumentAtomicListener<
 			TPath,
-			TContext,
+			TDecoration,
 			TDocumentDefinition["schema"]
 		>["handler"],
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -536,7 +572,7 @@ export class Application<
 		TFolder
 	> {
 		return new Application(
-			this.#context,
+			this.#decorator,
 			this.#rpc,
 			this.#event,
 			this.#document,
@@ -559,11 +595,11 @@ export class Application<
 		path: TPath,
 		handler: DocumentListener<
 			TPath,
-			TContext,
+			TDecoration,
 			TDocumentDefinition["schema"]
 		>["handler"],
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -572,7 +608,7 @@ export class Application<
 		TFolder
 	> {
 		return new Application(
-			this.#context,
+			this.#decorator,
 			this.#rpc,
 			this.#event,
 			this.#document,
@@ -595,11 +631,11 @@ export class Application<
 		path: TPath,
 		handler: DocumentAtomicListener<
 			TPath,
-			TContext,
+			TDecoration,
 			TDocumentDefinition["schema"]
 		>["handler"],
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -608,7 +644,7 @@ export class Application<
 		TFolder
 	> {
 		return new Application(
-			this.#context,
+			this.#decorator,
 			this.#rpc,
 			this.#event,
 			this.#document,
@@ -631,11 +667,11 @@ export class Application<
 		path: TPath,
 		handler: DocumentListener<
 			TPath,
-			TContext,
+			TDecoration,
 			TDocumentDefinition["schema"]
 		>["handler"],
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -644,7 +680,7 @@ export class Application<
 		TFolder
 	> {
 		return new Application(
-			this.#context,
+			this.#decorator,
 			this.#rpc,
 			this.#event,
 			this.#document,
@@ -661,9 +697,9 @@ export class Application<
 	}
 
 	onIdentityCreated(
-		handler: IdentityListener<TContext>["handler"],
+		handler: IdentityListener<TDecoration>["handler"],
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -672,7 +708,7 @@ export class Application<
 		TFolder
 	> {
 		return new Application(
-			this.#context,
+			this.#decorator,
 			this.#rpc,
 			this.#event,
 			this.#document,
@@ -689,9 +725,9 @@ export class Application<
 	}
 
 	onIdentityUpdated(
-		handler: IdentityListener<TContext>["handler"],
+		handler: IdentityListener<TDecoration>["handler"],
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -700,7 +736,7 @@ export class Application<
 		TFolder
 	> {
 		return new Application(
-			this.#context,
+			this.#decorator,
 			this.#rpc,
 			this.#event,
 			this.#document,
@@ -717,9 +753,9 @@ export class Application<
 	}
 
 	onIdentityDeleted(
-		handler: IdentityListener<TContext>["handler"],
+		handler: IdentityListener<TDecoration>["handler"],
 	): Application<
-		TContext,
+		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -728,7 +764,7 @@ export class Application<
 		TFolder
 	> {
 		return new Application(
-			this.#context,
+			this.#decorator,
 			this.#rpc,
 			this.#event,
 			this.#document,
@@ -744,13 +780,56 @@ export class Application<
 		);
 	}
 
-	// requireContext
-	// requireEvent
-	// requireCollection
-	// requireDocument
-	// requireFolder
-	// requireFile
-	// use
+	use<
+		TOtherDecoration extends {},
+		TOtherRpc extends Array<RpcDefinition<any, any, any, any>>,
+		TOtherEvent extends Array<EventDefinition<any, any, any>>,
+		TOtherDocument extends Array<DocumentDefinition<any, any, any>>,
+		TOtherCollection extends Array<CollectionDefinition<any, any, any>>,
+		TOtherFile extends Array<unknown>,
+		TOtherFolder extends Array<unknown>,
+	>(
+		application: Application<
+			TOtherDecoration,
+			TOtherRpc,
+			TOtherEvent,
+			TOtherDocument,
+			TOtherCollection,
+			TOtherFile,
+			TOtherFolder
+		>,
+	): Application<
+		TDecoration | TOtherDecoration,
+		[...TRpc, ...TOtherRpc],
+		[...TEvent, ...TOtherEvent],
+		[...TDocument, ...TOtherDocument],
+		[...TCollection, ...TOtherCollection],
+		[...TFile, ...TOtherFile],
+		[...TFolder, ...TOtherFolder]
+	> {
+		return new Application(
+			[...this.#decorator, ...application.#decorator],
+			[...this.#rpc, ...application.#rpc],
+			[...this.#event, ...application.#event],
+			[...this.#document, ...application.#document],
+			[...this.#collection, ...application.#collection],
+			[...this.#eventListeners, ...application.#eventListeners],
+			[
+				...this.#documentAtomicSetListeners,
+				...application.#documentAtomicSetListeners,
+			],
+			[...this.#documentSetListeners, ...application.#documentSetListeners],
+			[
+				...this.#documentAtomicDeleteListeners,
+				...application.#documentAtomicDeleteListeners,
+			],
+			[...this.#documentDeleteListeners, ...application.#documentDeleteListeners],
+			[...this.#identityCreatedListeners, ...application.#identityCreatedListeners],
+			[...this.#identityUpdatedListeners, ...application.#identityUpdatedListeners],
+			[...this.#identityDeletedListeners, ...application.#identityDeletedListeners],
+		);
+	}
+
 	// folder(path, { mimetypes, extensions, security? })
 	// file(path, { mimetypes, extensions, security? })
 	// room(path, { security? })

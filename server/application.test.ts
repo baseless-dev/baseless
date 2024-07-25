@@ -13,7 +13,7 @@ import { First, Prettify, Split, UnionToTuple } from "@baseless/core/types";
 Deno.test("Application", async (t) => {
 	await t.step("id", async () => {
 		const app = new Application()
-			.context(async ({ request, context }) => {
+			.decorate(async ({}) => {
 				return { foo: "bar" };
 			})
 			.rpc(["hello", "internal"], {

@@ -1,4 +1,11 @@
-import { type Static, type TSchema, TVoid } from "@sinclair/typebox";
+import {
+	type Static,
+	TObject,
+	type TSchema,
+	type TString,
+	type TVoid,
+	Type,
+} from "@sinclair/typebox";
 import { type Identity } from "@baseless/core/identity";
 
 export type Path = Array<string>;
@@ -12,8 +19,8 @@ export type Decorator<TDecoration, TNewDecoration> = (
 ) => Promise<TNewDecoration>;
 
 export interface RpcDefinitionWithoutSecurity<
-	TPath,
-	TDecoration,
+	TPath extends string[],
+	TDecoration extends {},
 	TInput extends TSchema,
 	TOutput extends TSchema,
 > {
@@ -22,22 +29,26 @@ export interface RpcDefinitionWithoutSecurity<
 	output: TOutput;
 	handler: (options: {
 		context: Context<TDecoration>;
+		params: PathAsType<TPath>;
 		input: Static<TInput>;
 	}) => Promise<Static<TOutput>>;
 }
 
 export interface RpcDefinitionWithSecurity<
-	TPath,
-	TDecoration,
+	TPath extends string[],
+	TDecoration extends {},
 	TInput extends TSchema,
 	TOutput extends TSchema,
 > extends RpcDefinitionWithoutSecurity<TPath, TDecoration, TInput, TOutput> {
-	security: (options: { context: Context<TDecoration> }) => "allow" | "deny" | undefined;
+	security: (options: {
+		context: Context<TDecoration>;
+		params: PathAsType<TPath>;
+	}) => Promise<"allow" | "deny" | undefined>;
 }
 
 export type RpcDefinition<
-	TPath,
-	TDecoration,
+	TPath extends string[],
+	TDecoration extends {},
 	TInput extends TSchema,
 	TOutput extends TSchema,
 > =
@@ -67,7 +78,7 @@ export type RpcDefinitionIsInputNonVoid<TDefinition> =
 	: never;
 
 export interface EventDefinitionWithoutSecurity<
-	TPath,
+	TPath extends string[],
 	TPayloadSchema extends TSchema,
 > {
 	path: TPath;
@@ -75,14 +86,21 @@ export interface EventDefinitionWithoutSecurity<
 }
 
 export interface EventDefinitionWithSecurity<
-	TPath,
-	TDecoration,
+	TPath extends string[],
+	TDecoration extends {},
 	TPayloadSchema extends TSchema,
 > extends EventDefinitionWithoutSecurity<TPath, TPayloadSchema> {
-	security: (options: { context: Context<TDecoration> }) => "subscribe" | "publish" | undefined;
+	security: (options: {
+		context: Context<TDecoration>;
+		params: PathAsType<TPath>;
+	}) => Promise<"subscribe" | "publish" | undefined>;
 }
 
-export type EventDefinition<TPath, TDecoration, TPayloadSchema extends TSchema> =
+export type EventDefinition<
+	TPath extends string[],
+	TDecoration extends {},
+	TPayloadSchema extends TSchema,
+> =
 	| EventDefinitionWithoutSecurity<TPath, TPayloadSchema>
 	| EventDefinitionWithSecurity<TPath, TDecoration, TPayloadSchema>;
 
@@ -109,7 +127,7 @@ export type RpcDefinitionIsPayloadNonVoid<TDefinition> =
 	: never;
 
 export interface DocumentDefinitionWithoutSecurity<
-	TPath,
+	TPath extends string[],
 	TDocumentSchema extends TSchema,
 > {
 	path: TPath;
@@ -117,16 +135,21 @@ export interface DocumentDefinitionWithoutSecurity<
 }
 
 export interface DocumentDefinitionWithSecurity<
-	TPath,
-	TDecoration,
+	TPath extends string[],
+	TDecoration extends {},
 	TDocumentSchema extends TSchema,
 > extends DocumentDefinitionWithoutSecurity<TPath, TDocumentSchema> {
-	security: (
-		options: { context: Context<TDecoration> },
-	) => "subscribe" | "read" | "update" | "delete" | undefined;
+	security: (options: {
+		context: Context<TDecoration>;
+		params: PathAsType<TPath>;
+	}) => Promise<"subscribe" | "read" | "update" | "delete" | undefined>;
 }
 
-export type DocumentDefinition<TPath, TDecoration, TDocumentSchema extends TSchema> =
+export type DocumentDefinition<
+	TPath extends string[],
+	TDecoration extends {},
+	TDocumentSchema extends TSchema,
+> =
 	| DocumentDefinitionWithoutSecurity<TPath, TDocumentSchema>
 	| DocumentDefinitionWithSecurity<TPath, TDecoration, TDocumentSchema>;
 
@@ -137,7 +160,7 @@ export type DocumentDefinitionHasSecurity<TDefinition> =
 	: never;
 
 export interface CollectionDefinitionWithoutSecurity<
-	TPath,
+	TPath extends string[],
 	TCollectionSchema extends TSchema,
 > {
 	path: TPath;
@@ -145,23 +168,29 @@ export interface CollectionDefinitionWithoutSecurity<
 }
 
 export interface CollectionDefinitionWithSecurity<
-	TPath,
-	TDecoration,
+	TPath extends string[],
+	TDecoration extends {},
 	TCollectionSchema extends TSchema,
 > extends CollectionDefinitionWithoutSecurity<TPath, TCollectionSchema> {
-	security: (
-		options: { context: Context<TDecoration> },
-	) =>
+	security: (options: {
+		context: Context<TDecoration>;
+		params: PathAsType<TPath>;
+	}) => Promise<
 		| "subscribe"
 		| "list"
 		| "create"
 		| "read"
 		| "update"
 		| "delete"
-		| undefined;
+		| undefined
+	>;
 }
 
-export type CollectionDefinition<TPath, TContext, TCollectionSchema extends TSchema> =
+export type CollectionDefinition<
+	TPath extends string[],
+	TContext extends {},
+	TCollectionSchema extends TSchema,
+> =
 	| CollectionDefinitionWithoutSecurity<TPath, TCollectionSchema>
 	| CollectionDefinitionWithSecurity<TPath, TContext, TCollectionSchema>;
 
@@ -171,27 +200,42 @@ export type CollectionDefinitionHasSecurity<TDefinition> =
 	? TDefinition
 	: never;
 
-export interface EventListener<TPath, TDecoration, TPayloadSchema extends TSchema> {
+export interface EventListener<
+	TPath extends string[],
+	TDecoration extends {},
+	TPayloadSchema extends TSchema,
+> {
 	path: TPath;
 	handler: (options: {
 		context: Context<TDecoration>;
+		params: PathAsType<TPath>;
 		payload: Static<TPayloadSchema>;
 	}) => Promise<void>;
 }
 
-export interface DocumentAtomicListener<TPath, TDecoration, TDocumentSchema extends TSchema> {
+export interface DocumentAtomicListener<
+	TPath extends string[],
+	TDecoration extends {},
+	TDocumentSchema extends TSchema,
+> {
 	path: TPath;
 	handler: (options: {
 		context: Context<TDecoration>;
+		params: PathAsType<TPath>;
 		document: Static<TDocumentSchema>;
 		atomic: unknown;
 	}) => Promise<void>;
 }
 
-export interface DocumentListener<TPath, TDecoration, TDocumentSchema extends TSchema> {
+export interface DocumentListener<
+	TPath extends string[],
+	TDecoration extends {},
+	TDocumentSchema extends TSchema,
+> {
 	path: TPath;
 	handler: (options: {
 		context: Context<TDecoration>;
+		params: PathAsType<TPath>;
 		document: Static<TDocumentSchema>;
 	}) => Promise<void>;
 }
@@ -210,3 +254,27 @@ export type PickAtPath<TEvent extends Array<{ path: any }>, Path> = {
 export type ReplaceVariableInPathSegment<TPath extends string[]> = {
 	[K in keyof TPath]: TPath[K] extends `{${string}}` ? `${string}` : TPath[K];
 };
+
+export type ExtractParamInPath<TPath extends string[]> = {
+	[K in keyof TPath]: TPath[K] extends `{${infer Name}}` ? Name : never;
+};
+
+export type PathAsType<TPath extends string[]> = {
+	[param in ExtractParamInPath<TPath>[number]]: string;
+};
+
+export type PathAsSchema<TPath extends string[]> = TObject<
+	{
+		[param in ExtractParamInPath<TPath>[number]]: TString;
+	}
+>;
+
+export function PathAsSchema<const TPath extends string[]>(path: TPath): PathAsSchema<TPath> {
+	const props: Record<string, TString> = {};
+	for (const segment of path) {
+		if (segment.startsWith("{") && segment.endsWith("}")) {
+			props[segment.slice(1, -1)] = Type.String();
+		}
+	}
+	return Type.Object(props) as never;
+}

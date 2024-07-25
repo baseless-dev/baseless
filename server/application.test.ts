@@ -32,17 +32,18 @@ Deno.test("Application", async (t) => {
 				handler: async ({ input }) => {
 					return input;
 				},
-				security() {
+				async security() {
 					return "allow" as const;
 				},
 			})
 			.rpc(["users", "{userId}", "kick"], {
 				input: Type.Void(),
-				output: Type.Boolean(),
-				handler: async ({ input }) => {
-					return true;
+				output: Type.String(),
+				handler: async ({ params: { userId } }) => {
+					return userId;
 				},
-				security() {
+				security: async ({ params: { userId } }) => {
+					console.log({ userId });
 					return "allow" as const;
 				},
 			})
@@ -56,7 +57,7 @@ Deno.test("Application", async (t) => {
 				schema: Type.Object({
 					foo: Type.String(),
 				}),
-				security() {
+				async security() {
 					return "read" as const;
 				},
 			})

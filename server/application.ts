@@ -174,12 +174,12 @@ export class Application<
 	>(
 		path: TPath,
 		options: Omit<
-			RpcDefinitionWithoutSecurity<TPath, TDecoration, TInput, TOutput>,
+			RpcDefinitionWithSecurity<TPath, TDecoration, TInput, TOutput>,
 			"path"
 		>,
 	): Application<
 		TDecoration,
-		TRpc | [RpcDefinitionWithoutSecurity<TPath, {}, TInput, TOutput>],
+		TRpc | [RpcDefinitionWithSecurity<TPath, {}, TInput, TOutput>],
 		TEvent,
 		TDocument,
 		TCollection,
@@ -193,12 +193,12 @@ export class Application<
 	>(
 		path: TPath,
 		options: Omit<
-			RpcDefinitionWithSecurity<TPath, TDecoration, TInput, TOutput>,
+			RpcDefinitionWithoutSecurity<TPath, TDecoration, TInput, TOutput>,
 			"path"
 		>,
 	): Application<
 		TDecoration,
-		TRpc | [RpcDefinitionWithSecurity<TPath, {}, TInput, TOutput>],
+		TRpc | [RpcDefinitionWithoutSecurity<TPath, {}, TInput, TOutput>],
 		TEvent,
 		TDocument,
 		TCollection,
@@ -229,13 +229,13 @@ export class Application<
 	emits<const TPath extends Path, const TPayload extends TSchema>(
 		path: TPath,
 		options: Omit<
-			EventDefinitionWithoutSecurity<TPath, TPayload>,
+			EventDefinitionWithSecurity<TPath, TDecoration, TPayload>,
 			"path"
 		>,
 	): Application<
 		TDecoration,
 		TRpc,
-		TEvent | [EventDefinitionWithoutSecurity<TPath, TPayload>],
+		TEvent | [EventDefinitionWithSecurity<TPath, {}, TPayload>],
 		TDocument,
 		TCollection,
 		TFile,
@@ -244,13 +244,13 @@ export class Application<
 	emits<const TPath extends Path, const TPayload extends TSchema>(
 		path: TPath,
 		options: Omit<
-			EventDefinitionWithSecurity<TPath, TDecoration, TPayload>,
+			EventDefinitionWithoutSecurity<TPath, TPayload>,
 			"path"
 		>,
 	): Application<
 		TDecoration,
 		TRpc,
-		TEvent | [EventDefinitionWithSecurity<TPath, {}, TPayload>],
+		TEvent | [EventDefinitionWithoutSecurity<TPath, TPayload>],
 		TDocument,
 		TCollection,
 		TFile,
@@ -280,6 +280,21 @@ export class Application<
 	document<const TPath extends Path, const Schema extends TSchema>(
 		path: TPath,
 		options: Omit<
+			DocumentDefinitionWithSecurity<TPath, TDecoration, Schema>,
+			"path"
+		>,
+	): Application<
+		TDecoration,
+		TRpc,
+		TEvent,
+		TDocument | [DocumentDefinitionWithSecurity<TPath, {}, Schema>],
+		TCollection,
+		TFile,
+		TFolder
+	>;
+	document<const TPath extends Path, const Schema extends TSchema>(
+		path: TPath,
+		options: Omit<
 			DocumentDefinitionWithoutSecurity<TPath, Schema>,
 			"path"
 		>,
@@ -290,21 +305,6 @@ export class Application<
 		TDocument | [
 			DocumentDefinitionWithoutSecurity<TPath, Schema>,
 		],
-		TCollection,
-		TFile,
-		TFolder
-	>;
-	document<const TPath extends Path, const Schema extends TSchema>(
-		path: TPath,
-		options: Omit<
-			DocumentDefinitionWithSecurity<TPath, TDecoration, Schema>,
-			"path"
-		>,
-	): Application<
-		TDecoration,
-		TRpc,
-		TEvent,
-		TDocument | [DocumentDefinitionWithSecurity<TPath, {}, Schema>],
 		TCollection,
 		TFile,
 		TFolder
@@ -333,23 +333,6 @@ export class Application<
 	collection<const TPath extends Path, const Schema extends TSchema>(
 		path: TPath,
 		options: Omit<
-			CollectionDefinitionWithoutSecurity<TPath, Schema>,
-			"path"
-		>,
-	): Application<
-		TDecoration,
-		TRpc,
-		TEvent,
-		TDocument,
-		TCollection | [
-			CollectionDefinitionWithoutSecurity<TPath, Schema>,
-		],
-		TFile,
-		TFolder
-	>;
-	collection<const TPath extends Path, const Schema extends TSchema>(
-		path: TPath,
-		options: Omit<
 			CollectionDefinitionWithSecurity<TPath, TDecoration, Schema>,
 			"path"
 		>,
@@ -360,6 +343,23 @@ export class Application<
 		TDocument,
 		TCollection | [
 			CollectionDefinitionWithSecurity<TPath, {}, Schema>,
+		],
+		TFile,
+		TFolder
+	>;
+	collection<const TPath extends Path, const Schema extends TSchema>(
+		path: TPath,
+		options: Omit<
+			CollectionDefinitionWithoutSecurity<TPath, Schema>,
+			"path"
+		>,
+	): Application<
+		TDecoration,
+		TRpc,
+		TEvent,
+		TDocument,
+		TCollection | [
+			CollectionDefinitionWithoutSecurity<TPath, Schema>,
 		],
 		TFile,
 		TFolder

@@ -1,157 +1,26 @@
 // deno-lint-ignore-file no-explicit-any ban-types
-import { type Static, type TSchema } from "@sinclair/typebox";
-import { type Identity } from "@baseless/core/identity";
-
-export type Path = Array<string>;
-
-export type Context<TDecoration> = {
-	request: Request;
-} & TDecoration;
-
-export type Decorator<TContext, TDecoration> = (
-	context: Context<TContext>,
-) => Promise<TDecoration>;
-
-export interface RpcDefinitionWithoutSecurity<
-	TPath,
-	TDecoration,
-	TInput extends TSchema,
-	TOutput extends TSchema,
-> {
-	path: TPath;
-	input: TInput;
-	output: TOutput;
-	handler: (options: {
-		context: Context<TDecoration>;
-		input: Static<TInput>;
-	}) => Promise<Static<TOutput>>;
-}
-
-export interface RpcDefinitionWithSecurity<
-	TPath,
-	TDecoration,
-	TInput extends TSchema,
-	TOutput extends TSchema,
-> extends RpcDefinitionWithoutSecurity<TPath, TDecoration, TInput, TOutput> {
-	security: (options: { context: Context<TDecoration> }) => "allow" | "deny" | undefined;
-}
-
-export type RpcDefinition<
-	TPath,
-	TDecoration,
-	TInput extends TSchema,
-	TOutput extends TSchema,
-> =
-	| RpcDefinitionWithoutSecurity<TPath, TDecoration, TInput, TOutput>
-	| RpcDefinitionWithSecurity<TPath, TDecoration, TInput, TOutput>;
-
-export interface EventDefinitionWithoutSecurity<
-	TPath,
-	TPayloadSchema extends TSchema,
-> {
-	path: TPath;
-	payload: TPayloadSchema;
-}
-
-export interface EventDefinitionWithSecurity<
-	TPath,
-	TDecoration,
-	TPayloadSchema extends TSchema,
-> extends EventDefinitionWithoutSecurity<TPath, TPayloadSchema> {
-	security: (options: { context: Context<TDecoration> }) => "subscribe" | "publish" | undefined;
-}
-
-export type EventDefinition<TPath, TContext, TPayloadSchema extends TSchema> =
-	| EventDefinitionWithoutSecurity<TPath, TPayloadSchema>
-	| EventDefinitionWithSecurity<TPath, TContext, TPayloadSchema>;
-
-export interface DocumentDefinitionWithoutSecurity<
-	TPath,
-	TDocumentSchema extends TSchema,
-> {
-	path: TPath;
-	schema: TDocumentSchema;
-}
-
-export interface DocumentDefinitionWithSecurity<
-	TPath,
-	TDecoration,
-	TDocumentSchema extends TSchema,
-> extends DocumentDefinitionWithoutSecurity<TPath, TDocumentSchema> {
-	security: (
-		options: { context: Context<TDecoration> },
-	) => "subscribe" | "read" | "update" | "delete" | undefined;
-}
-
-export type DocumentDefinition<TPath, TContext, TDocumentSchema extends TSchema> =
-	| DocumentDefinitionWithoutSecurity<TPath, TDocumentSchema>
-	| DocumentDefinitionWithSecurity<TPath, TContext, TDocumentSchema>;
-
-export interface CollectionDefinitionWithoutSecurity<
-	TPath,
-	TCollectionSchema extends TSchema,
-> {
-	path: TPath;
-	schema: TCollectionSchema;
-}
-
-export interface CollectionDefinitionWithSecurity<
-	TPath,
-	TDecoration,
-	TCollectionSchema extends TSchema,
-> extends CollectionDefinitionWithoutSecurity<TPath, TCollectionSchema> {
-	security: (
-		options: { context: Context<TDecoration> },
-	) =>
-		| "subscribe"
-		| "list"
-		| "create"
-		| "read"
-		| "update"
-		| "delete"
-		| undefined;
-}
-
-export type CollectionDefinition<TPath, TContext, TCollectionSchema extends TSchema> =
-	| CollectionDefinitionWithoutSecurity<TPath, TCollectionSchema>
-	| CollectionDefinitionWithSecurity<TPath, TContext, TCollectionSchema>;
-
-export interface EventListener<TPath, TDecoration, TPayloadSchema extends TSchema> {
-	path: TPath;
-	handler: (options: {
-		context: Context<TDecoration>;
-		payload: Static<TPayloadSchema>;
-	}) => Promise<void>;
-}
-
-export interface DocumentAtomicListener<TPath, TDecoration, TDocumentSchema extends TSchema> {
-	path: TPath;
-	handler: (options: {
-		context: Context<TDecoration>;
-		document: Static<TDocumentSchema>;
-		atomic: unknown;
-	}) => Promise<void>;
-}
-
-export interface DocumentListener<TPath, TDecoration, TDocumentSchema extends TSchema> {
-	path: TPath;
-	handler: (options: {
-		context: Context<TDecoration>;
-		document: Static<TDocumentSchema>;
-	}) => Promise<void>;
-}
-
-export interface IdentityListener<TDecoration> {
-	handler: (
-		context: Context<TDecoration>,
-		identity: Identity,
-	) => Promise<void>;
-}
-
-// deno-fmt-ignore
-export type PickAtPath<TEvent extends Array<{ path: any }>, Path> = {
-	[K in keyof TEvent]: TEvent[K]["path"] extends Path ? TEvent[K] : never
-}[number];
+import type { TSchema } from "@sinclair/typebox";
+import type {
+	CollectionDefinition,
+	CollectionDefinitionWithoutSecurity,
+	CollectionDefinitionWithSecurity,
+	Decorator,
+	DocumentAtomicListener,
+	DocumentDefinition,
+	DocumentDefinitionWithoutSecurity,
+	DocumentDefinitionWithSecurity,
+	DocumentListener,
+	EventDefinition,
+	EventDefinitionWithoutSecurity,
+	EventDefinitionWithSecurity,
+	EventListener,
+	IdentityListener,
+	Path,
+	PickAtPath,
+	RpcDefinition,
+	RpcDefinitionWithoutSecurity,
+	RpcDefinitionWithSecurity,
+} from "./types.ts";
 
 export class Application<
 	TDecoration extends {} = {},
@@ -310,7 +179,7 @@ export class Application<
 		>,
 	): Application<
 		TDecoration,
-		TRpc | [RpcDefinitionWithoutSecurity<TPath, TDecoration, TInput, TOutput>],
+		TRpc | [RpcDefinitionWithoutSecurity<TPath, {}, TInput, TOutput>],
 		TEvent,
 		TDocument,
 		TCollection,
@@ -329,7 +198,7 @@ export class Application<
 		>,
 	): Application<
 		TDecoration,
-		TRpc | [RpcDefinitionWithSecurity<TPath, TDecoration, TInput, TOutput>],
+		TRpc | [RpcDefinitionWithSecurity<TPath, {}, TInput, TOutput>],
 		TEvent,
 		TDocument,
 		TCollection,
@@ -381,7 +250,7 @@ export class Application<
 	): Application<
 		TDecoration,
 		TRpc,
-		TEvent | [EventDefinitionWithSecurity<TPath, TDecoration, TPayload>],
+		TEvent | [EventDefinitionWithSecurity<TPath, {}, TPayload>],
 		TDocument,
 		TCollection,
 		TFile,
@@ -435,7 +304,7 @@ export class Application<
 		TDecoration,
 		TRpc,
 		TEvent,
-		TDocument | [DocumentDefinitionWithSecurity<TPath, TDecoration, Schema>],
+		TDocument | [DocumentDefinitionWithSecurity<TPath, {}, Schema>],
 		TCollection,
 		TFile,
 		TFolder
@@ -490,7 +359,7 @@ export class Application<
 		TEvent,
 		TDocument,
 		TCollection | [
-			CollectionDefinitionWithSecurity<TPath, TDecoration, Schema>,
+			CollectionDefinitionWithSecurity<TPath, {}, Schema>,
 		],
 		TFile,
 		TFolder

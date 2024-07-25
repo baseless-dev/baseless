@@ -37,12 +37,12 @@ export class Application<
 	#document: Array<DocumentDefinition<any, any, any>>;
 	#collection: Array<CollectionDefinition<any, any, any>>;
 	#eventListeners: Array<EventListener<any, any, any>>;
-	#documentAtomicSetListeners: Array<DocumentAtomicListener<any, any, any>>;
-	#documentSetListeners: Array<DocumentListener<any, any, any>>;
-	#documentAtomicDeleteListeners: Array<
+	#documentSavingListeners: Array<DocumentAtomicListener<any, any, any>>;
+	#documentSavedListeners: Array<DocumentListener<any, any, any>>;
+	#documentDeletingListeners: Array<
 		DocumentAtomicListener<any, any, any>
 	>;
-	#documentDeleteListeners: Array<DocumentListener<any, any, any>>;
+	#documentDeletedListeners: Array<DocumentListener<any, any, any>>;
 	#identityCreatedListeners: Array<IdentityListener<any>>;
 	#identityUpdatedListeners: Array<IdentityListener<any>>;
 	#identityDeletedListeners: Array<IdentityListener<any>>;
@@ -55,14 +55,14 @@ export class Application<
 		document: Array<DocumentDefinition<any, any, any>>,
 		collection: Array<CollectionDefinition<any, any, any>>,
 		eventListeners: Array<EventListener<any, any, any>>,
-		documentAtomicSetListeners: Array<
+		documentSavingListeners: Array<
 			DocumentAtomicListener<any, any, any>
 		>,
-		documentSetListeners: Array<DocumentListener<any, any, any>>,
-		documentAtomicDeleteListeners: Array<
+		documentSavedListeners: Array<DocumentListener<any, any, any>>,
+		documentDeletingListeners: Array<
 			DocumentAtomicListener<any, any, any>
 		>,
-		documentDeleteListeners: Array<DocumentListener<any, any, any>>,
+		documentDeletedListeners: Array<DocumentListener<any, any, any>>,
 		identityCreatedListeners: Array<IdentityListener<any>>,
 		identityUpdatedListeners: Array<IdentityListener<any>>,
 		identityDeletedListeners: Array<IdentityListener<any>>,
@@ -74,14 +74,14 @@ export class Application<
 		document?: Array<DocumentDefinition<any, any, any>>,
 		collection?: Array<CollectionDefinition<any, any, any>>,
 		eventListeners?: Array<EventListener<any, any, any>>,
-		documentAtomicSetListeners?: Array<
+		documentSavingListeners?: Array<
 			DocumentAtomicListener<any, any, any>
 		>,
-		documentSetListeners?: Array<DocumentListener<any, any, any>>,
-		documentAtomicDeleteListeners?: Array<
+		documentSavedListeners?: Array<DocumentListener<any, any, any>>,
+		documentDeletingListeners?: Array<
 			DocumentAtomicListener<any, any, any>
 		>,
-		documentDeleteListeners?: Array<DocumentListener<any, any, any>>,
+		documentDeletedListeners?: Array<DocumentListener<any, any, any>>,
 		identityCreatedListeners?: Array<IdentityListener<any>>,
 		identityUpdatedListeners?: Array<IdentityListener<any>>,
 		identityDeletedListeners?: Array<IdentityListener<any>>,
@@ -92,14 +92,14 @@ export class Application<
 		this.#document = [...document ?? []];
 		this.#collection = [...collection ?? []];
 		this.#eventListeners = [...eventListeners ?? []];
-		this.#documentAtomicSetListeners = [
-			...documentAtomicSetListeners ?? [],
+		this.#documentSavingListeners = [
+			...documentSavingListeners ?? [],
 		];
-		this.#documentSetListeners = [...documentSetListeners ?? []];
-		this.#documentAtomicDeleteListeners = [
-			...documentAtomicDeleteListeners ?? [],
+		this.#documentSavedListeners = [...documentSavedListeners ?? []];
+		this.#documentDeletingListeners = [
+			...documentDeletingListeners ?? [],
 		];
-		this.#documentDeleteListeners = [...documentDeleteListeners ?? []];
+		this.#documentDeletedListeners = [...documentDeletedListeners ?? []];
 		this.#identityCreatedListeners = [...identityCreatedListeners ?? []];
 		this.#identityUpdatedListeners = [...identityUpdatedListeners ?? []];
 		this.#identityDeletedListeners = [...identityDeletedListeners ?? []];
@@ -112,12 +112,12 @@ export class Application<
 		document: Array<DocumentDefinition<any, any, any>>;
 		collection: Array<CollectionDefinition<any, any, any>>;
 		eventListeners: Array<EventListener<any, any, any>>;
-		documentAtomicSetListeners: Array<DocumentAtomicListener<any, any, any>>;
-		documentSetListeners: Array<DocumentListener<any, any, any>>;
-		documentAtomicDeleteListeners: Array<
+		documentSavingListeners: Array<DocumentAtomicListener<any, any, any>>;
+		documentSavedListeners: Array<DocumentListener<any, any, any>>;
+		documentDeletingListeners: Array<
 			DocumentAtomicListener<any, any, any>
 		>;
-		documentDeleteListeners: Array<DocumentListener<any, any, any>>;
+		documentDeletedListeners: Array<DocumentListener<any, any, any>>;
 		identityCreatedListeners: Array<IdentityListener<any>>;
 		identityUpdatedListeners: Array<IdentityListener<any>>;
 		identityDeletedListeners: Array<IdentityListener<any>>;
@@ -129,10 +129,10 @@ export class Application<
 			document: [...this.#document],
 			collection: [...this.#collection],
 			eventListeners: [...this.#eventListeners],
-			documentAtomicSetListeners: [...this.#documentAtomicSetListeners],
-			documentSetListeners: [...this.#documentSetListeners],
-			documentAtomicDeleteListeners: [...this.#documentAtomicDeleteListeners],
-			documentDeleteListeners: [...this.#documentDeleteListeners],
+			documentSavingListeners: [...this.#documentSavingListeners],
+			documentSavedListeners: [...this.#documentSavedListeners],
+			documentDeletingListeners: [...this.#documentDeletingListeners],
+			documentDeletedListeners: [...this.#documentDeletedListeners],
 			identityCreatedListeners: [...this.#identityCreatedListeners],
 			identityUpdatedListeners: [...this.#identityUpdatedListeners],
 			identityDeletedListeners: [...this.#identityDeletedListeners],
@@ -157,10 +157,10 @@ export class Application<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
-			this.#documentAtomicSetListeners,
-			this.#documentSetListeners,
-			this.#documentAtomicDeleteListeners,
-			this.#documentDeleteListeners,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
 			this.#identityCreatedListeners,
 			this.#identityUpdatedListeners,
 			this.#identityDeletedListeners,
@@ -216,10 +216,10 @@ export class Application<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
-			this.#documentAtomicSetListeners,
-			this.#documentSetListeners,
-			this.#documentAtomicDeleteListeners,
-			this.#documentDeleteListeners,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
 			this.#identityCreatedListeners,
 			this.#identityUpdatedListeners,
 			this.#identityDeletedListeners,
@@ -267,10 +267,10 @@ export class Application<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
-			this.#documentAtomicSetListeners,
-			this.#documentSetListeners,
-			this.#documentAtomicDeleteListeners,
-			this.#documentDeleteListeners,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
 			this.#identityCreatedListeners,
 			this.#identityUpdatedListeners,
 			this.#identityDeletedListeners,
@@ -320,10 +320,10 @@ export class Application<
 			[...this.#document, { path, ...options }],
 			this.#collection,
 			this.#eventListeners,
-			this.#documentAtomicSetListeners,
-			this.#documentSetListeners,
-			this.#documentAtomicDeleteListeners,
-			this.#documentDeleteListeners,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
 			this.#identityCreatedListeners,
 			this.#identityUpdatedListeners,
 			this.#identityDeletedListeners,
@@ -375,10 +375,10 @@ export class Application<
 			this.#document,
 			[...this.#collection, { path, ...options }],
 			this.#eventListeners,
-			this.#documentAtomicSetListeners,
-			this.#documentSetListeners,
-			this.#documentAtomicDeleteListeners,
-			this.#documentDeleteListeners,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
 			this.#identityCreatedListeners,
 			this.#identityUpdatedListeners,
 			this.#identityDeletedListeners,
@@ -411,17 +411,17 @@ export class Application<
 			this.#document,
 			this.#collection,
 			[...this.#eventListeners, { path, handler }],
-			this.#documentAtomicSetListeners,
-			this.#documentSetListeners,
-			this.#documentAtomicDeleteListeners,
-			this.#documentDeleteListeners,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
 			this.#identityCreatedListeners,
 			this.#identityUpdatedListeners,
 			this.#identityDeletedListeners,
 		);
 	}
 
-	onDocumentAtomicSet<
+	onDocumentSaving<
 		const TPath extends TDocument[number]["path"],
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
@@ -447,17 +447,17 @@ export class Application<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
-			[...this.#documentAtomicSetListeners, { path, handler }],
-			this.#documentSetListeners,
-			this.#documentAtomicDeleteListeners,
-			this.#documentDeleteListeners,
+			[...this.#documentSavingListeners, { path, handler }],
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
 			this.#identityCreatedListeners,
 			this.#identityUpdatedListeners,
 			this.#identityDeletedListeners,
 		);
 	}
 
-	onDocumentSet<
+	onDocumentSaved<
 		const TPath extends TDocument[number]["path"],
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
@@ -483,17 +483,17 @@ export class Application<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
-			this.#documentAtomicSetListeners,
-			[...this.#documentSetListeners, { path, handler }],
-			this.#documentAtomicDeleteListeners,
-			this.#documentDeleteListeners,
+			this.#documentSavingListeners,
+			[...this.#documentSavedListeners, { path, handler }],
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
 			this.#identityCreatedListeners,
 			this.#identityUpdatedListeners,
 			this.#identityDeletedListeners,
 		);
 	}
 
-	onDocumentAtomicDelete<
+	onDocumentDeleting<
 		const TPath extends TDocument[number]["path"],
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
@@ -519,10 +519,10 @@ export class Application<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
-			this.#documentAtomicSetListeners,
-			this.#documentSetListeners,
-			[...this.#documentAtomicDeleteListeners, { path, handler }],
-			this.#documentDeleteListeners,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			[...this.#documentDeletingListeners, { path, handler }],
+			this.#documentDeletedListeners,
 			this.#identityCreatedListeners,
 			this.#identityUpdatedListeners,
 			this.#identityDeletedListeners,
@@ -555,10 +555,10 @@ export class Application<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
-			this.#documentAtomicSetListeners,
-			this.#documentSetListeners,
-			this.#documentAtomicDeleteListeners,
-			[...this.#documentDeleteListeners, { path, handler }],
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			[...this.#documentDeletedListeners, { path, handler }],
 			this.#identityCreatedListeners,
 			this.#identityUpdatedListeners,
 			this.#identityDeletedListeners,
@@ -583,10 +583,10 @@ export class Application<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
-			this.#documentAtomicSetListeners,
-			this.#documentSetListeners,
-			this.#documentAtomicDeleteListeners,
-			this.#documentDeleteListeners,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
 			[...this.#identityCreatedListeners, { handler }],
 			this.#identityUpdatedListeners,
 			this.#identityDeletedListeners,
@@ -611,10 +611,10 @@ export class Application<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
-			this.#documentAtomicSetListeners,
-			this.#documentSetListeners,
-			this.#documentAtomicDeleteListeners,
-			this.#documentDeleteListeners,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
 			this.#identityCreatedListeners,
 			[...this.#identityUpdatedListeners, { handler }],
 			this.#identityDeletedListeners,
@@ -639,10 +639,10 @@ export class Application<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
-			this.#documentAtomicSetListeners,
-			this.#documentSetListeners,
-			this.#documentAtomicDeleteListeners,
-			this.#documentDeleteListeners,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
 			this.#identityCreatedListeners,
 			this.#identityUpdatedListeners,
 			[...this.#identityDeletedListeners, { handler }],
@@ -684,15 +684,15 @@ export class Application<
 			[...this.#collection, ...application.#collection],
 			[...this.#eventListeners, ...application.#eventListeners],
 			[
-				...this.#documentAtomicSetListeners,
-				...application.#documentAtomicSetListeners,
+				...this.#documentSavingListeners,
+				...application.#documentSavingListeners,
 			],
-			[...this.#documentSetListeners, ...application.#documentSetListeners],
+			[...this.#documentSavedListeners, ...application.#documentSavedListeners],
 			[
-				...this.#documentAtomicDeleteListeners,
-				...application.#documentAtomicDeleteListeners,
+				...this.#documentDeletingListeners,
+				...application.#documentDeletingListeners,
 			],
-			[...this.#documentDeleteListeners, ...application.#documentDeleteListeners],
+			[...this.#documentDeletedListeners, ...application.#documentDeletedListeners],
 			[...this.#identityCreatedListeners, ...application.#identityCreatedListeners],
 			[...this.#identityUpdatedListeners, ...application.#identityUpdatedListeners],
 			[...this.#identityDeletedListeners, ...application.#identityDeletedListeners],

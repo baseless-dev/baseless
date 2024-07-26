@@ -3,8 +3,10 @@
 	"version": "0.3.0-rc.1",
 	"exports": {
 		".": "./mod.ts",
+		"./command": "./command.ts",
 		"./id": "./id.ts",
 		"./identity": "./identity.ts",
+		"./result": "./result.ts",
 		"./types": "./types.ts"
 	},
 	"publish": {

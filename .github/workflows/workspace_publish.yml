@@ -28,5 +28,8 @@ jobs:
       - name: Test
         run: deno test
 
+      - name: Prepublish check
+        run: deno publish --dry-run
+
       - name: Publish to JSR
         run: deno publish

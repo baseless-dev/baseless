@@ -23,9 +23,9 @@ export class Server {
 		const upgrade = request.headers.get("Upgrade")?.toLowerCase();
 		if (upgrade === "websocket") {
 			const protocols = request.headers.get("Sec-WebSocket-Protocol")?.split(",") ?? [];
-			if (!protocols.includes("baseless-ws")) {
-				return [new Response(null, { status: 421 }), []];
-			}
+			// TODO decode access token from protocols like Kibernetes does
+			// https://github.com/kubernetes/kubernetes/commit/714f97d7baf4975ad3aa47735a868a81a984d1f0
+			request.headers.set("Authorization", "Bearer ...");
 			// TODO decorate context
 			// TODO call security handler (wich one?)
 			// TODO handle websocket upgrade

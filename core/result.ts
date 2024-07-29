@@ -9,64 +9,85 @@ import {
 	Type,
 } from "@sinclair/typebox";
 
-export interface ResultValue {
-	kind: "result:value";
+export interface ResultSingle {
+	kind: "result";
 	value: unknown;
 }
 
-export const ResultValue: TObject<{
-	kind: TLiteral<"result:value">;
+export const ResultSingle: TObject<{
+	kind: TLiteral<"result">;
 	value: TUnknown;
 }> = Type.Object({
-	kind: Type.Literal("result:value"),
+	kind: Type.Literal("result"),
 	value: Type.Unknown(),
-}, { $id: "ResultValue" });
+}, { $id: "ResultSingle" });
 
-export function isResultValue(value: unknown): value is ResultValue {
+export function isResultSingle(value: unknown): value is ResultSingle {
 	return !!value && typeof value === "object" && "kind" in value &&
-		value.kind === "result:value" &&
+		value.kind === "result" &&
 		"value" in value;
 }
 
-export interface ResultBatched {
-	kind: "result:batched";
-	results: ResultValue[];
+export interface ResultError {
+	kind: "error";
+	error: unknown;
 }
 
-export const ResultBatched: TObject<{
-	kind: TLiteral<"result:batched">;
-	results: TArray<typeof ResultValue>;
+export const ResultError: TObject<{
+	kind: TLiteral<"error">;
+	error: TUnknown;
 }> = Type.Object({
-	kind: Type.Literal("result:batched"),
-	results: Type.Array(ResultValue),
-}, { $id: "ResultBatched" });
+	kind: Type.Literal("error"),
+	error: Type.Unknown(),
+}, { $id: "ResultError" });
 
-export function isResultBatched(value: unknown): value is ResultBatched {
+export function isResultError(value: unknown): value is ResultError {
 	return !!value && typeof value === "object" && "kind" in value &&
-		value.kind === "result:batched" &&
-		"results" in value && Array.isArray(value.results) && value.results.every(isResultValue);
+		value.kind === "error" &&
+		"error" in value;
 }
 
-export type Result = ResultValue | ResultBatched;
+export interface Results {
+	kind: "results";
+	results: ResultSingle[];
+}
+
+export const Results: TObject<{
+	kind: TLiteral<"results">;
+	results: TArray<typeof ResultSingle>;
+}> = Type.Object({
+	kind: Type.Literal("results"),
+	results: Type.Array(ResultSingle),
+}, { $id: "Results" });
+
+export function isResults(value: unknown): value is Results {
+	return !!value && typeof value === "object" && "kind" in value &&
+		value.kind === "results" &&
+		"results" in value && Array.isArray(value.results) && value.results.every(isResultSingle);
+}
+
+export type Result = ResultSingle | ResultError | Results;
 
 export const Result: TRecursive<
 	TUnion<[
-		typeof ResultValue,
+		typeof ResultSingle,
+		typeof ResultError,
 		TObject<{
-			kind: TLiteral<"result:batched">;
+			kind: TLiteral<"results">;
 			results: TArray<TThis>;
 		}>,
 	]>
 > = Type.Recursive((self) =>
 	Type.Union([
-		ResultValue,
+		ResultSingle,
+		ResultError,
 		Type.Object({
-			kind: Type.Literal("result:batched"),
+			kind: Type.Literal("results"),
 			results: Type.Array(self),
 		}),
 	])
 );
 
 export function isResult(value: unknown): value is Result {
-	return isResultValue(value) || isResultBatched(value);
+	return isResultSingle(value) || isResults(value);
 }

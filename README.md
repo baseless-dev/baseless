@@ -2,7 +2,7 @@
 
 [![JSR @baseless](https://jsr.io/badges/@baseless)](https://jsr.io/@baseless)
 
-Tiny Firebase alternative
+Really small Backend For your Frontend (BFF)
 
 <!--deno-fmt-ignore-start-->
 > [!IMPORTANT]

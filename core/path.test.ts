@@ -49,11 +49,11 @@ Deno.test("Path", async (t) => {
 			path: ["users"],
 			id: 1,
 		});
-		assertEquals(matcher(["users", "{id}"]), {
+		assertEquals(matcher(["users", "123"]), {
 			path: ["users", "{id}"],
 			id: 2,
 		});
-		assertEquals(matcher(["users", "{id}", "delete"]), {
+		assertEquals(matcher(["users", "123", "delete"]), {
 			path: ["users", "{userId}", "delete"],
 			id: 3,
 		});

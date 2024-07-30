@@ -80,16 +80,17 @@ export function createPathMatcher<T extends { path: string[] }>(
 ): (path: string[]) => T | undefined {
 	const forest = mergeTreeNodes(items.map((item) => pathToTreeNode(item.path, item)));
 	return (path) => {
-		let searchNode: TreeNode<T> | undefined = pathToTreeNode(path);
 		let haystack: TreeNode<T>[] = forest;
 		let treeNode: TreeNode<T> | undefined;
-		while (haystack.length && !!searchNode) {
-			treeNode = haystack.find((treeNode) => isTreeNodeMatching(treeNode, searchNode!));
+		for (let segment = path.shift(); segment; segment = path.shift()) {
+			treeNode = haystack.find((treeNode) => {
+				return (treeNode.kind === "const" && treeNode.value === segment) ||
+					treeNode.kind === "variable";
+			});
 			if (!treeNode) {
 				return undefined;
 			}
 			haystack = treeNode.children ?? [];
-			searchNode = searchNode.children?.at(0)!;
 		}
 		return treeNode?.leaf;
 	};

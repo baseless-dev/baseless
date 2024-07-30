@@ -49,21 +49,22 @@ export function isResultError(value: unknown): value is ResultError {
 
 export interface Results {
 	kind: "results";
-	results: ResultSingle[];
+	results: Array<ResultSingle | ResultError>;
 }
 
 export const Results: TObject<{
 	kind: TLiteral<"results">;
-	results: TArray<typeof ResultSingle>;
+	results: TArray<TUnion<[typeof ResultSingle, typeof ResultError]>>;
 }> = Type.Object({
 	kind: Type.Literal("results"),
-	results: Type.Array(ResultSingle),
+	results: Type.Array(Type.Union([ResultSingle, ResultError])),
 }, { $id: "Results" });
 
 export function isResults(value: unknown): value is Results {
 	return !!value && typeof value === "object" && "kind" in value &&
 		value.kind === "results" &&
-		"results" in value && Array.isArray(value.results) && value.results.every(isResultSingle);
+		"results" in value && Array.isArray(value.results) &&
+		value.results.every((r) => isResultSingle(r) || isResultError(r));
 }
 
 export type Result = ResultSingle | ResultError | Results;
@@ -89,5 +90,5 @@ export const Result: TRecursive<
 );
 
 export function isResult(value: unknown): value is Result {
-	return isResultSingle(value) || isResults(value);
+	return isResultSingle(value) || isResultError(value) || isResults(value);
 }

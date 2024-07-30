@@ -41,7 +41,7 @@ Deno.test("Server", async (t) => {
 					}),
 				}),
 			);
-			assertEquals(response.status, 500);
+			assertEquals(response.status, 200);
 			assertEquals(promises.length, 0);
 			const result = await response.json();
 			assert(isResultError(result));
@@ -73,8 +73,7 @@ Deno.test("Server", async (t) => {
 				method: "POST",
 				headers: {
 					"Upgrade": "websocket",
-					"Sec-WebSocket-Protocol":
-						"base64url.bearer.authorization.baseless.dev.bXl0b2tlbg",
+					"Sec-WebSocket-Protocol": "base64url.bearer.authorization.baseless.dev.bXl0b2tlbg",
 				},
 			}),
 		);

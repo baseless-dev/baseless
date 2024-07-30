@@ -1,5 +1,5 @@
 import { type Command, isCommand, isCommands } from "@baseless/core/command";
-import { type Result, ResultSingle } from "@baseless/core/result";
+import { type Result, ResultError, ResultSingle } from "@baseless/core/result";
 import type { Application } from "./application.ts";
 import { Context, Decorator, RpcDefinition } from "./types.ts";
 import { createPathMatcher } from "@baseless/core/path";
@@ -92,33 +92,34 @@ export class Server {
 
 		const bulk = isCommands(command);
 		const commands = bulk ? command.commands : [command];
-		const results: ResultSingle[] = [];
+		const results: Array<ResultSingle | ResultError> = [];
 
 		for (const command of commands) {
 			const rpcDefinition = this.#rpcMatcher(command.rpc);
 			if (!rpcDefinition) {
-				throw "not_found";
+				results.push({ kind: "error", error: "not_found" });
+				continue;
 			}
 			if ("security" in rpcDefinition) {
 				const security = await rpcDefinition.security({ context, params: {} });
 				if (security !== "allow") {
-					throw "forbidden";
+					results.push({ kind: "error", error: "forbidden" });
+					continue;
 				}
 			}
 			if (!Value.Check(rpcDefinition.input, command.input)) {
-				throw "invalid_input";
+				results.push({ kind: "error", error: "invalid_input" });
+				continue;
 			}
 			const result = await rpcDefinition.handler({
 				context,
 				params: {},
 				input: command.input,
 			});
-			return [{ kind: "result", value: result }, waitUntilPromises];
+			results.push({ kind: "result", value: result });
 		}
 
-		const result: Result = bulk
-			? { kind: "results", results }
-			: { kind: "result", value: results.at(0) };
+		const result: Result = bulk ? { kind: "results", results } : results.at(0)!;
 
 		return [result, waitUntilPromises];
 	}

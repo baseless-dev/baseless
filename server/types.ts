@@ -12,6 +12,7 @@ export type Path = Array<string>;
 
 export type Context<TDecoration> = {
 	request: Request;
+	waitUntil: (promise: PromiseLike<unknown>) => void;
 } & TDecoration;
 
 export type Decorator<TDecoration, TNewDecoration> = (

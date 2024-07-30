@@ -36,7 +36,7 @@ export function isCommandSingle(value: unknown): value is Command {
 
 export interface Commands {
 	kind: "commands";
-	commands: Command[];
+	commands: CommandSingle[];
 }
 
 export const Commands: TObject<{

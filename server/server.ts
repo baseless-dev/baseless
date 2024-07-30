@@ -1,35 +1,47 @@
 import { type Command, isCommand, isCommands } from "@baseless/core/command";
-import { type Result } from "@baseless/core/result";
+import { type Result, ResultSingle } from "@baseless/core/result";
 import type { Application } from "./application.ts";
 import { Context, Decorator, RpcDefinition } from "./types.ts";
-import { ResultSingle } from "../core/result.ts";
+import { createPathMatcher } from "@baseless/core/path";
+import { Value } from "@sinclair/typebox/value";
+import { decodeBase64Url } from "@std/encoding/base64url";
 
 export class Server {
 	#application: Application;
 	// deno-lint-ignore no-explicit-any
 	#decorators: Array<Decorator<any, any>>;
 	// deno-lint-ignore no-explicit-any
-	#rpcs: Array<RpcDefinition<any, any, any, any>>;
+	#rpcMatcher: ReturnType<typeof createPathMatcher<RpcDefinition<any, any, any, any>>>;
 
 	constructor(application: Application) {
 		this.#application = application;
 		const { decorator, rpc } = application.inspect();
 		this.#decorators = decorator;
-		this.#rpcs = rpc;
-		// TODO when possible, compile a specialized function that handle paths matching
+		this.#rpcMatcher = createPathMatcher(rpc);
 	}
 
 	async handleRequest(request: Request): Promise<[Response, PromiseLike<unknown>[]]> {
 		const upgrade = request.headers.get("Upgrade")?.toLowerCase();
 		if (upgrade === "websocket") {
 			const protocols = request.headers.get("Sec-WebSocket-Protocol")?.split(",") ?? [];
-			// TODO decode access token from protocols like Kibernetes does
+			// Same method used in Kubernetes
 			// https://github.com/kubernetes/kubernetes/commit/714f97d7baf4975ad3aa47735a868a81a984d1f0
-			request.headers.set("Authorization", "Bearer ...");
-			// TODO decorate context
-			// TODO call security handler (wich one?)
-			// TODO handle websocket upgrade
-			return [new Response(null, { status: 501 }), []];
+			const encodedBearer = protocols.find((protocol) =>
+				protocol.startsWith("base64url.bearer.authorization.baseless.dev.")
+			);
+			if (encodedBearer) {
+				const base64Decoded = decodeBase64Url(encodedBearer.slice(44));
+				request.headers.set(
+					"Authorization",
+					`Bearer ${new TextDecoder().decode(base64Decoded)}`,
+				);
+			} else {
+				request.headers.delete("Authorization");
+			}
+			const [context, waitUntilPromises] = await this.#constructContext(request);
+			// TODO call security handler (which one?)
+			// TODO handle websocket upgrade with provider
+			return [new Response(null, { status: 501 }), waitUntilPromises];
 		}
 		if (
 			request.method !== "POST" ||
@@ -58,31 +70,56 @@ export class Server {
 		return this.#handleCommand(command, new Request("https://local/"));
 	}
 
+	async #constructContext(request: Request): Promise<[Context<unknown>, PromiseLike<unknown>[]]> {
+		const waitUntilPromises: PromiseLike<unknown>[] = [];
+		const context: Context<unknown> = {
+			request,
+			waitUntil: (promise) => {
+				waitUntilPromises.push(promise);
+			},
+		};
+		for (const decorator of this.#decorators) {
+			Object.assign(context, await decorator(context));
+		}
+		return [context, waitUntilPromises];
+	}
+
 	async #handleCommand(
 		command: Command,
 		request: Request,
 	): Promise<[Result, PromiseLike<unknown>[]]> {
-		const waitForPromises: PromiseLike<unknown>[] = [];
-		const context: Context<unknown> = { request };
-		for (const decorator of this.#decorators) {
-			Object.assign(context, await decorator(context));
-		}
+		const [context, waitUntilPromises] = await this.#constructContext(request);
 
 		const bulk = isCommands(command);
 		const commands = bulk ? command.commands : [command];
 		const results: ResultSingle[] = [];
 
-		for (const command in commands) {
-			// TODO find `rpc` using regex?
-			// TODO Value.Check command.input against rpc.input
-			// TODO call rpc.handler with context & command.input
-			throw "not_implemented";
+		for (const command of commands) {
+			const rpcDefinition = this.#rpcMatcher(command.rpc);
+			if (!rpcDefinition) {
+				throw "not_found";
+			}
+			if ("security" in rpcDefinition) {
+				const security = await rpcDefinition.security({ context, params: {} });
+				if (security !== "allow") {
+					throw "forbidden";
+				}
+			}
+			if (!Value.Check(rpcDefinition.input, command.input)) {
+				throw "invalid_input";
+			}
+			const result = await rpcDefinition.handler({
+				context,
+				params: {},
+				input: command.input,
+			});
+			return [{ kind: "result", value: result }, waitUntilPromises];
 		}
 
 		const result: Result = bulk
 			? { kind: "results", results }
 			: { kind: "result", value: results.at(0) };
 
-		return [result, waitForPromises];
+		return [result, waitUntilPromises];
 	}
 }

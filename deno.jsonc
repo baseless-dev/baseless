@@ -4,6 +4,9 @@
 		"./core",
 		"./server"
 	],
+	"tasks": {
+		"test:fast": "deno test --parallel --fail-fast"
+	},
 	"compilerOptions": {
 	},
 	"lint": {

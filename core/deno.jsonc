@@ -6,6 +6,7 @@
 		"./command": "./command.ts",
 		"./id": "./id.ts",
 		"./identity": "./identity.ts",
+		"./path": "./path.ts",
 		"./result": "./result.ts",
 		"./types": "./types.ts"
 	},

@@ -1,11 +1,13 @@
 // deno-lint-ignore-file require-await
-import { isID } from "@baseless/core/id";
+import { ID, isID, TID } from "@baseless/core/id";
 import { Application } from "./application.ts";
 import { type KVProvider } from "./provider.ts";
 import { isSession, type Session } from "@baseless/core/authentication";
 import { jwtVerify, type KeyLike } from "jose";
 import { type TBoolean, type TObject, type TString, type TVoid, Type } from "@sinclair/typebox";
-import { RpcDefinitionWithSecurity } from "./types.ts";
+import { CollectionDefinitionWithoutSecurity, RpcDefinitionWithSecurity } from "./types.ts";
+import { Identity, IdentityComponent } from "@baseless/core/identity";
+import { DocumentDefinitionWithoutSecurity } from "./types.ts";
 
 export interface AuthenticationOptions {
 	kvProvider: KVProvider;
@@ -43,6 +45,20 @@ export function createAuthenticationApplication(
 			TObject<{ refresh_token: TString }>,
 			TBoolean
 		>,
+	],
+	[],
+	[
+		DocumentDefinitionWithoutSecurity<
+			["identifications", "{kind}", "{identification}"],
+			TID<"id_">
+		>,
+	],
+	[
+		CollectionDefinitionWithoutSecurity<["identities"], typeof Identity>,
+		CollectionDefinitionWithoutSecurity<
+			["identities", "{identityId}", "components"],
+			typeof IdentityComponent
+		>,
 	]
 > {
 	return new Application()
@@ -68,6 +84,9 @@ export function createAuthenticationApplication(
 			}
 			return { currentSession, kvProvider };
 		})
+		.collection(["identities"], { schema: Identity })
+		.collection(["identities", "{identityId}", "components"], { schema: IdentityComponent })
+		.document(["identifications", "{kind}", "{identification}"], { schema: ID("id_") })
 		.rpc(["authentication", "signOut"], {
 			input: Type.Void(),
 			output: Type.Boolean(),

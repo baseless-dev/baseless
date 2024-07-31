@@ -3,9 +3,12 @@
 	"version": "0.3.0-rc.1",
 	"exports": {
 		".": "./mod.ts",
+		"./authentication": "./authentication.ts",
 		"./command": "./command.ts",
+		"./document": "./document.ts",
 		"./id": "./id.ts",
 		"./identity": "./identity.ts",
+		"./orderedmap": "./orderedmap.ts",
 		"./path": "./path.ts",
 		"./result": "./result.ts",
 		"./types": "./types.ts"

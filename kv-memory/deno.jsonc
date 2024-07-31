@@ -1,0 +1,16 @@
+{
+	"name": "@baseless/kv-memory",
+	"version": "0.3.0-rc.1",
+	"exports": {
+		".": "./mod.ts"
+	},
+	"publish": {
+		"include": [
+			"LICENSE",
+			"*.ts"
+		],
+		"exclude": [
+			"*.test.ts"
+		]
+	}
+}

@@ -4,6 +4,10 @@
 	"exports": {
 		".": "./mod.ts",
 		"./application": "./application.ts",
+		"./authentication": "./authentication.ts",
+		"./provider": "./provider.ts",
+		"./provider.test": "./provider.test.ts",
+		"./server": "./server.ts",
 		"./types": "./types.ts"
 	},
 	"publish": {

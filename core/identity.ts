@@ -20,15 +20,13 @@ export interface Identity {
  * Create a type schema for an Identity.
  * @returns The Identity schema.
  */
-export function Identity(): TObject<{
+export const Identity: TObject<{
 	identityId: TID<"id_">;
 	data: TOptional<TRecord<TString, TUnknown>>;
-}> {
-	return Type.Object({
-		identityId: ID("id_"),
-		data: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
-	}, { $id: "Identity" });
-}
+}> = Type.Object({
+	identityId: ID("id_"),
+	data: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+}, { $id: "Identity" });
 
 /**
  * Check if the Identity is valid.

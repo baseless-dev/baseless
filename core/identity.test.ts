@@ -10,8 +10,8 @@ Deno.test("Identity", async (t) => {
 		assert(!isIdentity("foo"));
 	});
 	await t.step("typebox schema", () => {
-		assert(Value.Check(Identity(), { identityId: id("id_"), data: {} }));
-		assert(Value.Check(Identity(), { identityId: id("id_") }));
-		assert(!Value.Check(Identity(), "foo"));
+		assert(Value.Check(Identity, { identityId: id("id_"), data: {} }));
+		assert(Value.Check(Identity, { identityId: id("id_") }));
+		assert(!Value.Check(Identity, "foo"));
 	});
 });

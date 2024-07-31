@@ -1,23 +1,34 @@
+// deno-lint-ignore-file require-await
 import { assert, assertEquals } from "@std/assert";
 import { Application } from "./application.ts";
 import { Server } from "./server.ts";
 import { Type } from "@sinclair/typebox";
 import { isResultError, isResultSingle } from "@baseless/core/result";
+import { MemoryKVProvider } from "@baseless/kv-memory";
+import { MemoryDocumentProvider } from "@baseless/document-memory";
 
 Deno.test("Server", async (t) => {
-	const app = new Application()
-		.rpc(["hello"], {
-			input: Type.String(),
-			output: Type.String(),
-			handler: async ({ input }) => {
-				return input;
-			},
-			security: async () => {
-				return "allow";
-			},
+	const setupServer = () => {
+		const app = new Application()
+			.rpc(["hello"], {
+				input: Type.String(),
+				output: Type.String(),
+				handler: async ({ input }) => {
+					return input;
+				},
+				security: async () => {
+					return "allow";
+				},
+			});
+		const server = new Server(app, {
+			kv: new MemoryKVProvider(),
+			document: new MemoryDocumentProvider(),
 		});
+		return { app, server };
+	};
+
 	await t.step("handle command", async () => {
-		const server = new Server(app);
+		const { server } = setupServer();
 		const [result, promises] = await server.handleCommand({
 			kind: "command",
 			rpc: ["hello"],
@@ -28,7 +39,7 @@ Deno.test("Server", async (t) => {
 		assertEquals(promises.length, 0);
 	});
 	await t.step("handle request", async () => {
-		const server = new Server(app);
+		const { server } = setupServer();
 		{
 			const [response, promises] = await server.handleRequest(
 				new Request("https://local", {
@@ -67,13 +78,14 @@ Deno.test("Server", async (t) => {
 		}
 	});
 	await t.step("handle websocket", async () => {
-		const server = new Server(app);
+		const { server } = setupServer();
 		const [response, promises] = await server.handleRequest(
 			new Request("https://local", {
 				method: "POST",
 				headers: {
 					"Upgrade": "websocket",
-					"Sec-WebSocket-Protocol": "base64url.bearer.authorization.baseless.dev.bXl0b2tlbg",
+					"Sec-WebSocket-Protocol":
+						"base64url.bearer.authorization.baseless.dev.bXl0b2tlbg",
 				},
 			}),
 		);

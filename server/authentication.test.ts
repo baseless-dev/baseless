@@ -1,6 +1,7 @@
 import { generateKeyPair } from "jose";
 import { createAuthenticationApplication } from "./authentication.ts";
 import { MemoryKVProvider } from "@baseless/kv-memory";
+import { MemoryDocumentProvider } from "@baseless/document-memory";
 import { Server } from "./server.ts";
 import { assert } from "@std/assert";
 import { isResultSingle } from "../core/result.ts";
@@ -10,9 +11,12 @@ Deno.test("Authentication App", async (t) => {
 	const setupServer = () => {
 		const app = createAuthenticationApplication({
 			keys: { algo: "PS512", ...keyPair },
-			kvProvider: new MemoryKVProvider(),
+			accessTokenTTL: 1000 * 60 * 60,
 		});
-		const server = new Server(app);
+		const server = new Server(app, {
+			kv: new MemoryKVProvider(),
+			document: new MemoryDocumentProvider(),
+		});
 		return { app, server };
 	};
 

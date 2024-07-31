@@ -7,12 +7,17 @@ import {
 	Type,
 } from "@sinclair/typebox";
 import { type Identity } from "@baseless/core/identity";
+import { DocumentProvider, KVProvider } from "./provider.ts";
 
 export type Path = Array<string>;
 
 export type Context<TDecoration> = {
 	request: Request;
 	waitUntil: (promise: PromiseLike<unknown>) => void;
+	kv: KVProvider; // TODO KVService
+	document: DocumentProvider; // TODO DocumentService<TDocument | TCollection>
+	// TODO event: EventService<TEvent>
+	// TODO storage: StorageService<TFile | TFolder>
 } & TDecoration;
 
 export type Decorator<TDecoration, TNewDecoration> = (

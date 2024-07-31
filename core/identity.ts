@@ -43,6 +43,22 @@ export function isIdentity(value: unknown): value is Identity {
 		(!("data" in value) || typeof value.data === "object");
 }
 
+/**
+ * Asserts that the Identity is valid.
+ * @param id The Identity to check
+ *
+ * ```ts
+ * assertIdentity({ identityId: "id_foobar" }); // throws if the Identity is invalid
+ * ```
+ */
+export function assertIdentity(value: unknown): asserts value is Identity {
+	if (!isIdentity(value)) {
+		throw new InvalidIdentityError();
+	}
+}
+
+export class InvalidIdentityError extends Error {}
+
 export interface IdentityComponent {
 	identityId: ID<"id_">;
 	kind: string;

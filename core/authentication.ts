@@ -18,3 +18,11 @@ export function isSession(value: unknown): value is Session {
 		isID("sess_", value.sessionId) && "identityId" in value && isID("id_", value.identityId) &&
 		"data" in value;
 }
+
+export function assertSession(value: unknown): asserts value is Session {
+	if (!isSession(value)) {
+		throw new InvalidSessionError();
+	}
+}
+
+export class InvalidSessionError extends Error {}

@@ -5,16 +5,27 @@ import { Context, Decorator, RpcDefinition } from "./types.ts";
 import { createPathMatcher } from "@baseless/core/path";
 import { Value } from "@sinclair/typebox/value";
 import { decodeBase64Url } from "@std/encoding/base64url";
+import { DocumentProvider, KVProvider } from "./provider.ts";
+
+export interface ServerOptions {
+	kv: KVProvider;
+	document: DocumentProvider;
+}
 
 export class Server {
 	#application: Application;
+	#options: ServerOptions;
 	// deno-lint-ignore no-explicit-any
 	#decorators: Array<Decorator<any, any>>;
 	// deno-lint-ignore no-explicit-any
 	#rpcMatcher: ReturnType<typeof createPathMatcher<RpcDefinition<any, any, any, any>>>;
 
-	constructor(application: Application) {
+	constructor(
+		application: Application,
+		options: ServerOptions,
+	) {
 		this.#application = application;
+		this.#options = options;
 		const { decorator, rpc } = application.inspect();
 		this.#decorators = decorator;
 		this.#rpcMatcher = createPathMatcher(rpc);
@@ -73,6 +84,7 @@ export class Server {
 	async #constructContext(request: Request): Promise<[Context<unknown>, PromiseLike<unknown>[]]> {
 		const waitUntilPromises: PromiseLike<unknown>[] = [];
 		const context: Context<unknown> = {
+			...this.#options,
 			request,
 			waitUntil: (promise) => {
 				waitUntilPromises.push(promise);

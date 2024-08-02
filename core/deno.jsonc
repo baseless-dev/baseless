@@ -8,7 +8,6 @@
 		"./document": "./document.ts",
 		"./id": "./id.ts",
 		"./identity": "./identity.ts",
-		"./orderedmap": "./orderedmap.ts",
 		"./path": "./path.ts",
 		"./result": "./result.ts",
 		"./types": "./types.ts"

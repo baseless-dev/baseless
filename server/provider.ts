@@ -91,15 +91,15 @@ export interface DocumentGetOptions {
 	readonly consistency: "strong" | "eventual";
 }
 
-export interface DocumentListOptions {
-	readonly prefix: string[];
+export interface DocumentListOptions<TPrefix = string[]> {
+	readonly prefix: TPrefix;
 	readonly cursor?: string;
 	readonly limit?: number;
 }
 
-export type DocumentListEntry = {
+export type DocumentListEntry<TData = unknown> = {
 	cursor: string;
-	document: Document;
+	document: Document<TData>;
 };
 
 export interface DocumentAtomicsResult {
@@ -119,16 +119,8 @@ export type DocumentAtomicOperation =
 	};
 
 export abstract class DocumentAtomic {
-	protected readonly checks: Array<DocumentAtomicCheck>;
-	protected readonly ops: Array<DocumentAtomicOperation>;
-
-	constructor(
-		checks: Array<DocumentAtomicCheck> = [],
-		ops: Array<DocumentAtomicOperation> = [],
-	) {
-		this.checks = checks;
-		this.ops = ops;
-	}
+	protected readonly checks: Array<DocumentAtomicCheck> = [];
+	protected readonly ops: Array<DocumentAtomicOperation> = [];
 
 	notExists(key: string[]): DocumentAtomic {
 		this.checks.push({ type: "notExists", key });

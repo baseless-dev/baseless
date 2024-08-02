@@ -9,7 +9,7 @@ import {
 	DocumentProvider,
 } from "@baseless/server/provider";
 import { Document } from "@baseless/core/document";
-import OrderedMap from "@baseless/core/orderedmap";
+import OrderedMap from "./orderedmap.ts";
 
 function keyPathToKeyString(key: string[]): string {
 	return key.map((p) => p.replaceAll("/", "\\/")).join("/");

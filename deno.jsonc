@@ -2,9 +2,8 @@
 	"workspace": [
 		"./client",
 		"./core",
-		"./document-memory",
-		"./kv-memory",
-		"./kv-denokv",
+		"./inmemory-provider",
+		"./deno-provider",
 		"./server"
 	],
 	"tasks": {

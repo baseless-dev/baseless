@@ -1,8 +1,10 @@
 {
-	"name": "@baseless/kv-memory",
+	"name": "@baseless/inmemory-provider",
 	"version": "0.3.0-rc.1",
 	"exports": {
-		".": "./mod.ts"
+		".": "./mod.ts",
+		"./document": "./document.ts",
+		"./kv": "./kv.ts"
 	},
 	"publish": {
 		"include": [

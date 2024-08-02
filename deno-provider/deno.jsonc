@@ -1,5 +1,5 @@
 {
-	"name": "@baseless/document-memory",
+	"name": "@baseless/deno-provider",
 	"version": "0.3.0-rc.1",
 	"exports": {
 		".": "./mod.ts"

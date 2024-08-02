@@ -253,17 +253,38 @@ export interface IdentityListener<TDecoration> {
 	) => Promise<void>;
 }
 
-export type PickAtPath<TEvent extends Array<{ path: any }>, Path> = {
-	[K in keyof TEvent]: TEvent[K]["path"] extends Path ? TEvent[K] : never;
+export type PickAtPath<TEvent extends Array<{ path: any }>, TPath extends string[]> = {
+	[K in keyof TEvent]: TPath extends ReplaceVariableInPathSegment<TEvent[K]["path"]> ? TEvent[K]
+		: never;
 }[number];
 
-export type ReplaceVariableInPathSegment<TPath extends string[]> = {
-	[K in keyof TPath]: TPath[K] extends `{${string}}` ? `${string}` : TPath[K];
-};
+export type ReplaceVariableInPathSegment<TPath extends string[]> =
+	& {
+		[K in keyof TPath]: TPath[K] extends `{${string}}` ? `${string}` : TPath[K];
+	}
+	& { length: TPath["length"] };
 
 export type ExtractParamInPath<TPath extends string[]> = {
 	[K in keyof TPath]: TPath[K] extends `{${infer Name}}` ? Name : never;
 };
+
+// deno-fmt-ignore
+export type PathAsString<TPath extends string[]> =
+	TPath extends [infer Head]
+	? Head extends string
+		? Head extends `{${string}}`
+			? `%`
+			: Head
+		: ""
+	: TPath extends [infer Head, ...infer Tail]
+		? Head extends string
+			? Tail extends string[]
+				? Head extends `{${string}}`
+					? `%/${PathAsString<Tail>}`
+					: `${Head}/${PathAsString<Tail>}`
+				: ""
+			: ""
+		: "";
 
 export type PathAsType<TPath extends string[]> = {
 	[param in ExtractParamInPath<TPath>[number]]: string;

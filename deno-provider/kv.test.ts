@@ -1,5 +1,5 @@
 import { testKVProvider } from "@baseless/server/provider.test";
-import { DenoKVProvider } from "./mod.ts";
+import { DenoKVProvider } from "./kv.ts";
 
 Deno.test("DenoKVProvider", async (t) => {
 	const tempFilePath = await Deno.makeTempFile();

@@ -1,7 +1,6 @@
 import { generateKeyPair } from "jose";
 import { createAuthenticationApplication } from "./authentication.ts";
-import { MemoryKVProvider } from "@baseless/kv-memory";
-import { MemoryDocumentProvider } from "@baseless/document-memory";
+import { MemoryDocumentProvider, MemoryKVProvider } from "@baseless/inmemory-provider";
 import { Server } from "./server.ts";
 import { assert } from "@std/assert";
 import { isResultSingle } from "../core/result.ts";

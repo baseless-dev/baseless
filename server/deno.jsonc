@@ -8,6 +8,7 @@
 		"./provider": "./provider.ts",
 		"./provider.test": "./provider.test.ts",
 		"./server": "./server.ts",
+		"./service": "./service.ts",
 		"./types": "./types.ts"
 	},
 	"publish": {

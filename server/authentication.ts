@@ -23,9 +23,9 @@ export interface SessionMeta {
 	aat: number;
 }
 
-export interface AuthenticationDecoration {
+export type AuthenticationDecoration = {
 	currentSession: (Session & SessionMeta) | undefined;
-}
+};
 
 export function createAuthenticationApplication(
 	{ keys, refreshTokenTTL, accessTokenTTL }: AuthenticationOptions,
@@ -35,12 +35,16 @@ export function createAuthenticationApplication(
 		RpcDefinitionWithSecurity<
 			["authentication", "signOut"],
 			AuthenticationDecoration,
+			any,
+			any,
 			TVoid,
 			TBoolean
 		>,
 		RpcDefinitionWithSecurity<
 			["authentication", "refreshAccessToken"],
 			AuthenticationDecoration,
+			any,
+			any,
 			TObject<{ refresh_token: TString }>,
 			TObject<{ access_token: TString; id_token: TString; refresh_token: TString }>
 		>,
@@ -129,7 +133,6 @@ export function createAuthenticationApplication(
 					"identities",
 					session.value.identityId,
 				]);
-				assertIdentity(identity.data);
 				await kv.put(["session", sessionId], session.value, {
 					expiration: refreshTokenTTL ?? accessTokenTTL ?? 1000 * 60 * 2,
 				});

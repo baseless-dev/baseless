@@ -1,11 +1,20 @@
+// deno-lint-ignore-file no-explicit-any
 import { type Command, isCommand, isCommands } from "@baseless/core/command";
 import { type Result, ResultError, ResultSingle } from "@baseless/core/result";
 import type { Application } from "./application.ts";
-import { Context, Decorator, RpcDefinition } from "./types.ts";
+import {
+	CollectionDefinition,
+	Context,
+	Decorator,
+	DocumentDefinition,
+	PathMatcher,
+	RpcDefinition,
+} from "./types.ts";
 import { createPathMatcher } from "@baseless/core/path";
 import { Value } from "@sinclair/typebox/value";
 import { decodeBase64Url } from "@std/encoding/base64url";
 import { DocumentProvider, KVProvider } from "./provider.ts";
+import { DocumentService } from "./service.ts";
 
 export interface ServerOptions {
 	kv: KVProvider;
@@ -15,10 +24,10 @@ export interface ServerOptions {
 export class Server {
 	#application: Application;
 	#options: ServerOptions;
-	// deno-lint-ignore no-explicit-any
-	#decorators: Array<Decorator<any, any>>;
-	// deno-lint-ignore no-explicit-any
-	#rpcMatcher: ReturnType<typeof createPathMatcher<RpcDefinition<any, any, any, any>>>;
+	#decorators: Array<Decorator<any, any, any, any>>;
+	#rpcMatcher: PathMatcher<RpcDefinition<any, any, any, any, any, any>>;
+	#documentMatcher: PathMatcher<DocumentDefinition<any, any, any, any, any>>;
+	#collectionMatcher: PathMatcher<CollectionDefinition<any, any, any, any, any>>;
 
 	constructor(
 		application: Application,
@@ -26,9 +35,11 @@ export class Server {
 	) {
 		this.#application = application;
 		this.#options = options;
-		const { decorator, rpc } = application.inspect();
+		const { decorator, rpc, document, collection } = application.inspect();
 		this.#decorators = decorator;
 		this.#rpcMatcher = createPathMatcher(rpc);
+		this.#documentMatcher = createPathMatcher(document);
+		this.#collectionMatcher = createPathMatcher(collection);
 	}
 
 	async handleRequest(request: Request): Promise<[Response, PromiseLike<unknown>[]]> {
@@ -81,11 +92,19 @@ export class Server {
 		return this.#handleCommand(command, new Request("https://local/"));
 	}
 
-	async #constructContext(request: Request): Promise<[Context<unknown>, PromiseLike<unknown>[]]> {
+	async #constructContext(
+		request: Request,
+	): Promise<[Context<Record<string, unknown>, [], []>, PromiseLike<unknown>[]]> {
 		const waitUntilPromises: PromiseLike<unknown>[] = [];
-		const context: Context<unknown> = {
+		const context: Context<Record<string, unknown>, [], []> = {
 			...this.#options,
 			request,
+			kv: this.#options.kv,
+			document: new DocumentService(
+				this.#options.document,
+				this.#documentMatcher,
+				this.#collectionMatcher,
+			),
 			waitUntil: (promise) => {
 				waitUntilPromises.push(promise);
 			},

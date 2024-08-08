@@ -1,4 +1,4 @@
-import { createPathMatcher, PathMatcher } from "@baseless/core/path";
+import { createPathMatcher, PathAsType, PathMatcher } from "@baseless/core/path";
 import type {
 	CollectionDefinition,
 	Context,
@@ -12,6 +12,14 @@ import type {
 	RpcDefinition,
 } from "./types.ts";
 import { Value } from "@sinclair/typebox/value";
+import {
+	DocumentGetOptions,
+	DocumentListEntry,
+	DocumentListOptions,
+	DocumentProvider,
+} from "./provider.ts";
+import { Document } from "@baseless/core/document";
+import { id } from "../core/id.ts";
 
 export class Application {
 	#decorator: ReadonlyArray<Decorator<any, any, any, any>>;
@@ -64,34 +72,147 @@ export class Application {
 		this.#collectionMatcher = createPathMatcher(collection);
 	}
 
-	async invokeRpc(options: {
+	async invokeRpc({ context, key, input }: {
 		context: Context<any, any, any>;
 		key: string[];
 		input: unknown;
-		bypassSecurity: boolean;
 	}): Promise<unknown> {
-		const result = this.#rpcMatcher(options.key);
-		if (!result) {
+		const definition = this.#rpcMatcher(key);
+		if (!definition) {
 			throw new UnknownRpcError();
 		}
-		const { value: rpc, params } = result;
-		if (!Value.Check(rpc.input, options.input)) {
+		if (!Value.Check(definition.input, input)) {
 			throw new InvalidInputError();
 		}
-		if (!options.bypassSecurity && "security" in rpc) {
-			const result = await rpc.security({
-				context: options.context,
+		if ("security" in definition) {
+			const params = PathAsType(definition.path, key);
+			const result = await definition.security({
+				context,
 				params,
-				input: options.input,
+				input,
 			});
 			if (result !== "allow") {
 				throw new ForbiddenError();
 			}
 		}
-		return rpc.handler({ context: options.context, params, input: options.input });
+		const output = await definition.handler({
+			context,
+			params,
+			input,
+		});
+		if (!Value.Check(definition.output, output)) {
+			throw new InvalidOutputError();
+		}
+		return output;
+	}
+
+	async getDocument({ context, provider, key, options }: {
+		context: Context<any, any, any>;
+		provider: DocumentProvider;
+		key: string[];
+		options?: DocumentGetOptions;
+	}): Promise<Document> {
+		const definition = this.#documentMatcher(key);
+		if (!definition) {
+			throw new UnknownDocumentError();
+		}
+		const document = await provider.get(key, options);
+		if ("security" in definition) {
+			const params = PathAsType(definition.path, key);
+			const result = await definition.security({
+				context,
+				params,
+				document,
+			});
+			if (result !== "read") {
+				throw new ForbiddenError();
+			}
+		}
+		return document;
+	}
+
+	async getManyDocument({ context, provider, keys, options }: {
+		context: Context<any, any, any>;
+		provider: DocumentProvider;
+		keys: Array<string[]>;
+		options?: DocumentGetOptions;
+	}): Promise<Array<Document>> {
+		const documents = await provider.getMany(keys, options);
+		for (const document of documents) {
+			const definition = this.#documentMatcher(document.key);
+			if (!definition) {
+				throw new UnknownDocumentError();
+			}
+			if ("security" in definition) {
+				const params = PathAsType(definition.path, document.key);
+				const result = await definition.security({
+					context,
+					params,
+					document,
+				});
+				if (result !== "read") {
+					throw new ForbiddenError();
+				}
+			}
+		}
+		return documents;
+	}
+
+	async *listCollection({ context, provider, options }: {
+		context: Context<any, any, any>;
+		provider: DocumentProvider;
+		options: DocumentListOptions;
+	}): AsyncIterableIterator<DocumentListEntry> {
+		const definition = this.#collectionMatcher(options.prefix);
+		if (!definition) {
+			throw new UnknownCollectionError();
+		}
+		if ("security" in definition) {
+			const params = PathAsType(definition.path, options.prefix);
+			const result = await definition.security({
+				context,
+				params,
+				key: options.prefix,
+			});
+			if (result !== "list") {
+				throw new ForbiddenError();
+			}
+		}
+		yield* provider.list(options);
+	}
+
+	async createDocument({ context, provider, key, data }: {
+		context: Context<any, any, any>;
+		provider: DocumentProvider;
+		key: string[];
+		data: unknown;
+	}): Promise<void> {
+		const definition = this.#documentMatcher(key);
+		if (!definition) {
+			throw new UnknownDocumentError();
+		}
+		if ("security" in definition) {
+			const params = PathAsType(definition.path, key);
+			const result = await definition.security({
+				context,
+				params,
+				document: { key, data, versionstamp: "" },
+			});
+			if (result !== "create") {
+				throw new ForbiddenError();
+			}
+		}
+		// TODO event pre
+		await provider.create(key, data);
+		// TODO event post
 	}
 }
 
 export class UnknownRpcError extends Error {}
+export class UnknownDocumentError extends Error {}
+export class UnknownCollectionError extends Error {}
 export class InvalidInputError extends Error {}
+export class InvalidOutputError extends Error {}
+export class InvalidPayloadError extends Error {}
+export class InvalidSchemaError extends Error {}
 export class ForbiddenError extends Error {}

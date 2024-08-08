@@ -1,4 +1,6 @@
 import { type Document } from "@baseless/core/document";
+import { CollectionDefinition, DocumentDefinition, PickAtPath } from "./types.ts";
+import { Static } from "@sinclair/typebox";
 
 /**
  * Options when getting a key
@@ -106,9 +108,11 @@ export interface DocumentAtomicsResult {
 	ok: boolean;
 }
 
-export type DocumentAtomicCheck =
-	| { type: "notExists"; readonly key: string[] }
-	| { type: "match"; readonly key: string[]; readonly versionstamp: string };
+export type DocumentAtomicCheck = {
+	type: "check";
+	readonly key: string[];
+	readonly versionstamp: string | null;
+};
 
 export type DocumentAtomicOperation =
 	| { type: "delete"; readonly key: string[] }
@@ -122,13 +126,8 @@ export abstract class DocumentAtomic {
 	protected readonly checks: Array<DocumentAtomicCheck> = [];
 	protected readonly ops: Array<DocumentAtomicOperation> = [];
 
-	notExists(key: string[]): DocumentAtomic {
-		this.checks.push({ type: "notExists", key });
-		return this;
-	}
-
-	match(key: string[], versionstamp: string): DocumentAtomic {
-		this.checks.push({ type: "match", key, versionstamp });
+	check(key: string[], versionstamp: string | null = null): DocumentAtomic {
+		this.checks.push({ type: "check", key, versionstamp });
 		return this;
 	}
 
@@ -160,16 +159,6 @@ export abstract class DocumentProvider {
 		options: DocumentListOptions,
 	): AsyncIterableIterator<DocumentListEntry>;
 
-	abstract create(
-		key: string[],
-		data: unknown,
-	): Promise<void>;
-
-	abstract update(
-		key: string[],
-		data: unknown,
-	): Promise<void>;
-
 	abstract delete(key: string[]): Promise<void>;
 
 	abstract deleteMany(keys: Array<string[]>): Promise<void>;
@@ -177,5 +166,117 @@ export abstract class DocumentProvider {
 	abstract atomic(): DocumentAtomic;
 }
 
-export class DocumentNotFoundError extends Error {}
-export class DocumentCreateError extends Error {}
+export class DocumentNotFoundError extends Error {
+	constructor(public key: string[], public innerError?: Error) {
+		super();
+	}
+}
+export class DocumentCreateError extends Error {
+	constructor(public key: string[], public innerError?: Error) {
+		super();
+	}
+}
+export class DocumentUpdateError extends Error {
+	constructor(public key: string[], public innerError?: Error) {
+		super();
+	}
+}
+export class DocumentDeleteError extends Error {
+	constructor(public key: string[], public innerError?: Error) {
+		super();
+	}
+}
+export class DocumentAtomicError extends Error {
+	constructor(public innerError?: Error) {
+		super();
+	}
+}
+
+export interface IDocumentProvider<
+	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
+	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
+> {
+	get<
+		const TDocumentPath extends TDocument[number]["matcher"],
+		const TDocumentDefinition extends PickAtPath<TDocument, TDocumentPath>,
+	>(
+		key: TDocumentPath,
+		options?: DocumentGetOptions,
+	): Promise<Document<Static<TDocumentDefinition["schema"]>>>;
+
+	getMany<
+		const TDocumentPath extends TDocument[number]["matcher"],
+	>(
+		keys: Array<TDocumentPath>,
+		options?: DocumentGetOptions,
+	): Promise<Array<Document>>;
+
+	list<
+		const TCollectionPath extends TCollection[number]["matcher"],
+		const TCollectionDefinition extends PickAtPath<TCollection, TCollectionPath>,
+	>(
+		options: DocumentListOptions<TCollectionPath>,
+	): AsyncIterableIterator<DocumentListEntry<Static<TCollectionDefinition["schema"]>>>;
+
+	create<
+		const TDocumentPath extends TDocument[number]["matcher"],
+		const TDocumentDefinition extends PickAtPath<TDocument, TDocumentPath>,
+	>(
+		key: TDocumentPath,
+		data: Static<TDocumentDefinition["schema"]>,
+	): Promise<void>;
+
+	update<
+		const TDocumentPath extends TDocument[number]["matcher"],
+		const TDocumentDefinition extends PickAtPath<TDocument, TDocumentPath>,
+	>(
+		key: TDocumentPath,
+		data: Static<TDocumentDefinition["schema"]>,
+	): Promise<void>;
+
+	delete<
+		const TDocumentPath extends TDocument[number]["matcher"],
+	>(key: TDocumentPath): Promise<void>;
+
+	deleteMany<
+		const TDocumentPath extends TDocument[number]["matcher"],
+	>(
+		keys: Array<TDocumentPath>,
+	): Promise<void>;
+
+	atomic(): IDocumentAtomic<TDocument, TCollection>;
+}
+
+export interface IDocumentAtomic<
+	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
+	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
+> {
+	notExists<
+		const TDocumentPath extends TDocument[number]["matcher"],
+	>(
+		key: TDocumentPath,
+	): IDocumentAtomic<TDocument, TCollection>;
+
+	match<
+		const TDocumentPath extends TDocument[number]["matcher"],
+	>(
+		key: TDocumentPath,
+		versionstamp: string,
+	): IDocumentAtomic<TDocument, TCollection>;
+
+	set<
+		const TDocumentPath extends TDocument[number]["matcher"],
+		const TDocumentDefinition extends PickAtPath<TDocument, TDocumentPath>,
+	>(
+		key: TDocumentPath,
+		data: Static<TDocumentDefinition["schema"]>,
+	): IDocumentAtomic<TDocument, TCollection>;
+
+	delete<
+		const TDocumentPath extends TDocument[number]["matcher"],
+	>(
+		key: TDocumentPath,
+	): IDocumentAtomic<TDocument, TCollection>;
+
+	commit(): Promise<DocumentAtomicsResult>;
+}

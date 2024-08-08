@@ -8,9 +8,10 @@ import {
 	DocumentProvider,
 } from "./provider.ts";
 import { Document } from "@baseless/core/document";
-import { CollectionDefinition, DocumentDefinition, PathMatcher, PickAtPath } from "./types.ts";
+import { CollectionDefinition, DocumentDefinition, PickAtPath } from "./types.ts";
 import { Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
+import { PathMatcher } from "@baseless/core/path";
 
 // TODO call event listeners
 
@@ -161,7 +162,7 @@ export class DocumentServiceAtomic<
 		return this;
 	}
 
-	match<
+	check<
 		const TDocumentPath extends TDocument[number]["matcher"],
 	>(
 		key: TDocumentPath,
@@ -171,7 +172,7 @@ export class DocumentServiceAtomic<
 		if (!definition) {
 			throw new UnknownDocumentError();
 		}
-		this.#atomic.match(key as string[], versionstamp);
+		this.#atomic.check(key as string[], versionstamp);
 		return this;
 	}
 

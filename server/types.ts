@@ -1,9 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
-import { type Static, TObject, type TSchema, type TString, Type } from "@sinclair/typebox";
-import { type Identity } from "@baseless/core/identity";
-import { KVProvider } from "./provider.ts";
-import { DocumentService } from "./service.ts";
-import { PathAsType, ReplaceVariableInPathSegment } from "@baseless/core/path";
+import type { Static, TSchema } from "@sinclair/typebox";
+import type { Identity } from "@baseless/core/identity";
+import type { IDocumentProvider, KVProvider } from "./provider.ts";
+import type { PathAsType, ReplaceVariableInPathSegment } from "@baseless/core/path";
+import type { Document } from "@baseless/core/document";
 
 export type Path = Array<string>;
 
@@ -22,7 +22,7 @@ export type Context<
 	request: Request;
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 	kv: KVProvider; // TODO KVService
-	document: DocumentService<TDocument, TCollection>;
+	document: IDocumentProvider<TDocument, TCollection>;
 	// TODO event: EventService<TClient>
 	// TODO storage: StorageService<TClient>
 } & TDecoration;
@@ -161,8 +161,8 @@ export interface DocumentDefinitionWithSecurity<
 	security: (options: {
 		context: Context<TDecoration, TDocument, TCollection>;
 		params: PathAsType<TPath>;
-		document: Static<TDocumentSchema>;
-	}) => Promise<"subscribe" | "read" | "update" | "delete" | undefined>;
+		document: Document<Static<TDocumentSchema>>;
+	}) => Promise<"subscribe" | "read" | "create" | "update" | "delete" | undefined>;
 }
 
 export type DocumentDefinition<
@@ -200,16 +200,8 @@ export interface CollectionDefinitionWithSecurity<
 	security: (options: {
 		context: Context<TDecoration, TDocument, TCollection>;
 		params: PathAsType<TPath>;
-		document: Static<TCollectionSchema>;
-	}) => Promise<
-		| "subscribe"
-		| "list"
-		| "create"
-		| "read"
-		| "update"
-		| "delete"
-		| undefined
-	>;
+		key: ReplaceVariableInPathSegment<TPath>;
+	}) => Promise<"list" | undefined>;
 }
 
 export type CollectionDefinition<
@@ -270,7 +262,7 @@ export interface DocumentListener<
 	handler: (options: {
 		context: Context<TDecoration, TDocument, TCollection>;
 		params: PathAsType<TPath>;
-		document: Static<TDocumentSchema>;
+		document: Document<Static<TDocumentSchema>>;
 	}) => Promise<void>;
 }
 

@@ -3,6 +3,7 @@ import { assertExists } from "jsr:@std/assert@1.0.0/exists";
 import { assertRejects } from "jsr:@std/assert@1.0.0/rejects";
 import { DocumentProvider, KVProvider } from "./provider.ts";
 import { assert } from "jsr:@std/assert@1.0.0/assert";
+import { assertThrows } from "@std/assert";
 
 export async function testKVProvider(
 	kv: KVProvider,
@@ -77,33 +78,35 @@ export async function testDocumentProvider(
 			"age" in value;
 	}
 
-	await t.step("create", async () => {
-		await provider.create(
-			["users", "john"],
-			{
-				username: "John",
-				age: 25,
-			} satisfies User,
-		);
-		await provider.create(
-			["users", "jane"],
-			{
-				username: "Jane",
-				age: 24,
-			} satisfies User,
-		);
-		await provider.create(
-			["users", "foo"],
-			{
-				username: "Bar",
-				age: 42,
-			} satisfies User,
-		);
-		await assertRejects(() =>
-			provider.create(
+	await t.step("atomic.set", async () => {
+		await provider.atomic()
+			.set(
 				["users", "john"],
-				{ username: "John2", age: 1 } satisfies User,
+				{
+					username: "John",
+					age: 25,
+				} satisfies User,
 			)
+			.set(
+				["users", "jane"],
+				{
+					username: "Jane",
+					age: 24,
+				} satisfies User,
+			)
+			.set(
+				["users", "foo"],
+				{
+					username: "Bar",
+					age: 42,
+				} satisfies User,
+			)
+			.commit();
+
+		assertEquals(
+			(await provider.atomic().check(["users", "foo"]).set(["users", "foo"], null)
+				.commit()).ok,
+			false,
 		);
 	});
 
@@ -165,18 +168,6 @@ export async function testDocumentProvider(
 		}
 	});
 
-	await t.step("update", async () => {
-		await provider.update(
-			["users", "foo"],
-			{
-				username: "Barbar",
-				age: 18,
-			} satisfies User,
-		);
-		const { data } = await provider.get(["users", "foo"]);
-		assertEquals(data, { username: "Barbar", age: 18 });
-	});
-
 	await t.step("delete", async () => {
 		await provider.delete(["users", "john"]);
 		await provider.delete(["users", "unknown"]);
@@ -187,13 +178,5 @@ export async function testDocumentProvider(
 		await provider.deleteMany([["users", "jane"], ["users", "foo"]]);
 		await assertRejects(() => provider.get(["users", "jane"]));
 		await assertRejects(() => provider.get(["users", "foo"]));
-	});
-
-	await t.step("atomic", async () => {
-		const result = await provider.atomic()
-			.notExists(["users", "bar"])
-			.set(["users", "bar"], { username: "Barrr", age: 28 })
-			.commit();
-		assertEquals(result.ok, true);
 	});
 }

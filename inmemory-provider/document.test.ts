@@ -2,6 +2,6 @@ import { testDocumentProvider } from "@baseless/server/provider.test";
 import { MemoryDocumentProvider } from "./document.ts";
 
 Deno.test("MemoryKVProvider", async (t) => {
-	const kv = new MemoryDocumentProvider();
-	await testDocumentProvider(kv, t);
+	const provider = new MemoryDocumentProvider();
+	await testDocumentProvider(provider, t);
 });

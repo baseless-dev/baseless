@@ -30,7 +30,7 @@ export class MemoryDocumentProvider extends DocumentProvider {
 		const keyString = keyPathToKeyString(key);
 		const document = this.#storage.get(keyString);
 		if (!document) {
-			throw new DocumentNotFoundError();
+			throw new DocumentNotFoundError(key);
 		}
 		return structuredClone(document);
 	}
@@ -77,35 +77,6 @@ export class MemoryDocumentProvider extends DocumentProvider {
 	}
 
 	// deno-lint-ignore require-await
-	async create(
-		key: string[],
-		data: unknown,
-	): Promise<void> {
-		const keyString = keyPathToKeyString(key);
-		if (this.#storage.has(keyString)) {
-			throw new DocumentCreateError();
-		}
-		this.#storage.set(keyString, {
-			key,
-			data,
-			versionstamp: new Date().getTime().toString(),
-		});
-	}
-
-	async update(
-		key: string[],
-		data: unknown,
-	): Promise<void> {
-		const _ = await this.get(key);
-		const keyString = keyPathToKeyString(key);
-		this.#storage.set(keyString, {
-			key,
-			data: data,
-			versionstamp: new Date().getTime().toString(),
-		});
-	}
-
-	// deno-lint-ignore require-await
 	async delete(key: string[]): Promise<void> {
 		const keyString = keyPathToKeyString(key);
 		this.#storage.delete(keyString);
@@ -139,7 +110,7 @@ export class MemoryDocumentAtomic extends DocumentAtomic {
 
 	async commit(): Promise<DocumentAtomicsResult> {
 		for (const check of this.checks) {
-			if (check.type === "notExists") {
+			if (check.versionstamp === null) {
 				if (this.#storage.has(keyPathToKeyString(check.key))) {
 					return { ok: false };
 				}

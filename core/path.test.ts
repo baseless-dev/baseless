@@ -46,16 +46,25 @@ Deno.test("Path", async (t) => {
 			{ path: ["users", "{user_id}", "edit"], id: 4 },
 		]);
 		assertEquals(matcher(["users"]), {
-			path: ["users"],
-			id: 1,
+			value: {
+				path: ["users"],
+				id: 1,
+			},
+			params: {},
 		});
 		assertEquals(matcher(["users", "123"]), {
-			path: ["users", "{id}"],
-			id: 2,
+			value: {
+				path: ["users", "{id}"],
+				id: 2,
+			},
+			params: { id: "123" },
 		});
 		assertEquals(matcher(["users", "123", "delete"]), {
-			path: ["users", "{userId}", "delete"],
-			id: 3,
+			value: {
+				path: ["users", "{userId}", "delete"],
+				id: 3,
+			},
+			params: { userId: "123" },
 		});
 	});
 });

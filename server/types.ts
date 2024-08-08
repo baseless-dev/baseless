@@ -41,18 +41,18 @@ export interface RpcDefinitionWithoutSecurity<
 	TDecoration extends Record<string, unknown>,
 	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
-	TInput extends TSchema,
-	TOutput extends TSchema,
+	TInputSchema extends TSchema,
+	TOutputSchema extends TSchema,
 > {
 	path: TPath;
 	matcher: ReplaceVariableInPathSegment<TPath>;
-	input: TInput;
-	output: TOutput;
+	input: TInputSchema;
+	output: TOutputSchema;
 	handler: (options: {
 		context: Context<TDecoration, TDocument, TCollection>;
 		params: PathAsType<TPath>;
-		input: Static<TInput>;
-	}) => Promise<Static<TOutput>>;
+		input: Static<TInputSchema>;
+	}) => Promise<Static<TOutputSchema>>;
 }
 
 export interface RpcDefinitionWithSecurity<
@@ -60,13 +60,21 @@ export interface RpcDefinitionWithSecurity<
 	TDecoration extends Record<string, unknown>,
 	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
-	TInput extends TSchema,
-	TOutput extends TSchema,
+	TInputSchema extends TSchema,
+	TOutputSchema extends TSchema,
 > extends
-	RpcDefinitionWithoutSecurity<TPath, TDecoration, TDocument, TCollection, TInput, TOutput> {
+	RpcDefinitionWithoutSecurity<
+		TPath,
+		TDecoration,
+		TDocument,
+		TCollection,
+		TInputSchema,
+		TOutputSchema
+	> {
 	security: (options: {
 		context: Context<TDecoration, TDocument, TCollection>;
 		params: PathAsType<TPath>;
+		input: Static<TInputSchema>;
 	}) => Promise<"allow" | "deny" | undefined>;
 }
 
@@ -75,11 +83,25 @@ export type RpcDefinition<
 	TDecoration extends Record<string, unknown>,
 	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
-	TInput extends TSchema,
-	TOutput extends TSchema,
+	TInputSchema extends TSchema,
+	TOutputSchema extends TSchema,
 > =
-	| RpcDefinitionWithoutSecurity<TPath, TDecoration, TDocument, TCollection, TInput, TOutput>
-	| RpcDefinitionWithSecurity<TPath, TDecoration, TDocument, TCollection, TInput, TOutput>;
+	| RpcDefinitionWithoutSecurity<
+		TPath,
+		TDecoration,
+		TDocument,
+		TCollection,
+		TInputSchema,
+		TOutputSchema
+	>
+	| RpcDefinitionWithSecurity<
+		TPath,
+		TDecoration,
+		TDocument,
+		TCollection,
+		TInputSchema,
+		TOutputSchema
+	>;
 
 export interface EventDefinitionWithoutSecurity<
 	TPath extends string[],
@@ -100,6 +122,7 @@ export interface EventDefinitionWithSecurity<
 	security: (options: {
 		context: Context<TDecoration, TDocument, TCollection>;
 		params: PathAsType<TPath>;
+		payload: Static<TPayloadSchema>;
 	}) => Promise<"subscribe" | "publish" | undefined>;
 }
 
@@ -138,6 +161,7 @@ export interface DocumentDefinitionWithSecurity<
 	security: (options: {
 		context: Context<TDecoration, TDocument, TCollection>;
 		params: PathAsType<TPath>;
+		document: Static<TDocumentSchema>;
 	}) => Promise<"subscribe" | "read" | "update" | "delete" | undefined>;
 }
 
@@ -176,6 +200,7 @@ export interface CollectionDefinitionWithSecurity<
 	security: (options: {
 		context: Context<TDecoration, TDocument, TCollection>;
 		params: PathAsType<TPath>;
+		document: Static<TCollectionSchema>;
 	}) => Promise<
 		| "subscribe"
 		| "list"

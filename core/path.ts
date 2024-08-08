@@ -80,22 +80,44 @@ export function treeNodeSorter<TLeaf>(a: TreeNode<TLeaf>, b: TreeNode<TLeaf>): n
 export function createPathMatcher<T extends { path: string[] }>(
 	items: ReadonlyArray<T>,
 ): PathMatcher<T> {
-	const forest = mergeTreeNodes(items.map((item) => pathToTreeNode(item.path, item)));
 	return (path) => {
-		let haystack: TreeNode<T>[] = forest;
-		let treeNode: TreeNode<T> | undefined;
-		for (let segment = path.shift(); segment; segment = path.shift()) {
-			treeNode = haystack.find((treeNode) => {
-				return (treeNode.kind === "const" && treeNode.value === segment) ||
-					treeNode.kind === "variable";
-			});
-			if (!treeNode) {
-				return undefined;
+		itemLoop: for (const item of items) {
+			if (path.length === item.path.length) {
+				const params: Record<string, string> = {};
+				for (let i = 0, l = item.path.length; i < l; i++) {
+					if (item.path[i].startsWith("{") && item.path[i].endsWith("}")) {
+						params[item.path[i].slice(1, -1)] = path[i];
+					} else if (item.path[i] !== path[i]) {
+						continue itemLoop;
+					}
+				}
+				return { value: item, params };
 			}
-			haystack = treeNode.children ?? [];
 		}
-		return treeNode?.leaf;
+		return undefined;
 	};
+	// const forest = mergeTreeNodes(items.map((item) => pathToTreeNode(item.path, item)));
+	// return (path) => {
+	// 	let haystack: TreeNode<T>[] = forest;
+	// 	let treeNode: TreeNode<T> | undefined;
+	// 	const params: Record<string, string> = {};
+	// 	for (let segment = path.shift(); segment; segment = path.shift()) {
+	// 		treeNode = haystack.find((treeNode) => {
+	// 			if (treeNode.kind === "const" && treeNode.value === segment) {
+	// 				return true;
+	// 			} else if (treeNode.kind === "variable") {
+	// 				params[treeNode.name] = segment;
+	// 				return true;
+	// 			}
+	// 			return false;
+	// 		});
+	// 		if (!treeNode) {
+	// 			return undefined;
+	// 		}
+	// 		haystack = treeNode.children ?? [];
+	// 	}
+	// 	return treeNode?.leaf ? { params, value: treeNode.leaf } : undefined;
+	// };
 }
 
 export type ReplaceVariableInPathSegment<TPath extends string[]> =
@@ -166,4 +188,6 @@ type _PathAsObject<TPath extends any[], T> =
 
 export type PathAsObject<T extends { path: string[] }> = _PathAsObject<T["path"], T>;
 
-export type PathMatcher<T> = (path: string[]) => T | undefined;
+export type PathMatcher<T> = (
+	path: string[],
+) => { value: T; params: Record<string, string> } | undefined;

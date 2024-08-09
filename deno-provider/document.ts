@@ -44,10 +44,8 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 
 	async *list(options: DocumentListOptions): AsyncIterableIterator<DocumentListEntry> {
 		const entries = await this.#storage.list(
-			options.cursor
-				? { prefix: options.prefix, start: [...options.prefix, options.cursor] }
-				: { prefix: options.prefix },
-			{ limit: options.limit },
+			{ prefix: options.prefix },
+			{ limit: options.limit, cursor: options.cursor },
 		);
 		for await (const entry of entries) {
 			const document: Document = {
@@ -55,7 +53,7 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 				versionstamp: entry.versionstamp,
 				data: entry.value,
 			};
-			let cursor = document.key.at(-1)!;
+			const cursor = entries.cursor;
 			yield {
 				cursor,
 				document,

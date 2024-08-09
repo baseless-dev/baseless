@@ -161,8 +161,8 @@ export interface DocumentDefinitionWithSecurity<
 	security: (options: {
 		context: Context<TDecoration, TDocument, TCollection>;
 		params: PathAsType<TPath>;
-		document: Document<Static<TDocumentSchema>>;
-	}) => Promise<"subscribe" | "read" | "create" | "update" | "delete" | undefined>;
+		document: Document<Static<TDocumentSchema>> | null;
+	}) => Promise<"subscribe" | "get" | "set" | "delete" | undefined>;
 }
 
 export type DocumentDefinition<

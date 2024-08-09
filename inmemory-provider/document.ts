@@ -76,20 +76,6 @@ export class MemoryDocumentProvider extends DocumentProvider {
 		}
 	}
 
-	// deno-lint-ignore require-await
-	async delete(key: string[]): Promise<void> {
-		const keyString = keyPathToKeyString(key);
-		this.#storage.delete(keyString);
-	}
-
-	// deno-lint-ignore require-await
-	async deleteMany(keys: Array<string[]>): Promise<void> {
-		for (const key of keys) {
-			const keyString = keyPathToKeyString(key);
-			this.#storage.delete(keyString);
-		}
-	}
-
 	atomic(): DocumentAtomic {
 		return new MemoryDocumentAtomic(this, this.#storage);
 	}

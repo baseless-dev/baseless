@@ -1,14 +1,14 @@
 // deno-lint-ignore-file require-await
 import { assert, assertEquals } from "@std/assert";
-import { Application } from "./application.ts";
 import { Server } from "./server.ts";
 import { Type } from "@sinclair/typebox";
 import { isResultError, isResultSingle } from "@baseless/core/result";
 import { MemoryDocumentProvider, MemoryKVProvider } from "@baseless/inmemory-provider";
+import { ApplicationBuilder } from "./applicationbuilder.ts";
 
 Deno.test("Server", async (t) => {
 	const setupServer = () => {
-		const app = new Application()
+		const app = new ApplicationBuilder()
 			.rpc(["hello"], {
 				input: Type.String(),
 				output: Type.String(),
@@ -18,8 +18,10 @@ Deno.test("Server", async (t) => {
 				security: async () => {
 					return "allow";
 				},
-			});
-		const server = new Server(app, {
+			})
+			.build();
+		const server = new Server({
+			application: app,
 			kv: new MemoryKVProvider(),
 			document: new MemoryDocumentProvider(),
 		});
@@ -55,7 +57,7 @@ Deno.test("Server", async (t) => {
 			assertEquals(promises.length, 0);
 			const result = await response.json();
 			assert(isResultError(result));
-			assertEquals(result.error, "not_found");
+			assertEquals(result.error, "UnknownRpcError");
 		}
 		{
 			const [response, promises] = await server.handleRequest(
@@ -83,8 +85,7 @@ Deno.test("Server", async (t) => {
 				method: "POST",
 				headers: {
 					"Upgrade": "websocket",
-					"Sec-WebSocket-Protocol":
-						"base64url.bearer.authorization.baseless.dev.bXl0b2tlbg",
+					"Sec-WebSocket-Protocol": "base64url.bearer.authorization.baseless.dev.bXl0b2tlbg",
 				},
 			}),
 		);

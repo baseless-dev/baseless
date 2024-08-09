@@ -1,9 +1,8 @@
 import { assertEquals } from "jsr:@std/assert@1.0.0/equals";
 import { assertExists } from "jsr:@std/assert@1.0.0/exists";
 import { assertRejects } from "jsr:@std/assert@1.0.0/rejects";
-import { DocumentProvider, KVProvider } from "./provider.ts";
 import { assert } from "jsr:@std/assert@1.0.0/assert";
-import { assertThrows } from "@std/assert";
+import { DocumentProvider, KVProvider } from "./provider.ts";
 
 export async function testKVProvider(
 	kv: KVProvider,
@@ -104,7 +103,7 @@ export async function testDocumentProvider(
 			.commit();
 
 		assertEquals(
-			(await provider.atomic().check(["users", "foo"]).set(["users", "foo"], null)
+			(await provider.atomic().check(["users", "foo"], null).set(["users", "foo"], null)
 				.commit()).ok,
 			false,
 		);
@@ -168,15 +167,11 @@ export async function testDocumentProvider(
 		}
 	});
 
-	await t.step("delete", async () => {
-		await provider.delete(["users", "john"]);
-		await provider.delete(["users", "unknown"]);
+	await t.step("atomic.delete", async () => {
+		await provider.atomic()
+			.delete(["users", "john"])
+			.delete(["users", "unknown"])
+			.commit();
 		await assertRejects(() => provider.get(["users", "john"]));
-	});
-
-	await t.step("deleteMany", async () => {
-		await provider.deleteMany([["users", "jane"], ["users", "foo"]]);
-		await assertRejects(() => provider.get(["users", "jane"]));
-		await assertRejects(() => provider.get(["users", "foo"]));
 	});
 }

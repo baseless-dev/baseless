@@ -126,7 +126,7 @@ export abstract class DocumentAtomic {
 	protected readonly checks: Array<DocumentAtomicCheck> = [];
 	protected readonly ops: Array<DocumentAtomicOperation> = [];
 
-	check(key: string[], versionstamp: string | null = null): DocumentAtomic {
+	check(key: string[], versionstamp: string | null): DocumentAtomic {
 		this.checks.push({ type: "check", key, versionstamp });
 		return this;
 	}
@@ -158,10 +158,6 @@ export abstract class DocumentProvider {
 	abstract list(
 		options: DocumentListOptions,
 	): AsyncIterableIterator<DocumentListEntry>;
-
-	abstract delete(key: string[]): Promise<void>;
-
-	abstract deleteMany(keys: Array<string[]>): Promise<void>;
 
 	abstract atomic(): DocumentAtomic;
 }
@@ -218,32 +214,6 @@ export interface IDocumentProvider<
 		options: DocumentListOptions<TCollectionPath>,
 	): AsyncIterableIterator<DocumentListEntry<Static<TCollectionDefinition["schema"]>>>;
 
-	create<
-		const TDocumentPath extends TDocument[number]["matcher"],
-		const TDocumentDefinition extends PickAtPath<TDocument, TDocumentPath>,
-	>(
-		key: TDocumentPath,
-		data: Static<TDocumentDefinition["schema"]>,
-	): Promise<void>;
-
-	update<
-		const TDocumentPath extends TDocument[number]["matcher"],
-		const TDocumentDefinition extends PickAtPath<TDocument, TDocumentPath>,
-	>(
-		key: TDocumentPath,
-		data: Static<TDocumentDefinition["schema"]>,
-	): Promise<void>;
-
-	delete<
-		const TDocumentPath extends TDocument[number]["matcher"],
-	>(key: TDocumentPath): Promise<void>;
-
-	deleteMany<
-		const TDocumentPath extends TDocument[number]["matcher"],
-	>(
-		keys: Array<TDocumentPath>,
-	): Promise<void>;
-
 	atomic(): IDocumentAtomic<TDocument, TCollection>;
 }
 
@@ -251,17 +221,11 @@ export interface IDocumentAtomic<
 	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 > {
-	notExists<
+	check<
 		const TDocumentPath extends TDocument[number]["matcher"],
 	>(
 		key: TDocumentPath,
-	): IDocumentAtomic<TDocument, TCollection>;
-
-	match<
-		const TDocumentPath extends TDocument[number]["matcher"],
-	>(
-		key: TDocumentPath,
-		versionstamp: string,
+		versionstamp: string | null,
 	): IDocumentAtomic<TDocument, TCollection>;
 
 	set<

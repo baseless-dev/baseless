@@ -21,22 +21,18 @@ Deno.test("Application", async (t) => {
 				handler: async ({ params: { userId } }) => {
 					return userId;
 				},
-				security: async ({ params: { userId } }) => {
-					console.log({ userId });
+				security: async () => {
 					return "allow" as const;
 				},
 			})
 			.build();
 
-		assertRejects(() =>
-			app.invokeRpc({ context: {} as any, key: ["users"], input: 0, bypassSecurity: true })
-		);
+		assertRejects(() => app.invokeRpc({ context: {} as any, key: ["users"], input: 0 }));
 		assertEquals(
 			await app.invokeRpc({
 				context: {} as any,
 				key: ["users", "123", "kick"],
 				input: undefined,
-				bypassSecurity: true,
 			}),
 			"123",
 		);

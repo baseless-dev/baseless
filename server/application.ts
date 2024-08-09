@@ -5,6 +5,7 @@ import type {
 	Decorator,
 	DocumentAtomicListener,
 	DocumentDefinition,
+	DocumentDefinitionWithSecurity,
 	DocumentListener,
 	EventDefinition,
 	EventListener,
@@ -13,20 +14,21 @@ import type {
 } from "./types.ts";
 import { Value } from "@sinclair/typebox/value";
 import {
+	DocumentAtomicsResult,
 	DocumentGetOptions,
 	DocumentListEntry,
 	DocumentListOptions,
 	DocumentProvider,
 } from "./provider.ts";
 import { Document } from "@baseless/core/document";
-import { id } from "../core/id.ts";
+import { DocumentAtomic } from "./provider.ts";
 
 export class Application {
-	#decorator: ReadonlyArray<Decorator<any, any, any, any>>;
-	#rpc: ReadonlyArray<RpcDefinition<any, any, any, any, any, any>>;
-	#event: ReadonlyArray<EventDefinition<any, any, any, any, any>>;
-	#document: ReadonlyArray<DocumentDefinition<any, any, any, any, any>>;
-	#collection: ReadonlyArray<CollectionDefinition<any, any, any, any, any>>;
+	#decorators: ReadonlyArray<Decorator<any, any, any, any>>;
+	#rpcDefinitions: ReadonlyArray<RpcDefinition<any, any, any, any, any, any>>;
+	#eventDefinitions: ReadonlyArray<EventDefinition<any, any, any, any, any>>;
+	#documentDefinitions: ReadonlyArray<DocumentDefinition<any, any, any, any, any>>;
+	#collectionDefinitions: ReadonlyArray<CollectionDefinition<any, any, any, any, any>>;
 	#eventListeners: ReadonlyArray<EventListener<any, any, any, any, any>>;
 	#documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>;
 	#documentSavedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>;
@@ -40,11 +42,11 @@ export class Application {
 	#collectionMatcher: PathMatcher<CollectionDefinition<any, any, any, any, any>>;
 
 	constructor(
-		decorator: ReadonlyArray<Decorator<any, any, any, any>>,
-		rpc: ReadonlyArray<RpcDefinition<any, any, any, any, any, any>>,
-		event: ReadonlyArray<EventDefinition<any, any, any, any, any>>,
-		document: ReadonlyArray<DocumentDefinition<any, any, any, any, any>>,
-		collection: ReadonlyArray<CollectionDefinition<any, any, any, any, any>>,
+		decorators: ReadonlyArray<Decorator<any, any, any, any>>,
+		rpcDefinitions: ReadonlyArray<RpcDefinition<any, any, any, any, any, any>>,
+		eventDefinitions: ReadonlyArray<EventDefinition<any, any, any, any, any>>,
+		documentDefinitions: ReadonlyArray<DocumentDefinition<any, any, any, any, any>>,
+		collectionDefinitions: ReadonlyArray<CollectionDefinition<any, any, any, any, any>>,
 		eventListeners: ReadonlyArray<EventListener<any, any, any, any, any>>,
 		documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>,
 		documentSavedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>,
@@ -54,11 +56,11 @@ export class Application {
 		identityUpdatedListeners: ReadonlyArray<IdentityListener<any, any, any>>,
 		identityDeletedListeners: ReadonlyArray<IdentityListener<any, any, any>>,
 	) {
-		this.#decorator = decorator;
-		this.#rpc = rpc;
-		this.#event = event;
-		this.#document = document;
-		this.#collection = collection;
+		this.#decorators = decorators;
+		this.#rpcDefinitions = rpcDefinitions;
+		this.#eventDefinitions = eventDefinitions;
+		this.#documentDefinitions = documentDefinitions;
+		this.#collectionDefinitions = collectionDefinitions;
 		this.#eventListeners = eventListeners;
 		this.#documentSavingListeners = documentSavingListeners;
 		this.#documentSavedListeners = documentSavedListeners;
@@ -67,9 +69,16 @@ export class Application {
 		this.#identityCreatedListeners = identityCreatedListeners;
 		this.#identityUpdatedListeners = identityUpdatedListeners;
 		this.#identityDeletedListeners = identityDeletedListeners;
-		this.#rpcMatcher = createPathMatcher(rpc);
-		this.#documentMatcher = createPathMatcher(document);
-		this.#collectionMatcher = createPathMatcher(collection);
+		this.#rpcMatcher = createPathMatcher(rpcDefinitions);
+		this.#documentMatcher = createPathMatcher(documentDefinitions);
+		this.#collectionMatcher = createPathMatcher(collectionDefinitions);
+	}
+
+	async decorate(context: Context<any, any, any>): Promise<void> {
+		for (const decorator of this.#decorators) {
+			const result = await decorator(context);
+			Object.assign(context, result);
+		}
 	}
 
 	async invokeRpc({ context, key, input }: {
@@ -84,8 +93,8 @@ export class Application {
 		if (!Value.Check(definition.input, input)) {
 			throw new InvalidInputError();
 		}
+		const params = PathAsType(definition.path, key);
 		if ("security" in definition) {
-			const params = PathAsType(definition.path, key);
 			const result = await definition.security({
 				context,
 				params,
@@ -124,7 +133,7 @@ export class Application {
 				params,
 				document,
 			});
-			if (result !== "read") {
+			if (result !== "get") {
 				throw new ForbiddenError();
 			}
 		}
@@ -150,7 +159,7 @@ export class Application {
 					params,
 					document,
 				});
-				if (result !== "read") {
+				if (result !== "get") {
 					throw new ForbiddenError();
 				}
 			}
@@ -181,30 +190,105 @@ export class Application {
 		yield* provider.list(options);
 	}
 
-	async createDocument({ context, provider, key, data }: {
+	atomicDocument({ context, provider }: {
 		context: Context<any, any, any>;
 		provider: DocumentProvider;
-		key: string[];
-		data: unknown;
-	}): Promise<void> {
-		const definition = this.#documentMatcher(key);
-		if (!definition) {
-			throw new UnknownDocumentError();
+	}): ApplicationDocumentAtomic {
+		return new ApplicationDocumentAtomic(
+			context,
+			provider,
+			this.#documentDefinitions,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
+			this.#documentMatcher,
+		);
+	}
+}
+
+export class ApplicationDocumentAtomic extends DocumentAtomic {
+	#context: Context<any, any, any>;
+	#provider: DocumentProvider;
+	#documentDefinitions: ReadonlyArray<DocumentDefinition<any, any, any, any, any>>;
+	#documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>;
+	#documentSavedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>;
+	#documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>;
+	#documentDeletedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>;
+	#documentMatcher: PathMatcher<DocumentDefinition<any, any, any, any, any>>;
+
+	constructor(
+		context: Context<any, any, any>,
+		provider: DocumentProvider,
+		documentDefinitions: ReadonlyArray<DocumentDefinition<any, any, any, any, any>>,
+		documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>,
+		documentSavedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>,
+		documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>,
+		documentDeletedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>,
+		documentMatcher: PathMatcher<DocumentDefinition<any, any, any, any, any>>,
+	) {
+		super();
+		this.#context = context;
+		this.#provider = provider;
+		this.#documentDefinitions = documentDefinitions;
+		this.#documentSavingListeners = documentSavingListeners;
+		this.#documentSavedListeners = documentSavedListeners;
+		this.#documentDeletingListeners = documentDeletingListeners;
+		this.#documentDeletedListeners = documentDeletedListeners;
+		this.#documentMatcher = documentMatcher;
+	}
+
+	async commit(): Promise<DocumentAtomicsResult> {
+		const atomic = this.#provider.atomic();
+		for (const check of this.checks) {
+			const definition = this.#documentMatcher(check.key);
+			if (!definition) {
+				throw new UnknownDocumentError();
+			}
+			atomic.check(check.key, check.versionstamp);
 		}
-		if ("security" in definition) {
-			const params = PathAsType(definition.path, key);
-			const result = await definition.security({
-				context,
-				params,
-				document: { key, data, versionstamp: "" },
-			});
-			if (result !== "create") {
-				throw new ForbiddenError();
+		for (const op of this.ops) {
+			const definition = this.#documentMatcher(op.key);
+			if (!definition) {
+				throw new UnknownDocumentError();
+			}
+			const document = await this.#provider.get(op.key).catch(() => null);
+			let security: Awaited<
+				ReturnType<DocumentDefinitionWithSecurity<any, any, any, any, any>["security"]>
+			>;
+			if ("security" in definition) {
+				const params = PathAsType(definition.path, op.key);
+				security = await definition.security({
+					context: this.#context,
+					params,
+					document,
+				});
+			}
+			if (op.type === "delete") {
+				if (security !== "delete") {
+					throw new ForbiddenError();
+				}
+				// TODO delete event atomic
+				atomic.delete(op.key);
+			} else {
+				if (security !== "set") {
+					throw new ForbiddenError();
+				}
+				// TODO set event atomic
+				atomic.set(op.key, op.data);
 			}
 		}
-		// TODO event pre
-		await provider.create(key, data);
-		// TODO event post
+		const result = await atomic.commit();
+		if (result.ok) {
+			for (const op of this.ops) {
+				if (op.type === "delete") {
+					// TODO event post
+				} else {
+					// TODO event post
+				}
+			}
+		}
+		return result;
 	}
 }
 

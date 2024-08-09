@@ -81,7 +81,8 @@ export function createPathMatcher<T extends { path: string[] }>(
 	items: ReadonlyArray<T>,
 ): PathMatcher<T> {
 	const forest = mergeTreeNodes(items.map((item) => pathToTreeNode(item.path, item)));
-	return (path) => {
+	return (key) => {
+		const path = [...key];
 		let haystack: TreeNode<T>[] = forest;
 		let treeNode: TreeNode<T> | undefined;
 		for (let segment = path.shift(); segment; segment = path.shift()) {

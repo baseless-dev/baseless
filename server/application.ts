@@ -15,6 +15,7 @@ import type {
 } from "./types.ts";
 import { Value } from "@sinclair/typebox/value";
 import {
+	DocumentAtomicOperation,
 	DocumentAtomicsResult,
 	DocumentGetOptions,
 	DocumentListEntry,
@@ -248,17 +249,24 @@ export class ApplicationDocumentAtomic extends DocumentAtomic {
 			}
 			atomic.check(check.key, check.versionstamp);
 		}
+		const postOps: Array<{
+			op: DocumentAtomicOperation;
+			document: Document<unknown> | null;
+			params: PathAsType<any>;
+		}> = [];
 		for (const op of this.ops) {
 			const definition = this.#documentMatcher(op.key);
 			if (!definition) {
 				throw new UnknownDocumentError();
 			}
 			const document = await this.#provider.get(op.key).catch(() => null);
-			let security: Awaited<
-				ReturnType<DocumentDefinitionWithSecurity<any, any>["security"]>
-			>;
+			let security:
+				| Awaited<
+					ReturnType<DocumentDefinitionWithSecurity<any, any>["security"]>
+				>
+				| null = null;
+			const params = PathAsType(definition.path, op.key);
 			if ("security" in definition) {
-				const params = PathAsType(definition.path, op.key);
 				security = await definition.security({
 					context: this.#context,
 					params,
@@ -266,26 +274,37 @@ export class ApplicationDocumentAtomic extends DocumentAtomic {
 				});
 			}
 			if (op.type === "delete") {
-				if (security !== "delete") {
+				if (security !== null && security !== "delete") {
 					throw new ForbiddenError();
 				}
-				// TODO delete event atomic
+				for (const event of this.#documentDeletingListeners) {
+					await event.handler({ context: this.#context, params, document, atomic });
+				}
 				atomic.delete(op.key);
 			} else {
-				if (security !== "set") {
+				if (security !== null && security !== "set") {
 					throw new ForbiddenError();
 				}
-				// TODO set event atomic
+				for (const event of this.#documentSavingListeners) {
+					await event.handler({ context: this.#context, params, document, atomic });
+				}
 				atomic.set(op.key, op.data);
 			}
+			postOps.push({ document, params, op });
 		}
 		const result = await atomic.commit();
 		if (result.ok) {
-			for (const op of this.ops) {
+			for (const { op, document, params } of postOps) {
 				if (op.type === "delete") {
-					// TODO event post
+					for (const event of this.#documentDeletedListeners) {
+						await event.handler({ context: this.#context, params, document })
+							.catch((_) => {});
+					}
 				} else {
-					// TODO event post
+					for (const event of this.#documentSavedListeners) {
+						await event.handler({ context: this.#context, params, document })
+							.catch((_) => {});
+					}
 				}
 			}
 		}

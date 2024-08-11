@@ -187,7 +187,7 @@ export interface DocumentAtomicListener<
 	handler: (options: {
 		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
-		document: Static<TDocumentSchema>;
+		document: Static<TDocumentSchema> | null;
 		atomic: unknown;
 	}) => Promise<void>;
 }
@@ -200,7 +200,7 @@ export interface DocumentListener<
 	handler: (options: {
 		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
-		document: Document<Static<TDocumentSchema>>;
+		document: Document<Static<TDocumentSchema>> | null;
 	}) => Promise<void>;
 }
 

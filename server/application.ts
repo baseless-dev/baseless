@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import { createPathMatcher, PathAsType, PathMatcher } from "@baseless/core/path";
 import type {
 	CollectionDefinition,
@@ -24,37 +25,37 @@ import { Document } from "@baseless/core/document";
 import { DocumentAtomic } from "./provider.ts";
 
 export class Application {
-	#decorators: ReadonlyArray<Decorator<any, any, any, any>>;
-	#rpcDefinitions: ReadonlyArray<RpcDefinition<any, any, any, any, any, any>>;
-	#eventDefinitions: ReadonlyArray<EventDefinition<any, any, any, any, any>>;
-	#documentDefinitions: ReadonlyArray<DocumentDefinition<any, any, any, any, any>>;
-	#collectionDefinitions: ReadonlyArray<CollectionDefinition<any, any, any, any, any>>;
-	#eventListeners: ReadonlyArray<EventListener<any, any, any, any, any>>;
-	#documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>;
-	#documentSavedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>;
-	#documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>;
-	#documentDeletedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>;
-	#identityCreatedListeners: ReadonlyArray<IdentityListener<any, any, any>>;
-	#identityUpdatedListeners: ReadonlyArray<IdentityListener<any, any, any>>;
-	#identityDeletedListeners: ReadonlyArray<IdentityListener<any, any, any>>;
-	#rpcMatcher: PathMatcher<RpcDefinition<any, any, any, any, any, any>>;
-	#documentMatcher: PathMatcher<DocumentDefinition<any, any, any, any, any>>;
-	#collectionMatcher: PathMatcher<CollectionDefinition<any, any, any, any, any>>;
+	#decorators: ReadonlyArray<Decorator<any>>;
+	#rpcDefinitions: ReadonlyArray<RpcDefinition<any, any, any>>;
+	#eventDefinitions: ReadonlyArray<EventDefinition<any, any>>;
+	#documentDefinitions: ReadonlyArray<DocumentDefinition<any, any>>;
+	#collectionDefinitions: ReadonlyArray<CollectionDefinition<any, any>>;
+	#eventListeners: ReadonlyArray<EventListener<any, any>>;
+	#documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>;
+	#documentSavedListeners: ReadonlyArray<DocumentListener<any, any>>;
+	#documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>;
+	#documentDeletedListeners: ReadonlyArray<DocumentListener<any, any>>;
+	#identityCreatedListeners: ReadonlyArray<IdentityListener>;
+	#identityUpdatedListeners: ReadonlyArray<IdentityListener>;
+	#identityDeletedListeners: ReadonlyArray<IdentityListener>;
+	#rpcMatcher: PathMatcher<RpcDefinition<any, any, any>>;
+	#documentMatcher: PathMatcher<DocumentDefinition<any, any>>;
+	#collectionMatcher: PathMatcher<CollectionDefinition<any, any>>;
 
 	constructor(
-		decorators: ReadonlyArray<Decorator<any, any, any, any>>,
-		rpcDefinitions: ReadonlyArray<RpcDefinition<any, any, any, any, any, any>>,
-		eventDefinitions: ReadonlyArray<EventDefinition<any, any, any, any, any>>,
-		documentDefinitions: ReadonlyArray<DocumentDefinition<any, any, any, any, any>>,
-		collectionDefinitions: ReadonlyArray<CollectionDefinition<any, any, any, any, any>>,
-		eventListeners: ReadonlyArray<EventListener<any, any, any, any, any>>,
-		documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>,
-		documentSavedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>,
-		documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>,
-		documentDeletedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>,
-		identityCreatedListeners: ReadonlyArray<IdentityListener<any, any, any>>,
-		identityUpdatedListeners: ReadonlyArray<IdentityListener<any, any, any>>,
-		identityDeletedListeners: ReadonlyArray<IdentityListener<any, any, any>>,
+		decorators: ReadonlyArray<Decorator<any>>,
+		rpcDefinitions: ReadonlyArray<RpcDefinition<any, any, any>>,
+		eventDefinitions: ReadonlyArray<EventDefinition<any, any>>,
+		documentDefinitions: ReadonlyArray<DocumentDefinition<any, any>>,
+		collectionDefinitions: ReadonlyArray<CollectionDefinition<any, any>>,
+		eventListeners: ReadonlyArray<EventListener<any, any>>,
+		documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>,
+		documentSavedListeners: ReadonlyArray<DocumentListener<any, any>>,
+		documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>,
+		documentDeletedListeners: ReadonlyArray<DocumentListener<any, any>>,
+		identityCreatedListeners: ReadonlyArray<IdentityListener>,
+		identityUpdatedListeners: ReadonlyArray<IdentityListener>,
+		identityDeletedListeners: ReadonlyArray<IdentityListener>,
 	) {
 		this.#decorators = decorators;
 		this.#rpcDefinitions = rpcDefinitions;
@@ -210,22 +211,22 @@ export class Application {
 export class ApplicationDocumentAtomic extends DocumentAtomic {
 	#context: Context<any, any, any>;
 	#provider: DocumentProvider;
-	#documentDefinitions: ReadonlyArray<DocumentDefinition<any, any, any, any, any>>;
-	#documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>;
-	#documentSavedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>;
-	#documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>;
-	#documentDeletedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>;
-	#documentMatcher: PathMatcher<DocumentDefinition<any, any, any, any, any>>;
+	#documentDefinitions: ReadonlyArray<DocumentDefinition<any, any>>;
+	#documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>;
+	#documentSavedListeners: ReadonlyArray<DocumentListener<any, any>>;
+	#documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>;
+	#documentDeletedListeners: ReadonlyArray<DocumentListener<any, any>>;
+	#documentMatcher: PathMatcher<DocumentDefinition<any, any>>;
 
 	constructor(
 		context: Context<any, any, any>,
 		provider: DocumentProvider,
-		documentDefinitions: ReadonlyArray<DocumentDefinition<any, any, any, any, any>>,
-		documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>,
-		documentSavedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>,
-		documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any, any, any, any>>,
-		documentDeletedListeners: ReadonlyArray<DocumentListener<any, any, any, any, any>>,
-		documentMatcher: PathMatcher<DocumentDefinition<any, any, any, any, any>>,
+		documentDefinitions: ReadonlyArray<DocumentDefinition<any, any>>,
+		documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>,
+		documentSavedListeners: ReadonlyArray<DocumentListener<any, any>>,
+		documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>,
+		documentDeletedListeners: ReadonlyArray<DocumentListener<any, any>>,
+		documentMatcher: PathMatcher<DocumentDefinition<any, any>>,
 	) {
 		super();
 		this.#context = context;
@@ -254,7 +255,7 @@ export class ApplicationDocumentAtomic extends DocumentAtomic {
 			}
 			const document = await this.#provider.get(op.key).catch(() => null);
 			let security: Awaited<
-				ReturnType<DocumentDefinitionWithSecurity<any, any, any, any, any>["security"]>
+				ReturnType<DocumentDefinitionWithSecurity<any, any>["security"]>
 			>;
 			if ("security" in definition) {
 				const params = PathAsType(definition.path, op.key);

@@ -189,8 +189,8 @@ export class DocumentAtomicError extends Error {
 }
 
 export interface IDocumentProvider<
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
+	TDocument extends Array<DocumentDefinition<any, any>>,
+	TCollection extends Array<CollectionDefinition<any, any>>,
 > {
 	get<
 		const TDocumentPath extends TDocument[number]["matcher"],
@@ -218,8 +218,8 @@ export interface IDocumentProvider<
 }
 
 export interface IDocumentAtomic<
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
+	TDocument extends Array<DocumentDefinition<any, any>>,
+	TCollection extends Array<CollectionDefinition<any, any>>,
 > {
 	check<
 		const TDocumentPath extends TDocument[number]["matcher"],

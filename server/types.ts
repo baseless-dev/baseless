@@ -16,8 +16,8 @@ export type Client = {
 
 export type Context<
 	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
+	TDocument extends Array<DocumentDefinition<any, any>>,
+	TCollection extends Array<CollectionDefinition<any, any>>,
 > = {
 	request: Request;
 	waitUntil: (promise: PromiseLike<unknown>) => void;
@@ -28,19 +28,13 @@ export type Context<
 } & TDecoration;
 
 export type Decorator<
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TNewDecoration extends Record<string, unknown>,
 > = (
-	context: Context<TDecoration, TDocument, TCollection>,
+	context: Context<any, [], []>,
 ) => Promise<TNewDecoration>;
 
 export interface RpcDefinitionWithoutSecurity<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TInputSchema extends TSchema,
 	TOutputSchema extends TSchema,
 > {
@@ -49,7 +43,7 @@ export interface RpcDefinitionWithoutSecurity<
 	input: TInputSchema;
 	output: TOutputSchema;
 	handler: (options: {
-		context: Context<TDecoration, TDocument, TCollection>;
+		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
 		input: Static<TInputSchema>;
 	}) => Promise<Static<TOutputSchema>>;
@@ -57,22 +51,16 @@ export interface RpcDefinitionWithoutSecurity<
 
 export interface RpcDefinitionWithSecurity<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TInputSchema extends TSchema,
 	TOutputSchema extends TSchema,
 > extends
 	RpcDefinitionWithoutSecurity<
 		TPath,
-		TDecoration,
-		TDocument,
-		TCollection,
 		TInputSchema,
 		TOutputSchema
 	> {
 	security: (options: {
-		context: Context<TDecoration, TDocument, TCollection>;
+		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
 		input: Static<TInputSchema>;
 	}) => Promise<"allow" | "deny" | undefined>;
@@ -80,28 +68,11 @@ export interface RpcDefinitionWithSecurity<
 
 export type RpcDefinition<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TInputSchema extends TSchema,
 	TOutputSchema extends TSchema,
 > =
-	| RpcDefinitionWithoutSecurity<
-		TPath,
-		TDecoration,
-		TDocument,
-		TCollection,
-		TInputSchema,
-		TOutputSchema
-	>
-	| RpcDefinitionWithSecurity<
-		TPath,
-		TDecoration,
-		TDocument,
-		TCollection,
-		TInputSchema,
-		TOutputSchema
-	>;
+	| RpcDefinitionWithoutSecurity<TPath, TInputSchema, TOutputSchema>
+	| RpcDefinitionWithSecurity<TPath, TInputSchema, TOutputSchema>;
 
 export interface EventDefinitionWithoutSecurity<
 	TPath extends string[],
@@ -114,13 +85,10 @@ export interface EventDefinitionWithoutSecurity<
 
 export interface EventDefinitionWithSecurity<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TPayloadSchema extends TSchema,
 > extends EventDefinitionWithoutSecurity<TPath, TPayloadSchema> {
 	security: (options: {
-		context: Context<TDecoration, TDocument, TCollection>;
+		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
 		payload: Static<TPayloadSchema>;
 	}) => Promise<"subscribe" | "publish" | undefined>;
@@ -128,17 +96,14 @@ export interface EventDefinitionWithSecurity<
 
 export type EventDefinition<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TPayloadSchema extends TSchema,
 > =
 	| EventDefinitionWithoutSecurity<TPath, TPayloadSchema>
-	| EventDefinitionWithSecurity<TPath, TDecoration, TDocument, TCollection, TPayloadSchema>;
+	| EventDefinitionWithSecurity<TPath, TPayloadSchema>;
 
 // deno-fmt-ignore
 export type EventDefinitionHasSecurity<TDefinition> =
-	TDefinition extends EventDefinitionWithSecurity<any, any, any, any, any>
+	TDefinition extends EventDefinitionWithSecurity<any, any>
 	? TDefinition
 	: never;
 
@@ -153,13 +118,10 @@ export interface DocumentDefinitionWithoutSecurity<
 
 export interface DocumentDefinitionWithSecurity<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TDocumentSchema extends TSchema,
 > extends DocumentDefinitionWithoutSecurity<TPath, TDocumentSchema> {
 	security: (options: {
-		context: Context<TDecoration, TDocument, TCollection>;
+		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
 		document: Document<Static<TDocumentSchema>> | null;
 	}) => Promise<"subscribe" | "get" | "set" | "delete" | undefined>;
@@ -167,17 +129,14 @@ export interface DocumentDefinitionWithSecurity<
 
 export type DocumentDefinition<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TDocumentSchema extends TSchema,
 > =
 	| DocumentDefinitionWithoutSecurity<TPath, TDocumentSchema>
-	| DocumentDefinitionWithSecurity<TPath, TDecoration, TDocument, TCollection, TDocumentSchema>;
+	| DocumentDefinitionWithSecurity<TPath, TDocumentSchema>;
 
 // deno-fmt-ignore
 export type DocumentDefinitionHasSecurity<TDefinition> =
-	TDefinition extends DocumentDefinitionWithSecurity<any, any, any, any, any>
+	TDefinition extends DocumentDefinitionWithSecurity<any, any>
 	? TDefinition
 	: never;
 
@@ -192,13 +151,10 @@ export interface CollectionDefinitionWithoutSecurity<
 
 export interface CollectionDefinitionWithSecurity<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TCollectionSchema extends TSchema,
 > extends CollectionDefinitionWithoutSecurity<TPath, TCollectionSchema> {
 	security: (options: {
-		context: Context<TDecoration, TDocument, TCollection>;
+		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
 		key: ReplaceVariableInPathSegment<TPath>;
 	}) => Promise<"list" | undefined>;
@@ -206,30 +162,18 @@ export interface CollectionDefinitionWithSecurity<
 
 export type CollectionDefinition<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TCollectionSchema extends TSchema,
 > =
 	| CollectionDefinitionWithoutSecurity<TPath, TCollectionSchema>
-	| CollectionDefinitionWithSecurity<
-		TPath,
-		TDecoration,
-		TDocument,
-		TCollection,
-		TCollectionSchema
-	>;
+	| CollectionDefinitionWithSecurity<TPath, TCollectionSchema>;
 
 export interface EventListener<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TPayloadSchema extends TSchema,
 > {
 	path: TPath;
 	handler: (options: {
-		context: Context<TDecoration, TDocument, TCollection>;
+		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
 		payload: Static<TPayloadSchema>;
 	}) => Promise<void>;
@@ -237,14 +181,11 @@ export interface EventListener<
 
 export interface DocumentAtomicListener<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TDocumentSchema extends TSchema,
 > {
 	path: TPath;
 	handler: (options: {
-		context: Context<TDecoration, TDocument, TCollection>;
+		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
 		document: Static<TDocumentSchema>;
 		atomic: unknown;
@@ -253,26 +194,19 @@ export interface DocumentAtomicListener<
 
 export interface DocumentListener<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
 	TDocumentSchema extends TSchema,
 > {
 	path: TPath;
 	handler: (options: {
-		context: Context<TDecoration, TDocument, TCollection>;
+		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
 		document: Document<Static<TDocumentSchema>>;
 	}) => Promise<void>;
 }
 
-export interface IdentityListener<
-	TDecoration extends Record<string, unknown>,
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
-> {
+export interface IdentityListener {
 	handler: (
-		context: Context<TDecoration, TDocument, TCollection>,
+		context: Context<any, [], []>,
 		identity: Identity,
 	) => Promise<void>;
 }

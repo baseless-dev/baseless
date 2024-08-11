@@ -1,9 +1,10 @@
 // deno-lint-ignore-file no-explicit-any ban-types
-import type { TSchema } from "@sinclair/typebox";
+import type { Static, TSchema } from "@sinclair/typebox";
 import type {
 	CollectionDefinition,
 	CollectionDefinitionWithoutSecurity,
 	CollectionDefinitionWithSecurity,
+	Context,
 	Decorator,
 	DocumentAtomicListener,
 	DocumentDefinition,
@@ -22,70 +23,62 @@ import type {
 	RpcDefinitionWithSecurity,
 } from "./types.ts";
 import { Application } from "./application.ts";
+import { PathAsType, ReplaceVariableInPathSegment } from "@baseless/core/path";
+import { Document } from "@baseless/core/document";
 
 export class ApplicationBuilder<
 	TDecoration extends {} = {},
-	TRpc extends Array<RpcDefinition<any, any, any, any, any, any>> = [],
-	TEvent extends Array<EventDefinition<any, any, any, any, any>> = [],
-	TDocument extends Array<DocumentDefinition<any, any, any, any, any>> = [],
-	TCollection extends Array<CollectionDefinition<any, any, any, any, any>> = [],
+	TRpc extends Array<RpcDefinition<any, any, any>> = [],
+	TEvent extends Array<EventDefinition<any, any>> = [],
+	TDocument extends Array<DocumentDefinition<any, any>> = [],
+	TCollection extends Array<CollectionDefinition<any, any>> = [],
 	TFile extends Array<unknown> = [],
 	TFolder extends Array<unknown> = [],
 > {
-	#decorator: Array<Decorator<any, any, any, any>>;
-	#rpc: Array<RpcDefinition<any, any, any, any, any, any>>;
-	#event: Array<EventDefinition<any, any, any, any, any>>;
-	#document: Array<DocumentDefinition<any, any, any, any, any>>;
-	#collection: Array<CollectionDefinition<any, any, any, any, any>>;
-	#eventListeners: Array<EventListener<any, any, any, any, any>>;
-	#documentSavingListeners: Array<DocumentAtomicListener<any, any, any, any, any>>;
-	#documentSavedListeners: Array<DocumentListener<any, any, any, any, any>>;
-	#documentDeletingListeners: Array<
-		DocumentAtomicListener<any, any, any, any, any>
-	>;
-	#documentDeletedListeners: Array<DocumentListener<any, any, any, any, any>>;
-	#identityCreatedListeners: Array<IdentityListener<any, any, any>>;
-	#identityUpdatedListeners: Array<IdentityListener<any, any, any>>;
-	#identityDeletedListeners: Array<IdentityListener<any, any, any>>;
+	#decorator: Array<Decorator<any>>;
+	#rpc: Array<RpcDefinition<any, any, any>>;
+	#event: Array<EventDefinition<any, any>>;
+	#document: Array<DocumentDefinition<any, any>>;
+	#collection: Array<CollectionDefinition<any, any>>;
+	#eventListeners: Array<EventListener<any, any>>;
+	#documentSavingListeners: Array<DocumentAtomicListener<any, any>>;
+	#documentSavedListeners: Array<DocumentListener<any, any>>;
+	#documentDeletingListeners: Array<DocumentAtomicListener<any, any>>;
+	#documentDeletedListeners: Array<DocumentListener<any, any>>;
+	#identityCreatedListeners: Array<IdentityListener>;
+	#identityUpdatedListeners: Array<IdentityListener>;
+	#identityDeletedListeners: Array<IdentityListener>;
 
 	constructor();
 	constructor(
-		contextConstructors: Array<Decorator<any, any, any, any>>,
-		rpc: Array<RpcDefinition<any, any, any, any, any, any>>,
-		event: Array<EventDefinition<any, any, any, any, any>>,
-		document: Array<DocumentDefinition<any, any, any, any, any>>,
-		collection: Array<CollectionDefinition<any, any, any, any, any>>,
-		eventListeners: Array<EventListener<any, any, any, any, any>>,
-		documentSavingListeners: Array<
-			DocumentAtomicListener<any, any, any, any, any>
-		>,
-		documentSavedListeners: Array<DocumentListener<any, any, any, any, any>>,
-		documentDeletingListeners: Array<
-			DocumentAtomicListener<any, any, any, any, any>
-		>,
-		documentDeletedListeners: Array<DocumentListener<any, any, any, any, any>>,
-		identityCreatedListeners: Array<IdentityListener<any, any, any>>,
-		identityUpdatedListeners: Array<IdentityListener<any, any, any>>,
-		identityDeletedListeners: Array<IdentityListener<any, any, any>>,
+		contextConstructors: Array<Decorator<any>>,
+		rpc: Array<RpcDefinition<any, any, any>>,
+		event: Array<EventDefinition<any, any>>,
+		document: Array<DocumentDefinition<any, any>>,
+		collection: Array<CollectionDefinition<any, any>>,
+		eventListeners: Array<EventListener<any, any>>,
+		documentSavingListeners: Array<DocumentAtomicListener<any, any>>,
+		documentSavedListeners: Array<DocumentListener<any, any>>,
+		documentDeletingListeners: Array<DocumentAtomicListener<any, any>>,
+		documentDeletedListeners: Array<DocumentListener<any, any>>,
+		identityCreatedListeners: Array<IdentityListener>,
+		identityUpdatedListeners: Array<IdentityListener>,
+		identityDeletedListeners: Array<IdentityListener>,
 	);
 	constructor(
-		context?: Array<Decorator<any, any, any, any>>,
-		rpc?: Array<RpcDefinition<any, any, any, any, any, any>>,
-		event?: Array<EventDefinition<any, any, any, any, any>>,
-		document?: Array<DocumentDefinition<any, any, any, any, any>>,
-		collection?: Array<CollectionDefinition<any, any, any, any, any>>,
-		eventListeners?: Array<EventListener<any, any, any, any, any>>,
-		documentSavingListeners?: Array<
-			DocumentAtomicListener<any, any, any, any, any>
-		>,
-		documentSavedListeners?: Array<DocumentListener<any, any, any, any, any>>,
-		documentDeletingListeners?: Array<
-			DocumentAtomicListener<any, any, any, any, any>
-		>,
-		documentDeletedListeners?: Array<DocumentListener<any, any, any, any, any>>,
-		identityCreatedListeners?: Array<IdentityListener<any, any, any>>,
-		identityUpdatedListeners?: Array<IdentityListener<any, any, any>>,
-		identityDeletedListeners?: Array<IdentityListener<any, any, any>>,
+		context?: Array<Decorator<any>>,
+		rpc?: Array<RpcDefinition<any, any, any>>,
+		event?: Array<EventDefinition<any, any>>,
+		document?: Array<DocumentDefinition<any, any>>,
+		collection?: Array<CollectionDefinition<any, any>>,
+		eventListeners?: Array<EventListener<any, any>>,
+		documentSavingListeners?: Array<DocumentAtomicListener<any, any>>,
+		documentSavedListeners?: Array<DocumentListener<any, any>>,
+		documentDeletingListeners?: Array<DocumentAtomicListener<any, any>>,
+		documentDeletedListeners?: Array<DocumentListener<any, any>>,
+		identityCreatedListeners?: Array<IdentityListener>,
+		identityUpdatedListeners?: Array<IdentityListener>,
+		identityDeletedListeners?: Array<IdentityListener>,
 	) {
 		this.#decorator = [...context ?? []];
 		this.#rpc = [...rpc ?? []];
@@ -125,7 +118,7 @@ export class ApplicationBuilder<
 	}
 
 	decorate<const TNewContext extends {}>(
-		decorator: Decorator<TDecoration, TDocument, TCollection, TNewContext>,
+		decorator: (context: Context<TDecoration, TDocument, TCollection>) => Promise<TNewContext>,
 	): ApplicationBuilder<
 		TDecoration & TNewContext,
 		TRpc,
@@ -154,17 +147,27 @@ export class ApplicationBuilder<
 
 	rpc<
 		const TPath extends Path,
-		const TInput extends TSchema,
-		const TOutput extends TSchema,
+		const TInputSchema extends TSchema,
+		const TOutputSchema extends TSchema,
 	>(
 		path: TPath,
-		options: Omit<
-			RpcDefinitionWithSecurity<TPath, TDecoration, TDocument, TCollection, TInput, TOutput>,
-			"path" | "matcher"
-		>,
+		options: {
+			input: TInputSchema;
+			output: TOutputSchema;
+			handler: (options: {
+				context: Context<TDecoration, TDocument, TCollection>;
+				params: PathAsType<TPath>;
+				input: Static<TInputSchema>;
+			}) => Promise<Static<TOutputSchema>>;
+			security: (options: {
+				context: Context<TDecoration, TDocument, TCollection>;
+				params: PathAsType<TPath>;
+				input: Static<TInputSchema>;
+			}) => Promise<"allow" | "deny" | undefined>;
+		},
 	): ApplicationBuilder<
 		TDecoration,
-		TRpc | [RpcDefinitionWithSecurity<TPath, any, any, any, TInput, TOutput>],
+		TRpc | [RpcDefinitionWithSecurity<TPath, TInputSchema, TOutputSchema>],
 		TEvent,
 		TDocument,
 		TCollection,
@@ -173,34 +176,29 @@ export class ApplicationBuilder<
 	>;
 	rpc<
 		const TPath extends Path,
-		const TInput extends TSchema,
-		const TOutput extends TSchema,
+		const TInputSchema extends TSchema,
+		const TOutputSchema extends TSchema,
 	>(
 		path: TPath,
-		options: Omit<
-			RpcDefinitionWithoutSecurity<
-				TPath,
-				TDecoration,
-				TDocument,
-				TCollection,
-				TInput,
-				TOutput
-			>,
-			"path" | "matcher"
-		>,
+		options: {
+			input: TInputSchema;
+			output: TOutputSchema;
+			handler: (options: {
+				context: Context<TDecoration, TDocument, TCollection>;
+				params: PathAsType<TPath>;
+				input: Static<TInputSchema>;
+			}) => Promise<Static<TOutputSchema>>;
+		},
 	): ApplicationBuilder<
 		TDecoration,
-		TRpc | [RpcDefinitionWithoutSecurity<TPath, any, any, any, TInput, TOutput>],
+		TRpc | [RpcDefinitionWithoutSecurity<TPath, TInputSchema, TOutputSchema>],
 		TEvent,
 		TDocument,
 		TCollection,
 		TFile,
 		TFolder
 	>;
-	rpc(
-		path: any,
-		options: any,
-	): any {
+	rpc(path: any, options: any): any {
 		return new ApplicationBuilder(
 			this.#decorator,
 			[...this.#rpc, { path, ...options }],
@@ -218,40 +216,40 @@ export class ApplicationBuilder<
 		);
 	}
 
-	emits<const TPath extends Path, const TPayload extends TSchema>(
+	emits<const TPath extends Path, const TPayloadSchema extends TSchema>(
 		path: TPath,
-		options: Omit<
-			EventDefinitionWithSecurity<TPath, TDecoration, TDocument, TCollection, TPayload>,
-			"path" | "matcher"
-		>,
+		options: {
+			payload: TPayloadSchema;
+			security: (options: {
+				context: Context<TDecoration, TDocument, TCollection>;
+				params: PathAsType<TPath>;
+				payload: Static<TPayloadSchema>;
+			}) => Promise<"subscribe" | "publish" | undefined>;
+		},
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
-		TEvent | [EventDefinitionWithSecurity<TPath, any, any, any, TPayload>],
+		TEvent | [EventDefinitionWithSecurity<TPath, TPayloadSchema>],
 		TDocument,
 		TCollection,
 		TFile,
 		TFolder
 	>;
-	emits<const TPath extends Path, const TPayload extends TSchema>(
+	emits<const TPath extends Path, const TPayloadSchema extends TSchema>(
 		path: TPath,
-		options: Omit<
-			EventDefinitionWithoutSecurity<TPath, TPayload>,
-			"path" | "matcher"
-		>,
+		options: {
+			payload: TPayloadSchema;
+		},
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
-		TEvent | [EventDefinitionWithoutSecurity<TPath, TPayload>],
+		TEvent | [EventDefinitionWithoutSecurity<TPath, TPayloadSchema>],
 		TDocument,
 		TCollection,
 		TFile,
 		TFolder
 	>;
-	emits(
-		path: any,
-		options: any,
-	): any {
+	emits(path: any, options: any): any {
 		return new ApplicationBuilder(
 			this.#decorator,
 			this.#rpc,
@@ -269,42 +267,42 @@ export class ApplicationBuilder<
 		);
 	}
 
-	document<const TPath extends Path, const Schema extends TSchema>(
+	document<const TPath extends Path, const TDocumentSchema extends TSchema>(
 		path: TPath,
-		options: Omit<
-			DocumentDefinitionWithSecurity<TPath, TDecoration, TDocument, TCollection, Schema>,
-			"path" | "matcher"
-		>,
+		options: {
+			schema: TDocumentSchema;
+			security: (options: {
+				context: Context<any, [], []>;
+				params: PathAsType<TPath>;
+				document: Document<Static<TDocumentSchema>> | null;
+			}) => Promise<"subscribe" | "get" | "set" | "delete" | undefined>;
+		},
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
 		TEvent,
-		TDocument | [DocumentDefinitionWithSecurity<TPath, any, any, any, Schema>],
+		TDocument | [DocumentDefinitionWithSecurity<TPath, TDocumentSchema>],
 		TCollection,
 		TFile,
 		TFolder
 	>;
-	document<const TPath extends Path, const Schema extends TSchema>(
+	document<const TPath extends Path, const TDocumentSchema extends TSchema>(
 		path: TPath,
-		options: Omit<
-			DocumentDefinitionWithoutSecurity<TPath, Schema>,
-			"path" | "matcher"
-		>,
+		options: {
+			schema: TDocumentSchema;
+		},
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument | [
-			DocumentDefinitionWithoutSecurity<TPath, Schema>,
+			DocumentDefinitionWithoutSecurity<TPath, TDocumentSchema>,
 		],
 		TCollection,
 		TFile,
 		TFolder
 	>;
-	document(
-		path: any,
-		options: any,
-	): any {
+	document(path: any, options: any): any {
 		return new ApplicationBuilder(
 			this.#decorator,
 			this.#rpc,
@@ -322,48 +320,48 @@ export class ApplicationBuilder<
 		);
 	}
 
-	collection<const TPath extends Path, const Schema extends TSchema>(
+	collection<const TPath extends Path, const TCollectionSchema extends TSchema>(
 		path: TPath,
-		options: Omit<
-			CollectionDefinitionWithSecurity<TPath, TDecoration, TDocument, TCollection, Schema>,
-			"path" | "matcher"
-		>,
+		options: {
+			schema: TCollectionSchema;
+			security: (options: {
+				context: Context<any, [], []>;
+				params: PathAsType<TPath>;
+				key: ReplaceVariableInPathSegment<TPath>;
+			}) => Promise<"list" | undefined>;
+		},
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument | [
-			DocumentDefinitionWithoutSecurity<[...TPath, string], Schema>,
+			DocumentDefinitionWithoutSecurity<[...TPath, string], TCollectionSchema>,
 		],
 		TCollection | [
-			CollectionDefinitionWithSecurity<TPath, any, any, any, Schema>,
+			CollectionDefinitionWithSecurity<TPath, TCollectionSchema>,
 		],
 		TFile,
 		TFolder
 	>;
-	collection<const TPath extends Path, const Schema extends TSchema>(
+	collection<const TPath extends Path, const TCollectionSchema extends TSchema>(
 		path: TPath,
-		options: Omit<
-			CollectionDefinitionWithoutSecurity<TPath, Schema>,
-			"path" | "matcher"
-		>,
+		options: {
+			schema: TCollectionSchema;
+		},
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
 		TEvent,
 		TDocument | [
-			DocumentDefinitionWithoutSecurity<[...TPath, string], Schema>,
+			DocumentDefinitionWithoutSecurity<[...TPath, string], TCollectionSchema>,
 		],
 		TCollection | [
-			CollectionDefinitionWithoutSecurity<TPath, Schema>,
+			CollectionDefinitionWithoutSecurity<TPath, TCollectionSchema>,
 		],
 		TFile,
 		TFolder
 	>;
-	collection(
-		path: any,
-		options: any,
-	): any {
+	collection(path: any, options: any): any {
 		return new ApplicationBuilder(
 			this.#decorator,
 			this.#rpc,
@@ -386,13 +384,7 @@ export class ApplicationBuilder<
 		const TEventDefinition extends PickAtPath<TEvent, TPath>,
 	>(
 		path: TPath,
-		handler: EventListener<
-			TPath,
-			TDecoration,
-			TDocument,
-			TCollection,
-			TEventDefinition["payload"]
-		>["handler"],
+		handler: EventListener<TPath, TEventDefinition["payload"]>["handler"],
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -424,13 +416,7 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentAtomicListener<
-			TPath,
-			TDecoration,
-			TDocument,
-			TCollection,
-			TDocumentDefinition["schema"]
-		>["handler"],
+		handler: DocumentAtomicListener<TPath, TDocumentDefinition["schema"]>["handler"],
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -462,13 +448,7 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentListener<
-			TPath,
-			TDecoration,
-			TDocument,
-			TCollection,
-			TDocumentDefinition["schema"]
-		>["handler"],
+		handler: DocumentListener<TPath, TDocumentDefinition["schema"]>["handler"],
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -483,13 +463,7 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TCollection, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentListener<
-			TPath,
-			TDecoration,
-			TDocument,
-			TCollection,
-			TDocumentDefinition["schema"]
-		>["handler"],
+		handler: DocumentListener<TPath, TDocumentDefinition["schema"]>["handler"],
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -522,13 +496,7 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentAtomicListener<
-			TPath,
-			TDecoration,
-			TDocument,
-			TCollection,
-			TDocumentDefinition["schema"]
-		>["handler"],
+		handler: DocumentAtomicListener<TPath, TDocumentDefinition["schema"]>["handler"],
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -560,13 +528,7 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentListener<
-			TPath,
-			TDecoration,
-			TDocument,
-			TCollection,
-			TDocumentDefinition["schema"]
-		>["handler"],
+		handler: DocumentListener<TPath, TDocumentDefinition["schema"]>["handler"],
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -594,7 +556,7 @@ export class ApplicationBuilder<
 	}
 
 	onIdentityCreated(
-		handler: IdentityListener<TDecoration, TDocument, TCollection>["handler"],
+		handler: IdentityListener["handler"],
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -622,7 +584,7 @@ export class ApplicationBuilder<
 	}
 
 	onIdentityUpdated(
-		handler: IdentityListener<TDecoration, TDocument, TCollection>["handler"],
+		handler: IdentityListener["handler"],
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -650,7 +612,7 @@ export class ApplicationBuilder<
 	}
 
 	onIdentityDeleted(
-		handler: IdentityListener<TDecoration, TDocument, TCollection>["handler"],
+		handler: IdentityListener["handler"],
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -679,10 +641,10 @@ export class ApplicationBuilder<
 
 	use<
 		TOtherDecoration extends Record<string, unknown>,
-		TOtherRpc extends Array<RpcDefinition<any, any, any, any, any, any>>,
-		TOtherEvent extends Array<EventDefinition<any, any, any, any, any>>,
-		TOtherDocument extends Array<DocumentDefinition<any, any, any, any, any>>,
-		TOtherCollection extends Array<CollectionDefinition<any, any, any, any, any>>,
+		TOtherRpc extends Array<RpcDefinition<any, any, any>>,
+		TOtherEvent extends Array<EventDefinition<any, any>>,
+		TOtherDocument extends Array<DocumentDefinition<any, any>>,
+		TOtherCollection extends Array<CollectionDefinition<any, any>>,
 		TOtherFile extends Array<unknown>,
 		TOtherFolder extends Array<unknown>,
 	>(

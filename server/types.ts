@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import type { Static, TSchema } from "@sinclair/typebox";
 import type { Identity } from "@baseless/core/identity";
-import type { IDocumentProvider, KVProvider } from "./provider.ts";
+import type { IDocumentAtomic, IDocumentProvider, KVProvider } from "./provider.ts";
 import type { PathAsType, ReplaceVariableInPathSegment } from "@baseless/core/path";
 import type { Document } from "@baseless/core/document";
 
@@ -123,7 +123,7 @@ export interface DocumentDefinitionWithSecurity<
 	security: (options: {
 		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
-		document: Document<Static<TDocumentSchema>> | null;
+		document: Document<Static<TDocumentSchema>>;
 	}) => Promise<"subscribe" | "get" | "set" | "delete" | undefined>;
 }
 
@@ -187,8 +187,8 @@ export interface DocumentAtomicListener<
 	handler: (options: {
 		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
-		document: Static<TDocumentSchema> | null;
-		atomic: unknown;
+		document: Static<TDocumentSchema>;
+		atomic: IDocumentAtomic<[], []>;
 	}) => Promise<void>;
 }
 
@@ -200,7 +200,7 @@ export interface DocumentListener<
 	handler: (options: {
 		context: Context<any, [], []>;
 		params: PathAsType<TPath>;
-		document: Document<Static<TDocumentSchema>> | null;
+		document: Document<Static<TDocumentSchema>>;
 	}) => Promise<void>;
 }
 

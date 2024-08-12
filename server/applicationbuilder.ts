@@ -25,6 +25,7 @@ import type {
 import { Application } from "./application.ts";
 import { PathAsType, ReplaceVariableInPathSegment } from "@baseless/core/path";
 import { Document } from "@baseless/core/document";
+import { DocumentAtomic, IDocumentAtomic } from "./provider.ts";
 
 export class ApplicationBuilder<
 	TDecoration extends {} = {},
@@ -274,7 +275,7 @@ export class ApplicationBuilder<
 			security: (options: {
 				context: Context<any, [], []>;
 				params: PathAsType<TPath>;
-				document: Document<Static<TDocumentSchema>> | null;
+				document: Document<Static<TDocumentSchema>>;
 			}) => Promise<"subscribe" | "get" | "set" | "delete" | undefined>;
 		},
 	): ApplicationBuilder<
@@ -416,7 +417,12 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentAtomicListener<TPath, TDocumentDefinition["schema"]>["handler"],
+		handler: (options: {
+			context: Context<TDecoration, TDocument, TCollection>;
+			params: PathAsType<TPath>;
+			document: Static<TDocumentDefinition["schema"]>;
+			atomic: IDocumentAtomic<TDocument, TCollection>;
+		}) => Promise<void>,
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -448,7 +454,11 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentListener<TPath, TDocumentDefinition["schema"]>["handler"],
+		handler: (options: {
+			context: Context<TDecoration, TDocument, TCollection>;
+			params: PathAsType<TPath>;
+			document: Static<TDocumentDefinition["schema"]>;
+		}) => Promise<void>,
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -463,7 +473,11 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TCollection, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentListener<TPath, TDocumentDefinition["schema"]>["handler"],
+		handler: (options: {
+			context: Context<TDecoration, TDocument, TCollection>;
+			params: PathAsType<TPath>;
+			document: Static<TDocumentDefinition["schema"]>;
+		}) => Promise<void>,
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -496,7 +510,12 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentAtomicListener<TPath, TDocumentDefinition["schema"]>["handler"],
+		handler: (options: {
+			context: Context<TDecoration, TDocument, TCollection>;
+			params: PathAsType<TPath>;
+			document: Static<TDocumentDefinition["schema"]>;
+			atomic: IDocumentAtomic<TDocument, TCollection>;
+		}) => Promise<void>,
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -528,7 +547,11 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentListener<TPath, TDocumentDefinition["schema"]>["handler"],
+		handler: (options: {
+			context: Context<TDecoration, TDocument, TCollection>;
+			params: PathAsType<TPath>;
+			document: Static<TDocumentDefinition["schema"]>;
+		}) => Promise<void>,
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,

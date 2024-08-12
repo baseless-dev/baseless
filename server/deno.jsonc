@@ -4,11 +4,12 @@
 	"exports": {
 		".": "./mod.ts",
 		"./application": "./application.ts",
-		"./authentication": "./authentication.ts",
+		"./applicationbuilder": "./applicationbuilder.ts",
+		"./authentication": "./authentication/mod.ts",
+		"./facade": "./facade.ts",
 		"./provider": "./provider.ts",
 		"./provider.test": "./provider.test.ts",
 		"./server": "./server.ts",
-		"./service": "./service.ts",
 		"./types": "./types.ts"
 	},
 	"publish": {

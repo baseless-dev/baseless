@@ -251,7 +251,7 @@ export class ApplicationDocumentAtomic extends DocumentAtomic {
 		}
 		const postOps: Array<{
 			op: DocumentAtomicOperation;
-			document: Document<unknown> | null;
+			document: Document<unknown>;
 			params: PathAsType<any>;
 		}> = [];
 		for (const op of this.ops) {
@@ -259,29 +259,35 @@ export class ApplicationDocumentAtomic extends DocumentAtomic {
 			if (!definition) {
 				throw new UnknownDocumentError();
 			}
-			const document = await this.#provider.get(op.key).catch(() => null);
-			let security:
-				| Awaited<
-					ReturnType<DocumentDefinitionWithSecurity<any, any>["security"]>
-				>
-				| null = null;
 			const params = PathAsType(definition.path, op.key);
-			if ("security" in definition) {
-				security = await definition.security({
-					context: this.#context,
-					params,
-					document,
-				});
-			}
 			if (op.type === "delete") {
-				if (security !== null && security !== "delete") {
-					throw new ForbiddenError();
+				const document = await this.#provider.get(op.key).catch(() => undefined);
+				if (document) {
+					const security = "security" in definition
+						? await definition.security({
+							context: this.#context,
+							params,
+							document,
+						})
+						: null;
+					if (security !== null && security !== "delete") {
+						throw new ForbiddenError();
+					}
+					for (const event of this.#documentDeletingListeners) {
+						await event.handler({ context: this.#context, params, document, atomic });
+					}
+					atomic.delete(op.key);
+					postOps.push({ document, params, op });
 				}
-				for (const event of this.#documentDeletingListeners) {
-					await event.handler({ context: this.#context, params, document, atomic });
-				}
-				atomic.delete(op.key);
 			} else {
+				const document = { key: op.key, data: op.data, versionstamp: "" };
+				const security = "security" in definition
+					? await definition.security({
+						context: this.#context,
+						params,
+						document,
+					})
+					: null;
 				if (security !== null && security !== "set") {
 					throw new ForbiddenError();
 				}
@@ -289,8 +295,8 @@ export class ApplicationDocumentAtomic extends DocumentAtomic {
 					await event.handler({ context: this.#context, params, document, atomic });
 				}
 				atomic.set(op.key, op.data);
+				postOps.push({ document, params, op });
 			}
-			postOps.push({ document, params, op });
 		}
 		const result = await atomic.commit();
 		if (result.ok) {

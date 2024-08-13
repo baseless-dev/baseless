@@ -1,13 +1,13 @@
-import { Document } from "../core/document.ts";
-import { Application, ApplicationDocumentAtomic } from "./application.ts";
+import { Document } from "@baseless/core/document";
+import { Application } from "./application.ts";
+import { Context } from "./types.ts";
 import {
 	DocumentAtomic,
 	DocumentGetOptions,
 	DocumentListEntry,
 	DocumentListOptions,
 	DocumentProvider,
-} from "./provider.ts";
-import { Context } from "./types.ts";
+} from "../provider/mod.ts";
 
 export class DocumentProviderFacade extends DocumentProvider {
 	#application: Application;

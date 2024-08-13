@@ -29,14 +29,28 @@ export type AuthenticationCeremony =
 	| AuthenticationCeremonySequence
 	| AuthenticationCeremonyChoice;
 
+export type AuthenticationCeremonySequenceShallow = AuthenticationCeremonySequence<
+	AuthenticationCeremonyComponent
+>;
+
 export type AuthenticationCeremonyChoiceShallow = AuthenticationCeremonyChoice<
 	AuthenticationCeremonyComponent
 >;
 
+/**
+ * Create a {@link AuthenticationCeremonySequence} of components.
+ * @param components Array of {@link AuthenticationCeremony}
+ * @returns The {@link AuthenticationCeremonySequence}
+ */
 export function sequence(...components: AuthenticationCeremony[]): AuthenticationCeremonySequence {
 	return { kind: "sequence", components };
 }
 
+/**
+ * Create a {@link AuthenticationCeremonyChoice} of components.
+ * @param components Array of {@link AuthenticationCeremony}
+ * @returns The {@link AuthenticationCeremonyChoice}
+ */
 export function choice(...components: AuthenticationCeremony[]): AuthenticationCeremonyChoice {
 	return { kind: "choice", components };
 }
@@ -85,11 +99,21 @@ export const AuthenticationCeremonyChoice = Type.Object({
 	components: Type.Array(AuthenticationCeremony),
 }, { $id: "AuthenticationCeremonyChoice" });
 
+export const AuthenticationCeremonySequenceShallow = Type.Object({
+	kind: Type.Literal("sequence"),
+	components: Type.Array(AuthenticationCeremonyComponent),
+}, { $id: "AuthenticationCeremonySequenceShallow" });
+
 export const AuthenticationCeremonyChoiceShallow = Type.Object({
 	kind: Type.Literal("choice"),
 	components: Type.Array(AuthenticationCeremonyComponent),
 }, { $id: "AuthenticationCeremonyChoiceShallow" });
 
+/**
+ * Check if the value is an {@link AuthenticationCeremonyComponent}
+ * @param value The value to test
+ * @returns Whether the value is an {@link AuthenticationCeremonyComponent}
+ */
 export function isAuthenticationCeremonyComponent(
 	value: unknown,
 ): value is AuthenticationCeremonyComponent {
@@ -97,6 +121,11 @@ export function isAuthenticationCeremonyComponent(
 		value.kind === "component" && "component" in value && typeof value.component === "string";
 }
 
+/**
+ * Check if the value is an {@link AuthenticationCeremonySequence}
+ * @param value The value to test
+ * @returns Whether the value is an {@link AuthenticationCeremonySequence}
+ */
 export function isAuthenticationCeremonySequence(
 	value: unknown,
 ): value is AuthenticationCeremonySequence {
@@ -105,6 +134,11 @@ export function isAuthenticationCeremonySequence(
 		value.components.every(isAuthenticationCeremony);
 }
 
+/**
+ * Check if the value is an {@link AuthenticationCeremonyChoice}
+ * @param value The value to test
+ * @returns Whether the value is an {@link AuthenticationCeremonyChoice}
+ */
 export function isAuthenticationCeremonyChoice(
 	value: unknown,
 ): value is AuthenticationCeremonyChoice {
@@ -113,11 +147,46 @@ export function isAuthenticationCeremonyChoice(
 		value.components.every(isAuthenticationCeremony);
 }
 
+/**
+ * Check if the value is an {@link AuthenticationCeremonySequenceShallow}
+ * @param value The value to test
+ * @returns Whether the value is an {@link AuthenticationCeremonySequenceShallow}
+ */
+export function isAuthenticationCeremonySequenceShallow(
+	value: unknown,
+): value is AuthenticationCeremonySequenceShallow {
+	return isAuthenticationCeremonySequence(value) &&
+		value.components.every(isAuthenticationCeremonyComponent);
+}
+
+/**
+ * Check if the value is an {@link AuthenticationCeremonyChoiceShallow}
+ * @param value The value to test
+ * @returns Whether the value is an {@link AuthenticationCeremonyChoiceShallow}
+ */
+export function isAuthenticationCeremonyChoiceShallow(
+	value: unknown,
+): value is AuthenticationCeremonyChoiceShallow {
+	return isAuthenticationCeremonyChoice(value) &&
+		value.components.every(isAuthenticationCeremonyComponent);
+}
+
+/**
+ * Check if the value is an {@link AuthenticationCeremony}.
+ * @param value The value to test
+ * @returns Whether the value is an {@link AuthenticationCeremony}
+ */
 export function isAuthenticationCeremony(value: unknown): value is AuthenticationCeremony {
 	return isAuthenticationCeremonyComponent(value) || isAuthenticationCeremonySequence(value) ||
 		isAuthenticationCeremonyChoice(value);
 }
 
+/**
+ * Compare two {@link AuthenticationCeremony} for equality.
+ * @param a A {@link AuthenticationCeremony} to compare
+ * @param b A {@link AuthenticationCeremony} to compare
+ * @returns Whether the two {@link AuthenticationCeremony} are equal
+ */
 export function isAuthenticationCeremonyEquals(
 	a: AuthenticationCeremony,
 	b: AuthenticationCeremony,
@@ -147,6 +216,11 @@ export function isAuthenticationCeremonyEquals(
 	return false;
 }
 
+/**
+ * Extract {@link AuthenticationCeremonyComponent} from the {@link AuthenticationCeremony}.
+ * @param ceremony The {@link AuthenticationCeremony} to extract {@link AuthenticationCeremonyComponent} from
+ * @returns Array of {@link AuthenticationCeremonyComponent}
+ */
 export function extractAuthenticationCeremonyComponents(
 	ceremony: AuthenticationCeremony,
 ): AuthenticationCeremonyComponent[] {
@@ -165,6 +239,11 @@ export function extractAuthenticationCeremonyComponents(
 		.filter((c, i, a) => a.findIndex(isAuthenticationCeremonyEquals.bind(null, c)) === i);
 }
 
+/**
+ * Simplify the {@link AuthenticationCeremony} by removing unnecessary nesting and duplicate component.
+ * @param ceremony The {@link AuthenticationCeremony} to simplify
+ * @returns Siplified {@link AuthenticationCeremony}
+ */
 export function simplifyAuthenticationCeremony(
 	ceremony: AuthenticationCeremony,
 ): AuthenticationCeremony {
@@ -191,15 +270,13 @@ export function simplifyAuthenticationCeremony(
 	return ceremony;
 }
 
-function isAuthenticationCeremonyShallow(
-	ceremony: AuthenticationCeremony,
-): boolean {
-	if (ceremony.kind === "component") {
-		return true;
-	}
-	return ceremony.components.every(isAuthenticationCeremonyComponent);
-}
-
+/**
+ * Walk the {@link AuthenticationCeremony} and yield each {@link AuthenticationCeremonyComponent} with its parents.
+ * @param ceremony The {@link AuthenticationCeremony}
+ * @yields A tuple of the {@link AuthenticationCeremonyComponent} and its parents
+ *
+ * If the first element of the tuple is `null`, it means the end of the ceremony.
+ */
 export function* walkAuthenticationCeremony(
 	ceremony: AuthenticationCeremony,
 ): Generator<
@@ -221,7 +298,7 @@ export function* walkAuthenticationCeremony(
 		]
 	> {
 		if (ceremony.kind === "sequence") {
-			if (isAuthenticationCeremonyShallow(ceremony)) {
+			if (isAuthenticationCeremonySequenceShallow(ceremony)) {
 				const p = [...parents];
 				for (const c of ceremony.components) {
 					yield* _walk(c, [...p]);
@@ -267,6 +344,12 @@ export function* walkAuthenticationCeremony(
 	}
 }
 
+/**
+ * Get {@link AuthenticationCeremonyComponent} at the given path.
+ * @param ceremony The {@link AuthenticationCeremony}
+ * @param path The path to the component
+ * @returns The {@link AuthenticationCeremony} at the path, or `true` if the path is at the end of the ceremony, or `undefined` if the path is not found.
+ */
 export function getAuthenticationCeremonyComponentAtPath(
 	ceremony: AuthenticationCeremony,
 	path: string[],

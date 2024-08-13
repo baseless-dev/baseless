@@ -1,7 +1,6 @@
 import {
 	DocumentAtomic,
 	DocumentAtomicsResult,
-	DocumentCreateError,
 	DocumentGetOptions,
 	DocumentListEntry,
 	DocumentListOptions,

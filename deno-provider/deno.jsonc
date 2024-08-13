@@ -2,7 +2,10 @@
 	"name": "@baseless/deno-provider",
 	"version": "0.3.0-rc.1",
 	"exports": {
-		".": "./mod.ts"
+		".": "./mod.ts",
+		"./document": "./document.ts",
+		"./kv": "./kv.ts",
+		"./session": "./session.ts"
 	},
 	"publish": {
 		"include": [

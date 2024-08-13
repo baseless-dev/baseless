@@ -1,5 +1,5 @@
 import { Type } from "@sinclair/typebox";
-import { ID, isID } from "./id.ts";
+import { ID, isID } from "@baseless/core/id";
 
 export interface Session {
 	sessionId: ID<"sess_">;
@@ -26,3 +26,15 @@ export function assertSession(value: unknown): asserts value is Session {
 }
 
 export class InvalidSessionError extends Error {}
+
+export abstract class SessionProvider {
+	abstract get(sessionId: Session["sessionId"]): Promise<Session>;
+	abstract set(
+		session: Session,
+		expiration?: number | Date,
+	): Promise<void>;
+	abstract delete(sessionId: Session["sessionId"]): Promise<void>;
+}
+
+export class SessionNotFoundError extends Error {}
+export class SessionPutError extends Error {}

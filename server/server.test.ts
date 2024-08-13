@@ -3,8 +3,12 @@ import { assert, assertEquals } from "@std/assert";
 import { Server } from "./server.ts";
 import { Type } from "@sinclair/typebox";
 import { isResultError, isResultSingle } from "@baseless/core/result";
-import { MemoryDocumentProvider, MemoryKVProvider } from "@baseless/inmemory-provider";
-import { ApplicationBuilder } from "./applicationbuilder.ts";
+import {
+	MemoryDocumentProvider,
+	MemoryKVProvider,
+	MemorySessionProvider,
+} from "@baseless/inmemory-provider";
+import { ApplicationBuilder } from "./application/builder.ts";
 
 Deno.test("Server", async (t) => {
 	const setupServer = () => {
@@ -24,6 +28,7 @@ Deno.test("Server", async (t) => {
 			application: app,
 			kv: new MemoryKVProvider(),
 			document: new MemoryDocumentProvider(),
+			session: new MemorySessionProvider(),
 		});
 		return { app, server };
 	};
@@ -85,7 +90,8 @@ Deno.test("Server", async (t) => {
 				method: "POST",
 				headers: {
 					"Upgrade": "websocket",
-					"Sec-WebSocket-Protocol": "base64url.bearer.authorization.baseless.dev.bXl0b2tlbg",
+					"Sec-WebSocket-Protocol":
+						"base64url.bearer.authorization.baseless.dev.bXl0b2tlbg",
 				},
 			}),
 		);

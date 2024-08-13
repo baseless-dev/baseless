@@ -1,4 +1,4 @@
-import { testDocumentProvider } from "@baseless/server/provider.test";
+import { testDocumentProvider } from "@baseless/server/provider/document.test";
 import { MemoryDocumentProvider } from "./document.ts";
 
 Deno.test("MemoryKVProvider", async (t) => {

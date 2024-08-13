@@ -2,30 +2,34 @@
 import type { Static, TSchema } from "@sinclair/typebox";
 import type {
 	CollectionDefinition,
+	CollectionDefinitionSecurity,
 	CollectionDefinitionWithoutSecurity,
 	CollectionDefinitionWithSecurity,
 	Context,
 	Decorator,
 	DocumentAtomicListener,
+	DocumentAtomicListenerHandler,
 	DocumentDefinition,
+	DocumentDefinitionSecurity,
 	DocumentDefinitionWithoutSecurity,
 	DocumentDefinitionWithSecurity,
 	DocumentListener,
+	DocumentListenerHandler,
 	EventDefinition,
+	EventDefinitionSecurity,
 	EventDefinitionWithoutSecurity,
 	EventDefinitionWithSecurity,
 	EventListener,
-	IdentityListener,
+	EventListenerHandler,
 	Path,
 	PickAtPath,
 	RpcDefinition,
+	RpcDefinitionHandler,
+	RpcDefinitionSecurity,
 	RpcDefinitionWithoutSecurity,
 	RpcDefinitionWithSecurity,
 } from "./types.ts";
 import { Application } from "./application.ts";
-import { PathAsType, ReplaceVariableInPathSegment } from "@baseless/core/path";
-import { Document } from "@baseless/core/document";
-import { DocumentAtomic, IDocumentAtomic } from "./provider.ts";
 
 export class ApplicationBuilder<
 	TDecoration extends {} = {},
@@ -46,9 +50,6 @@ export class ApplicationBuilder<
 	#documentSavedListeners: Array<DocumentListener<any, any>>;
 	#documentDeletingListeners: Array<DocumentAtomicListener<any, any>>;
 	#documentDeletedListeners: Array<DocumentListener<any, any>>;
-	#identityCreatedListeners: Array<IdentityListener>;
-	#identityUpdatedListeners: Array<IdentityListener>;
-	#identityDeletedListeners: Array<IdentityListener>;
 
 	constructor();
 	constructor(
@@ -62,9 +63,6 @@ export class ApplicationBuilder<
 		documentSavedListeners: Array<DocumentListener<any, any>>,
 		documentDeletingListeners: Array<DocumentAtomicListener<any, any>>,
 		documentDeletedListeners: Array<DocumentListener<any, any>>,
-		identityCreatedListeners: Array<IdentityListener>,
-		identityUpdatedListeners: Array<IdentityListener>,
-		identityDeletedListeners: Array<IdentityListener>,
 	);
 	constructor(
 		context?: Array<Decorator<any>>,
@@ -77,9 +75,6 @@ export class ApplicationBuilder<
 		documentSavedListeners?: Array<DocumentListener<any, any>>,
 		documentDeletingListeners?: Array<DocumentAtomicListener<any, any>>,
 		documentDeletedListeners?: Array<DocumentListener<any, any>>,
-		identityCreatedListeners?: Array<IdentityListener>,
-		identityUpdatedListeners?: Array<IdentityListener>,
-		identityDeletedListeners?: Array<IdentityListener>,
 	) {
 		this.#decorator = [...context ?? []];
 		this.#rpc = [...rpc ?? []];
@@ -95,9 +90,6 @@ export class ApplicationBuilder<
 			...documentDeletingListeners ?? [],
 		];
 		this.#documentDeletedListeners = [...documentDeletedListeners ?? []];
-		this.#identityCreatedListeners = [...identityCreatedListeners ?? []];
-		this.#identityUpdatedListeners = [...identityUpdatedListeners ?? []];
-		this.#identityDeletedListeners = [...identityDeletedListeners ?? []];
 	}
 
 	build(): Application {
@@ -112,9 +104,6 @@ export class ApplicationBuilder<
 			[...this.#documentSavedListeners],
 			[...this.#documentDeletingListeners],
 			[...this.#documentDeletedListeners],
-			[...this.#identityCreatedListeners],
-			[...this.#identityUpdatedListeners],
-			[...this.#identityDeletedListeners],
 		);
 	}
 
@@ -140,9 +129,6 @@ export class ApplicationBuilder<
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
 			this.#documentDeletedListeners,
-			this.#identityCreatedListeners,
-			this.#identityUpdatedListeners,
-			this.#identityDeletedListeners,
 		);
 	}
 
@@ -155,16 +141,21 @@ export class ApplicationBuilder<
 		options: {
 			input: TInputSchema;
 			output: TOutputSchema;
-			handler: (options: {
-				context: Context<TDecoration, TDocument, TCollection>;
-				params: PathAsType<TPath>;
-				input: Static<TInputSchema>;
-			}) => Promise<Static<TOutputSchema>>;
-			security: (options: {
-				context: Context<TDecoration, TDocument, TCollection>;
-				params: PathAsType<TPath>;
-				input: Static<TInputSchema>;
-			}) => Promise<"allow" | "deny" | undefined>;
+			handler: RpcDefinitionHandler<
+				TPath,
+				TDecoration,
+				TDocument,
+				TCollection,
+				TInputSchema,
+				TOutputSchema
+			>;
+			security: RpcDefinitionSecurity<
+				TPath,
+				TDecoration,
+				TDocument,
+				TCollection,
+				TInputSchema
+			>;
 		},
 	): ApplicationBuilder<
 		TDecoration,
@@ -184,11 +175,14 @@ export class ApplicationBuilder<
 		options: {
 			input: TInputSchema;
 			output: TOutputSchema;
-			handler: (options: {
-				context: Context<TDecoration, TDocument, TCollection>;
-				params: PathAsType<TPath>;
-				input: Static<TInputSchema>;
-			}) => Promise<Static<TOutputSchema>>;
+			handler: RpcDefinitionHandler<
+				TPath,
+				TDecoration,
+				TDocument,
+				TCollection,
+				TInputSchema,
+				TOutputSchema
+			>;
 		},
 	): ApplicationBuilder<
 		TDecoration,
@@ -211,9 +205,6 @@ export class ApplicationBuilder<
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
 			this.#documentDeletedListeners,
-			this.#identityCreatedListeners,
-			this.#identityUpdatedListeners,
-			this.#identityDeletedListeners,
 		);
 	}
 
@@ -221,11 +212,13 @@ export class ApplicationBuilder<
 		path: TPath,
 		options: {
 			payload: TPayloadSchema;
-			security: (options: {
-				context: Context<TDecoration, TDocument, TCollection>;
-				params: PathAsType<TPath>;
-				payload: Static<TPayloadSchema>;
-			}) => Promise<"subscribe" | "publish" | undefined>;
+			security: EventDefinitionSecurity<
+				TPath,
+				TDecoration,
+				TDocument,
+				TCollection,
+				TPayloadSchema
+			>;
 		},
 	): ApplicationBuilder<
 		TDecoration,
@@ -262,9 +255,6 @@ export class ApplicationBuilder<
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
 			this.#documentDeletedListeners,
-			this.#identityCreatedListeners,
-			this.#identityUpdatedListeners,
-			this.#identityDeletedListeners,
 		);
 	}
 
@@ -272,11 +262,13 @@ export class ApplicationBuilder<
 		path: TPath,
 		options: {
 			schema: TDocumentSchema;
-			security: (options: {
-				context: Context<any, [], []>;
-				params: PathAsType<TPath>;
-				document: Document<Static<TDocumentSchema>>;
-			}) => Promise<"subscribe" | "get" | "set" | "delete" | undefined>;
+			security: DocumentDefinitionSecurity<
+				TPath,
+				TDecoration,
+				TDocument,
+				TCollection,
+				TDocumentSchema
+			>;
 		},
 	): ApplicationBuilder<
 		TDecoration,
@@ -315,9 +307,6 @@ export class ApplicationBuilder<
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
 			this.#documentDeletedListeners,
-			this.#identityCreatedListeners,
-			this.#identityUpdatedListeners,
-			this.#identityDeletedListeners,
 		);
 	}
 
@@ -325,11 +314,7 @@ export class ApplicationBuilder<
 		path: TPath,
 		options: {
 			schema: TCollectionSchema;
-			security: (options: {
-				context: Context<any, [], []>;
-				params: PathAsType<TPath>;
-				key: ReplaceVariableInPathSegment<TPath>;
-			}) => Promise<"list" | undefined>;
+			security: CollectionDefinitionSecurity<TPath, TDecoration, TDocument, TCollection>;
 		},
 	): ApplicationBuilder<
 		TDecoration,
@@ -374,9 +359,6 @@ export class ApplicationBuilder<
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
 			this.#documentDeletedListeners,
-			this.#identityCreatedListeners,
-			this.#identityUpdatedListeners,
-			this.#identityDeletedListeners,
 		);
 	}
 
@@ -385,7 +367,13 @@ export class ApplicationBuilder<
 		const TEventDefinition extends PickAtPath<TEvent, TPath>,
 	>(
 		path: TPath,
-		handler: EventListener<TPath, TEventDefinition["payload"]>["handler"],
+		handler: EventListenerHandler<
+			TPath,
+			TDecoration,
+			TDocument,
+			TCollection,
+			TEventDefinition["payload"]
+		>,
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -406,9 +394,6 @@ export class ApplicationBuilder<
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
 			this.#documentDeletedListeners,
-			this.#identityCreatedListeners,
-			this.#identityUpdatedListeners,
-			this.#identityDeletedListeners,
 		);
 	}
 
@@ -417,12 +402,13 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: (options: {
-			context: Context<TDecoration, TDocument, TCollection>;
-			params: PathAsType<TPath>;
-			document: Static<TDocumentDefinition["schema"]>;
-			atomic: IDocumentAtomic<TDocument, TCollection>;
-		}) => Promise<void>,
+		handler: DocumentAtomicListenerHandler<
+			TPath,
+			TDecoration,
+			TDocument,
+			TCollection,
+			TDocumentDefinition["schema"]
+		>,
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -443,9 +429,6 @@ export class ApplicationBuilder<
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
 			this.#documentDeletedListeners,
-			this.#identityCreatedListeners,
-			this.#identityUpdatedListeners,
-			this.#identityDeletedListeners,
 		);
 	}
 
@@ -454,11 +437,13 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: (options: {
-			context: Context<TDecoration, TDocument, TCollection>;
-			params: PathAsType<TPath>;
-			document: Static<TDocumentDefinition["schema"]>;
-		}) => Promise<void>,
+		handler: DocumentListenerHandler<
+			TPath,
+			TDecoration,
+			TDocument,
+			TCollection,
+			TDocumentDefinition["schema"]
+		>,
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -473,11 +458,13 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TCollection, TPath>,
 	>(
 		path: TPath,
-		handler: (options: {
-			context: Context<TDecoration, TDocument, TCollection>;
-			params: PathAsType<TPath>;
-			document: Static<TDocumentDefinition["schema"]>;
-		}) => Promise<void>,
+		handler: DocumentListenerHandler<
+			TPath,
+			TDecoration,
+			TDocument,
+			TCollection,
+			TDocumentDefinition["schema"]
+		>,
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -499,9 +486,6 @@ export class ApplicationBuilder<
 			[...this.#documentSavedListeners, { path, handler }],
 			this.#documentDeletingListeners,
 			this.#documentDeletedListeners,
-			this.#identityCreatedListeners,
-			this.#identityUpdatedListeners,
-			this.#identityDeletedListeners,
 		);
 	}
 
@@ -510,12 +494,13 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: (options: {
-			context: Context<TDecoration, TDocument, TCollection>;
-			params: PathAsType<TPath>;
-			document: Static<TDocumentDefinition["schema"]>;
-			atomic: IDocumentAtomic<TDocument, TCollection>;
-		}) => Promise<void>,
+		handler: DocumentAtomicListenerHandler<
+			TPath,
+			TDecoration,
+			TDocument,
+			TCollection,
+			TDocumentDefinition["schema"]
+		>,
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -536,9 +521,6 @@ export class ApplicationBuilder<
 			this.#documentSavedListeners,
 			[...this.#documentDeletingListeners, { path, handler }],
 			this.#documentDeletedListeners,
-			this.#identityCreatedListeners,
-			this.#identityUpdatedListeners,
-			this.#identityDeletedListeners,
 		);
 	}
 
@@ -547,11 +529,13 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: (options: {
-			context: Context<TDecoration, TDocument, TCollection>;
-			params: PathAsType<TPath>;
-			document: Static<TDocumentDefinition["schema"]>;
-		}) => Promise<void>,
+		handler: DocumentListenerHandler<
+			TPath,
+			TDecoration,
+			TDocument,
+			TCollection,
+			TDocumentDefinition["schema"]
+		>,
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
@@ -572,93 +556,6 @@ export class ApplicationBuilder<
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
 			[...this.#documentDeletedListeners, { path, handler }],
-			this.#identityCreatedListeners,
-			this.#identityUpdatedListeners,
-			this.#identityDeletedListeners,
-		);
-	}
-
-	onIdentityCreated(
-		handler: IdentityListener["handler"],
-	): ApplicationBuilder<
-		TDecoration,
-		TRpc,
-		TEvent,
-		TDocument,
-		TCollection,
-		TFile,
-		TFolder
-	> {
-		return new ApplicationBuilder(
-			this.#decorator,
-			this.#rpc,
-			this.#event,
-			this.#document,
-			this.#collection,
-			this.#eventListeners,
-			this.#documentSavingListeners,
-			this.#documentSavedListeners,
-			this.#documentDeletingListeners,
-			this.#documentDeletedListeners,
-			[...this.#identityCreatedListeners, { handler }],
-			this.#identityUpdatedListeners,
-			this.#identityDeletedListeners,
-		);
-	}
-
-	onIdentityUpdated(
-		handler: IdentityListener["handler"],
-	): ApplicationBuilder<
-		TDecoration,
-		TRpc,
-		TEvent,
-		TDocument,
-		TCollection,
-		TFile,
-		TFolder
-	> {
-		return new ApplicationBuilder(
-			this.#decorator,
-			this.#rpc,
-			this.#event,
-			this.#document,
-			this.#collection,
-			this.#eventListeners,
-			this.#documentSavingListeners,
-			this.#documentSavedListeners,
-			this.#documentDeletingListeners,
-			this.#documentDeletedListeners,
-			this.#identityCreatedListeners,
-			[...this.#identityUpdatedListeners, { handler }],
-			this.#identityDeletedListeners,
-		);
-	}
-
-	onIdentityDeleted(
-		handler: IdentityListener["handler"],
-	): ApplicationBuilder<
-		TDecoration,
-		TRpc,
-		TEvent,
-		TDocument,
-		TCollection,
-		TFile,
-		TFolder
-	> {
-		return new ApplicationBuilder(
-			this.#decorator,
-			this.#rpc,
-			this.#event,
-			this.#document,
-			this.#collection,
-			this.#eventListeners,
-			this.#documentSavingListeners,
-			this.#documentSavedListeners,
-			this.#documentDeletingListeners,
-			this.#documentDeletedListeners,
-			this.#identityCreatedListeners,
-			this.#identityUpdatedListeners,
-			[...this.#identityDeletedListeners, { handler }],
 		);
 	}
 
@@ -706,9 +603,6 @@ export class ApplicationBuilder<
 				...application.#documentDeletingListeners,
 			],
 			[...this.#documentDeletedListeners, ...application.#documentDeletedListeners],
-			[...this.#identityCreatedListeners, ...application.#identityCreatedListeners],
-			[...this.#identityUpdatedListeners, ...application.#identityUpdatedListeners],
-			[...this.#identityDeletedListeners, ...application.#identityDeletedListeners],
 		);
 	}
 

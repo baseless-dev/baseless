@@ -35,7 +35,9 @@ export class MemoryKVProvider extends KVProvider {
 	async put(key: string[], value: unknown, options?: KVPutOptions): Promise<void> {
 		const now = new Date().getTime();
 		const expiration = options?.expiration
-			? options.expiration instanceof Date ? options.expiration.getTime() : options.expiration + now
+			? options.expiration instanceof Date
+				? options.expiration.getTime()
+				: options.expiration + now
 			: undefined;
 		const item = { value, expiration };
 		const keyString = keyPathToKeyString(key);

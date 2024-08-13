@@ -1,20 +1,30 @@
-import { Application } from "./application.ts";
-import { DocumentProvider, KVProvider } from "./provider.ts";
+import { Application, Context } from "./application/mod.ts";
+import { DocumentProvider } from "./provider/document.ts";
+import { KVProvider } from "./provider/kv.ts";
 import { decodeBase64Url } from "@std/encoding/base64url";
 import { type Command, isCommand, isCommands } from "@baseless/core/command";
 import { Result, ResultError, ResultSingle } from "@baseless/core/result";
-import { Context } from "./types.ts";
-import { DocumentProviderFacade } from "./facade.ts";
+import { DocumentProviderFacade } from "./application/documentfacade.ts";
+import { SessionProvider } from "./provider/session.ts";
 
 export class Server {
 	#application: Application;
 	#kvProvider: KVProvider;
 	#documentProvider: DocumentProvider;
+	#sessionProvider: SessionProvider;
 
-	constructor(options: { application: Application; kv: KVProvider; document: DocumentProvider }) {
+	constructor(
+		options: {
+			application: Application;
+			kv: KVProvider;
+			document: DocumentProvider;
+			session: SessionProvider;
+		},
+	) {
 		this.#application = options.application;
 		this.#kvProvider = options.kv;
 		this.#documentProvider = options.document;
+		this.#sessionProvider = options.session;
 	}
 
 	async handleRequest(request: Request): Promise<[Response, PromiseLike<unknown>[]]> {
@@ -75,6 +85,7 @@ export class Server {
 			request,
 			kv: this.#kvProvider,
 			document: {} as never, // lazy initilization of IDocumentProvider
+			session: this.#sessionProvider,
 			waitUntil: (promise: PromiseLike<unknown>) => {
 				waitUntilPromises.push(promise);
 			},

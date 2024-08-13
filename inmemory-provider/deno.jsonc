@@ -4,7 +4,8 @@
 	"exports": {
 		".": "./mod.ts",
 		"./document": "./document.ts",
-		"./kv": "./kv.ts"
+		"./kv": "./kv.ts",
+		"./session": "./session.ts"
 	},
 	"publish": {
 		"include": [

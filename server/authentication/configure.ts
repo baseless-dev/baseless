@@ -1,16 +1,15 @@
 // deno-lint-ignore-file require-await
 import { JWTPayload, jwtVerify, type KeyLike, SignJWT } from "jose";
-import { assertSession, isSession, type Session } from "@baseless/core/authentication";
 import { assertID, ID, id, isID, TID } from "@baseless/core/id";
 import { Identity, IdentityComponent } from "@baseless/core/identity";
-import { ApplicationBuilder } from "../applicationbuilder.ts";
-import { ForbiddenError } from "../application.ts";
 import {
+	ApplicationBuilder,
 	CollectionDefinitionWithoutSecurity,
 	DocumentDefinitionWithoutSecurity,
+	ForbiddenError,
 	RpcDefinition,
-} from "../types.ts";
-import { TBoolean, TObject, TOptional, TString, TUnknown, TVoid, Type } from "@sinclair/typebox";
+} from "../application/mod.ts";
+import { TBoolean, TObject, TString, TUnknown, TVoid, Type } from "@sinclair/typebox";
 import {
 	AuthenticationCeremony,
 	AuthenticationCeremonyChoiceShallow,
@@ -19,6 +18,7 @@ import {
 	simplifyAuthenticationCeremony,
 } from "./ceremony.ts";
 import { isAuthenticationCeremonyChoice } from "./ceremony.ts";
+import { Session } from "../provider/session.ts";
 
 export interface AuthenticationConfiguration {
 	keys: {
@@ -165,10 +165,10 @@ export function configureAuthentication(
 	}
 
 	return new ApplicationBuilder()
-		.decorate(async ({ request, kv }) => {
+		.decorate(async (context) => {
 			let currentSession: (Session & SessionMeta) | undefined;
-			if (request.headers.has("Authorization")) {
-				const authorization = request.headers.get("Authorization") ?? "";
+			if (context.request.headers.has("Authorization")) {
+				const authorization = context.request.headers.get("Authorization") ?? "";
 				const [, scheme, accessToken] =
 					authorization.match(/(?<scheme>[^ ]+) (?<params>.+)/) ?? [];
 				if (scheme === "Bearer") {
@@ -178,10 +178,16 @@ export function configureAuthentication(
 							configuration.keys.publicKey,
 						);
 						if (isID("sess_", payload.sub)) {
-							const key = await kv.get(["session", payload.sub]);
-							if (isSession(key.value)) {
+							const sess = await context.session.get(payload.sub).catch((_) =>
+								undefined
+							);
+							if (sess) {
 								const { scope, aat } = { scope: "", aat: 0, ...payload };
-								currentSession = { ...key.value, scope: scope.split(/ +/), aat };
+								currentSession = {
+									...sess,
+									scope: scope.split(/ +/),
+									aat,
+								};
 							}
 						}
 					} catch (error) {
@@ -248,23 +254,23 @@ export function configureAuthentication(
 			output: AuthenticationTokens,
 			security: async () => "allow",
 			handler: async (
-				{ input: { refresh_token }, context: { kv, document } },
+				{ input: { refresh_token }, context },
 			) => {
 				const { payload } = await jwtVerify(refresh_token, configuration.keys.publicKey);
 				const { sub: sessionId, scope } = payload;
 				assertID("sess_", sessionId);
-				const session = await kv.get(["session", sessionId]);
-				assertSession(session.value);
-				const identity = await document.get([
+				const session = await context.session.get(sessionId);
+				const identity = await context.document.get([
 					"identities",
-					session.value.identityId,
+					session.identityId,
 				]);
-				await kv.put(["session", sessionId], session.value, {
-					expiration: refreshTokenTTL ?? accessTokenTTL ?? 1000 * 60 * 2,
-				});
+				await context.session.set(
+					session,
+					refreshTokenTTL ?? accessTokenTTL ?? 1000 * 60 * 2,
+				);
 				const { access_token, id_token } = await createTokens(
 					identity.data,
-					session.value,
+					session,
 					`${scope}`,
 				);
 				return { access_token, id_token, refresh_token };

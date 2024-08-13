@@ -6,24 +6,22 @@ import type {
 	Decorator,
 	DocumentAtomicListener,
 	DocumentDefinition,
-	DocumentDefinitionWithSecurity,
 	DocumentListener,
 	EventDefinition,
 	EventListener,
-	IdentityListener,
 	RpcDefinition,
 } from "./types.ts";
 import { Value } from "@sinclair/typebox/value";
+import { Document } from "@baseless/core/document";
 import {
+	DocumentAtomic,
 	DocumentAtomicOperation,
 	DocumentAtomicsResult,
 	DocumentGetOptions,
 	DocumentListEntry,
 	DocumentListOptions,
 	DocumentProvider,
-} from "./provider.ts";
-import { Document } from "@baseless/core/document";
-import { DocumentAtomic } from "./provider.ts";
+} from "../provider/document.ts";
 
 export class Application {
 	#decorators: ReadonlyArray<Decorator<any>>;
@@ -36,9 +34,6 @@ export class Application {
 	#documentSavedListeners: ReadonlyArray<DocumentListener<any, any>>;
 	#documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>;
 	#documentDeletedListeners: ReadonlyArray<DocumentListener<any, any>>;
-	#identityCreatedListeners: ReadonlyArray<IdentityListener>;
-	#identityUpdatedListeners: ReadonlyArray<IdentityListener>;
-	#identityDeletedListeners: ReadonlyArray<IdentityListener>;
 	#rpcMatcher: PathMatcher<RpcDefinition<any, any, any>>;
 	#documentMatcher: PathMatcher<DocumentDefinition<any, any>>;
 	#collectionMatcher: PathMatcher<CollectionDefinition<any, any>>;
@@ -54,9 +49,6 @@ export class Application {
 		documentSavedListeners: ReadonlyArray<DocumentListener<any, any>>,
 		documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>,
 		documentDeletedListeners: ReadonlyArray<DocumentListener<any, any>>,
-		identityCreatedListeners: ReadonlyArray<IdentityListener>,
-		identityUpdatedListeners: ReadonlyArray<IdentityListener>,
-		identityDeletedListeners: ReadonlyArray<IdentityListener>,
 	) {
 		this.#decorators = decorators;
 		this.#rpcDefinitions = rpcDefinitions;
@@ -68,9 +60,6 @@ export class Application {
 		this.#documentSavedListeners = documentSavedListeners;
 		this.#documentDeletingListeners = documentDeletingListeners;
 		this.#documentDeletedListeners = documentDeletedListeners;
-		this.#identityCreatedListeners = identityCreatedListeners;
-		this.#identityUpdatedListeners = identityUpdatedListeners;
-		this.#identityDeletedListeners = identityDeletedListeners;
 		this.#rpcMatcher = createPathMatcher(rpcDefinitions);
 		this.#documentMatcher = createPathMatcher(documentDefinitions);
 		this.#collectionMatcher = createPathMatcher(collectionDefinitions);

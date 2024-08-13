@@ -3,14 +3,13 @@
 	"version": "0.3.0-rc.1",
 	"exports": {
 		".": "./mod.ts",
-		"./application": "./application.ts",
-		"./applicationbuilder": "./applicationbuilder.ts",
+		"./application": "./application/mod.ts",
 		"./authentication": "./authentication/mod.ts",
-		"./facade": "./facade.ts",
-		"./provider": "./provider.ts",
-		"./provider.test": "./provider.test.ts",
-		"./server": "./server.ts",
-		"./types": "./types.ts"
+		"./provider": "./provider/mod.ts",
+		"./provider/document.test": "./provider/document.test.ts",
+		"./provider/kv.test": "./provider/kv.test.ts",
+		"./provider/session.test": "./provider/session.test.ts",
+		"./server": "./server.ts"
 	},
 	"publish": {
 		"include": [

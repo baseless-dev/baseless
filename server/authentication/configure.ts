@@ -18,7 +18,7 @@ import {
 	simplifyAuthenticationCeremony,
 } from "./ceremony.ts";
 import { isAuthenticationCeremonyChoice } from "./ceremony.ts";
-import { Session } from "../provider/session.ts";
+import { Session, SessionProvider } from "../provider/session.ts";
 
 export interface AuthenticationConfiguration {
 	keys: {
@@ -27,6 +27,7 @@ export interface AuthenticationConfiguration {
 		publicKey: KeyLike;
 	};
 	ceremony: AuthenticationCeremony;
+	sessionProvider: SessionProvider;
 	ceremonyTTL?: number;
 	accessTokenTTL?: number;
 	refreshTokenTTL?: number;
@@ -41,6 +42,7 @@ export interface SessionMeta {
 }
 
 export interface AuthenticationDecoration {
+	session: SessionProvider;
 	currentSession: (Session & SessionMeta) | undefined;
 }
 
@@ -178,8 +180,8 @@ export function configureAuthentication(
 							configuration.keys.publicKey,
 						);
 						if (isID("sess_", payload.sub)) {
-							const sess = await context.session.get(payload.sub).catch((_) =>
-								undefined
+							const sess = await configuration.sessionProvider.get(payload.sub).catch(
+								(_) => undefined
 							);
 							if (sess) {
 								const { scope, aat } = { scope: "", aat: 0, ...payload };
@@ -198,7 +200,7 @@ export function configureAuthentication(
 					}
 				}
 			}
-			return { currentSession };
+			return { currentSession, session: configuration.sessionProvider };
 		})
 		.collection(["identities"], { schema: Identity })
 		.collection(["identities", "{identityId}", "components"], { schema: IdentityComponent })

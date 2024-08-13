@@ -28,7 +28,6 @@ Deno.test("Server", async (t) => {
 			application: app,
 			kv: new MemoryKVProvider(),
 			document: new MemoryDocumentProvider(),
-			session: new MemorySessionProvider(),
 		});
 		return { app, server };
 	};

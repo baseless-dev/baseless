@@ -11,20 +11,17 @@ export class Server {
 	#application: Application;
 	#kvProvider: KVProvider;
 	#documentProvider: DocumentProvider;
-	#sessionProvider: SessionProvider;
 
 	constructor(
 		options: {
 			application: Application;
 			kv: KVProvider;
 			document: DocumentProvider;
-			session: SessionProvider;
 		},
 	) {
 		this.#application = options.application;
 		this.#kvProvider = options.kv;
 		this.#documentProvider = options.document;
-		this.#sessionProvider = options.session;
 	}
 
 	async handleRequest(request: Request): Promise<[Response, PromiseLike<unknown>[]]> {
@@ -85,7 +82,6 @@ export class Server {
 			request,
 			kv: this.#kvProvider,
 			document: {} as never, // lazy initilization of IDocumentProvider
-			session: this.#sessionProvider,
 			waitUntil: (promise: PromiseLike<unknown>) => {
 				waitUntilPromises.push(promise);
 			},

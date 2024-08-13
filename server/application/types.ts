@@ -4,7 +4,6 @@ import type { IDocumentAtomic, IDocumentProvider } from "../provider/document.ts
 import type { KVProvider } from "../provider/kv.ts";
 import type { PathAsType, ReplaceVariableInPathSegment } from "@baseless/core/path";
 import type { Document } from "@baseless/core/document";
-import { SessionProvider } from "../provider/session.ts";
 
 export type Path = Array<string>;
 
@@ -17,7 +16,6 @@ export type Context<
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 	kv: KVProvider; // TODO KVService
 	document: IDocumentProvider<TDocument, TCollection>;
-	session: SessionProvider; // TODO SessionService
 	// TODO event: EventService<TClient>
 	// TODO storage: StorageService<TClient>
 } & TDecoration;

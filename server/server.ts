@@ -5,7 +5,6 @@ import { decodeBase64Url } from "@std/encoding/base64url";
 import { type Command, isCommand, isCommands } from "@baseless/core/command";
 import { Result, ResultError, ResultSingle } from "@baseless/core/result";
 import { DocumentProviderFacade } from "./application/documentfacade.ts";
-import { SessionProvider } from "./provider/session.ts";
 
 export class Server {
 	#application: Application;

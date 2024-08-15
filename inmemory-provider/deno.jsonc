@@ -5,6 +5,7 @@
 		".": "./mod.ts",
 		"./document": "./document.ts",
 		"./kv": "./kv.ts",
+		"./notification": "./notification.ts",
 		"./session": "./session.ts"
 	},
 	"publish": {

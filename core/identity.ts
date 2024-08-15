@@ -61,7 +61,7 @@ export class InvalidIdentityError extends Error {}
 
 export interface IdentityComponent {
 	identityId: ID<"id_">;
-	kind: string;
+	componentId: string;
 	confirmed: boolean;
 	identification?: string;
 	data: Record<string, unknown>;
@@ -69,7 +69,7 @@ export interface IdentityComponent {
 
 export const IdentityComponent = Type.Object({
 	identityId: ID("id_"),
-	kind: Type.String(),
+	componentId: Type.String(),
 	identification: Type.Optional(Type.String()),
 	confirmed: Type.Boolean(),
 	data: Type.Record(Type.String(), Type.Unknown()),

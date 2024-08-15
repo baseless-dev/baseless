@@ -8,7 +8,7 @@ import type { Document } from "@baseless/core/document";
 export type Path = Array<string>;
 
 export type Context<
-	TDecoration extends Record<string, unknown>,
+	TDecoration extends {},
 	TDocument extends Array<DocumentDefinition<any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any>>,
 > = {
@@ -21,14 +21,14 @@ export type Context<
 } & TDecoration;
 
 export type Decorator<
-	TNewDecoration extends Record<string, unknown>,
+	TNewDecoration extends {},
 > = (
 	context: Context<any, [], []>,
 ) => Promise<TNewDecoration>;
 
 export type RpcDefinitionHandler<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
+	TDecoration extends {},
 	TDocument extends Array<DocumentDefinition<any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any>>,
 	TInputSchema extends TSchema,
@@ -53,7 +53,7 @@ export interface RpcDefinitionWithoutSecurity<
 
 export type RpcDefinitionSecurity<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
+	TDecoration extends {},
 	TDocument extends Array<DocumentDefinition<any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any>>,
 	TInputSchema extends TSchema,
@@ -95,7 +95,7 @@ export interface EventDefinitionWithoutSecurity<
 
 export type EventDefinitionSecurity<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
+	TDecoration extends {},
 	TDocument extends Array<DocumentDefinition<any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any>>,
 	TPayloadSchema extends TSchema,
@@ -136,7 +136,7 @@ export interface DocumentDefinitionWithoutSecurity<
 
 export type DocumentDefinitionSecurity<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
+	TDecoration extends {},
 	TDocument extends Array<DocumentDefinition<any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any>>,
 	TDocumentSchema extends TSchema,
@@ -177,7 +177,7 @@ export interface CollectionDefinitionWithoutSecurity<
 
 export type CollectionDefinitionSecurity<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
+	TDecoration extends {},
 	TDocument extends Array<DocumentDefinition<any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any>>,
 > = (options: {
@@ -202,7 +202,7 @@ export type CollectionDefinition<
 
 export type EventListenerHandler<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
+	TDecoration extends {},
 	TDocument extends Array<DocumentDefinition<any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any>>,
 	TPayloadSchema extends TSchema,
@@ -222,7 +222,7 @@ export interface EventListener<
 
 export type DocumentAtomicListenerHandler<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
+	TDecoration extends {},
 	TDocument extends Array<DocumentDefinition<any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any>>,
 	TDocumentSchema extends TSchema,
@@ -243,7 +243,7 @@ export interface DocumentAtomicListener<
 
 export type DocumentListenerHandler<
 	TPath extends string[],
-	TDecoration extends Record<string, unknown>,
+	TDecoration extends {},
 	TDocument extends Array<DocumentDefinition<any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any>>,
 	TDocumentSchema extends TSchema,

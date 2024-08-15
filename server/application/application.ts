@@ -94,6 +94,8 @@ export class Application {
 			if (result !== "allow") {
 				throw new ForbiddenError();
 			}
+		} else {
+			// TODO block by default, bypass when executed by the server?
 		}
 		const output = await definition.handler({
 			context,

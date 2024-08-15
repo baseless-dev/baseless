@@ -353,7 +353,7 @@ export function configureAuthentication(
 			security: async () => "allow",
 			handler: async ({ input, context }) => {
 				const state = await decryptAuthenticationState(input.state);
-				let component = await getCurrentAuthenticationCeremonyFromState(
+				const component = await getCurrentAuthenticationCeremonyFromState(
 					state.choices ?? [],
 				);
 				if (component === true) {

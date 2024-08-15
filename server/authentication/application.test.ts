@@ -27,6 +27,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 				{ kind: "component", component: "email" },
 				{ kind: "component", component: "password" },
 			),
+			// TODO refactor to Record<id, IdentityComponentProvider> and pass `id` to the methods
 			identityComponentProviders: [
 				emailProvider,
 				passwordProvider,
@@ -97,7 +98,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			.set(["identities", identity.identityId], identity)
 			.set(["identities", identity.identityId, "components", "email"], emailComponent)
 			.set(["identities", identity.identityId, "components", "password"], passwordComponent)
-			.set(["identifications", "email", "foo@test.local"], identity.identityId)
+			.set(["identifications", "email", emailComponent.identification], identity.identityId)
 			.commit();
 
 		let state: string | undefined;

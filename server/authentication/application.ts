@@ -64,8 +64,7 @@ export function configureAuthentication(
 			let currentSession: (Session & Session) | undefined;
 			if (context.request.headers.has("Authorization")) {
 				const authorization = context.request.headers.get("Authorization") ?? "";
-				const [, scheme, accessToken] =
-					authorization.match(/(?<scheme>[^ ]+) (?<params>.+)/) ?? [];
+				const [, scheme, accessToken] = authorization.match(/(?<scheme>[^ ]+) (?<params>.+)/) ?? [];
 				if (scheme === "Bearer") {
 					try {
 						const { payload } = await jwtVerify(
@@ -376,8 +375,7 @@ export function configureAuthentication(
 				kind: "choice",
 				prompts: await Promise.all(
 					ceremony.components.map(async (component) => {
-						const identityComponent =
-							configuration.identityComponentProviders[component.component];
+						const identityComponent = configuration.identityComponentProviders[component.component];
 						if (!identityComponent) {
 							throw new UnknownIdentityComponentError();
 						}

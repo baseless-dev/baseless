@@ -1,7 +1,7 @@
 import { IdentityComponentProvider } from "../provider.ts";
 import { Identity, IdentityComponent } from "@baseless/core/identity";
 import { AuthenticationComponentPrompt } from "../component.ts";
-import { AuthenticationContext } from "../application.ts";
+import { AuthenticationContext } from "../types.ts";
 import { otp } from "../otp.ts";
 
 export class EmailIdentityComponentProvider implements IdentityComponentProvider {

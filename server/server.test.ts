@@ -85,8 +85,7 @@ Deno.test("Server", async (t) => {
 				method: "POST",
 				headers: {
 					"Upgrade": "websocket",
-					"Sec-WebSocket-Protocol":
-						"base64url.bearer.authorization.baseless.dev.bXl0b2tlbg",
+					"Sec-WebSocket-Protocol": "base64url.bearer.authorization.baseless.dev.bXl0b2tlbg",
 				},
 			}),
 		);

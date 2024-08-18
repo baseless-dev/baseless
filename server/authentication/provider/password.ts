@@ -1,8 +1,8 @@
 import { IdentityComponentProvider } from "../provider.ts";
 import { Identity, IdentityComponent } from "@baseless/core/identity";
 import { AuthenticationComponentPrompt } from "../component.ts";
+import { AuthenticationContext } from "../types.ts";
 import { encodeBase64 } from "@std/encoding/base64";
-import { AuthenticationContext } from "../application.ts";
 
 export class PasswordIdentityComponentProvider implements IdentityComponentProvider {
 	#salt: string;

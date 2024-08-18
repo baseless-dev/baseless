@@ -4,9 +4,10 @@ import { AuthenticationComponentPrompt } from "../component.ts";
 import { AuthenticationContext } from "../application.ts";
 import { otp } from "../otp.ts";
 
-export class EmailIdentityComponentProvider extends IdentityComponentProvider {
+export class EmailIdentityComponentProvider implements IdentityComponentProvider {
 	buildIdentityComponent(
 		{ value }: {
+			componentId: string;
 			context: AuthenticationContext;
 			identityComponent?: IdentityComponent;
 			value: unknown;
@@ -19,20 +20,22 @@ export class EmailIdentityComponentProvider extends IdentityComponentProvider {
 		});
 	}
 	getSignInPrompt(
-		_options: {
+		options: {
+			componentId: string;
 			context: AuthenticationContext;
 			identityComponent?: IdentityComponent;
 		},
 	): Promise<AuthenticationComponentPrompt> {
 		return Promise.resolve({
 			kind: "component",
-			id: this.id,
+			id: options.componentId,
 			prompt: "email",
 			options: {},
 		});
 	}
 	async verifySignInPrompt(
 		options: {
+			componentId: string;
 			context: AuthenticationContext;
 			identityComponent?: IdentityComponent;
 			value: unknown;
@@ -43,13 +46,14 @@ export class EmailIdentityComponentProvider extends IdentityComponentProvider {
 		}
 		const doc = await options.context.document.get([
 			"identifications",
-			this.id,
+			options.componentId,
 			options.value,
 		]).catch((_) => undefined);
 		return doc ? doc.data : false;
 	}
 	getSetupPrompt(
 		_options: {
+			componentId: string;
 			context: AuthenticationContext;
 			identityComponent?: IdentityComponent;
 		},
@@ -62,7 +66,8 @@ export class EmailIdentityComponentProvider extends IdentityComponentProvider {
 		});
 	}
 	getValidationPrompt(
-		_options: {
+		options: {
+			componentId: string;
 			context: AuthenticationContext;
 			identityComponent?: IdentityComponent;
 			value: unknown;
@@ -70,7 +75,7 @@ export class EmailIdentityComponentProvider extends IdentityComponentProvider {
 	): Promise<AuthenticationComponentPrompt | undefined> {
 		return Promise.resolve({
 			kind: "component",
-			id: this.id,
+			id: options.componentId,
 			prompt: "otp",
 			options: {
 				digits: 8,
@@ -79,6 +84,7 @@ export class EmailIdentityComponentProvider extends IdentityComponentProvider {
 	}
 	async sendValidationPrompt(
 		options: {
+			componentId: string;
 			context: AuthenticationContext;
 			locale: string;
 			identityComponent?: IdentityComponent;
@@ -106,6 +112,7 @@ export class EmailIdentityComponentProvider extends IdentityComponentProvider {
 	}
 	async verifyValidationPrompt(
 		options: {
+			componentId: string;
 			context: AuthenticationContext;
 			identityComponent?: IdentityComponent;
 			value: unknown;

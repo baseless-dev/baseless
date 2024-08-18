@@ -4,14 +4,12 @@ import { AuthenticationComponentPrompt } from "../component.ts";
 import { encodeBase64 } from "@std/encoding/base64";
 import { AuthenticationContext } from "../application.ts";
 
-export class PasswordIdentityComponentProvider extends IdentityComponentProvider {
+export class PasswordIdentityComponentProvider implements IdentityComponentProvider {
 	#salt: string;
 
 	constructor(
-		id: string,
 		salt: string,
 	) {
-		super(id);
 		this.#salt = salt;
 	}
 
@@ -26,6 +24,7 @@ export class PasswordIdentityComponentProvider extends IdentityComponentProvider
 
 	async buildIdentityComponent(
 		options: {
+			componentId: string;
 			context: AuthenticationContext;
 			identityComponent?: IdentityComponent;
 			value: unknown;
@@ -38,17 +37,22 @@ export class PasswordIdentityComponentProvider extends IdentityComponentProvider
 		});
 	}
 	getSignInPrompt(
-		_options: { context: AuthenticationContext; identityId?: Identity["identityId"] },
+		options: {
+			componentId: string;
+			context: AuthenticationContext;
+			identityId?: Identity["identityId"];
+		},
 	): Promise<AuthenticationComponentPrompt> {
 		return Promise.resolve({
 			kind: "component",
-			id: this.id,
+			id: options.componentId,
 			prompt: "password",
 			options: {},
 		});
 	}
 	async verifySignInPrompt(
 		options: {
+			componentId: string;
 			context: AuthenticationContext;
 			identityComponent?: IdentityComponent;
 			value: unknown;
@@ -59,11 +63,15 @@ export class PasswordIdentityComponentProvider extends IdentityComponentProvider
 			options.identityComponent.data.hash === hash;
 	}
 	getSetupPrompt(
-		_options: { context: AuthenticationContext; identityId?: Identity["identityId"] },
+		options: {
+			componentId: string;
+			context: AuthenticationContext;
+			identityId?: Identity["identityId"];
+		},
 	): Promise<AuthenticationComponentPrompt> {
 		return Promise.resolve({
 			kind: "component",
-			id: this.id,
+			id: options.componentId,
 			prompt: "password",
 			options: {},
 		});

@@ -3,11 +3,7 @@ import { assert, assertEquals } from "@std/assert";
 import { Server } from "./server.ts";
 import { Type } from "@sinclair/typebox";
 import { isResultError, isResultSingle } from "@baseless/core/result";
-import {
-	MemoryDocumentProvider,
-	MemoryKVProvider,
-	MemorySessionProvider,
-} from "@baseless/inmemory-provider";
+import { MemoryDocumentProvider, MemoryKVProvider } from "@baseless/inmemory-provider";
 import { ApplicationBuilder } from "./application/builder.ts";
 
 Deno.test("Server", async (t) => {

@@ -1,5 +1,5 @@
 import { generateKeyPair } from "jose";
-import { AuthenticationContext, configureAuthentication } from "./application.ts";
+import { configureAuthentication } from "./application.ts";
 import { sequence } from "./ceremony.ts";
 import { EmailIdentityComponentProvider } from "./provider/email.ts";
 import { PasswordIdentityComponentProvider } from "./provider/password.ts";
@@ -7,33 +7,30 @@ import {
 	MemoryDocumentProvider,
 	MemoryKVProvider,
 	MemoryNotificationProvider,
-	MemorySessionProvider,
 } from "@baseless/inmemory-provider";
 import { assert, assertEquals, assertObjectMatch } from "@std/assert";
 import { id } from "../../core/id.ts";
+import { AuthenticationContext } from "./types.ts";
 
 Deno.test("AuthenticationApplication", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
-	const setupServer = () => {
+	const setupServer = async () => {
 		const notificationProvider = new MemoryNotificationProvider();
-		const sessionProvider = new MemorySessionProvider();
 		const kvProvider = new MemoryKVProvider();
 		const documentProvider = new MemoryDocumentProvider();
-		const emailProvider = new EmailIdentityComponentProvider("email");
-		const passwordProvider = new PasswordIdentityComponentProvider("password", "le_salt");
+		const emailProvider = new EmailIdentityComponentProvider();
+		const passwordProvider = new PasswordIdentityComponentProvider("le_salt");
 		const app = configureAuthentication({
 			keys: { ...keyPair, algo: "PS512" },
 			ceremony: sequence(
-				{ kind: "component", component: "email" },
+				{ kind: "component", component: "email1" },
 				{ kind: "component", component: "password" },
 			),
-			// TODO refactor to Record<id, IdentityComponentProvider> and pass `id` to the methods
-			identityComponentProviders: [
-				emailProvider,
-				passwordProvider,
-			],
+			identityComponentProviders: {
+				email1: emailProvider,
+				password: passwordProvider,
+			},
 			notificationProvider,
-			sessionProvider,
 		})
 			.build();
 		const context: AuthenticationContext = {
@@ -42,46 +39,12 @@ Deno.test("AuthenticationApplication", async (t) => {
 			document: documentProvider as never,
 			kv: kvProvider as never,
 			notification: notificationProvider as never,
-			session: sessionProvider as never,
 			waitUntil(promise) {},
 		};
-
-		return { app, context, passwordProvider };
-	};
-
-	await t.step("authentication.getCeremony", async () => {
-		const { app, context } = setupServer();
-		const result = await app.invokeRpc({
-			key: ["authentication", "getCeremony"],
-			input: undefined,
-			context,
-		});
-		assertEquals(
-			result,
-			{
-				ceremony: {
-					kind: "sequence",
-					components: [
-						{ kind: "component", component: "email" },
-						{ kind: "component", component: "password" },
-					],
-				},
-				current: {
-					kind: "component",
-					id: "email",
-					prompt: "email",
-					options: {},
-				},
-				state: undefined,
-			},
-		);
-	});
-	await t.step("authentication.submitPrompt", async () => {
-		const { app, context, passwordProvider } = setupServer();
 		const identity = { identityId: id("id_") };
 		const emailComponent = {
 			identityId: identity.identityId,
-			componentId: "email",
+			componentId: "email1",
 			identification: "foo@test.local",
 			confirmed: true,
 			data: {},
@@ -96,17 +59,50 @@ Deno.test("AuthenticationApplication", async (t) => {
 		};
 		await context.document.atomic()
 			.set(["identities", identity.identityId], identity)
-			.set(["identities", identity.identityId, "components", "email"], emailComponent)
+			.set(["identities", identity.identityId, "components", "email1"], emailComponent)
 			.set(["identities", identity.identityId, "components", "password"], passwordComponent)
-			.set(["identifications", "email", emailComponent.identification], identity.identityId)
+			.set(["identifications", "email1", emailComponent.identification], identity.identityId)
 			.commit();
+
+		return { app, context, identity };
+	};
+
+	await t.step("authentication.getCeremony", async () => {
+		const { app, context } = await setupServer();
+		const result = await app.invokeRpc({
+			key: ["authentication", "getCeremony"],
+			input: undefined,
+			context,
+		});
+		assertEquals(
+			result,
+			{
+				ceremony: {
+					kind: "sequence",
+					components: [
+						{ kind: "component", component: "email1" },
+						{ kind: "component", component: "password" },
+					],
+				},
+				current: {
+					kind: "component",
+					id: "email1",
+					prompt: "email",
+					options: {},
+				},
+				state: undefined,
+			},
+		);
+	});
+	await t.step("authentication.submitPrompt", async () => {
+		const { app, context } = await setupServer();
 
 		let state: string | undefined;
 		{
 			const result = await app.invokeRpc({
 				key: ["authentication", "submitPrompt"],
 				input: {
-					id: "email",
+					id: "email1",
 					value: "foo@test.local",
 					state: undefined,
 				},
@@ -119,7 +115,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 					ceremony: {
 						kind: "sequence",
 						components: [
-							{ kind: "component", component: "email" },
+							{ kind: "component", component: "email1" },
 							{ kind: "component", component: "password" },
 						],
 					},

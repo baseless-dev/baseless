@@ -2,15 +2,8 @@
 import { JWTPayload, jwtVerify, type KeyLike, SignJWT } from "jose";
 import { assertID, ID, id, isID, TID } from "@baseless/core/id";
 import { Identity, IdentityComponent } from "@baseless/core/identity";
-import {
-	ApplicationBuilder,
-	CollectionDefinitionWithoutSecurity,
-	Context,
-	DocumentDefinitionWithoutSecurity,
-	ForbiddenError,
-	RpcDefinition,
-} from "../application/mod.ts";
-import { Static, TBoolean, TObject, TString, TUnknown, TVoid, Type } from "@sinclair/typebox";
+import { ApplicationBuilder, ForbiddenError } from "../application/mod.ts";
+import { Static, Type } from "@sinclair/typebox";
 import {
 	AuthenticationCeremony,
 	AuthenticationCeremonyChoiceShallow,
@@ -18,10 +11,22 @@ import {
 	getAuthenticationCeremonyComponentAtPath,
 	simplifyAuthenticationCeremony,
 } from "./ceremony.ts";
-import { Session, SessionProvider } from "../provider/session.ts";
 import { NotificationProvider } from "./provider.ts";
 import { IdentityComponentProvider } from "./provider.ts";
 import { AuthenticationComponent } from "./component.ts";
+import {
+	assertSession,
+	AuthenticationCollections,
+	AuthenticationContext,
+	AuthenticationDecoration,
+	AuthenticationDocuments,
+	AuthenticationEncryptedState,
+	AuthenticationGetCeremonyResponse,
+	AuthenticationRpcs,
+	AuthenticationState,
+	AuthenticationTokens,
+	Session,
+} from "./types.ts";
 
 export interface AuthenticationConfiguration {
 	keys: {
@@ -30,8 +35,7 @@ export interface AuthenticationConfiguration {
 		publicKey: KeyLike;
 	};
 	ceremony: AuthenticationCeremony;
-	identityComponentProviders: IdentityComponentProvider[];
-	sessionProvider: SessionProvider;
+	identityComponentProviders: Record<string, IdentityComponentProvider>;
 	notificationProvider: NotificationProvider;
 	ceremonyTTL?: number;
 	accessTokenTTL?: number;
@@ -40,94 +44,6 @@ export interface AuthenticationConfiguration {
 	rateLimitCount?: number;
 	allowAnonymous?: boolean;
 }
-
-export interface SessionMeta {
-	scope: string[];
-	aat: number;
-}
-
-export interface AuthenticationDecoration {
-	session: SessionProvider;
-	notification: NotificationProvider;
-	currentSession: (Session & SessionMeta) | undefined;
-}
-
-export type AuthenticationRpcs = [
-	RpcDefinition<["authentication", "signOut"], TVoid, TBoolean>,
-	RpcDefinition<
-		["authentication", "refreshAccessToken"],
-		TObject<{ refresh_token: TString }>,
-		typeof AuthenticationTokens
-	>,
-	RpcDefinition<
-		["authentication", "getCeremony"],
-		typeof AuthenticationEncryptedState,
-		typeof AuthenticationGetCeremonyResponse
-	>,
-	RpcDefinition<
-		["authentication", "submitPrompt"],
-		TObject<{ id: TString; value: TUnknown; state: typeof AuthenticationEncryptedState }>,
-		typeof AuthenticationGetCeremonyResponse
-	>,
-	RpcDefinition<
-		["authentication", "sendPrompt"],
-		TObject<{ id: TString; locale: TString; state: typeof AuthenticationEncryptedState }>,
-		TBoolean
-	>,
-];
-
-export type AuthenticationDocuments = [
-	DocumentDefinitionWithoutSecurity<
-		["identities", string],
-		typeof Identity
-	>,
-	DocumentDefinitionWithoutSecurity<
-		["identities", string, "components", string],
-		typeof IdentityComponent
-	>,
-	DocumentDefinitionWithoutSecurity<
-		["identifications", "{kind}", "{identification}"],
-		TID<"id_">
-	>,
-];
-
-export type AuthenticationCollections = [
-	CollectionDefinitionWithoutSecurity<["identities"], typeof Identity>,
-	CollectionDefinitionWithoutSecurity<
-		["identities", "{identityId}", "components"],
-		typeof IdentityComponent
-	>,
-];
-
-export type AuthenticationContext = Context<
-	AuthenticationDecoration,
-	AuthenticationDocuments,
-	AuthenticationCollections
->;
-
-interface AuthenticationState {
-	identityId?: ID<"id_">;
-	choices?: string[];
-}
-
-export const AuthenticationEncryptedState = Type.Union([Type.String(), Type.Undefined()], {
-	$id: "AuthenticationState",
-});
-
-export const AuthenticationTokens = Type.Object({
-	access_token: Type.String(),
-	id_token: Type.String(),
-	refresh_token: Type.Optional(Type.String()),
-}, { $id: "AuthenticationTokens" });
-
-export const AuthenticationGetCeremonyResponse = Type.Union([
-	Type.Object({
-		state: Type.Optional(AuthenticationEncryptedState),
-		ceremony: AuthenticationCeremony,
-		current: AuthenticationComponent,
-	}, { $id: "AuthenticationCeremonyStep" }),
-	AuthenticationTokens,
-], { $id: "AuthenticationGetCeremonyResponse" });
 
 export function configureAuthentication(
 	configuration: AuthenticationConfiguration,
@@ -145,7 +61,7 @@ export function configureAuthentication(
 
 	return new ApplicationBuilder()
 		.decorate(async (context) => {
-			let currentSession: (Session & SessionMeta) | undefined;
+			let currentSession: (Session & Session) | undefined;
 			if (context.request.headers.has("Authorization")) {
 				const authorization = context.request.headers.get("Authorization") ?? "";
 				const [, scheme, accessToken] =
@@ -157,17 +73,14 @@ export function configureAuthentication(
 							configuration.keys.publicKey,
 						);
 						if (isID("sess_", payload.sub)) {
-							const sess = await configuration.sessionProvider.get(payload.sub).catch(
-								(_) => undefined,
-							);
-							if (sess) {
-								const { scope, aat } = { scope: "", aat: 0, ...payload };
-								currentSession = {
-									...sess,
-									scope: scope.split(/ +/),
-									aat,
-								};
-							}
+							const sess = await context.kv.get(["sessions", payload.sub]);
+							assertSession(sess.value);
+							const { scope, aat } = { scope: "", aat: 0, ...payload };
+							currentSession = {
+								...sess.value,
+								scope: scope.split(/ +/),
+								aat,
+							};
 						}
 					} catch (error) {
 						console.error(error);
@@ -180,7 +93,6 @@ export function configureAuthentication(
 			return {
 				currentSession,
 				notification: configuration.notificationProvider,
-				session: configuration.sessionProvider,
 			};
 		})
 		.collection(["identities"], { schema: Identity })
@@ -228,7 +140,7 @@ export function configureAuthentication(
 			security: async () => "allow",
 			handler: async ({ context }) => {
 				if (context.currentSession) {
-					await context.session.delete(context.currentSession.sessionId);
+					await context.kv.delete(["sessions", context.currentSession.sessionId]);
 					return true;
 				}
 				return false;
@@ -246,19 +158,22 @@ export function configureAuthentication(
 				const { payload } = await jwtVerify(refresh_token, configuration.keys.publicKey);
 				const { sub: sessionId, scope } = payload;
 				assertID("sess_", sessionId);
-				const session = await context.session.get(sessionId);
+				const kvValue = await context.kv.get(["sessions", sessionId]);
+				assertSession(kvValue.value);
 				const identity = await context.document.get([
 					"identities",
-					session.identityId,
+					kvValue.value.identityId,
 				]);
-				await context.session.set(
-					session,
-					refreshTokenTTL ?? accessTokenTTL ?? 1000 * 60 * 2,
+				await context.kv.put(
+					["sessions", sessionId],
+					kvValue.value,
+					{
+						expiration: refreshTokenTTL ?? accessTokenTTL ?? 1000 * 60 * 2,
+					},
 				);
 				const { access_token, id_token } = await createTokens(
 					identity.data,
-					session,
-					`${scope}`,
+					kvValue.value,
 				);
 				return { access_token, id_token, refresh_token };
 			},
@@ -303,9 +218,8 @@ export function configureAuthentication(
 				if (!currentComponent) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const identityComponentProvider = configuration.identityComponentProviders.find((
-					icp,
-				) => icp.id === currentComponent.component);
+				const identityComponentProvider =
+					configuration.identityComponentProviders[currentComponent.component];
 				if (!identityComponentProvider) {
 					throw new UnknownIdentityComponentError();
 				}
@@ -314,7 +228,7 @@ export function configureAuthentication(
 						"identities",
 						state.identityId,
 						"components",
-						input.id,
+						currentComponent.component,
 					]).then((doc) => doc.data).catch((_) => undefined)
 					: undefined;
 
@@ -322,6 +236,7 @@ export function configureAuthentication(
 					throw new AuthenticationSubmitPromptError();
 				}
 				const result = await identityComponentProvider.verifySignInPrompt({
+					componentId: currentComponent.component,
 					context,
 					value: input.value,
 					identityComponent,
@@ -366,9 +281,8 @@ export function configureAuthentication(
 				if (!currentComponent) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const identityComponentProvider = configuration.identityComponentProviders.find((
-					icp,
-				) => icp.id === currentComponent.component);
+				const identityComponentProvider =
+					configuration.identityComponentProviders[currentComponent.component];
 				if (!identityComponentProvider) {
 					throw new UnknownIdentityComponentError();
 				}
@@ -377,18 +291,19 @@ export function configureAuthentication(
 						"identities",
 						state.identityId,
 						"components",
-						input.id,
+						currentComponent.component,
 					]).then((doc) => doc.data).catch((_) => undefined)
 					: undefined;
 
 				if (!identityComponent || identityComponent.confirmed === false) {
 					return false;
 				}
-				const result = await identityComponentProvider.sendSignInPrompt({
+				const result = await identityComponentProvider.sendSignInPrompt?.({
+					componentId: currentComponent.component,
 					context,
 					locale: input.locale,
 					identityComponent,
-				});
+				}) ?? false;
 				return result;
 			},
 		});
@@ -396,11 +311,9 @@ export function configureAuthentication(
 	async function createTokens(
 		identity: Identity,
 		session: Session,
-		scope = "*",
-		authorizedAt = Date.now() / 1000 >> 0,
 	): Promise<{ access_token: string; id_token: string; refresh_token?: string }> {
 		const now = Date.now();
-		const access_token = await new SignJWT({ scope, aat: authorizedAt })
+		const access_token = await new SignJWT({ scope: session.scope, aat: session.aat })
 			.setSubject(session.sessionId)
 			.setIssuedAt()
 			.setExpirationTime((now + accessTokenTTL) / 1000 >> 0)
@@ -411,9 +324,9 @@ export function configureAuthentication(
 			.setIssuedAt()
 			.setProtectedHeader({ alg: configuration.keys.algo })
 			.sign(configuration.keys.privateKey);
-		const refresh_token = await new SignJWT({ scope })
+		const refresh_token = await new SignJWT({ scope: session.scope })
 			.setSubject(session.sessionId)
-			.setIssuedAt(authorizedAt)
+			.setIssuedAt(session.aat)
 			.setExpirationTime((now + refreshTokenTTL) / 1000 >> 0)
 			.setProtectedHeader({ alg: configuration.keys.algo })
 			.sign(configuration.keys.privateKey);
@@ -453,24 +366,25 @@ export function configureAuthentication(
 		ceremony: AuthenticationCeremonyComponent | AuthenticationCeremonyChoiceShallow,
 	): Promise<AuthenticationComponent> {
 		if (ceremony.kind === "component") {
-			const identityComponent = configuration.identityComponentProviders.find((icp) =>
-				icp.id === ceremony.component
-			);
+			const identityComponent = configuration.identityComponentProviders[ceremony.component];
 			if (!identityComponent) {
 				throw new UnknownIdentityComponentError();
 			}
-			return identityComponent.getSignInPrompt({ context });
+			return identityComponent.getSignInPrompt({ componentId: ceremony.component, context });
 		} else {
 			const component: AuthenticationComponent = {
 				kind: "choice",
 				prompts: await Promise.all(
 					ceremony.components.map(async (component) => {
-						const identityComponent = configuration.identityComponentProviders
-							.find((icp) => icp.id === component.component);
+						const identityComponent =
+							configuration.identityComponentProviders[component.component];
 						if (!identityComponent) {
 							throw new UnknownIdentityComponentError();
 						}
-						return identityComponent.getSignInPrompt({ context });
+						return identityComponent.getSignInPrompt({
+							componentId: component.component,
+							context,
+						});
 					}),
 				),
 			};
@@ -507,13 +421,12 @@ export function configureAuthentication(
 		const session: Session = {
 			identityId: identity.data.identityId,
 			sessionId: id("sess_"),
-			data: {},
+			scope: state.scope ?? [],
+			aat: Date.now() / 1000 >> 0,
 		};
-		const scope = "";
 		const { access_token, id_token, refresh_token } = await createTokens(
 			identity.data,
 			session,
-			`${scope}`,
 		);
 		return { access_token, id_token, refresh_token };
 	}

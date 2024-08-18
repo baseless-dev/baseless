@@ -2,7 +2,7 @@ import { NotificationProvider } from "@baseless/server/authentication";
 import { Identity } from "@baseless/core/identity";
 import { Notification, NotificationTransport } from "@baseless/core/notification";
 
-export class MemoryNotificationProvider extends NotificationProvider {
+export class MemoryNotificationProvider implements NotificationProvider {
 	#storage: Map<
 		Identity["identityId"],
 		Record<NotificationTransport["kind"], NotificationTransport>

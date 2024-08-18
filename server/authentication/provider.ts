@@ -6,127 +6,121 @@ import { AuthenticationContext } from "./application.ts";
 /**
  * An Identity Component Provider.
  */
-export abstract class IdentityComponentProvider {
-	id: string;
-
-	constructor(id: string) {
-		this.id = id;
-	}
-
+export interface IdentityComponentProvider {
 	/**
 	 * Build an {@link IdentityComponent} from a value.
 	 * @param options
 	 * @returns Partial {@link IdentityComponent}
 	 */
-	abstract buildIdentityComponent(options: {
+	buildIdentityComponent: (options: {
+		componentId: string;
 		context: AuthenticationContext;
 		identityComponent?: IdentityComponent;
 		value: unknown;
-	}): Promise<Omit<IdentityComponent, "identityId" | "componentId">>;
+	}) => Promise<Omit<IdentityComponent, "identityId" | "componentId">>;
 
 	/**
 	 * Retrieve an {@link AuthenticationComponentPrompt} for signing in.
 	 * @param options
 	 * @returns The sign in {@link AuthenticationComponentPrompt}.
 	 */
-	abstract getSignInPrompt(options: {
+	getSignInPrompt: (options: {
+		componentId: string;
 		context: AuthenticationContext;
 		identityComponent?: IdentityComponent;
-	}): Promise<AuthenticationComponentPrompt>;
+	}) => Promise<AuthenticationComponentPrompt>;
 
 	/**
 	 * Send a sign in prompt.
 	 * @param options
 	 * @returns Whether the prompt was sent.
 	 */
-	sendSignInPrompt(options: {
+	sendSignInPrompt?: (options: {
+		componentId: string;
 		context: AuthenticationContext;
 		identityComponent?: IdentityComponent;
 		locale: string;
-	}): Promise<boolean> {
-		return Promise.resolve(false);
-	}
+	}) => Promise<boolean>;
 
 	/**
 	 * Verify a sign in prompt.
 	 * @param options
 	 * @returns Whether the prompt was verified.
 	 */
-	abstract verifySignInPrompt(options: {
+	verifySignInPrompt: (options: {
+		componentId: string;
 		context: AuthenticationContext;
 		identityComponent?: IdentityComponent;
 		value: unknown;
-	}): Promise<boolean | Identity["identityId"]>;
+	}) => Promise<boolean | Identity["identityId"]>;
 
 	/**
 	 * Retrieve an {@link AuthenticationComponentPrompt} for setting up.
 	 * @param options
 	 * @returns The setup {@link AuthenticationComponentPrompt}.
 	 */
-	abstract getSetupPrompt(options: {
+	getSetupPrompt: (options: {
+		componentId: string;
 		context: AuthenticationContext;
 		identityComponent?: IdentityComponent;
-	}): Promise<AuthenticationComponentPrompt>;
+	}) => Promise<AuthenticationComponentPrompt>;
 
 	/**
 	 * Retrieve an {@link AuthenticationComponentPrompt} for validating.
 	 * @param options
 	 * @returns The validation {@link AuthenticationComponentPrompt}.
 	 */
-	getValidationPrompt(options: {
+	getValidationPrompt?: (options: {
+		componentId: string;
 		context: AuthenticationContext;
 		identityComponent?: IdentityComponent;
 		value: unknown;
-	}): Promise<AuthenticationComponentPrompt | undefined> {
-		return Promise.resolve(undefined);
-	}
+	}) => Promise<AuthenticationComponentPrompt | undefined>;
 
 	/**
 	 * Send a validation prompt.
 	 * @param options
 	 * @returns Whether the prompt was sent.
 	 */
-	sendValidationPrompt(options: {
+	sendValidationPrompt?: (options: {
+		componentId: string;
 		context: AuthenticationContext;
 		identityComponent?: IdentityComponent;
 		locale: string;
 		value: unknown;
-	}): Promise<boolean> {
-		return Promise.resolve(false);
-	}
+	}) => Promise<boolean>;
 
 	/**
 	 * Verify a validation prompt.
 	 * @param options
 	 * @returns Whether the prompt was verified.
 	 */
-	verifyValidationPrompt(options: {
+	verifyValidationPrompt?: (options: {
+		componentId: string;
 		context: AuthenticationContext;
 		identityComponent?: IdentityComponent;
 		value: unknown;
-	}): Promise<boolean> {
-		return Promise.resolve(false);
-	}
+	}) => Promise<boolean>;
 }
 
-export abstract class NotificationProvider {
-	abstract getNotificationTransports(
+export interface NotificationProvider {
+	getNotificationTransports: (
 		identityId: Identity["identityId"],
 		transportKind: NotificationTransport["kind"],
-	): Promise<NotificationTransport>;
-	abstract addTransportToIdentity(
+	) => Promise<NotificationTransport>;
+	addTransportToIdentity: (
 		identityId: Identity["identityId"],
 		transport: NotificationTransport,
-	): Promise<boolean>;
-	abstract listTransportsForIdentity(
+	) => Promise<boolean>;
+	listTransportsForIdentity: (
 		identityId: Identity["identityId"],
-	): Promise<NotificationTransport[]>;
-	abstract removeTransportFromIdentity(
+	) => Promise<NotificationTransport[]>;
+	removeTransportFromIdentity: (
 		identityId: Identity["identityId"],
 		transportKind: NotificationTransport["kind"],
-	): Promise<boolean>;
-	abstract sendNotification(
+	) => Promise<boolean>;
+	sendNotification: (
 		identityId: Identity["identityId"],
 		notification: Notification,
-	): Promise<boolean>;
+	) => Promise<boolean>;
 }

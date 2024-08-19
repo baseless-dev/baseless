@@ -26,7 +26,6 @@ export class PasswordIdentityComponentProvider implements IdentityComponentProvi
 		options: {
 			componentId: string;
 			context: AuthenticationContext;
-			identityComponent?: IdentityComponent;
 			value: unknown;
 		},
 	): Promise<Omit<IdentityComponent, "identityId" | "componentId">> {

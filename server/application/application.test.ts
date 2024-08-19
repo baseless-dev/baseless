@@ -38,12 +38,9 @@ Deno.test("Application", async (t) => {
 			})
 			.build();
 
-		assertEquals(
-			await app.atomicDocument({ context, provider: documentProvider })
-				.set(["users", "1"], "foo")
-				.commit(),
-			{ ok: true },
-		);
+		await app.atomicDocument({ context, provider: documentProvider })
+			.set(["users", "1"], "foo")
+			.commit();
 	});
 	await t.step("app.getDocument", async () => {
 		const app = new ApplicationBuilder()

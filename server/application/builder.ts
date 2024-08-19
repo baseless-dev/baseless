@@ -321,7 +321,7 @@ export class ApplicationBuilder<
 		TRpc,
 		TEvent,
 		TDocument | [
-			DocumentDefinitionWithoutSecurity<[...TPath, string], TCollectionSchema>,
+			DocumentDefinitionWithoutSecurity<[...TPath, "{docId}"], TCollectionSchema>,
 		],
 		TCollection | [
 			CollectionDefinitionWithSecurity<TPath, TCollectionSchema>,
@@ -339,7 +339,7 @@ export class ApplicationBuilder<
 		TRpc,
 		TEvent,
 		TDocument | [
-			DocumentDefinitionWithoutSecurity<[...TPath, string], TCollectionSchema>,
+			DocumentDefinitionWithoutSecurity<[...TPath, "{docId}"], TCollectionSchema>,
 		],
 		TCollection | [
 			CollectionDefinitionWithoutSecurity<TPath, TCollectionSchema>,

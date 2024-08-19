@@ -229,7 +229,7 @@ export type DocumentAtomicListenerHandler<
 > = (options: {
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
-	document: Static<TDocumentSchema>;
+	document: Document<Static<TDocumentSchema>>;
 	atomic: IDocumentAtomic<TDocument, TCollection>;
 }) => Promise<void>;
 

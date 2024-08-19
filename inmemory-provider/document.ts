@@ -1,6 +1,6 @@
 import {
 	DocumentAtomic,
-	DocumentAtomicsResult,
+	DocumentAtomicCommitError,
 	DocumentGetOptions,
 	DocumentListEntry,
 	DocumentListOptions,
@@ -93,20 +93,20 @@ export class MemoryDocumentAtomic extends DocumentAtomic {
 		this.#storage = storage;
 	}
 
-	async commit(): Promise<DocumentAtomicsResult> {
+	async commit(): Promise<void> {
 		for (const check of this.checks) {
 			if (check.versionstamp === null) {
 				if (this.#storage.has(keyPathToKeyString(check.key))) {
-					return { ok: false };
+					throw new DocumentAtomicCommitError();
 				}
 			} else {
 				try {
 					const document = await this.#provider.get(check.key);
 					if (document.versionstamp !== check.versionstamp) {
-						return { ok: false };
+						throw new DocumentAtomicCommitError();
 					}
 				} catch (_) {
-					return { ok: false };
+					throw new DocumentAtomicCommitError();
 				}
 			}
 		}
@@ -122,6 +122,5 @@ export class MemoryDocumentAtomic extends DocumentAtomic {
 				});
 			}
 		}
-		return { ok: true };
 	}
 }

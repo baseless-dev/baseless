@@ -99,7 +99,7 @@ export interface AuthenticationState {
 }
 
 export const AuthenticationEncryptedState = Type.Union([Type.String(), Type.Undefined()], {
-	$id: "AuthenticationState",
+	$id: "AuthenticationEncryptedState",
 });
 
 export const AuthenticationTokens = Type.Object({
@@ -116,3 +116,24 @@ export const AuthenticationGetCeremonyResponse = Type.Union([
 	}, { $id: "AuthenticationCeremonyStep" }),
 	AuthenticationTokens,
 ], { $id: "AuthenticationGetCeremonyResponse" });
+
+export interface RegistrationState {
+	identityId?: ID<"id_">;
+	components?: IdentityComponent[];
+}
+
+export const RegistrationEncryptedState = Type.Union([Type.String(), Type.Undefined()], {
+	$id: "RegistrationEncryptedState",
+});
+
+export const RegistrationCeremonyStep = Type.Object({
+	state: Type.Optional(RegistrationEncryptedState),
+	ceremony: AuthenticationCeremony,
+	current: AuthenticationComponent,
+	validating: Type.Boolean(),
+}, { $id: "RegistrationCeremonyStep" });
+
+export const RegistrationGetCeremonyResponse = Type.Union([
+	RegistrationCeremonyStep,
+	AuthenticationTokens,
+], { $id: "RegistrationGetCeremonyResponse" });

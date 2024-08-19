@@ -15,8 +15,8 @@ import { Value } from "@sinclair/typebox/value";
 import { Document } from "@baseless/core/document";
 import {
 	DocumentAtomic,
+	DocumentAtomicCommitError,
 	DocumentAtomicOperation,
-	DocumentAtomicsResult,
 	DocumentGetOptions,
 	DocumentListEntry,
 	DocumentListOptions,
@@ -37,6 +37,10 @@ export class Application {
 	#rpcMatcher: PathMatcher<RpcDefinition<any, any, any>>;
 	#documentMatcher: PathMatcher<DocumentDefinition<any, any>>;
 	#collectionMatcher: PathMatcher<CollectionDefinition<any, any>>;
+	#documentSavingListenersMatcher: PathMatcher<DocumentAtomicListener<any, any>>;
+	#documentSavedListenersMatcher: PathMatcher<DocumentListener<any, any>>;
+	#documentDeletingListenersMatcher: PathMatcher<DocumentAtomicListener<any, any>>;
+	#documentDeletedListenersMatcher: PathMatcher<DocumentListener<any, any>>;
 
 	constructor(
 		decorators: ReadonlyArray<Decorator<any>>,
@@ -61,8 +65,20 @@ export class Application {
 		this.#documentDeletingListeners = documentDeletingListeners;
 		this.#documentDeletedListeners = documentDeletedListeners;
 		this.#rpcMatcher = createPathMatcher(rpcDefinitions);
-		this.#documentMatcher = createPathMatcher(documentDefinitions);
+		this.#documentMatcher = createPathMatcher([
+			...documentDefinitions,
+			...collectionDefinitions.map((definition) => ({
+				path: [...definition.path, "{docId}"],
+				matcher: definition.matcher,
+				schema: definition.schema,
+				...("security" in definition ? { security: definition.security } : {}),
+			})),
+		]);
 		this.#collectionMatcher = createPathMatcher(collectionDefinitions);
+		this.#documentSavingListenersMatcher = createPathMatcher(documentSavingListeners);
+		this.#documentSavedListenersMatcher = createPathMatcher(documentSavedListeners);
+		this.#documentDeletingListenersMatcher = createPathMatcher(documentDeletingListeners);
+		this.#documentDeletedListenersMatcher = createPathMatcher(documentDeletedListeners);
 	}
 
 	async decorate(context: Context<any, any, any>): Promise<void> {
@@ -77,10 +93,11 @@ export class Application {
 		key: string[];
 		input: unknown;
 	}): Promise<unknown> {
-		const definition = this.#rpcMatcher(key);
-		if (!definition) {
+		const firstResult = this.#rpcMatcher(key).next();
+		if (firstResult.done) {
 			throw new UnknownRpcError();
 		}
+		const definition = firstResult.value;
 		if (!Value.Check(definition.input, input)) {
 			throw new InvalidInputError();
 		}
@@ -114,10 +131,11 @@ export class Application {
 		key: string[];
 		options?: DocumentGetOptions;
 	}): Promise<Document> {
-		const definition = this.#documentMatcher(key);
-		if (!definition) {
-			throw new UnknownDocumentError();
+		const firstResult = this.#documentMatcher(key).next();
+		if (firstResult.done) {
+			throw new UnknownRpcError();
 		}
+		const definition = firstResult.value;
 		const document = await provider.get(key, options);
 		if ("security" in definition) {
 			const params = PathAsType(definition.path, key);
@@ -141,10 +159,11 @@ export class Application {
 	}): Promise<Array<Document>> {
 		const documents = await provider.getMany(keys, options);
 		for (const document of documents) {
-			const definition = this.#documentMatcher(document.key);
-			if (!definition) {
-				throw new UnknownDocumentError();
+			const firstResult = this.#documentMatcher(document.key).next();
+			if (firstResult.done) {
+				throw new UnknownRpcError();
 			}
+			const definition = firstResult.value;
 			if ("security" in definition) {
 				const params = PathAsType(definition.path, document.key);
 				const result = await definition.security({
@@ -165,10 +184,11 @@ export class Application {
 		provider: DocumentProvider;
 		options: DocumentListOptions;
 	}): AsyncIterableIterator<DocumentListEntry> {
-		const definition = this.#collectionMatcher(options.prefix);
-		if (!definition) {
-			throw new UnknownCollectionError();
+		const firstResult = this.#collectionMatcher(options.prefix).next();
+		if (firstResult.done) {
+			throw new UnknownRpcError();
 		}
+		const definition = firstResult.value;
 		if ("security" in definition) {
 			const params = PathAsType(definition.path, options.prefix);
 			const result = await definition.security({
@@ -190,12 +210,11 @@ export class Application {
 		return new ApplicationDocumentAtomic(
 			context,
 			provider,
-			this.#documentDefinitions,
-			this.#documentSavingListeners,
-			this.#documentSavedListeners,
-			this.#documentDeletingListeners,
-			this.#documentDeletedListeners,
 			this.#documentMatcher,
+			this.#documentSavingListenersMatcher,
+			this.#documentSavedListenersMatcher,
+			this.#documentDeletingListenersMatcher,
+			this.#documentDeletedListenersMatcher,
 		);
 	}
 }
@@ -203,40 +222,37 @@ export class Application {
 export class ApplicationDocumentAtomic extends DocumentAtomic {
 	#context: Context<any, any, any>;
 	#provider: DocumentProvider;
-	#documentDefinitions: ReadonlyArray<DocumentDefinition<any, any>>;
-	#documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>;
-	#documentSavedListeners: ReadonlyArray<DocumentListener<any, any>>;
-	#documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>;
-	#documentDeletedListeners: ReadonlyArray<DocumentListener<any, any>>;
 	#documentMatcher: PathMatcher<DocumentDefinition<any, any>>;
+	#documentSavingListenersMatcher: PathMatcher<DocumentAtomicListener<any, any>>;
+	#documentSavedListenersMatcher: PathMatcher<DocumentListener<any, any>>;
+	#documentDeletingListenersMatcher: PathMatcher<DocumentAtomicListener<any, any>>;
+	#documentDeletedListenersMatcher: PathMatcher<DocumentListener<any, any>>;
 
 	constructor(
 		context: Context<any, any, any>,
 		provider: DocumentProvider,
-		documentDefinitions: ReadonlyArray<DocumentDefinition<any, any>>,
-		documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>,
-		documentSavedListeners: ReadonlyArray<DocumentListener<any, any>>,
-		documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>,
-		documentDeletedListeners: ReadonlyArray<DocumentListener<any, any>>,
 		documentMatcher: PathMatcher<DocumentDefinition<any, any>>,
+		documentSavingListenersMatcher: PathMatcher<DocumentAtomicListener<any, any>>,
+		documentSavedListenersMatcher: PathMatcher<DocumentListener<any, any>>,
+		documentDeletingListenersMatcher: PathMatcher<DocumentAtomicListener<any, any>>,
+		documentDeletedListenersMatcher: PathMatcher<DocumentListener<any, any>>,
 	) {
 		super();
 		this.#context = context;
 		this.#provider = provider;
-		this.#documentDefinitions = documentDefinitions;
-		this.#documentSavingListeners = documentSavingListeners;
-		this.#documentSavedListeners = documentSavedListeners;
-		this.#documentDeletingListeners = documentDeletingListeners;
-		this.#documentDeletedListeners = documentDeletedListeners;
 		this.#documentMatcher = documentMatcher;
+		this.#documentSavingListenersMatcher = documentSavingListenersMatcher;
+		this.#documentSavedListenersMatcher = documentSavedListenersMatcher;
+		this.#documentDeletingListenersMatcher = documentDeletingListenersMatcher;
+		this.#documentDeletedListenersMatcher = documentDeletedListenersMatcher;
 	}
 
-	async commit(): Promise<DocumentAtomicsResult> {
+	async commit(): Promise<void> {
 		const atomic = this.#provider.atomic();
 		for (const check of this.checks) {
 			const definition = this.#documentMatcher(check.key);
 			if (!definition) {
-				throw new UnknownDocumentError();
+				throw new DocumentAtomicCommitError();
 			}
 			atomic.check(check.key, check.versionstamp);
 		}
@@ -246,10 +262,11 @@ export class ApplicationDocumentAtomic extends DocumentAtomic {
 			params: PathAsType<any>;
 		}> = [];
 		for (const op of this.ops) {
-			const definition = this.#documentMatcher(op.key);
-			if (!definition) {
-				throw new UnknownDocumentError();
+			const firstResult = this.#documentMatcher(op.key).next();
+			if (firstResult.done) {
+				throw new UnknownRpcError();
 			}
+			const definition = firstResult.value;
 			const params = PathAsType(definition.path, op.key);
 			if (op.type === "delete") {
 				const document = await this.#provider.get(op.key).catch(() => undefined);
@@ -262,9 +279,10 @@ export class ApplicationDocumentAtomic extends DocumentAtomic {
 						})
 						: null;
 					if (security !== null && security !== "delete") {
-						throw new ForbiddenError();
+						throw new DocumentAtomicCommitError();
 					}
-					for (const event of this.#documentDeletingListeners) {
+					for (const event of this.#documentDeletingListenersMatcher(op.key)) {
+						const params = PathAsType(event.path, op.key);
 						await event.handler({ context: this.#context, params, document, atomic });
 					}
 					atomic.delete(op.key);
@@ -280,32 +298,32 @@ export class ApplicationDocumentAtomic extends DocumentAtomic {
 					})
 					: null;
 				if (security !== null && security !== "set") {
-					throw new ForbiddenError();
+					throw new DocumentAtomicCommitError();
 				}
-				for (const event of this.#documentSavingListeners) {
+				for (const event of this.#documentSavingListenersMatcher(op.key)) {
+					const params = PathAsType(event.path, op.key);
 					await event.handler({ context: this.#context, params, document, atomic });
 				}
 				atomic.set(op.key, op.data);
 				postOps.push({ document, params, op });
 			}
 		}
-		const result = await atomic.commit();
-		if (result.ok) {
-			for (const { op, document, params } of postOps) {
-				if (op.type === "delete") {
-					for (const event of this.#documentDeletedListeners) {
-						await event.handler({ context: this.#context, params, document })
-							.catch((_) => {});
-					}
-				} else {
-					for (const event of this.#documentSavedListeners) {
-						await event.handler({ context: this.#context, params, document })
-							.catch((_) => {});
-					}
+		await atomic.commit();
+		for (const { op, document, params } of postOps) {
+			if (op.type === "delete") {
+				for (const event of this.#documentDeletedListenersMatcher(op.key)) {
+					const params = PathAsType(event.path, op.key);
+					await event.handler({ context: this.#context, params, document })
+						.catch((_) => {});
+				}
+			} else {
+				for (const event of this.#documentSavedListenersMatcher(op.key)) {
+					const params = PathAsType(event.path, op.key);
+					await event.handler({ context: this.#context, params, document })
+						.catch((_) => {});
 				}
 			}
 		}
-		return result;
 	}
 }
 

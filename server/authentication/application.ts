@@ -13,7 +13,7 @@ import {
 } from "./ceremony.ts";
 import { NotificationProvider } from "./provider.ts";
 import { IdentityComponentProvider } from "./provider.ts";
-import { AuthenticationComponent } from "./component.ts";
+import { AuthenticationComponent, AuthenticationComponentPrompt } from "./component.ts";
 import {
 	assertSession,
 	AuthenticationCollections,
@@ -25,6 +25,10 @@ import {
 	AuthenticationRpcs,
 	AuthenticationState,
 	AuthenticationTokens,
+	RegistrationCeremonyStep,
+	RegistrationEncryptedState,
+	RegistrationGetCeremonyResponse,
+	RegistrationState,
 	Session,
 } from "./types.ts";
 
@@ -64,7 +68,8 @@ export function configureAuthentication(
 			let currentSession: (Session & Session) | undefined;
 			if (context.request.headers.has("Authorization")) {
 				const authorization = context.request.headers.get("Authorization") ?? "";
-				const [, scheme, accessToken] = authorization.match(/(?<scheme>[^ ]+) (?<params>.+)/) ?? [];
+				const [, scheme, accessToken] =
+					authorization.match(/(?<scheme>[^ ]+) (?<params>.+)/) ?? [];
 				if (scheme === "Bearer") {
 					try {
 						const { payload } = await jwtVerify(
@@ -101,20 +106,23 @@ export function configureAuthentication(
 			["identities", "{identityId}", "components", "{kind}"],
 			async ({ params, atomic, context, document }) => {
 				// When new identity component is created with an identification, ensure that it's unique in the identifications collection
-				if (document.identification) {
+				if (document.data.identification) {
 					const doc = await context.document.get([
 						"identifications",
-						document.componentId,
-						document.identification,
+						document.data.componentId,
+						document.data.identification,
 					]).catch((_) => null);
 
 					// If not already present, set the identification
 					if (!doc) {
 						atomic
-							.check(["identifications", params.kind, document.identification], null)
+							.check(
+								["identifications", params.kind, document.data.identification],
+								null,
+							)
 							.set(
-								["identifications", params.kind, document.identification],
-								document.identityId,
+								["identifications", params.kind, document.data.identification],
+								document.data.identityId,
 							);
 					}
 				}
@@ -124,11 +132,11 @@ export function configureAuthentication(
 			["identities", "{identityId}", "components", "{kind}"],
 			async ({ document, atomic }) => {
 				// When identity component is deleted with an identification, ensure that it's removed from the identifications collection
-				if (document.identification) {
+				if (document.data.identification) {
 					atomic.delete([
 						"identifications",
-						document.componentId,
-						document.identification,
+						document.data.componentId,
+						document.data.identification,
 					]);
 				}
 			},
@@ -182,7 +190,7 @@ export function configureAuthentication(
 			output: AuthenticationGetCeremonyResponse,
 			security: async () => "allow",
 			handler: async ({ input, context }) => {
-				const state = await decryptAuthenticationState(input);
+				const state = await decryptState<AuthenticationState>(input);
 				const component = await getCurrentAuthenticationCeremonyFromState(
 					state.choices ?? [],
 				);
@@ -203,7 +211,7 @@ export function configureAuthentication(
 			output: AuthenticationGetCeremonyResponse,
 			security: async () => "allow",
 			handler: async ({ input, context }) => {
-				const state = await decryptAuthenticationState(input.state);
+				const state = await decryptState<AuthenticationState>(input.state);
 				let component = await getCurrentAuthenticationCeremonyFromState(
 					state.choices ?? [],
 				);
@@ -253,7 +261,7 @@ export function configureAuthentication(
 					return createSessionAndTokens(context, state);
 				}
 				const current = await mapCeremonyToComponent(context, component);
-				const encryptedState = await encryptAuthenticationState(state);
+				const encryptedState = await encryptState<AuthenticationState>(state);
 				return { ceremony, current, state: encryptedState };
 			},
 		})
@@ -266,7 +274,7 @@ export function configureAuthentication(
 			output: Type.Boolean(),
 			security: async () => "allow",
 			handler: async ({ input, context }) => {
-				const state = await decryptAuthenticationState(input.state);
+				const state = await decryptState<AuthenticationState>(input.state);
 				const component = await getCurrentAuthenticationCeremonyFromState(
 					state.choices ?? [],
 				);
@@ -305,6 +313,175 @@ export function configureAuthentication(
 				}) ?? false;
 				return result;
 			},
+		})
+		.rpc(["registration", "getCeremony"], {
+			input: RegistrationEncryptedState,
+			output: RegistrationGetCeremonyResponse,
+			security: async () => "allow",
+			handler: async ({ input, context }) => {
+				const result = await getRegistrationCeremony(input, context);
+				if (result === true) {
+					throw new InvalidRegistrationStateError();
+				}
+				return result;
+			},
+		})
+		.rpc(["registration", "submitPrompt"], {
+			input: Type.Object({
+				id: Type.String(),
+				value: Type.Unknown(),
+				state: RegistrationEncryptedState,
+			}),
+			output: RegistrationGetCeremonyResponse,
+			security: async () => "allow",
+			handler: async ({ input, context }) => {
+				const state = await decryptState<RegistrationState>(input.state);
+				const currentComponent = await getRegistrationCeremony(input.state, context);
+				if (currentComponent === true) {
+					throw new RegistrationSubmitPromptError();
+				}
+				const pickedComponent: AuthenticationComponentPrompt | undefined =
+					currentComponent.current.kind === "choice"
+						? currentComponent.current.prompts.find((c) => c.id === input.id)
+						: currentComponent.current;
+
+				if (!pickedComponent || pickedComponent.id !== input.id) {
+					throw new RegistrationSubmitPromptError();
+				}
+
+				const provider = configuration.identityComponentProviders[pickedComponent.id];
+				if (!provider) {
+					throw new UnknownIdentityComponentError();
+				}
+
+				const identityComponent = await provider.buildIdentityComponent({
+					componentId: pickedComponent.id,
+					context,
+					value: input.value,
+				});
+
+				const identityId = state.identityId ?? id("id_");
+				const newState: RegistrationState = {
+					identityId,
+					components: [
+						...state.components ?? [],
+						{
+							...identityComponent,
+							componentId: pickedComponent.id,
+							identityId,
+						},
+					],
+				};
+				const newEncryptedState = await encryptState<RegistrationState>(newState);
+
+				const nextComponent = await getRegistrationCeremony(newEncryptedState, context);
+				if (nextComponent === true) {
+					const identityId = await createIdentity(
+						context,
+						state.identityId!,
+						state.components!,
+					);
+					return createSessionAndTokens(context, { identityId });
+				}
+				return nextComponent;
+			},
+		})
+		.rpc(["registration", "sendValidationCode"], {
+			input: Type.Object({
+				id: Type.String(),
+				locale: Type.String(),
+				state: RegistrationEncryptedState,
+			}),
+			output: Type.Boolean(),
+			security: async () => "allow",
+			handler: async ({ input, context }) => {
+				const state = await decryptState<RegistrationState>(input.state);
+				const currentComponent = await getRegistrationCeremony(input.state, context);
+				if (currentComponent === true) {
+					throw new RegistrationSubmitPromptError();
+				}
+				const pickedComponent: AuthenticationComponentPrompt | undefined =
+					currentComponent.current.kind === "choice"
+						? currentComponent.current.prompts.find((c) => c.id === input.id)
+						: currentComponent.current;
+				if (!pickedComponent || pickedComponent.id !== input.id) {
+					throw new RegistrationSubmitPromptError();
+				}
+
+				const provider = configuration.identityComponentProviders[pickedComponent.id];
+				if (!provider || !provider.sendValidationPrompt) {
+					throw new UnknownIdentityComponentError();
+				}
+
+				return provider.sendValidationPrompt({
+					componentId: pickedComponent.id,
+					context,
+					identityId: state.identityId!,
+					locale: input.locale,
+				});
+			},
+		})
+		.rpc(["registration", "submitValidationCode"], {
+			input: Type.Object({
+				id: Type.String(),
+				value: Type.Unknown(),
+				state: RegistrationEncryptedState,
+			}),
+			output: RegistrationGetCeremonyResponse,
+			security: async () => "allow",
+			handler: async ({ input, context }) => {
+				const state = await decryptState<RegistrationState>(input.state);
+				const currentComponent = await getRegistrationCeremony(input.state, context);
+				if (currentComponent === true) {
+					throw new RegistrationSubmitPromptError();
+				}
+				const pickedComponent: AuthenticationComponentPrompt | undefined =
+					currentComponent.current.kind === "choice"
+						? currentComponent.current.prompts.find((c) => c.id === input.id)
+						: currentComponent.current;
+
+				if (!pickedComponent || pickedComponent.id !== input.id) {
+					throw new RegistrationSubmitPromptError();
+				}
+
+				const provider = configuration.identityComponentProviders[pickedComponent.id];
+				if (!provider || !provider.verifyValidationPrompt) {
+					throw new UnknownIdentityComponentError();
+				}
+
+				const identityComponent = (state.components ?? []).find((c) =>
+					c.componentId === pickedComponent.id
+				);
+				if (!identityComponent) {
+					throw new RegistrationSubmitPromptError();
+				}
+
+				const result = await provider.verifyValidationPrompt({
+					componentId: pickedComponent.id,
+					context,
+					value: input.value,
+					identityComponent,
+				});
+
+				if (!result) {
+					throw new RegistrationSubmitPromptError();
+				}
+
+				identityComponent.confirmed = true;
+
+				const newEncryptedState = await encryptState<RegistrationState>(state);
+
+				const nextComponent = await getRegistrationCeremony(newEncryptedState, context);
+				if (nextComponent === true) {
+					const identityId = await createIdentity(
+						context,
+						state.identityId!,
+						state.components!,
+					);
+					return createSessionAndTokens(context, { identityId });
+				}
+				return nextComponent;
+			},
 		});
 
 	async function createTokens(
@@ -332,8 +509,8 @@ export function configureAuthentication(
 		return { access_token, id_token, refresh_token };
 	}
 
-	async function encryptAuthenticationState(
-		state: AuthenticationState,
+	async function encryptState<T extends {}>(
+		state: T,
 	): Promise<string> {
 		const now = Date.now();
 		return new SignJWT(state as unknown as JWTPayload)
@@ -343,20 +520,17 @@ export function configureAuthentication(
 			.sign(configuration.keys.privateKey);
 	}
 
-	async function decryptAuthenticationState(
+	async function decryptState<T extends {}>(
 		encryptedState: string | undefined,
-	): Promise<AuthenticationState> {
-		if (!encryptedState) {
-			return {};
-		}
+	): Promise<Partial<T>> {
 		try {
 			const { payload } = await jwtVerify<AuthenticationState>(
-				encryptedState,
+				encryptedState ?? "",
 				configuration.keys.publicKey,
 			);
-			return payload;
+			return payload as T;
 		} catch (_) {
-			return {};
+			return {} as T;
 		}
 	}
 
@@ -375,7 +549,8 @@ export function configureAuthentication(
 				kind: "choice",
 				prompts: await Promise.all(
 					ceremony.components.map(async (component) => {
-						const identityComponent = configuration.identityComponentProviders[component.component];
+						const identityComponent =
+							configuration.identityComponentProviders[component.component];
 						if (!identityComponent) {
 							throw new UnknownIdentityComponentError();
 						}
@@ -428,8 +603,82 @@ export function configureAuthentication(
 		);
 		return { access_token, id_token, refresh_token };
 	}
+
+	async function getRegistrationCeremony(
+		input: Static<typeof RegistrationEncryptedState>,
+		context: AuthenticationContext,
+	): Promise<Static<typeof RegistrationCeremonyStep> | true> {
+		const state = await decryptState<RegistrationState>(input);
+		const choices = state.components?.map((c) => c.componentId) ?? [];
+		let validating = false;
+		const ceremonyComponent = await getCurrentAuthenticationCeremonyFromState(choices);
+		let authenticationComponent: AuthenticationComponent;
+
+		const lastComponent = state.components?.at(-1);
+		if (lastComponent && !lastComponent.confirmed) {
+			const provider = configuration.identityComponentProviders[lastComponent.componentId];
+			if (!provider || !provider.getValidationPrompt) {
+				throw new UnknownIdentityComponentError();
+			}
+			validating = true;
+			authenticationComponent = await provider.getValidationPrompt({
+				componentId: lastComponent.componentId,
+				context,
+			});
+		} else if (ceremonyComponent === true) {
+			return true;
+		} else if (ceremonyComponent.kind === "component") {
+			const provider = configuration.identityComponentProviders[ceremonyComponent.component];
+			if (!provider) {
+				throw new UnknownIdentityComponentError();
+			}
+			authenticationComponent = await provider.getSetupPrompt({
+				componentId: ceremonyComponent.component,
+				context,
+			});
+		} else {
+			const prompts = await Promise.all(
+				ceremonyComponent.components.map(async (component) => {
+					const provider = configuration.identityComponentProviders[component.component];
+					if (!provider) {
+						throw new UnknownIdentityComponentError();
+					}
+					return provider.getSetupPrompt({
+						componentId: component.component,
+						context,
+					});
+				}),
+			);
+			if (prompts.length === 1) {
+				authenticationComponent = prompts.at(0)!;
+			} else {
+				authenticationComponent = { kind: "choice", prompts: prompts };
+			}
+		}
+
+		return { ceremony, state: input, current: authenticationComponent, validating };
+	}
+
+	async function createIdentity(
+		context: AuthenticationContext,
+		identityId: Identity["identityId"],
+		identityComponents: IdentityComponent[],
+	): Promise<ID<"id_">> {
+		const atomic = context.document.atomic()
+			.set(["identities", identityId], { identityId, data: {} });
+		for (const component of identityComponents) {
+			atomic.set(
+				["identities", identityId, "components", component.componentId],
+				component,
+			);
+		}
+		await atomic.commit();
+		return identityId;
+	}
 }
 
 export class InvalidAuthenticationStateError extends Error {}
+export class InvalidRegistrationStateError extends Error {}
 export class UnknownIdentityComponentError extends Error {}
 export class AuthenticationSubmitPromptError extends Error {}
+export class RegistrationSubmitPromptError extends Error {}

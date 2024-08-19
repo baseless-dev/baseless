@@ -52,7 +52,7 @@ export class EmailIdentityComponentProvider implements IdentityComponentProvider
 		return doc ? doc.data : false;
 	}
 	getSetupPrompt(
-		_options: {
+		options: {
 			componentId: string;
 			context: AuthenticationContext;
 			identityComponent?: IdentityComponent;
@@ -60,7 +60,7 @@ export class EmailIdentityComponentProvider implements IdentityComponentProvider
 	): Promise<AuthenticationComponentPrompt> {
 		return Promise.resolve({
 			kind: "component",
-			id: "email",
+			id: options.componentId,
 			prompt: "email",
 			options: {},
 		});
@@ -70,9 +70,8 @@ export class EmailIdentityComponentProvider implements IdentityComponentProvider
 			componentId: string;
 			context: AuthenticationContext;
 			identityComponent?: IdentityComponent;
-			value: unknown;
 		},
-	): Promise<AuthenticationComponentPrompt | undefined> {
+	): Promise<AuthenticationComponentPrompt> {
 		return Promise.resolve({
 			kind: "component",
 			id: options.componentId,
@@ -87,20 +86,19 @@ export class EmailIdentityComponentProvider implements IdentityComponentProvider
 			componentId: string;
 			context: AuthenticationContext;
 			locale: string;
-			identityComponent?: IdentityComponent;
-			value: unknown;
+			identityId: Identity["identityId"];
 		},
 	): Promise<boolean> {
 		const code = otp({ digits: 8 });
 		await options.context.kv.put(
-			["email-validation-code", options.identityComponent!.identityId],
+			["email-validation-code", options.identityId],
 			code,
 			{
 				expiration: 1000 * 60 * 5,
 			},
 		);
 		// TODO configurable notification
-		await options.context.notification.sendNotification(options.identityComponent!.identityId, {
+		await options.context.notification.sendNotification(options.identityId, {
 			subject: "Your verification code",
 			content: {
 				"text/x-code": `${code}`,

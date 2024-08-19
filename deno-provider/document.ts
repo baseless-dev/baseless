@@ -1,7 +1,7 @@
 import { Document } from "../core/document.ts";
 import {
 	DocumentAtomic,
-	DocumentAtomicsResult,
+	DocumentAtomicCommitError,
 	DocumentGetOptions,
 	DocumentListEntry,
 	DocumentListOptions,
@@ -73,7 +73,7 @@ export class DenoKVDocumentAtomic extends DocumentAtomic {
 		this.#storage = storage;
 	}
 
-	commit(): Promise<DocumentAtomicsResult> {
+	async commit(): Promise<void> {
 		const atomic = this.#storage.atomic();
 		for (const check of this.checks) {
 			atomic.check(check);
@@ -85,6 +85,9 @@ export class DenoKVDocumentAtomic extends DocumentAtomic {
 				atomic.set(op.key, op.data);
 			}
 		}
-		return atomic.commit();
+		const result = await atomic.commit();
+		if (!result.ok) {
+			throw new DocumentAtomicCommitError();
+		}
 	}
 }

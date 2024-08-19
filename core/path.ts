@@ -4,17 +4,20 @@ export interface TreeNodeConst<TLeaf> {
 	kind: "const";
 	value: string;
 	children?: TreeNode<TLeaf>[];
-	leaf?: TLeaf;
 }
 
 export interface TreeNodeVariable<TLeaf> {
 	kind: "variable";
 	name: string;
 	children?: TreeNode<TLeaf>[];
-	leaf?: TLeaf;
 }
 
-export type TreeNode<TLeaf> = TreeNodeConst<TLeaf> | TreeNodeVariable<TLeaf>;
+export interface TreeNodeLeaf<TLeaf> {
+	kind: "leaf";
+	values: TLeaf[];
+}
+
+export type TreeNode<TLeaf> = TreeNodeConst<TLeaf> | TreeNodeVariable<TLeaf> | TreeNodeLeaf<TLeaf>;
 
 export function isTreeNodeMatching<TLeaf>(nodeA: TreeNode<TLeaf>, nodeB: TreeNode<TLeaf>): boolean {
 	if (nodeA.kind !== nodeB.kind) {
@@ -26,10 +29,9 @@ export function isTreeNodeMatching<TLeaf>(nodeA: TreeNode<TLeaf>, nodeB: TreeNod
 	return true;
 }
 
-export function pathToTreeNode<TLeaf = unknown>(path: string[], leaf?: TLeaf): TreeNode<TLeaf> {
+export function pathToTreeNode<TLeaf = unknown>(path: string[], value?: TLeaf): TreeNode<TLeaf> {
 	const rootNode: TreeNode<TLeaf> = { kind: "const", value: "" };
 	let parentNode: TreeNode<TLeaf> = rootNode;
-	let leafNode: TreeNode<TLeaf>;
 	for (const segment of path) {
 		let node: TreeNode<TLeaf>;
 		if (segment.startsWith("{") && segment.endsWith("}")) {
@@ -39,11 +41,9 @@ export function pathToTreeNode<TLeaf = unknown>(path: string[], leaf?: TLeaf): T
 		}
 		parentNode.children = [node];
 		parentNode = node;
-		leafNode = node;
 	}
-	if (leaf) {
-		leafNode!.leaf = leaf;
-	}
+	parentNode.children ??= [];
+	parentNode.children.push({ kind: "leaf", values: [value!] });
 	return rootNode.children?.at(0)!;
 }
 
@@ -53,11 +53,21 @@ export function mergeTreeNodes<TLeaf>(treeNodes: TreeNode<TLeaf>[]): TreeNode<TL
 		const existing = merged.find((node) => isTreeNodeMatching(node, treeNode));
 		if (!existing) {
 			merged.push(treeNode);
-		} else {
+		} else if (existing.kind === "const" && treeNode.kind === "const") {
 			existing.children = mergeTreeNodes([
 				...existing.children ?? [],
 				...treeNode.children ?? [],
 			]);
+		} else if (existing.kind === "variable" && treeNode.kind === "variable") {
+			existing.children = mergeTreeNodes([
+				...existing.children ?? [],
+				...treeNode.children ?? [],
+			]);
+		} else if (existing.kind === "leaf" && treeNode.kind === "leaf") {
+			existing.values = [
+				...existing.values,
+				...treeNode.values,
+			];
 		}
 	}
 	merged.sort(treeNodeSorter);
@@ -66,6 +76,15 @@ export function mergeTreeNodes<TLeaf>(treeNodes: TreeNode<TLeaf>[]): TreeNode<TL
 
 export function treeNodeSorter<TLeaf>(a: TreeNode<TLeaf>, b: TreeNode<TLeaf>): number {
 	if (a.kind === "const" && b.kind === "variable") {
+		return -1;
+	}
+	if (a.kind === "variable" && b.kind === "const") {
+		return 1;
+	}
+	if (a.kind === "leaf" && b.kind !== "leaf") {
+		return 1;
+	}
+	if (a.kind !== "leaf" && b.kind === "leaf") {
 		return -1;
 	}
 	if (a.kind === "variable" && b.kind === "const") {
@@ -81,7 +100,7 @@ export function createPathMatcher<T extends { path: string[] }>(
 	items: ReadonlyArray<T>,
 ): PathMatcher<T> {
 	const forest = mergeTreeNodes(items.map((item) => pathToTreeNode(item.path, item)));
-	return (key) => {
+	return function* (key): IterableIterator<T> {
 		const path = [...key];
 		let haystack: TreeNode<T>[] = forest;
 		let treeNode: TreeNode<T> | undefined;
@@ -91,11 +110,19 @@ export function createPathMatcher<T extends { path: string[] }>(
 				treeNode.kind === "variable"
 			);
 			if (!treeNode) {
-				return undefined;
+				break;
 			}
-			haystack = treeNode.children ?? [];
+			if (treeNode.kind !== "leaf") {
+				haystack = treeNode.children ?? [];
+			}
 		}
-		return treeNode?.leaf;
+		if (treeNode && treeNode.kind !== "leaf") {
+			for (const node of treeNode.children ?? []) {
+				if (node.kind === "leaf") {
+					yield* node.values;
+				}
+			}
+		}
 	};
 }
 
@@ -183,4 +210,4 @@ export type PathAsObject<T extends { path: string[] }> = _PathAsObject<T["path"]
 
 export type PathMatcher<T> = (
 	path: string[],
-) => T | undefined;
+) => IterableIterator<T>;

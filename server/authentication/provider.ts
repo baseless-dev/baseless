@@ -15,7 +15,6 @@ export interface IdentityComponentProvider {
 	buildIdentityComponent: (options: {
 		componentId: string;
 		context: AuthenticationContext;
-		identityComponent?: IdentityComponent;
 		value: unknown;
 	}) => Promise<Omit<IdentityComponent, "identityId" | "componentId">>;
 
@@ -62,7 +61,6 @@ export interface IdentityComponentProvider {
 	getSetupPrompt: (options: {
 		componentId: string;
 		context: AuthenticationContext;
-		identityComponent?: IdentityComponent;
 	}) => Promise<AuthenticationComponentPrompt>;
 
 	/**
@@ -73,9 +71,7 @@ export interface IdentityComponentProvider {
 	getValidationPrompt?: (options: {
 		componentId: string;
 		context: AuthenticationContext;
-		identityComponent?: IdentityComponent;
-		value: unknown;
-	}) => Promise<AuthenticationComponentPrompt | undefined>;
+	}) => Promise<AuthenticationComponentPrompt>;
 
 	/**
 	 * Send a validation prompt.
@@ -85,9 +81,8 @@ export interface IdentityComponentProvider {
 	sendValidationPrompt?: (options: {
 		componentId: string;
 		context: AuthenticationContext;
-		identityComponent?: IdentityComponent;
+		identityId: Identity["identityId"];
 		locale: string;
-		value: unknown;
 	}) => Promise<boolean>;
 
 	/**

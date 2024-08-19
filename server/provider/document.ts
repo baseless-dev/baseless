@@ -17,10 +17,6 @@ export type DocumentListEntry<TData = unknown> = {
 	document: Document<TData>;
 };
 
-export interface DocumentAtomicsResult {
-	ok: boolean;
-}
-
 export type DocumentAtomicCheck = {
 	type: "check";
 	readonly key: string[];
@@ -54,7 +50,7 @@ export abstract class DocumentAtomic {
 		return this;
 	}
 
-	abstract commit(): Promise<DocumentAtomicsResult>;
+	abstract commit(): Promise<void>;
 }
 
 export abstract class DocumentProvider {
@@ -95,7 +91,7 @@ export class DocumentDeleteError extends Error {
 		super();
 	}
 }
-export class DocumentAtomicError extends Error {
+export class DocumentAtomicCommitError extends Error {
 	constructor(public innerError?: Error) {
 		super();
 	}
@@ -155,5 +151,5 @@ export interface IDocumentAtomic<
 		key: TDocumentPath,
 	): IDocumentAtomic<TDocument, TCollection>;
 
-	commit(): Promise<DocumentAtomicsResult>;
+	commit(): Promise<void>;
 }

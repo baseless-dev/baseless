@@ -41,10 +41,11 @@ export async function testDocumentProvider(
 			)
 			.commit();
 
-		assertEquals(
-			(await provider.atomic().check(["users", "foo"], null).set(["users", "foo"], null)
-				.commit()).ok,
-			false,
+		await assertRejects(() =>
+			provider.atomic()
+				.check(["users", "foo"], null)
+				.set(["users", "foo"], null)
+				.commit()
 		);
 	});
 

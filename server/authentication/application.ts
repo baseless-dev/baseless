@@ -68,20 +68,16 @@ export function configureAuthentication(
 			let currentSession: (Session & Session) | undefined;
 			if (context.request.headers.has("Authorization")) {
 				const authorization = context.request.headers.get("Authorization") ?? "";
-				const [, scheme, accessToken] =
-					authorization.match(/(?<scheme>[^ ]+) (?<params>.+)/) ?? [];
+				const [, scheme, token] = authorization.match(/^([^ ]+) (.+)$/) ?? [];
 				if (scheme === "Bearer") {
 					try {
-						const { payload } = await jwtVerify(
-							accessToken,
-							configuration.keys.publicKey,
-						);
-						if (isID("sess_", payload.sub)) {
-							const sess = await context.kv.get(["sessions", payload.sub]);
-							assertSession(sess.value);
+						const { payload } = await jwtVerify(token, configuration.keys.publicKey);
+						if (isID("sid_", payload.sub)) {
+							const key = await context.kv.get(["sessions", payload.sub]);
+							assertSession(key.value);
 							const { scope, aat } = { scope: "", aat: 0, ...payload };
 							currentSession = {
-								...sess.value,
+								...key.value,
 								scope: scope.split(/ +/),
 								aat,
 							};
@@ -89,9 +85,17 @@ export function configureAuthentication(
 					} catch (error) {
 						console.error(error);
 					}
-					if (!currentSession) {
-						throw new ForbiddenError();
+				} else if (scheme === "Token" && isID("sk_", token)) {
+					try {
+						const key = await context.kv.get(["session-secret-tokens", token]);
+						assertSession(key.value);
+						currentSession = key.value;
+					} catch (error) {
+						console.error(error);
 					}
+				}
+				if (!currentSession) {
+					throw new ForbiddenError();
 				}
 			}
 			return {
@@ -146,7 +150,7 @@ export function configureAuthentication(
 			output: Type.Boolean(),
 			security: async () => "allow",
 			handler: async ({ context }) => {
-				if (context.currentSession) {
+				if (context.currentSession?.sessionId) {
 					await context.kv.delete(["sessions", context.currentSession.sessionId]);
 					return true;
 				}
@@ -162,7 +166,7 @@ export function configureAuthentication(
 			) => {
 				const { payload } = await jwtVerify(refresh_token, configuration.keys.publicKey);
 				const { sub: sessionId, scope } = payload;
-				assertID("sess_", sessionId);
+				assertID("sid_", sessionId);
 				const kvValue = await context.kv.get(["sessions", sessionId]);
 				assertSession(kvValue.value);
 				const identity = await context.document.get([
@@ -488,7 +492,7 @@ export function configureAuthentication(
 	): Promise<{ access_token: string; id_token: string; refresh_token?: string }> {
 		const now = Date.now();
 		const access_token = await new SignJWT({ scope: session.scope, aat: session.aat })
-			.setSubject(session.sessionId)
+			.setSubject(session.sessionId ?? "sk")
 			.setIssuedAt()
 			.setExpirationTime((now + accessTokenTTL) / 1000 >> 0)
 			.setProtectedHeader({ alg: configuration.keys.algo })
@@ -499,7 +503,7 @@ export function configureAuthentication(
 			.setProtectedHeader({ alg: configuration.keys.algo })
 			.sign(configuration.keys.privateKey);
 		const refresh_token = await new SignJWT({ scope: session.scope })
-			.setSubject(session.sessionId)
+			.setSubject(session.sessionId ?? "sk")
 			.setIssuedAt(session.aat)
 			.setExpirationTime((now + refreshTokenTTL) / 1000 >> 0)
 			.setProtectedHeader({ alg: configuration.keys.algo })
@@ -591,7 +595,7 @@ export function configureAuthentication(
 		]);
 		const session: Session = {
 			identityId: identity.data.identityId,
-			sessionId: id("sess_"),
+			sessionId: id("sid_"),
 			scope: state.scope ?? [],
 			aat: Date.now() / 1000 >> 0,
 		};

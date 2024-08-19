@@ -265,3 +265,13 @@ export type PickAtPath<TEvent extends Array<{ path: any }>, TPath extends string
 	[K in keyof TEvent]: TPath extends ReplaceVariableInPathSegment<TEvent[K]["path"]> ? TEvent[K]
 		: never;
 }[number];
+
+// deno-fmt-ignore
+export type WithSecurity<T extends unknown[]> =
+	T extends []
+	? []
+	: T extends [infer First, ...infer Rest]
+		? First extends { security(...args: unknown[]): Promise<unknown> }
+			? [First, ...WithSecurity<Rest>]
+			: WithSecurity<Rest>
+		: never;

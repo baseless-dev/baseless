@@ -34,16 +34,16 @@ export function assertSession(value: unknown): asserts value is Session {
 
 export class InvalidSessionError extends Error {}
 
-export interface AuthenticationDecoration {
+export type AuthenticationDecoration = {
 	notification: NotificationProvider;
 	currentSession: Session | undefined;
-}
+};
 
 export type AuthenticationRpcs = [
 	RpcDefinition<["authentication", "signOut"], TVoid, TBoolean>,
 	RpcDefinition<
 		["authentication", "refreshAccessToken"],
-		TObject<{ refresh_token: TString }>,
+		TString,
 		typeof AuthenticationTokens
 	>,
 	RpcDefinition<
@@ -60,6 +60,26 @@ export type AuthenticationRpcs = [
 		["authentication", "sendPrompt"],
 		TObject<{ id: TString; locale: TString; state: typeof AuthenticationEncryptedState }>,
 		TBoolean
+	>,
+	RpcDefinition<
+		["registration", "getCeremony"],
+		typeof RegistrationEncryptedState,
+		typeof RegistrationGetCeremonyResponse
+	>,
+	RpcDefinition<
+		["registration", "submitPrompt"],
+		TObject<{ id: TString; value: TUnknown; state: typeof RegistrationEncryptedState }>,
+		typeof RegistrationGetCeremonyResponse
+	>,
+	RpcDefinition<
+		["registration", "sendValidationCode"],
+		TObject<{ id: TString; locale: TString; state: typeof RegistrationEncryptedState }>,
+		TBoolean
+	>,
+	RpcDefinition<
+		["registration", "submitValidationCode"],
+		TObject<{ id: TString; value: TUnknown; state: typeof RegistrationEncryptedState }>,
+		typeof RegistrationGetCeremonyResponse
 	>,
 ];
 

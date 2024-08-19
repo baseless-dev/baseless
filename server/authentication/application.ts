@@ -154,13 +154,11 @@ export function configureAuthentication(
 			},
 		})
 		.rpc(["authentication", "refreshAccessToken"], {
-			input: Type.Object({
-				refresh_token: Type.String(),
-			}),
+			input: Type.String(),
 			output: AuthenticationTokens,
 			security: async () => "allow",
 			handler: async (
-				{ input: { refresh_token }, context },
+				{ input: refresh_token, context },
 			) => {
 				const { payload } = await jwtVerify(refresh_token, configuration.keys.publicKey);
 				const { sub: sessionId, scope } = payload;
@@ -206,7 +204,7 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				value: Type.Unknown(),
-				state: AuthenticationEncryptedState,
+				state: Type.Optional(AuthenticationEncryptedState),
 			}),
 			output: AuthenticationGetCeremonyResponse,
 			security: async () => "allow",
@@ -269,7 +267,7 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				locale: Type.String(),
-				state: AuthenticationEncryptedState,
+				state: Type.Optional(AuthenticationEncryptedState),
 			}),
 			output: Type.Boolean(),
 			security: async () => "allow",
@@ -330,7 +328,7 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				value: Type.Unknown(),
-				state: RegistrationEncryptedState,
+				state: Type.Optional(RegistrationEncryptedState),
 			}),
 			output: RegistrationGetCeremonyResponse,
 			security: async () => "allow",
@@ -390,7 +388,7 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				locale: Type.String(),
-				state: RegistrationEncryptedState,
+				state: Type.Optional(RegistrationEncryptedState),
 			}),
 			output: Type.Boolean(),
 			security: async () => "allow",
@@ -425,7 +423,7 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				value: Type.Unknown(),
-				state: RegistrationEncryptedState,
+				state: Type.Optional(RegistrationEncryptedState),
 			}),
 			output: RegistrationGetCeremonyResponse,
 			security: async () => "allow",

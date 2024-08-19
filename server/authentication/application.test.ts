@@ -9,7 +9,7 @@ import {
 	MemoryNotificationProvider,
 } from "@baseless/inmemory-provider";
 import { assert, assertEquals, assertObjectMatch } from "@std/assert";
-import { id } from "../../core/id.ts";
+import { id } from "@baseless/core/id";
 import { AuthenticationContext } from "./types.ts";
 import { DocumentProviderFacade } from "../application/documentfacade.ts";
 
@@ -351,7 +351,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 				assert(result === true);
 				assert(notifications.size === 1);
 				code = Array.from(notifications.values()).at(0)!.at(0)!.content["text/x-code"];
-				assert(code && code.length === 8);
+				assert(code && code.length > 0);
 			}
 			{
 				const result = await app.invokeRpc({

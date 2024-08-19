@@ -10,8 +10,7 @@
 		"./identity": "./identity.ts",
 		"./notification": "./notification.ts",
 		"./path": "./path.ts",
-		"./result": "./result.ts",
-		"./types": "./types.ts"
+		"./result": "./result.ts"
 	},
 	"publish": {
 		"include": [

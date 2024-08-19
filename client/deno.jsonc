@@ -3,7 +3,8 @@
 	"version": "0.3.0-rc.1",
 	"exports": {
 		".": "./mod.ts",
-		"./client": "./client.ts"
+		"./client": "./client.ts",
+		"./types": "./types.ts"
 	},
 	"publish": {
 		"include": [

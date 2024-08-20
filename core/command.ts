@@ -1,9 +1,7 @@
 import {
 	type TArray,
 	type TLiteral,
-	type TNumber,
 	type TObject,
-	type TOptional,
 	type TRecursive,
 	type TString,
 	type TThis,

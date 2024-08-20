@@ -43,16 +43,9 @@ Deno.test("Client", async (t) => {
 			.rpc(["hello", "{world}"], {
 				input: Type.Void(),
 				output: Type.String(),
-				security: async () => "allow" as const,
+				security: async () => "allow",
 				handler: async ({ params }) => `Hello ${params.world}`,
 			});
-		const app = appBuilder.build();
-
-		const server = new Server({
-			application: app,
-			document: documentProvider,
-			kv: kvProvider,
-		});
 
 		const client = Client.fromApplicationBuilder<typeof appBuilder>({
 			clientId: "test",
@@ -64,6 +57,14 @@ Deno.test("Client", async (t) => {
 			},
 		});
 
+		const app = appBuilder.build();
+
+		const server = new Server({
+			application: app,
+			document: documentProvider,
+			kv: kvProvider,
+		});
+
 		return { client, notificationProvider };
 	};
 
@@ -71,6 +72,18 @@ Deno.test("Client", async (t) => {
 		const { client } = await setupServer();
 		const result = await client.rpc(["hello", "World"], void 0);
 		assertEquals(result, "Hello World");
+	});
+
+	await t.step("batched hello world", async () => {
+		const { client } = await setupServer();
+		const [result1, result2, result3] = await Promise.all([
+			client.rpc(["hello", "Foo"], void 0),
+			client.rpc(["hello", "Bar"], void 0),
+			client.rpc(["hello", "Foo"], void 0),
+		]);
+		assertEquals(result1, "Hello Foo");
+		assertEquals(result2, "Hello Bar");
+		assertEquals(result3, "Hello Foo");
 	});
 
 	await t.step("register", async () => {

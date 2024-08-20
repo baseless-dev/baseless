@@ -1,9 +1,3 @@
-export type Persistence = "local" | "session" | "memory";
-
-export function isPersistence(value?: unknown): value is Persistence {
-	return value === "local" || value === "session" || value === "memory";
-}
-
 export interface Profile {
 	access_token: string;
 	id_token: string;

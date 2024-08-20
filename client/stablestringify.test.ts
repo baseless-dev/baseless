@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { stableStringify } from "./stableStringify.ts";
+import { stableStringify } from "./stablestringify.ts";
 
 Deno.test("Stable Stringify", () => {
 	class A {
@@ -12,7 +12,7 @@ Deno.test("Stable Stringify", () => {
 		}
 	}
 	assertEquals(stableStringify(1), `1`);
-	assertEquals(stableStringify(1n), `"1"`);
+	assertEquals(stableStringify(1n.toString()), `"1"`);
 	assertEquals(stableStringify("foo"), `"foo"`);
 	assertEquals(stableStringify(true), `true`);
 	assertEquals(stableStringify(false), `false`);
@@ -27,4 +27,5 @@ Deno.test("Stable Stringify", () => {
 	assertEquals(stableStringify(new B()), `"B"`);
 	assertEquals(stableStringify({ a: "A", b: "B" }), `{"a":"A","b":"B"}`);
 	assertEquals(stableStringify({ b: "B", a: "A" }), `{"a":"A","b":"B"}`);
+	assertEquals(stableStringify([1, "2", true]), `[1,"2",true]`);
 });

@@ -1,5 +1,12 @@
 import { type TObject, type TString, Type } from "@sinclair/typebox";
 
+export function isPathMatching<T extends string[]>(a: T, b?: unknown[]): b is T {
+	if (!b || !Array.isArray(b) || a.length !== b.length) {
+		return false;
+	}
+	return a.every((v, i) => v === b[i]);
+}
+
 export interface TreeNodeConst<TLeaf> {
 	kind: "const";
 	value: string;

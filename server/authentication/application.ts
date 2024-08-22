@@ -551,8 +551,7 @@ export function configureAuthentication(
 				kind: "choice",
 				prompts: await Promise.all(
 					ceremony.components.map(async (component) => {
-						const identityComponent =
-							configuration.identityComponentProviders[component.component];
+						const identityComponent = configuration.identityComponentProviders[component.component];
 						if (!identityComponent) {
 							throw new UnknownIdentityComponentError();
 						}

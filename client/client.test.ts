@@ -86,7 +86,7 @@ Deno.test("Client", async (t) => {
 		assertEquals(result3, "Hello Foo");
 	});
 
-	await t.step("register", async () => {
+	await t.step("register & onAuthenticationStateChange", async () => {
 		const { client, notificationProvider } = await setupServer();
 		const submitEmail = await client.rpc(["registration", "submitPrompt"], {
 			id: "email",
@@ -113,11 +113,21 @@ Deno.test("Client", async (t) => {
 		});
 		assert("state" in submitValidationCode);
 
+		const stack: any[] = [];
+		const unlisten = client.onAuthenticationStateChange((identity) => {
+			stack.push(identity);
+		});
+
 		const submitPassword = await client.rpc(["registration", "submitPrompt"], {
 			id: "password",
 			value: "123",
 			state: submitValidationCode.state,
 		});
 		assert("access_token" in submitPassword);
+
+		assert(stack.length === 1);
+		unlisten();
+
+		client.dispose();
 	});
 });

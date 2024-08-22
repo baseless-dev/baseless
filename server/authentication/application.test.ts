@@ -336,8 +336,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			}
 			let code: string | undefined;
 			{
-				const notifications =
-					(context.notification as MemoryNotificationProvider).notifications;
+				const notifications = (context.notification as MemoryNotificationProvider).notifications;
 				notifications.clear();
 				const result = await app.invokeRpc({
 					key: ["registration", "sendValidationCode"],

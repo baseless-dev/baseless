@@ -5,6 +5,7 @@
 		".": "./mod.ts",
 		"./authentication": "./authentication.ts",
 		"./command": "./command.ts",
+		"./eventemitter": "./eventemitter.ts",
 		"./document": "./document.ts",
 		"./id": "./id.ts",
 		"./identity": "./identity.ts",

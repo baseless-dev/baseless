@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import type {
 	ApplicationBuilder,
 	CollectionDefinition,
@@ -8,11 +9,17 @@ import type {
 	WithSecurity,
 } from "@baseless/server/application";
 import type { Static } from "@sinclair/typebox";
-import { isResultError, isResults, isResultSingle, ResultSingle } from "@baseless/core/result";
+import { isResultError, isResults, isResultSingle } from "@baseless/core/result";
 import MemoryStorage from "./memory_storage.ts";
-import { CommandSingle } from "../core/command.ts";
-import { isProfile, Profile } from "./types.ts";
+import { CommandSingle } from "@baseless/core/command";
 import { stableStringify } from "./stablestringify.ts";
+import { assertIdentity, type Identity } from "@baseless/core/identity";
+import {
+	type AuthenticationTokens,
+	isAuthenticationTokens,
+} from "@baseless/server/authentication/types";
+import { EventEmitter } from "@baseless/core/eventemitter";
+import { isPathMatching } from "@baseless/core/path";
 
 export interface ClientInitialization {
 	clientId: string;
@@ -38,14 +45,29 @@ export class Client {
 	#apiEndpoint: string;
 	#fetch: typeof globalThis.fetch;
 	#batchSize: number;
-	#storage: Storage;
+	#storage!: Storage;
+	#tokens: AuthenticationTokens[];
+	#currentToken: number;
+	#expirationTimer?: number;
+	#events: EventEmitter<{ onAuthenticationStateChange: [identity: Identity | undefined] }>;
 
 	constructor(initialization: ClientInitialization) {
 		this.#clientId = initialization.clientId;
 		this.#apiEndpoint = initialization.apiEndpoint;
 		this.#fetch = initialization.fetch ?? globalThis.fetch;
 		this.#batchSize = initialization.batchSize ?? 10;
-		this.#storage = new MemoryStorage();
+		this.#tokens = [];
+		this.#currentToken = -1;
+		this.#events = new EventEmitter();
+		this.storage = new MemoryStorage();
+	}
+
+	[Symbol.dispose](): void {
+		this.#expirationTimer && clearTimeout(this.#expirationTimer);
+	}
+
+	dispose(): void {
+		this[Symbol.dispose]();
 	}
 
 	get storage(): Storage {
@@ -54,16 +76,83 @@ export class Client {
 
 	set storage(storage: Storage) {
 		this.#storage = storage;
+		this.#readData();
+		this.#setupTimer();
 	}
 
-	get profiles(): Profile[] {
-		const item = this.#storage.getItem(`bls:${this.#clientId}:profiles`);
-		const profiles = JSON.parse(item ?? "[]");
-		return Array.isArray(profiles) && profiles.every(isProfile) ? profiles : [];
+	get tokens(): ReadonlyArray<Readonly<AuthenticationTokens>> {
+		return this.#tokens;
 	}
 
-	switchProfile(index: number): void {
-		throw "TODO!";
+	set tokens(value: AuthenticationTokens[]) {
+		this.#tokens = value;
+		this.#writeData();
+		if (this.#currentToken >= this.#tokens.length) {
+			this.currentToken = -1;
+		}
+	}
+
+	get currentToken(): number {
+		return this.#currentToken;
+	}
+
+	set currentToken(value: number) {
+		if (value >= -1 && value < this.#tokens.length) {
+			this.#currentToken = value;
+			this.#writeData();
+			this.#setupTimer();
+		} else {
+			throw new Error("Invalid token index");
+		}
+	}
+
+	#readData(): void {
+		const tokens = JSON.parse(
+			this.#storage.getItem(`baseless:${this.#clientId}:tokens`) ?? "{}",
+		);
+		this.#tokens = Array.isArray(tokens) && tokens.every(isAuthenticationTokens) ? tokens : [];
+		const currentToken = parseInt(
+			this.#storage.getItem(`baseless:${this.#clientId}:currentToken`) ?? "-1",
+			10,
+		);
+		this.#currentToken = currentToken;
+	}
+
+	#writeData(): void {
+		this.#storage.setItem(`baseless:${this.#clientId}:tokens`, JSON.stringify(this.#tokens));
+		this.#storage.setItem(
+			`baseless:${this.#clientId}:currentToken`,
+			this.#currentToken.toString(),
+		);
+	}
+
+	#setupTimer(): void {
+		const currentToken = this.tokens[this.currentToken];
+		if (currentToken) {
+			const { exp: accessTokenExp = Number.MAX_VALUE } = JSON.parse(
+				atob(currentToken.access_token.split(".").at(1)!),
+			);
+			const { exp: refreshTokenExp = Number.MAX_VALUE } = currentToken.refresh_token
+				? JSON.parse(atob(currentToken.refresh_token.split(".").at(1)!))
+				: {};
+			const { sub: identityId, data } = JSON.parse(
+				atob(currentToken.id_token.split(".").at(1)!),
+			);
+			const identity = { identityId, data };
+			assertIdentity(identity);
+			const expiration = parseInt(refreshTokenExp ?? accessTokenExp, 10);
+			this.#expirationTimer = setTimeout(
+				() => {
+					this.currentToken = -1;
+				},
+				expiration * 1000 - Date.now(),
+			);
+			this.#events.emit("onAuthenticationStateChange", identity);
+		} else {
+			this.#expirationTimer && clearTimeout(this.#expirationTimer);
+			this.#expirationTimer = undefined;
+			this.#events.emit("onAuthenticationStateChange", undefined);
+		}
 	}
 
 	#commandCache: Map<string, Promise<unknown>> = new Map();
@@ -93,12 +182,28 @@ export class Client {
 			if (isResults(result)) {
 				for (const [index, value] of result.results.entries()) {
 					if (isResultSingle(value)) {
-						commands[index].resolve(value.value);
+						const command = commands[index];
+						// deno-fmt-ignore
+						if (
+							(
+								isPathMatching(["authentication", "submitPrompt"], command.command.rpc) ||
+								isPathMatching(["registration", "submitPrompt"], command.command.rpc) ||
+								isPathMatching(["registration", "submitValidationCode"], command.command.rpc) ||
+								isPathMatching(["registration", "getCeremony"], command.command.rpc) ||
+								isPathMatching(["authentication", "getCeremony"], command.command.rpc)
+							) && isAuthenticationTokens(value.value)
+						) {
+							// Switch to latest tokens
+							this.tokens = [...this.tokens, value.value];
+							this.currentToken = this.tokens.length - 1;
+						}
+						command.resolve(value.value);
 					} else {
 						commands[index].reject(value.error);
 					}
 				}
 			} else if (isResultError(result)) {
+				// TODO if authentication token error, clear token
 				for (const command of commands) {
 					command.reject(result.error);
 				}
@@ -132,6 +237,12 @@ export class Client {
 			this.#batchTimout = setTimeout(this.#processCommandQueue.bind(this), 0);
 		}
 		return promise;
+	}
+
+	onAuthenticationStateChange(
+		listener: (identity: Identity | undefined) => void | Promise<void>,
+	): () => void {
+		return this.#events.on("onAuthenticationStateChange", listener);
 	}
 
 	rpc(key: string[], input: unknown): Promise<unknown> {

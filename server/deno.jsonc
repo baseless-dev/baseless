@@ -5,6 +5,7 @@
 		".": "./mod.ts",
 		"./application": "./application/mod.ts",
 		"./authentication": "./authentication/mod.ts",
+		"./authentication/types": "./authentication/types.ts",
 		"./provider": "./provider/mod.ts",
 		"./provider/document.test": "./provider/document.test.ts",
 		"./provider/kv.test": "./provider/kv.test.ts",

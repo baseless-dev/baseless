@@ -75,10 +75,10 @@ export function configureAuthentication(
 						if (isID("sid_", payload.sub)) {
 							const key = await context.kv.get(["sessions", payload.sub]);
 							assertSession(key.value);
-							const { scope, aat } = { scope: "", aat: 0, ...payload };
+							const { scope, aat } = { scope: [], aat: 0, ...payload };
 							currentSession = {
 								...key.value,
-								scope: scope.split(/ +/),
+								scope,
 								aat,
 							};
 						}
@@ -551,7 +551,8 @@ export function configureAuthentication(
 				kind: "choice",
 				prompts: await Promise.all(
 					ceremony.components.map(async (component) => {
-						const identityComponent = configuration.identityComponentProviders[component.component];
+						const identityComponent =
+							configuration.identityComponentProviders[component.component];
 						if (!identityComponent) {
 							throw new UnknownIdentityComponentError();
 						}
@@ -592,7 +593,7 @@ export function configureAuthentication(
 			"identities",
 			state.identityId!,
 		]);
-		const session: Session = {
+		const session = {
 			identityId: identity.data.identityId,
 			sessionId: id("sid_"),
 			scope: state.scope ?? [],
@@ -602,6 +603,9 @@ export function configureAuthentication(
 			identity.data,
 			session,
 		);
+		await context.kv.put(["sessions", session.sessionId], session, {
+			expiration: refreshTokenTTL,
+		});
 		return { access_token, id_token, refresh_token };
 	}
 

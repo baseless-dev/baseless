@@ -22,7 +22,7 @@ export function isSession(value: unknown): value is Session {
 	return !!value && typeof value === "object" &&
 		(!("sessionId" in value) || ("sessionId" in value && isID("sid_", value.sessionId))) &&
 		"identityId" in value && isID("id_", value.identityId) && "scope" in value &&
-		typeof value.scope === "string" &&
+		Array.isArray(value.scope) && value.scope.every((s) => typeof s === "string") &&
 		"aat" in value && typeof value.aat === "number";
 }
 

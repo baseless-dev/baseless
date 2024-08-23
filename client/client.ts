@@ -47,8 +47,9 @@ export class Client {
 	#batchSize: number;
 	#storage!: Storage;
 	#tokens: AuthenticationTokens[];
-	#currentToken: number;
+	#currentTokenIndex: number;
 	#expirationTimer?: number;
+	#accessTokenExpiration?: number;
 	#events: EventEmitter<{ onAuthenticationStateChange: [identity: Identity | undefined] }>;
 
 	constructor(initialization: ClientInitialization) {
@@ -57,7 +58,7 @@ export class Client {
 		this.#fetch = initialization.fetch ?? globalThis.fetch;
 		this.#batchSize = initialization.batchSize ?? 10;
 		this.#tokens = [];
-		this.#currentToken = -1;
+		this.#currentTokenIndex = -1;
 		this.#events = new EventEmitter();
 		this.storage = new MemoryStorage();
 	}
@@ -87,18 +88,25 @@ export class Client {
 	set tokens(value: AuthenticationTokens[]) {
 		this.#tokens = value;
 		this.#writeData();
-		if (this.#currentToken >= this.#tokens.length) {
-			this.currentToken = -1;
+		if (this.#currentTokenIndex >= this.#tokens.length) {
+			this.#currentTokenIndex = -1;
 		}
 	}
 
-	get currentToken(): number {
-		return this.#currentToken;
+	get currentToken(): AuthenticationTokens | undefined {
+		return this.#tokens[this.#currentTokenIndex];
 	}
 
-	set currentToken(value: number) {
-		if (value >= -1 && value < this.#tokens.length) {
-			this.#currentToken = value;
+	set currentToken(value: AuthenticationTokens | undefined) {
+		if (!value) {
+			this.#currentTokenIndex = -1;
+			this.#writeData();
+			this.#setupTimer();
+			return;
+		}
+		const index = this.#tokens.indexOf(value);
+		if (index > -1) {
+			this.#currentTokenIndex = index;
 			this.#writeData();
 			this.#setupTimer();
 		} else {
@@ -115,19 +123,19 @@ export class Client {
 			this.#storage.getItem(`baseless:${this.#clientId}:currentToken`) ?? "-1",
 			10,
 		);
-		this.#currentToken = currentToken;
+		this.#currentTokenIndex = currentToken;
 	}
 
 	#writeData(): void {
 		this.#storage.setItem(`baseless:${this.#clientId}:tokens`, JSON.stringify(this.#tokens));
 		this.#storage.setItem(
 			`baseless:${this.#clientId}:currentToken`,
-			this.#currentToken.toString(),
+			this.#currentTokenIndex.toString(),
 		);
 	}
 
 	#setupTimer(): void {
-		const currentToken = this.tokens[this.currentToken];
+		const currentToken = this.currentToken;
 		if (currentToken) {
 			const { exp: accessTokenExp = Number.MAX_VALUE } = JSON.parse(
 				atob(currentToken.access_token.split(".").at(1)!),
@@ -141,9 +149,10 @@ export class Client {
 			const identity = { identityId, data };
 			assertIdentity(identity);
 			const expiration = parseInt(refreshTokenExp ?? accessTokenExp, 10);
+			this.#accessTokenExpiration = parseInt(accessTokenExp, 10);
 			this.#expirationTimer = setTimeout(
 				() => {
-					this.currentToken = -1;
+					this.currentToken = undefined;
 				},
 				expiration * 1000 - Date.now(),
 			);
@@ -166,12 +175,45 @@ export class Client {
 	#batchTimout: number | null = null;
 
 	async #processCommandQueue(): Promise<void> {
+		const now = Date.now() / 1000 >> 0;
+		let currentToken = this.currentToken;
+		if (
+			currentToken?.access_token && currentToken.refresh_token &&
+			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
+		) {
+			const response = await this.#fetch(this.#apiEndpoint, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					kind: "command",
+					rpc: ["authentication", "refreshToken"],
+					input: currentToken.refresh_token,
+				}),
+			});
+			const token = await response.json();
+			if (isAuthenticationTokens(token)) {
+				this.tokens = [
+					...this.tokens.filter((_, i) => i !== this.#currentTokenIndex),
+					token,
+				];
+				this.currentToken = token;
+				currentToken = token;
+			} else {
+				this.tokens = this.tokens.filter((_, i) => i !== this.#currentTokenIndex);
+				this.currentToken = undefined;
+			}
+		}
 		const commands = this.#commandQueue.splice(0, this.#batchSize);
 		try {
 			const response = await this.#fetch(this.#apiEndpoint, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
+					...(currentToken?.access_token
+						? { Authorization: `Bearer ${currentToken.access_token}` }
+						: {}),
 				},
 				body: JSON.stringify({
 					kind: "commands",
@@ -183,6 +225,7 @@ export class Client {
 				for (const [index, value] of result.results.entries()) {
 					if (isResultSingle(value)) {
 						const command = commands[index];
+						command.resolve(value.value);
 						// deno-fmt-ignore
 						if (
 							(
@@ -195,9 +238,13 @@ export class Client {
 						) {
 							// Switch to latest tokens
 							this.tokens = [...this.tokens, value.value];
-							this.currentToken = this.tokens.length - 1;
+							this.currentToken = value.value;
+						} else if (
+							isPathMatching(["authentication", "signOut"], command.command.rpc)
+						) {
+							this.tokens = this.tokens.filter((_, i) => i !== this.#currentTokenIndex);
+							this.currentToken = undefined;
 						}
-						command.resolve(value.value);
 					} else {
 						commands[index].reject(value.error);
 					}
@@ -241,7 +288,7 @@ export class Client {
 
 	onAuthenticationStateChange(
 		listener: (identity: Identity | undefined) => void | Promise<void>,
-	): () => void {
+	): Disposable {
 		return this.#events.on("onAuthenticationStateChange", listener);
 	}
 

@@ -120,7 +120,6 @@ export type EventDefinitionSecurity<
 > = (options: {
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
-	payload: Static<TPayloadSchema>;
 }) => Promise<Permission>;
 
 export interface EventDefinitionWithSecurity<
@@ -136,12 +135,6 @@ export type EventDefinition<
 > =
 	| EventDefinitionWithoutSecurity<TPath, TPayloadSchema>
 	| EventDefinitionWithSecurity<TPath, TPayloadSchema>;
-
-// deno-fmt-ignore
-export type EventDefinitionHasSecurity<TDefinition> =
-	TDefinition extends EventDefinitionWithSecurity<any, any>
-	? TDefinition
-	: never;
 
 export interface DocumentDefinitionWithoutSecurity<
 	TPath extends string[],
@@ -161,7 +154,6 @@ export type DocumentDefinitionSecurity<
 > = (options: {
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
-	document?: Document<Static<TDocumentSchema>>;
 }) => Promise<Permission>;
 
 export interface DocumentDefinitionWithSecurity<
@@ -201,7 +193,6 @@ export type CollectionDefinitionSecurity<
 > = (options: {
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
-	key: ReplaceVariableInPathSegment<TPath>;
 }) => Promise<Permission>;
 
 export interface CollectionDefinitionWithSecurity<
@@ -238,7 +229,7 @@ export interface EventListener<
 	handler: EventListenerHandler<TPath, any, [], [], TPayloadSchema>;
 }
 
-export type DocumentAtomicListenerHandler<
+export type DocumentAtomicSetListenerHandler<
 	TPath extends string[],
 	TDecoration extends {},
 	TDocument extends Array<DocumentDefinition<any, any>>,
@@ -247,19 +238,19 @@ export type DocumentAtomicListenerHandler<
 > = (options: {
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
-	document?: Document<Static<TDocumentSchema>>;
+	document: Document<Static<TDocumentSchema>>;
 	atomic: IDocumentAtomic<TDocument, TCollection>;
 }) => Promise<void>;
 
-export interface DocumentAtomicListener<
+export interface DocumentAtomicSetListener<
 	TPath extends string[],
 	TDocumentSchema extends TSchema,
 > {
 	path: TPath;
-	handler: DocumentAtomicListenerHandler<TPath, any, [], [], TDocumentSchema>;
+	handler: DocumentAtomicSetListenerHandler<TPath, any, [], [], TDocumentSchema>;
 }
 
-export type DocumentListenerHandler<
+export type DocumentAtomicDeleteListenerHandler<
 	TPath extends string[],
 	TDecoration extends {},
 	TDocument extends Array<DocumentDefinition<any, any>>,
@@ -268,15 +259,54 @@ export type DocumentListenerHandler<
 > = (options: {
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
-	document?: Document<Static<TDocumentSchema>>;
+	atomic: IDocumentAtomic<TDocument, TCollection>;
 }) => Promise<void>;
 
-export interface DocumentListener<
+export interface DocumentAtomicDeleteListener<
 	TPath extends string[],
 	TDocumentSchema extends TSchema,
 > {
 	path: TPath;
-	handler: DocumentListenerHandler<TPath, any, [], [], TDocumentSchema>;
+	handler: DocumentAtomicDeleteListenerHandler<TPath, any, [], [], TDocumentSchema>;
+}
+
+export type DocumentSetListenerHandler<
+	TPath extends string[],
+	TDecoration extends {},
+	TDocument extends Array<DocumentDefinition<any, any>>,
+	TCollection extends Array<CollectionDefinition<any, any>>,
+	TDocumentSchema extends TSchema,
+> = (options: {
+	context: Context<TDecoration, TDocument, TCollection>;
+	params: PathAsType<TPath>;
+	document: Document<Static<TDocumentSchema>>;
+}) => Promise<void>;
+
+export interface DocumentSetListener<
+	TPath extends string[],
+	TDocumentSchema extends TSchema,
+> {
+	path: TPath;
+	handler: DocumentSetListenerHandler<TPath, any, [], [], TDocumentSchema>;
+}
+
+export type DocumentDeleteListenerHandler<
+	TPath extends string[],
+	TDecoration extends {},
+	TDocument extends Array<DocumentDefinition<any, any>>,
+	TCollection extends Array<CollectionDefinition<any, any>>,
+	TDocumentSchema extends TSchema,
+> = (options: {
+	context: Context<TDecoration, TDocument, TCollection>;
+	params: PathAsType<TPath>;
+}) => Promise<void>;
+
+export interface DocumentDeleteListener<
+	TPath extends string[],
+	TDocumentSchema extends TSchema,
+> {
+	path: TPath;
+	handler: DocumentDeleteListenerHandler<TPath, any, [], [], TDocumentSchema>;
 }
 
 export type PickAtPath<TEvent extends Array<{ path: any }>, TPath extends string[]> = {

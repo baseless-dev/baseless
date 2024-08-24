@@ -110,7 +110,7 @@ export function configureAuthentication(
 			["identities", "{identityId}", "components", "{kind}"],
 			async ({ params, atomic, context, document }) => {
 				// When new identity component is created with an identification, ensure that it's unique in the identifications collection
-				if (document?.data.identification) {
+				if (document.data.identification) {
 					const doc = await context.document.get([
 						"identifications",
 						document.data.componentId,
@@ -134,9 +134,14 @@ export function configureAuthentication(
 		)
 		.onDocumentDeleting(
 			["identities", "{identityId}", "components", "{kind}"],
-			async ({ document, atomic }) => {
-				// When identity component is deleted with an identification, ensure that it's removed from the identifications collection
-				if (document?.data.identification) {
+			async ({ atomic, context, params }) => {
+				const document = await context.document.get([
+					"identities",
+					params.identityId,
+					"components",
+					params.kind,
+				]);
+				if (document.data.identification) {
 					atomic.delete([
 						"identifications",
 						document.data.componentId,
@@ -551,7 +556,8 @@ export function configureAuthentication(
 				kind: "choice",
 				prompts: await Promise.all(
 					ceremony.components.map(async (component) => {
-						const identityComponent = configuration.identityComponentProviders[component.component];
+						const identityComponent =
+							configuration.identityComponentProviders[component.component];
 						if (!identityComponent) {
 							throw new UnknownIdentityComponentError();
 						}

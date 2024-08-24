@@ -1,12 +1,14 @@
 // deno-lint-ignore-file no-explicit-any
-import { createPathMatcher, isPathMatching, PathAsType, PathMatcher } from "@baseless/core/path";
+import { createPathMatcher, PathAsType, PathMatcher } from "@baseless/core/path";
 import {
 	type CollectionDefinition,
 	type Context,
 	type Decorator,
-	type DocumentAtomicListener,
+	DocumentAtomicDeleteListener,
+	DocumentAtomicSetListener,
 	type DocumentDefinition,
-	type DocumentListener,
+	DocumentDeleteListener,
+	DocumentSetListener,
 	type EventDefinition,
 	type EventListener,
 	hasPermission,
@@ -16,13 +18,12 @@ import {
 import { Value } from "@sinclair/typebox/value";
 import { Document } from "@baseless/core/document";
 import {
-	DocumentAtomic,
 	DocumentAtomicCheck,
 	DocumentAtomicOperation,
+	DocumentGetOptions,
 	DocumentListEntry,
 	DocumentProvider,
 } from "../provider/document.ts";
-import { CommandDocumentAtomicOp } from "../../core/command.ts";
 
 export class Application {
 	#decorators: ReadonlyArray<Decorator<any>>;
@@ -31,17 +32,17 @@ export class Application {
 	#documentDefinitions: ReadonlyArray<DocumentDefinition<any, any>>;
 	#collectionDefinitions: ReadonlyArray<CollectionDefinition<any, any>>;
 	#eventListeners: ReadonlyArray<EventListener<any, any>>;
-	#documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>;
-	#documentSavedListeners: ReadonlyArray<DocumentListener<any, any>>;
-	#documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>;
-	#documentDeletedListeners: ReadonlyArray<DocumentListener<any, any>>;
+	#documentSavingListeners: ReadonlyArray<DocumentAtomicSetListener<any, any>>;
+	#documentSavedListeners: ReadonlyArray<DocumentSetListener<any, any>>;
+	#documentDeletingListeners: ReadonlyArray<DocumentAtomicDeleteListener<any, any>>;
+	#documentDeletedListeners: ReadonlyArray<DocumentDeleteListener<any, any>>;
 	#rpcMatcher: PathMatcher<RpcDefinition<any, any, any>>;
 	#documentMatcher: PathMatcher<DocumentDefinition<any, any>>;
 	#collectionMatcher: PathMatcher<CollectionDefinition<any, any>>;
-	#documentSavingListenersMatcher: PathMatcher<DocumentAtomicListener<any, any>>;
-	#documentSavedListenersMatcher: PathMatcher<DocumentListener<any, any>>;
-	#documentDeletingListenersMatcher: PathMatcher<DocumentAtomicListener<any, any>>;
-	#documentDeletedListenersMatcher: PathMatcher<DocumentListener<any, any>>;
+	#documentSavingListenersMatcher: PathMatcher<DocumentAtomicSetListener<any, any>>;
+	#documentSavedListenersMatcher: PathMatcher<DocumentSetListener<any, any>>;
+	#documentDeletingListenersMatcher: PathMatcher<DocumentAtomicDeleteListener<any, any>>;
+	#documentDeletedListenersMatcher: PathMatcher<DocumentDeleteListener<any, any>>;
 
 	constructor(
 		decorators: ReadonlyArray<Decorator<any>>,
@@ -50,10 +51,10 @@ export class Application {
 		documentDefinitions: ReadonlyArray<DocumentDefinition<any, any>>,
 		collectionDefinitions: ReadonlyArray<CollectionDefinition<any, any>>,
 		eventListeners: ReadonlyArray<EventListener<any, any>>,
-		documentSavingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>,
-		documentSavedListeners: ReadonlyArray<DocumentListener<any, any>>,
-		documentDeletingListeners: ReadonlyArray<DocumentAtomicListener<any, any>>,
-		documentDeletedListeners: ReadonlyArray<DocumentListener<any, any>>,
+		documentSavingListeners: ReadonlyArray<DocumentAtomicSetListener<any, any>>,
+		documentSavedListeners: ReadonlyArray<DocumentSetListener<any, any>>,
+		documentDeletingListeners: ReadonlyArray<DocumentAtomicDeleteListener<any, any>>,
+		documentDeletedListeners: ReadonlyArray<DocumentDeleteListener<any, any>>,
 	) {
 		this.#decorators = decorators;
 		this.#rpcDefinitions = rpcDefinitions;
@@ -89,7 +90,8 @@ export class Application {
 		}
 	}
 
-	async invokeRpc({ context, input, rpc }: {
+	async invokeRpc({ bypassSecurity, context, input, rpc }: {
+		bypassSecurity?: boolean;
 		context: Context<any, any, any>;
 		input: unknown;
 		rpc: string[];
@@ -102,27 +104,31 @@ export class Application {
 		if (!Value.Check(definition.input, input)) {
 			throw new InvalidInputError();
 		}
-		const options = {
+		const definitionOptions = {
 			context,
 			params: PathAsType(definition.path, rpc),
 			input,
 		};
-		if ("security" in definition) {
-			if (!hasPermission(await definition.security(options), Permission.Execute)) {
-				throw new ForbiddenError();
-			}
-		} else {
+		if (
+			bypassSecurity !== true &&
+			(
+				!("security" in definition) ||
+				!hasPermission(await definition.security(definitionOptions), Permission.Execute)
+			)
+		) {
 			throw new ForbiddenError();
 		}
-		const output = await definition.handler(options);
+		const output = await definition.handler(definitionOptions);
 		if (!Value.Check(definition.output, output)) {
 			throw new InvalidOutputError();
 		}
 		return output;
 	}
 
-	async getDocument({ context, path, provider }: {
+	async getDocument({ bypassSecurity, context, options, path, provider }: {
+		bypassSecurity?: boolean;
 		context: Context<any, any, any>;
+		options?: DocumentGetOptions;
 		path: string[];
 		provider: DocumentProvider;
 	}): Promise<Document> {
@@ -131,63 +137,62 @@ export class Application {
 			throw new UnknownDocumentError();
 		}
 		const definition = firstResult.value;
-		const document = await provider.get(path, { consistency: "eventual" });
-		const options = {
-			context,
-			params: PathAsType(definition.path, path),
-			document,
-		};
-		if ("security" in definition) {
-			if (!hasPermission(await definition.security(options), Permission.Get)) {
-				throw new ForbiddenError();
-			}
-		} else {
+		if (
+			bypassSecurity !== true &&
+			(
+				!("security" in definition) ||
+				!hasPermission(
+					await definition.security({
+						context,
+						params: PathAsType(definition.path, path),
+					}),
+					Permission.Get,
+				)
+			)
+		) {
 			throw new ForbiddenError();
 		}
-		return document;
+		return provider.get(path, options);
 	}
 
-	async getManyDocument({ context, paths, provider }: {
+	async getManyDocument({ bypassSecurity, context, options, paths, provider }: {
+		bypassSecurity?: boolean;
 		context: Context<any, any, any>;
+		options?: DocumentGetOptions;
 		paths: Array<string[]>;
 		provider: DocumentProvider;
 	}): Promise<Array<Document>> {
-		const documents = await provider.getMany(paths, {
-			consistency: "eventual",
-		});
 		for (const path of paths) {
-			const document = documents.find((doc) => isPathMatching(path, doc.key));
-			if (!document) {
-				throw new UnknownDocumentError();
-			}
-			const firstResult = this.#documentMatcher(document.key).next();
+			const firstResult = this.#documentMatcher(path).next();
 			if (firstResult.done) {
 				throw new UnknownDocumentError();
 			}
 			const definition = firstResult.value;
-			const options = {
+			const definitionOptions = {
 				context,
-				params: PathAsType(definition.path, document.key),
-				document,
+				params: PathAsType(definition.path, path),
 			};
-			if ("security" in definition) {
-				if (!hasPermission(await definition.security(options), Permission.Get)) {
-					throw new ForbiddenError();
-				}
-			} else {
+			if (
+				bypassSecurity !== true &&
+				(
+					!("security" in definition) ||
+					!hasPermission(await definition.security(definitionOptions), Permission.Get)
+				)
+			) {
 				throw new ForbiddenError();
 			}
 		}
-		return documents;
+		return provider.getMany(paths, options);
 	}
 
-	async listDocument({ context, cursor, limit, prefix, provider }: {
+	async *listDocument({ bypassSecurity, context, cursor, limit, prefix, provider }: {
+		bypassSecurity?: boolean;
 		context: Context<any, any, any>;
 		cursor?: string;
 		limit?: number;
 		prefix: string[];
 		provider: DocumentProvider;
-	}): Promise<AsyncIterableIterator<DocumentListEntry>> {
+	}): AsyncIterableIterator<DocumentListEntry> {
 		const firstResult = this.#collectionMatcher(prefix).next();
 		if (firstResult.done) {
 			throw new UnknownCollectionError();
@@ -198,43 +203,44 @@ export class Application {
 			params: PathAsType(definition.path, prefix),
 			key: prefix,
 		};
-		if ("security" in definition) {
-			if (!hasPermission(await definition.security(options), Permission.List)) {
-				throw new ForbiddenError();
-			}
-		} else {
+		if (
+			bypassSecurity !== true &&
+			(
+				!("security" in definition) ||
+				!hasPermission(await definition.security(options), Permission.List)
+			)
+		) {
 			throw new ForbiddenError();
 		}
-		return provider.list({
-			prefix,
-			cursor,
-			limit,
-		});
+		yield* provider.list({ prefix, cursor, limit });
 	}
 
-	async commitDocumentAtomic({ checks, context, ops, provider }: {
+	async commitDocumentAtomic({ bypassSecurity, checks, context, operations, provider }: {
+		bypassSecurity?: boolean;
 		checks: DocumentAtomicCheck[];
 		context: Context<any, any, any>;
-		ops: DocumentAtomicOperation[];
+		operations: DocumentAtomicOperation[];
 		provider: DocumentProvider;
 	}): Promise<void> {
-		await this.getManyDocument({
-			paths: checks.map((c) => c.key),
-			context,
-			provider,
-		});
+		if (bypassSecurity !== true) {
+			await this.getManyDocument({
+				paths: checks.map((c) => c.key),
+				context,
+				provider,
+			});
+		}
 		const atomic = provider.atomic();
 		for (const check of checks) {
 			atomic.check(check.key, check.versionstamp);
 		}
-		const opsCache: Array<{
-			document?: Document<unknown>;
-			op: CommandDocumentAtomicOp;
-		}> = [];
-		for (const op of ops) {
-			const document = op.type === "set"
-				? { key: op.key, data: op.data, versionstamp: "" }
-				: undefined;
+		for (const op of operations) {
+			if (op.type === "delete") {
+				atomic.delete(op.key);
+			} else {
+				atomic.set(op.key, op.data);
+			}
+		}
+		for (const op of atomic.operations) {
 			const firstResult = this.#documentMatcher(op.key).next();
 			if (firstResult.done) {
 				throw new UnknownDocumentError();
@@ -243,31 +249,26 @@ export class Application {
 			const options = {
 				context,
 				params: PathAsType(definition.path, op.key),
-				document,
 			};
-			if ("security" in definition) {
-				const result = await definition.security(options);
-				if (op.type === "delete") {
-					if (!hasPermission(result, Permission.Delete)) {
-						throw new ForbiddenError();
-					}
-				} else {
-					if (!hasPermission(result, Permission.Set)) {
-						throw new ForbiddenError();
-					}
-				}
-				opsCache.push({ document, op });
-			} else {
+			if (
+				bypassSecurity !== true &&
+				(
+					!("security" in definition) ||
+					!hasPermission(
+						await definition.security(options),
+						op.type === "delete" ? Permission.Delete : Permission.Set,
+					)
+				)
+			) {
 				throw new ForbiddenError();
 			}
 			if (op.type === "delete") {
-				atomic.delete(op.key);
 				for (const event of this.#documentDeletingListenersMatcher(op.key)) {
 					const params = PathAsType(event.path, op.key);
-					await event.handler({ context, params, document, atomic });
+					await event.handler({ context, params, atomic });
 				}
 			} else {
-				atomic.set(op.key, op.data);
+				const document = { key: op.key, data: op.data, versionstamp: "" };
 				for (const event of this.#documentSavingListenersMatcher(op.key)) {
 					const params = PathAsType(event.path, op.key);
 					await event.handler({ context, params, document, atomic });
@@ -275,126 +276,17 @@ export class Application {
 			}
 		}
 		await atomic.commit();
-		for (const { op, document } of opsCache) {
+		for (const op of atomic.operations) {
 			if (op.type === "delete") {
 				for (const event of this.#documentDeletedListenersMatcher(op.key)) {
 					const params = PathAsType(event.path, op.key);
-					await event.handler({ context, params, document })
-						.catch((_) => {});
+					await event.handler({ context, params }).catch((_) => {});
 				}
 			} else {
+				const document = { key: op.key, data: op.data, versionstamp: "" };
 				for (const event of this.#documentSavedListenersMatcher(op.key)) {
 					const params = PathAsType(event.path, op.key);
-					await event.handler({ context, params, document })
-						.catch((_) => {});
-				}
-			}
-		}
-	}
-
-	getDocumentAtomic({ context, provider }: {
-		context: Context<any, any, any>;
-		provider: DocumentProvider;
-	}): DocumentAtomic {
-		return new ApplicationDocumentAtomicFacade(
-			this.#documentMatcher,
-			this.#collectionMatcher,
-			this.#documentSavingListenersMatcher,
-			this.#documentSavedListenersMatcher,
-			this.#documentDeletingListenersMatcher,
-			this.#documentDeletedListenersMatcher,
-			context,
-			provider,
-		);
-	}
-}
-
-export class ApplicationDocumentAtomicFacade extends DocumentAtomic {
-	#documentMatcher: PathMatcher<DocumentDefinition<any, any>>;
-	#collectionMatcher: PathMatcher<CollectionDefinition<any, any>>;
-	#documentSavingListenersMatcher: PathMatcher<DocumentAtomicListener<any, any>>;
-	#documentSavedListenersMatcher: PathMatcher<DocumentListener<any, any>>;
-	#documentDeletingListenersMatcher: PathMatcher<DocumentAtomicListener<any, any>>;
-	#documentDeletedListenersMatcher: PathMatcher<DocumentListener<any, any>>;
-	#context: Context<any, any, any>;
-	#provider: DocumentProvider;
-
-	constructor(
-		documentMatcher: PathMatcher<DocumentDefinition<any, any>>,
-		collectionMatcher: PathMatcher<CollectionDefinition<any, any>>,
-		documentSavingListenersMatcher: PathMatcher<DocumentAtomicListener<any, any>>,
-		documentSavedListenersMatcher: PathMatcher<DocumentListener<any, any>>,
-		documentDeletingListenersMatcher: PathMatcher<DocumentAtomicListener<any, any>>,
-		documentDeletedListenersMatcher: PathMatcher<DocumentListener<any, any>>,
-		context: Context<any, any, any>,
-		provider: DocumentProvider,
-	) {
-		super();
-		this.#documentMatcher = documentMatcher;
-		this.#collectionMatcher = collectionMatcher;
-		this.#documentSavingListenersMatcher = documentSavingListenersMatcher;
-		this.#documentSavedListenersMatcher = documentSavedListenersMatcher;
-		this.#documentDeletingListenersMatcher = documentDeletingListenersMatcher;
-		this.#documentDeletedListenersMatcher = documentDeletedListenersMatcher;
-		this.#context = context;
-		this.#provider = provider;
-	}
-
-	async commit(): Promise<void> {
-		const atomic = this.#provider.atomic();
-		for (const check of this.checks) {
-			atomic.check(check.key, check.versionstamp);
-		}
-		const opsCache: Array<{
-			document?: Document<unknown>;
-			op: CommandDocumentAtomicOp;
-		}> = [];
-		for (const op of this.ops) {
-			const document = op.type === "set"
-				? { key: op.key, data: op.data, versionstamp: "" }
-				: undefined;
-			const firstResult = this.#documentMatcher(op.key).next();
-			if (firstResult.done) {
-				throw new UnknownDocumentError();
-			}
-			if (op.type === "delete") {
-				atomic.delete(op.key);
-				for (const event of this.#documentDeletingListenersMatcher(op.key)) {
-					const params = PathAsType(event.path, op.key);
-					await event.handler({
-						context: this.#context,
-						params,
-						document: undefined,
-						atomic,
-					});
-				}
-			} else {
-				atomic.set(op.key, op.data);
-				for (const event of this.#documentSavingListenersMatcher(op.key)) {
-					const params = PathAsType(event.path, op.key);
-					await event.handler({
-						context: this.#context,
-						params,
-						document,
-						atomic,
-					});
-				}
-			}
-			opsCache.push({ document, op });
-		}
-		await atomic.commit();
-		for (const { op, document } of opsCache) {
-			if (op.type === "delete") {
-				for (const event of this.#documentDeletedListenersMatcher(op.key)) {
-					const params = PathAsType(event.path, op.key);
-					await event.handler({ context: this.#context, params, document })
-						.catch((_) => {});
-				}
-			} else {
-				for (const event of this.#documentSavedListenersMatcher(op.key)) {
-					const params = PathAsType(event.path, op.key);
-					await event.handler({ context: this.#context, params, document })
-						.catch((_) => {});
+					await event.handler({ context, params, document }).catch((_) => {});
 				}
 			}
 		}

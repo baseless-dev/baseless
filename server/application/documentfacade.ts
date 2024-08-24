@@ -10,7 +10,7 @@ import {
 	DocumentProvider,
 } from "../provider/mod.ts";
 
-export class DocumentProviderFacade extends DocumentProvider {
+export class ApplicationDocumentProviderFacade extends DocumentProvider {
 	#application: Application;
 	#context: Context<any, any, any>;
 	#provider: DocumentProvider;
@@ -27,21 +27,68 @@ export class DocumentProviderFacade extends DocumentProvider {
 	}
 
 	get(key: string[], options?: DocumentGetOptions): Promise<Document> {
-		return this.#provider.get(key, options);
+		return this.#application.getDocument({
+			bypassSecurity: true,
+			context: this.#context,
+			options,
+			path: key,
+			provider: this.#provider,
+		});
 	}
 
 	getMany(keys: Array<string[]>, options?: DocumentGetOptions): Promise<Array<Document>> {
-		return this.#provider.getMany(keys, options);
+		return this.#application.getManyDocument({
+			bypassSecurity: true,
+			context: this.#context,
+			options,
+			paths: keys,
+			provider: this.#provider,
+		});
 	}
 
-	list(options: DocumentListOptions): AsyncIterableIterator<DocumentListEntry> {
-		return this.#provider.list(options);
+	async *list(options: DocumentListOptions): AsyncIterableIterator<DocumentListEntry> {
+		yield* this.#application.listDocument({
+			bypassSecurity: true,
+			context: this.#context,
+			cursor: options.cursor,
+			limit: options.limit,
+			prefix: options.prefix,
+			provider: this.#provider,
+		});
 	}
 
 	atomic(): DocumentAtomic {
-		return this.#application.getDocumentAtomic({
+		return new ApplicationDocumentAtomicFacade(
+			this.#application,
+			this.#context,
+			this.#provider,
+		);
+	}
+}
+
+export class ApplicationDocumentAtomicFacade extends DocumentAtomic {
+	#application: Application;
+	#context: Context<any, any, any>;
+	#provider: DocumentProvider;
+
+	constructor(
+		application: Application,
+		context: Context<any, any, any>,
+		provider: DocumentProvider,
+	) {
+		super();
+		this.#application = application;
+		this.#context = context;
+		this.#provider = provider;
+	}
+
+	commit(): Promise<void> {
+		return this.#application.commitDocumentAtomic({
+			bypassSecurity: true,
+			checks: this.checks,
 			context: this.#context,
 			provider: this.#provider,
+			operations: this.operations,
 		});
 	}
 }

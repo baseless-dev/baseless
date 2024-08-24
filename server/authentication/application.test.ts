@@ -12,7 +12,7 @@ import {
 import { assert, assertEquals, assertObjectMatch } from "@std/assert";
 import { id } from "@baseless/core/id";
 import { AuthenticationContext } from "./types.ts";
-import { DocumentProviderFacade } from "../application/documentfacade.ts";
+import { ApplicationDocumentProviderFacade } from "../application/documentfacade.ts";
 
 Deno.test("AuthenticationApplication", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
@@ -51,7 +51,11 @@ Deno.test("AuthenticationApplication", async (t) => {
 			notification: notificationProvider as never,
 			waitUntil(_promise) {},
 		};
-		context.document = new DocumentProviderFacade(app, context, documentProvider) as never;
+		context.document = new ApplicationDocumentProviderFacade(
+			app,
+			context,
+			documentProvider,
+		) as never;
 		const identity = { identityId: id("id_") };
 		const email1Component = {
 			identityId: identity.identityId,

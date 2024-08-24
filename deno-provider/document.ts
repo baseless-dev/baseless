@@ -78,7 +78,7 @@ export class DenoKVDocumentAtomic extends DocumentAtomic {
 		for (const check of this.checks) {
 			atomic.check(check);
 		}
-		for (const op of this.ops) {
+		for (const op of this.operations) {
 			if (op.type === "delete") {
 				atomic.delete(op.key);
 			} else {

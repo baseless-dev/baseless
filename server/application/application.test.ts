@@ -42,7 +42,7 @@ Deno.test("Application", async (t) => {
 			context,
 			provider: documentProvider,
 			checks: [],
-			ops: [
+			operations: [
 				{ type: "set", key: ["users", "1"], data: "foo" },
 				{ type: "set", key: ["users", "2"], data: "bar" },
 			],
@@ -60,7 +60,7 @@ Deno.test("Application", async (t) => {
 			context,
 			provider: documentProvider,
 			checks: [],
-			ops: [
+			operations: [
 				{ type: "delete", key: ["users", "2"] },
 			],
 		});
@@ -96,16 +96,26 @@ Deno.test("Application", async (t) => {
 			})
 			.build();
 
-		await app.getDocumentAtomic({ context, provider: documentProvider })
-			.set(["users", "3"], "bar")
-			.commit();
+		await app.commitDocumentAtomic({
+			context,
+			provider: documentProvider,
+			checks: [],
+			operations: [
+				{ type: "set", key: ["users", "3"], data: "foo" },
+			],
+		});
 
 		assert(event.includes("3"));
 
 		await assertRejects(() =>
-			app.getDocumentAtomic({ context, provider: documentProvider })
-				.set(["users", "error"], "error")
-				.commit()
+			app.commitDocumentAtomic({
+				context,
+				provider: documentProvider,
+				checks: [],
+				operations: [
+					{ type: "set", key: ["users", "error"], data: "error" },
+				],
+			})
 		);
 	});
 	await t.step("app.onDocumentSaved", async () => {
@@ -123,14 +133,24 @@ Deno.test("Application", async (t) => {
 			})
 			.build();
 
-		await app.getDocumentAtomic({ context, provider: documentProvider })
-			.set(["users", "4"], "joo")
-			.commit();
+		await app.commitDocumentAtomic({
+			context,
+			provider: documentProvider,
+			checks: [],
+			operations: [
+				{ type: "set", key: ["users", "4"], data: "joo" },
+			],
+		});
 
 		assert(event.includes("4"));
 
-		await app.getDocumentAtomic({ context, provider: documentProvider })
-			.set(["users", "error"], "error")
-			.commit();
+		app.commitDocumentAtomic({
+			context,
+			provider: documentProvider,
+			checks: [],
+			operations: [
+				{ type: "set", key: ["users", "error"], data: "error" },
+			],
+		});
 	});
 });

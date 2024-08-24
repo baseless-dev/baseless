@@ -33,8 +33,8 @@ export type DocumentAtomicOperation =
 	};
 
 export abstract class DocumentAtomic {
-	protected readonly checks: Array<DocumentAtomicCheck> = [];
-	protected readonly ops: Array<DocumentAtomicOperation> = [];
+	checks: Array<DocumentAtomicCheck> = [];
+	operations: Array<DocumentAtomicOperation> = [];
 
 	check(key: string[], versionstamp: string | null): DocumentAtomic {
 		this.checks.push({ type: "check", key, versionstamp });
@@ -42,12 +42,12 @@ export abstract class DocumentAtomic {
 	}
 
 	set(key: string[], data: unknown): DocumentAtomic {
-		this.ops.push({ type: "set", key, data });
+		this.operations.push({ type: "set", key, data });
 		return this;
 	}
 
 	delete(key: string[]): DocumentAtomic {
-		this.ops.push({ type: "delete", key });
+		this.operations.push({ type: "delete", key });
 		return this;
 	}
 

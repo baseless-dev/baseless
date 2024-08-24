@@ -4,7 +4,7 @@ import { KVProvider } from "./provider/kv.ts";
 import { decodeBase64Url } from "@std/encoding/base64url";
 import { type Command, Commands, isCommand, isCommands } from "@baseless/core/command";
 import { Result, ResultError, ResultSingle } from "@baseless/core/result";
-import { DocumentProviderFacade } from "./application/documentfacade.ts";
+import { ApplicationDocumentProviderFacade } from "./application/documentfacade.ts";
 
 export class Server {
 	#application: Application;
@@ -85,7 +85,7 @@ export class Server {
 				waitUntilPromises.push(promise);
 			},
 		};
-		context.document = new DocumentProviderFacade(
+		context.document = new ApplicationDocumentProviderFacade(
 			this.#application,
 			context,
 			this.#documentProvider,
@@ -138,7 +138,7 @@ export class Server {
 						result = await this.#application.commitDocumentAtomic({
 							checks: command.checks,
 							context,
-							ops: command.ops,
+							operations: command.ops,
 							provider: this.#documentProvider,
 						});
 					} else {

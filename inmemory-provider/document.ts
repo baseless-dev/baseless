@@ -106,7 +106,7 @@ export class MemoryDocumentAtomic extends DocumentAtomic {
 				}
 			}
 		}
-		for (const op of this.ops) {
+		for (const op of this.operations) {
 			const keyString = keyPathToKeyString(op.key);
 			if (op.type === "delete") {
 				this.#storage.delete(keyString);

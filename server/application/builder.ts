@@ -7,14 +7,18 @@ import type {
 	CollectionDefinitionWithSecurity,
 	Context,
 	Decorator,
-	DocumentAtomicListener,
-	DocumentAtomicListenerHandler,
+	DocumentAtomicDeleteListener,
+	DocumentAtomicDeleteListenerHandler,
+	DocumentAtomicSetListener,
+	DocumentAtomicSetListenerHandler,
 	DocumentDefinition,
 	DocumentDefinitionSecurity,
 	DocumentDefinitionWithoutSecurity,
 	DocumentDefinitionWithSecurity,
-	DocumentListener,
-	DocumentListenerHandler,
+	DocumentDeleteListener,
+	DocumentDeleteListenerHandler,
+	DocumentSetListener,
+	DocumentSetListenerHandler,
 	EventDefinition,
 	EventDefinitionSecurity,
 	EventDefinitionWithoutSecurity,
@@ -46,10 +50,10 @@ export class ApplicationBuilder<
 	#document: Array<DocumentDefinition<any, any>>;
 	#collection: Array<CollectionDefinition<any, any>>;
 	#eventListeners: Array<EventListener<any, any>>;
-	#documentSavingListeners: Array<DocumentAtomicListener<any, any>>;
-	#documentSavedListeners: Array<DocumentListener<any, any>>;
-	#documentDeletingListeners: Array<DocumentAtomicListener<any, any>>;
-	#documentDeletedListeners: Array<DocumentListener<any, any>>;
+	#documentSavingListeners: Array<DocumentAtomicSetListener<any, any>>;
+	#documentSavedListeners: Array<DocumentSetListener<any, any>>;
+	#documentDeletingListeners: Array<DocumentAtomicDeleteListener<any, any>>;
+	#documentDeletedListeners: Array<DocumentDeleteListener<any, any>>;
 
 	constructor();
 	constructor(
@@ -59,10 +63,10 @@ export class ApplicationBuilder<
 		document: Array<DocumentDefinition<any, any>>,
 		collection: Array<CollectionDefinition<any, any>>,
 		eventListeners: Array<EventListener<any, any>>,
-		documentSavingListeners: Array<DocumentAtomicListener<any, any>>,
-		documentSavedListeners: Array<DocumentListener<any, any>>,
-		documentDeletingListeners: Array<DocumentAtomicListener<any, any>>,
-		documentDeletedListeners: Array<DocumentListener<any, any>>,
+		documentSavingListeners: Array<DocumentAtomicSetListener<any, any>>,
+		documentSavedListeners: Array<DocumentSetListener<any, any>>,
+		documentDeletingListeners: Array<DocumentAtomicDeleteListener<any, any>>,
+		documentDeletedListeners: Array<DocumentDeleteListener<any, any>>,
 	);
 	constructor(
 		context?: Array<Decorator<any>>,
@@ -71,10 +75,10 @@ export class ApplicationBuilder<
 		document?: Array<DocumentDefinition<any, any>>,
 		collection?: Array<CollectionDefinition<any, any>>,
 		eventListeners?: Array<EventListener<any, any>>,
-		documentSavingListeners?: Array<DocumentAtomicListener<any, any>>,
-		documentSavedListeners?: Array<DocumentListener<any, any>>,
-		documentDeletingListeners?: Array<DocumentAtomicListener<any, any>>,
-		documentDeletedListeners?: Array<DocumentListener<any, any>>,
+		documentSavingListeners?: Array<DocumentAtomicSetListener<any, any>>,
+		documentSavedListeners?: Array<DocumentSetListener<any, any>>,
+		documentDeletingListeners?: Array<DocumentAtomicDeleteListener<any, any>>,
+		documentDeletedListeners?: Array<DocumentDeleteListener<any, any>>,
 	) {
 		this.#decorator = [...context ?? []];
 		this.#rpc = [...rpc ?? []];
@@ -402,7 +406,7 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentAtomicListenerHandler<
+		handler: DocumentAtomicSetListenerHandler<
 			TPath,
 			TDecoration,
 			TDocument,
@@ -437,7 +441,7 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentListenerHandler<
+		handler: DocumentSetListenerHandler<
 			TPath,
 			TDecoration,
 			TDocument,
@@ -458,7 +462,7 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TCollection, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentListenerHandler<
+		handler: DocumentSetListenerHandler<
 			TPath,
 			TDecoration,
 			TDocument,
@@ -494,7 +498,7 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentAtomicListenerHandler<
+		handler: DocumentAtomicDeleteListenerHandler<
 			TPath,
 			TDecoration,
 			TDocument,
@@ -529,7 +533,7 @@ export class ApplicationBuilder<
 		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
-		handler: DocumentListenerHandler<
+		handler: DocumentDeleteListenerHandler<
 			TPath,
 			TDecoration,
 			TDocument,

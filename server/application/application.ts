@@ -1,15 +1,17 @@
 // deno-lint-ignore-file no-explicit-any
 import { createPathMatcher, isPathMatching, PathAsType, PathMatcher } from "@baseless/core/path";
-import type {
-	CollectionDefinition,
-	Context,
-	Decorator,
-	DocumentAtomicListener,
-	DocumentDefinition,
-	DocumentListener,
-	EventDefinition,
-	EventListener,
-	RpcDefinition,
+import {
+	type CollectionDefinition,
+	type Context,
+	type Decorator,
+	type DocumentAtomicListener,
+	type DocumentDefinition,
+	type DocumentListener,
+	type EventDefinition,
+	type EventListener,
+	hasPermission,
+	Permission,
+	type RpcDefinition,
 } from "./types.ts";
 import { Value } from "@sinclair/typebox/value";
 import { Document } from "@baseless/core/document";
@@ -106,8 +108,7 @@ export class Application {
 			input,
 		};
 		if ("security" in definition) {
-			const result = await definition.security(options);
-			if (result !== "allow") {
+			if (!hasPermission(await definition.security(options), Permission.Execute)) {
 				throw new ForbiddenError();
 			}
 		} else {
@@ -137,8 +138,7 @@ export class Application {
 			document,
 		};
 		if ("security" in definition) {
-			const result = await definition.security(options);
-			if (result !== "get") {
+			if (!hasPermission(await definition.security(options), Permission.Get)) {
 				throw new ForbiddenError();
 			}
 		} else {
@@ -171,8 +171,7 @@ export class Application {
 				document,
 			};
 			if ("security" in definition) {
-				const result = await definition.security(options);
-				if (result !== "get") {
+				if (!hasPermission(await definition.security(options), Permission.Get)) {
 					throw new ForbiddenError();
 				}
 			} else {
@@ -200,8 +199,7 @@ export class Application {
 			key: prefix,
 		};
 		if ("security" in definition) {
-			const result = await definition.security(options);
-			if (result !== "list") {
+			if (!hasPermission(await definition.security(options), Permission.List)) {
 				throw new ForbiddenError();
 			}
 		} else {
@@ -250,11 +248,11 @@ export class Application {
 			if ("security" in definition) {
 				const result = await definition.security(options);
 				if (op.type === "delete") {
-					if (result !== "delete") {
+					if (!hasPermission(result, Permission.Delete)) {
 						throw new ForbiddenError();
 					}
 				} else {
-					if (result !== "set") {
+					if (!hasPermission(result, Permission.Set)) {
 						throw new ForbiddenError();
 					}
 				}

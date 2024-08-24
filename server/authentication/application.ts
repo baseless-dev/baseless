@@ -2,7 +2,7 @@
 import { JWTPayload, jwtVerify, type KeyLike, SignJWT } from "jose";
 import { assertID, ID, id, isID } from "@baseless/core/id";
 import { Identity, IdentityComponent } from "@baseless/core/identity";
-import { ApplicationBuilder, ForbiddenError } from "../application/mod.ts";
+import { ApplicationBuilder, ForbiddenError, Permission } from "../application/mod.ts";
 import { Static, Type } from "@sinclair/typebox";
 import {
 	AuthenticationCeremony,
@@ -148,7 +148,7 @@ export function configureAuthentication(
 		.rpc(["authentication", "signOut"], {
 			input: Type.Void(),
 			output: Type.Boolean(),
-			security: async () => "allow",
+			security: async () => Permission.Execute,
 			handler: async ({ context }) => {
 				if (context.currentSession?.sessionId) {
 					await context.kv.delete(["sessions", context.currentSession.sessionId]);
@@ -160,7 +160,7 @@ export function configureAuthentication(
 		.rpc(["authentication", "refreshAccessToken"], {
 			input: Type.String(),
 			output: AuthenticationTokens,
-			security: async () => "allow",
+			security: async () => Permission.Execute,
 			handler: async (
 				{ input: refresh_token, context },
 			) => {
@@ -190,7 +190,7 @@ export function configureAuthentication(
 		.rpc(["authentication", "getCeremony"], {
 			input: AuthenticationEncryptedState,
 			output: AuthenticationGetCeremonyResponse,
-			security: async () => "allow",
+			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const state = await decryptState<AuthenticationState>(input);
 				const component = await getCurrentAuthenticationCeremonyFromState(
@@ -211,7 +211,7 @@ export function configureAuthentication(
 				state: Type.Optional(AuthenticationEncryptedState),
 			}),
 			output: AuthenticationGetCeremonyResponse,
-			security: async () => "allow",
+			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const state = await decryptState<AuthenticationState>(input.state);
 				let component = await getCurrentAuthenticationCeremonyFromState(
@@ -274,7 +274,7 @@ export function configureAuthentication(
 				state: Type.Optional(AuthenticationEncryptedState),
 			}),
 			output: Type.Boolean(),
-			security: async () => "allow",
+			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const state = await decryptState<AuthenticationState>(input.state);
 				const component = await getCurrentAuthenticationCeremonyFromState(
@@ -319,7 +319,7 @@ export function configureAuthentication(
 		.rpc(["registration", "getCeremony"], {
 			input: RegistrationEncryptedState,
 			output: RegistrationGetCeremonyResponse,
-			security: async () => "allow",
+			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const result = await getRegistrationCeremony(input, context);
 				if (result === true) {
@@ -335,7 +335,7 @@ export function configureAuthentication(
 				state: Type.Optional(RegistrationEncryptedState),
 			}),
 			output: RegistrationGetCeremonyResponse,
-			security: async () => "allow",
+			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const state = await decryptState<RegistrationState>(input.state);
 				const currentComponent = await getRegistrationCeremony(input.state, context);
@@ -395,7 +395,7 @@ export function configureAuthentication(
 				state: Type.Optional(RegistrationEncryptedState),
 			}),
 			output: Type.Boolean(),
-			security: async () => "allow",
+			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const state = await decryptState<RegistrationState>(input.state);
 				const currentComponent = await getRegistrationCeremony(input.state, context);
@@ -430,7 +430,7 @@ export function configureAuthentication(
 				state: Type.Optional(RegistrationEncryptedState),
 			}),
 			output: RegistrationGetCeremonyResponse,
-			security: async () => "allow",
+			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const state = await decryptState<RegistrationState>(input.state);
 				const currentComponent = await getRegistrationCeremony(input.state, context);

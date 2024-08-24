@@ -4,7 +4,13 @@ import {
 	MemoryKVProvider,
 	MemoryNotificationProvider,
 } from "@baseless/inmemory-provider";
-import { ApplicationBuilder, configureAuthentication, sequence, Server } from "@baseless/server";
+import {
+	ApplicationBuilder,
+	configureAuthentication,
+	Permission,
+	sequence,
+	Server,
+} from "@baseless/server";
 import { EmailIdentityComponentProvider } from "@baseless/server/authentication";
 import { generateKeyPair } from "jose";
 import { Client } from "./client.ts";
@@ -33,7 +39,7 @@ Deno.test("Client", async (t) => {
 			.rpc(["hello", "{world}"], {
 				input: Type.Void(),
 				output: Type.String(),
-				security: async () => "allow",
+				security: async () => Permission.All,
 				handler: async ({ params }) => `Hello ${params.world}`,
 			});
 

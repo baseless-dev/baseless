@@ -5,6 +5,7 @@ import { Type } from "@sinclair/typebox";
 import { isResultError, isResultSingle } from "@baseless/core/result";
 import { MemoryDocumentProvider, MemoryKVProvider } from "@baseless/inmemory-provider";
 import { ApplicationBuilder } from "./application/builder.ts";
+import { Permission } from "./application/types.ts";
 
 Deno.test("Server", async (t) => {
 	const setupServer = () => {
@@ -15,9 +16,7 @@ Deno.test("Server", async (t) => {
 				handler: async ({ input }) => {
 					return input;
 				},
-				security: async () => {
-					return "allow";
-				},
+				security: async () => Permission.All,
 			})
 			.build();
 		const server = new Server({

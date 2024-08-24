@@ -26,6 +26,24 @@ export type Decorator<
 	context: Context<any, [], []>,
 ) => Promise<TNewDecoration>;
 
+export const Permission = {
+	None: 0b0000000,
+	All: 0b1111111,
+	Execute: 0b0000001,
+	Get: 0b0000010,
+	Set: 0b0000100,
+	Delete: 0b0001000,
+	List: 0b0010000,
+	Publish: 0b0100000,
+	Subscribe: 0b1000000,
+} as const;
+
+export type Permission = typeof Permission[keyof typeof Permission];
+
+export function hasPermission(mask: Permission, value: Permission): boolean {
+	return (mask & value) > 0;
+}
+
 export type RpcDefinitionHandler<
 	TPath extends string[],
 	TDecoration extends {},
@@ -61,7 +79,7 @@ export type RpcDefinitionSecurity<
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
 	input: Static<TInputSchema>;
-}) => Promise<"allow" | "deny" | undefined>;
+}) => Promise<Permission>;
 
 export interface RpcDefinitionWithSecurity<
 	TPath extends string[],
@@ -103,7 +121,7 @@ export type EventDefinitionSecurity<
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
 	payload: Static<TPayloadSchema>;
-}) => Promise<"subscribe" | "publish" | undefined>;
+}) => Promise<Permission>;
 
 export interface EventDefinitionWithSecurity<
 	TPath extends string[],
@@ -144,7 +162,7 @@ export type DocumentDefinitionSecurity<
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
 	document?: Document<Static<TDocumentSchema>>;
-}) => Promise<"subscribe" | "get" | "set" | "delete" | undefined>;
+}) => Promise<Permission>;
 
 export interface DocumentDefinitionWithSecurity<
 	TPath extends string[],
@@ -184,7 +202,7 @@ export type CollectionDefinitionSecurity<
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
 	key: ReplaceVariableInPathSegment<TPath>;
-}) => Promise<"list" | undefined>;
+}) => Promise<Permission>;
 
 export interface CollectionDefinitionWithSecurity<
 	TPath extends string[],

@@ -3,6 +3,7 @@ import { assert, assertEquals, assertObjectMatch, assertRejects } from "@std/ass
 import { ApplicationBuilder } from "./builder.ts";
 import { Type } from "@sinclair/typebox";
 import { MemoryDocumentProvider } from "@baseless/inmemory-provider";
+import { Permission } from "./types.ts";
 
 Deno.test("Application", async (t) => {
 	const context: any = {};
@@ -14,9 +15,7 @@ Deno.test("Application", async (t) => {
 				handler: async ({ params: { userId } }) => {
 					return userId;
 				},
-				security: async () => {
-					return "allow" as const;
-				},
+				security: async () => Permission.All,
 			})
 			.build();
 
@@ -35,7 +34,7 @@ Deno.test("Application", async (t) => {
 		const app = new ApplicationBuilder()
 			.document(["users", "{userId}"], {
 				schema: Type.String(),
-				security: async () => "set",
+				security: async () => Permission.All,
 			})
 			.build();
 
@@ -53,7 +52,7 @@ Deno.test("Application", async (t) => {
 		const app = new ApplicationBuilder()
 			.document(["users", "{userId}"], {
 				schema: Type.String(),
-				security: async () => "delete",
+				security: async () => Permission.All,
 			})
 			.build();
 
@@ -70,7 +69,7 @@ Deno.test("Application", async (t) => {
 		const app = new ApplicationBuilder()
 			.document(["users", "{userId}"], {
 				schema: Type.String(),
-				security: async () => "get",
+				security: async () => Permission.All,
 			})
 			.build();
 
@@ -87,7 +86,7 @@ Deno.test("Application", async (t) => {
 		const app = new ApplicationBuilder()
 			.document(["users", "{userId}"], {
 				schema: Type.String(),
-				security: async () => "set",
+				security: async () => Permission.All,
 			})
 			.onDocumentSaving(["users", "{userId}"], async ({ params }) => {
 				event.push(params.userId);
@@ -114,7 +113,7 @@ Deno.test("Application", async (t) => {
 		const app = new ApplicationBuilder()
 			.document(["users", "{userId}"], {
 				schema: Type.String(),
-				security: async () => "set",
+				security: async () => Permission.All,
 			})
 			.onDocumentSaved(["users", "{userId}"], async ({ params }) => {
 				event.push(params.userId);

@@ -1,4 +1,4 @@
-import { assert, assertEquals } from "@std/assert";
+import { assertEquals } from "@std/assert";
 import { createPathMatcher, mergeTreeNodes, pathToTreeNode } from "./path.ts";
 
 Deno.test("Path", async (t) => {

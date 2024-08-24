@@ -1,25 +1,25 @@
 import { assert } from "@std/assert";
-import { Command, isCommand } from "./command.ts";
+import { Command, Commands, isCommand, isCommands } from "./command.ts";
 import { Value } from "@sinclair/typebox/value";
 
 Deno.test("Command", async (t) => {
 	await t.step("Command", () => {
 		assert(
-			Value.Check(Command, { kind: "command", rpc: ["foo", "bar"], input: "123" }),
+			Value.Check(Command, { kind: "rpc", rpc: ["foo", "bar"], input: "123" }),
 		);
 		assert(
-			Value.Check(Command, {
+			Value.Check(Commands, {
 				kind: "commands",
-				commands: [{ kind: "command", rpc: ["foo", "bar"], input: "123" }],
+				commands: [{ kind: "rpc", rpc: ["foo", "bar"], input: "123" }],
 			}),
 		);
 	});
 	await t.step("isCommand", () => {
-		assert(isCommand({ kind: "command", rpc: ["foo", "bar"], input: "123" }));
+		assert(isCommand({ kind: "rpc", rpc: ["foo", "bar"], input: "123" }));
 		assert(
-			isCommand({
+			isCommands({
 				kind: "commands",
-				commands: [{ kind: "command", rpc: ["foo", "bar"], input: "123" }],
+				commands: [{ kind: "rpc", rpc: ["foo", "bar"], input: "123" }],
 			}),
 		);
 	});

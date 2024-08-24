@@ -14,10 +14,6 @@ function keyPathToKeyString(key: string[]): string {
 	return key.map((p) => p.replaceAll("/", "\\/")).join("/");
 }
 
-function keyStringToKeyPath(key: string): string[] {
-	return key.split(/(?<!\\)\//).map((p) => p.replaceAll("\\/", "/"));
-}
-
 export class MemoryDocumentProvider extends DocumentProvider {
 	#storage = new OrderedMap<string, Document>();
 

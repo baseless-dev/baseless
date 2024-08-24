@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import { Document } from "@baseless/core/document";
 import { Application } from "./application.ts";
 import { Context } from "./types.ts";
@@ -26,33 +27,19 @@ export class DocumentProviderFacade extends DocumentProvider {
 	}
 
 	get(key: string[], options?: DocumentGetOptions): Promise<Document> {
-		return this.#application.getDocument({
-			context: this.#context,
-			provider: this.#provider,
-			key,
-			options,
-		});
+		return this.#provider.get(key, options);
 	}
 
 	getMany(keys: Array<string[]>, options?: DocumentGetOptions): Promise<Array<Document>> {
-		return this.#application.getManyDocument({
-			context: this.#context,
-			provider: this.#provider,
-			keys,
-			options,
-		});
+		return this.#provider.getMany(keys, options);
 	}
 
 	list(options: DocumentListOptions): AsyncIterableIterator<DocumentListEntry> {
-		return this.#application.listCollection({
-			context: this.#context,
-			provider: this.#provider,
-			options,
-		});
+		return this.#provider.list(options);
 	}
 
 	atomic(): DocumentAtomic {
-		return this.#application.atomicDocument({
+		return this.#application.getDocumentAtomic({
 			context: this.#context,
 			provider: this.#provider,
 		});

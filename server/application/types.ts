@@ -1,4 +1,4 @@
-// deno-lint-ignore-file no-explicit-any
+// deno-lint-ignore-file no-explicit-any ban-types
 import type { Static, TSchema } from "@sinclair/typebox";
 import type { IDocumentAtomic, IDocumentProvider } from "../provider/document.ts";
 import type { KVProvider } from "../provider/kv.ts";
@@ -143,7 +143,7 @@ export type DocumentDefinitionSecurity<
 > = (options: {
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
-	document: Document<Static<TDocumentSchema>>;
+	document?: Document<Static<TDocumentSchema>>;
 }) => Promise<"subscribe" | "get" | "set" | "delete" | undefined>;
 
 export interface DocumentDefinitionWithSecurity<
@@ -229,7 +229,7 @@ export type DocumentAtomicListenerHandler<
 > = (options: {
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
-	document: Document<Static<TDocumentSchema>>;
+	document?: Document<Static<TDocumentSchema>>;
 	atomic: IDocumentAtomic<TDocument, TCollection>;
 }) => Promise<void>;
 
@@ -250,7 +250,7 @@ export type DocumentListenerHandler<
 > = (options: {
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
-	document: Document<Static<TDocumentSchema>>;
+	document?: Document<Static<TDocumentSchema>>;
 }) => Promise<void>;
 
 export interface DocumentListener<

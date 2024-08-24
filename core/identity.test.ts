@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertThrows } from "@std/assert";
+import { assert, assertThrows } from "@std/assert";
 import { id } from "./id.ts";
 import { assertIdentity, Identity, isIdentity } from "./identity.ts";
 import { Value } from "@sinclair/typebox/value";

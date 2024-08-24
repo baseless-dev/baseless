@@ -196,6 +196,7 @@ export function PathAsSchema<const TPath extends string[]>(path: TPath): PathAsS
 }
 
 // deno-fmt-ignore
+// deno-lint-ignore no-explicit-any
 type _PathAsObject<TPath extends any[], T> = 
 	TPath extends []
 		? T

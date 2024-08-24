@@ -3,10 +3,11 @@
   "packages": {
     "specifiers": {
       "jsr:@std/assert@1.0.0": "jsr:@std/assert@1.0.0",
-      "jsr:@std/encoding@1.0.1": "jsr:@std/encoding@1.0.1",
+      "jsr:@std/assert@1.0.2": "jsr:@std/assert@1.0.2",
+      "jsr:@std/encoding@1.0.2": "jsr:@std/encoding@1.0.2",
       "jsr:@std/internal@^1.0.1": "jsr:@std/internal@1.0.1",
-      "npm:@sinclair/typebox@0.32.34": "npm:@sinclair/typebox@0.32.34",
-      "npm:jose@5.6.3": "npm:jose@5.6.3"
+      "npm:@sinclair/typebox@0.33.7": "npm:@sinclair/typebox@0.33.7",
+      "npm:jose@5.7.0": "npm:jose@5.7.0"
     },
     "jsr": {
       "@std/assert@1.0.0": {
@@ -15,20 +16,26 @@
           "jsr:@std/internal@^1.0.1"
         ]
       },
-      "@std/encoding@1.0.1": {
-        "integrity": "5955c6c542ebb4ce6587c3b548dc71e07a6c27614f1976d1d3887b1196cf4e65"
+      "@std/assert@1.0.2": {
+        "integrity": "ccacec332958126deaceb5c63ff8b4eaf9f5ed0eac9feccf124110435e59e49c",
+        "dependencies": [
+          "jsr:@std/internal@^1.0.1"
+        ]
+      },
+      "@std/encoding@1.0.2": {
+        "integrity": "7ed640c777e3275550e2cd937c440acdbebfdcd2d13ef67052f0536bf43e707f"
       },
       "@std/internal@1.0.1": {
         "integrity": "6f8c7544d06a11dd256c8d6ba54b11ed870aac6c5aeafff499892662c57673e6"
       }
     },
     "npm": {
-      "@sinclair/typebox@0.32.34": {
-        "integrity": "sha512-a3Z3ytYl6R/+7ldxx04PO1semkwWlX/8pTqxsPw4quIcIXDFPZhOc1Wx8azWmkU26ccK3mHwcWenn0avNgAKQg==",
+      "@sinclair/typebox@0.33.7": {
+        "integrity": "sha512-et38XPs6GMoB6XugH+Spp/HRv5gHYffw7rXC3caen/dIKC7Q6sqs6eEH9Yd9UKziUkOQdrLr9OXUULAc+pRMng==",
         "dependencies": {}
       },
-      "jose@5.6.3": {
-        "integrity": "sha512-1Jh//hEEwMhNYPDDLwXHa2ePWgWiFNNUadVmguAAw2IJ6sj9mNxV5tGXJNqlMkJAybF6Lgw1mISDxTePP/187g==",
+      "jose@5.7.0": {
+        "integrity": "sha512-3P9qfTYDVnNn642LCAqIKbTGb9a1TBxZ9ti5zEVEr48aDdflgRjhspWFb6WM4PzAfFbGMJYC4+803v8riCRAKw==",
         "dependencies": {}
       }
     }
@@ -71,10 +78,10 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@std/assert@1.0.0",
-      "jsr:@std/encoding@1.0.1",
-      "npm:@sinclair/typebox@0.32.34",
-      "npm:jose@5.6.3"
+      "jsr:@std/assert@1.0.2",
+      "jsr:@std/encoding@1.0.2",
+      "npm:@sinclair/typebox@0.33.7",
+      "npm:jose@5.7.0"
     ]
   }
 }

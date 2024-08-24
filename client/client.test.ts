@@ -1,3 +1,4 @@
+// deno-lint-ignore-file require-await no-explicit-any
 import {
 	MemoryDocumentProvider,
 	MemoryKVProvider,
@@ -49,7 +50,7 @@ Deno.test("Client", async (t) => {
 			apiEndpoint: "http://test.local",
 			async fetch(input, init): Promise<Response> {
 				const request = new Request(input, init);
-				const [response, promises] = await server.handleRequest(request);
+				const [response, _promises] = await server.handleRequest(request);
 				return response;
 			},
 		});

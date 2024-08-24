@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any ban-types
-import type { Static, TSchema } from "@sinclair/typebox";
+import type { TSchema } from "@sinclair/typebox";
 import type {
 	CollectionDefinition,
 	CollectionDefinitionSecurity,

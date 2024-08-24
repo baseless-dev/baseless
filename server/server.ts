@@ -2,7 +2,7 @@ import { Application, Context } from "./application/mod.ts";
 import { DocumentProvider } from "./provider/document.ts";
 import { KVProvider } from "./provider/kv.ts";
 import { decodeBase64Url } from "@std/encoding/base64url";
-import { type Command, isCommand, isCommands } from "@baseless/core/command";
+import { type Command, Commands, isCommand, isCommands } from "@baseless/core/command";
 import { Result, ResultError, ResultSingle } from "@baseless/core/result";
 import { DocumentProviderFacade } from "./application/documentfacade.ts";
 
@@ -41,7 +41,7 @@ export class Server {
 			} else {
 				request.headers.delete("Authorization");
 			}
-			const [context, waitUntilPromises] = await this.#constructContext(request);
+			const [_context, waitUntilPromises] = await this.#constructContext(request);
 			// TODO call security handler (which one?)
 			// TODO handle websocket upgrade with provider
 			return [new Response(null, { status: 501 }), waitUntilPromises];
@@ -54,7 +54,7 @@ export class Server {
 		}
 
 		const command = await request.json().catch(() => undefined);
-		if (!isCommand(command)) {
+		if (!(isCommand(command) || isCommands(command))) {
 			return [new Response(null, { status: 422 }), []];
 		}
 
@@ -95,7 +95,7 @@ export class Server {
 	}
 
 	async #handleCommand(
-		command: Command,
+		command: Command | Commands,
 		request: Request,
 	): Promise<[Result, PromiseLike<unknown>[]]> {
 		try {
@@ -107,17 +107,47 @@ export class Server {
 
 			for (const command of commands) {
 				try {
-					const result = await this.#application.invokeRpc({
-						context,
-						key: command.rpc,
-						input: command.input,
-					});
+					let result: unknown;
+					if (command.kind === "rpc") {
+						result = await this.#application.invokeRpc({
+							context,
+							input: command.input,
+							rpc: command.rpc,
+						});
+					} else if (command.kind === "document-get") {
+						result = await this.#application.getDocument({
+							context,
+							path: command.path,
+							provider: this.#documentProvider,
+						});
+					} else if (command.kind === "document-get-many") {
+						result = await this.#application.getManyDocument({
+							context,
+							paths: command.paths,
+							provider: this.#documentProvider,
+						});
+					} else if (command.kind === "document-list") {
+						result = await this.#application.listDocument({
+							context,
+							cursor: command.cursor,
+							limit: command.limit,
+							prefix: command.prefix,
+							provider: this.#documentProvider,
+						});
+					} else if (command.kind === "document-atomic") {
+						result = await this.#application.commitDocumentAtomic({
+							checks: command.checks,
+							context,
+							ops: command.ops,
+							provider: this.#documentProvider,
+						});
+					} else {
+						throw "UnknownCommand";
+					}
 					results.push({ kind: "result", value: result });
 				} catch (error) {
-					results.push({
-						kind: "error",
-						error: error.constructor?.name ?? error?.name ?? error,
-					});
+					const result = error.constructor?.name ?? error?.name ?? error;
+					results.push({ kind: "error", error: result });
 				}
 			}
 

@@ -1,6 +1,6 @@
-// deno-lint-ignore-file require-await
+// deno-lint-ignore-file require-await ban-types
 import { JWTPayload, jwtVerify, type KeyLike, SignJWT } from "jose";
-import { assertID, ID, id, isID, TID } from "@baseless/core/id";
+import { assertID, ID, id, isID } from "@baseless/core/id";
 import { Identity, IdentityComponent } from "@baseless/core/identity";
 import { ApplicationBuilder, ForbiddenError } from "../application/mod.ts";
 import { Static, Type } from "@sinclair/typebox";
@@ -110,7 +110,7 @@ export function configureAuthentication(
 			["identities", "{identityId}", "components", "{kind}"],
 			async ({ params, atomic, context, document }) => {
 				// When new identity component is created with an identification, ensure that it's unique in the identifications collection
-				if (document.data.identification) {
+				if (document?.data.identification) {
 					const doc = await context.document.get([
 						"identifications",
 						document.data.componentId,
@@ -136,7 +136,7 @@ export function configureAuthentication(
 			["identities", "{identityId}", "components", "{kind}"],
 			async ({ document, atomic }) => {
 				// When identity component is deleted with an identification, ensure that it's removed from the identifications collection
-				if (document.data.identification) {
+				if (document?.data.identification) {
 					atomic.delete([
 						"identifications",
 						document.data.componentId,
@@ -165,7 +165,7 @@ export function configureAuthentication(
 				{ input: refresh_token, context },
 			) => {
 				const { payload } = await jwtVerify(refresh_token, configuration.keys.publicKey);
-				const { sub: sessionId, scope } = payload;
+				const { sub: sessionId } = payload;
 				assertID("sid_", sessionId);
 				const kvValue = await context.kv.get(["sessions", sessionId]);
 				assertSession(kvValue.value);
@@ -551,8 +551,7 @@ export function configureAuthentication(
 				kind: "choice",
 				prompts: await Promise.all(
 					ceremony.components.map(async (component) => {
-						const identityComponent =
-							configuration.identityComponentProviders[component.component];
+						const identityComponent = configuration.identityComponentProviders[component.component];
 						if (!identityComponent) {
 							throw new UnknownIdentityComponentError();
 						}

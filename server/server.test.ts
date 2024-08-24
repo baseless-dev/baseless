@@ -31,7 +31,7 @@ Deno.test("Server", async (t) => {
 	await t.step("handle command", async () => {
 		const { server } = setupServer();
 		const [result, promises] = await server.handleCommand({
-			kind: "command",
+			kind: "rpc",
 			rpc: ["hello"],
 			input: "world",
 		});
@@ -47,7 +47,7 @@ Deno.test("Server", async (t) => {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						kind: "command",
+						kind: "rpc",
 						rpc: ["not found"],
 						input: "silence is golden",
 					}),
@@ -65,7 +65,7 @@ Deno.test("Server", async (t) => {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						kind: "command",
+						kind: "rpc",
 						rpc: ["hello"],
 						input: "world",
 					}),

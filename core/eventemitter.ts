@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any ban-types
 /**
  * Provides methods for listening and emitting events
  */

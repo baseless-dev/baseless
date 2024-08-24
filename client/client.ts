@@ -11,7 +11,6 @@ import type {
 import type { Static } from "@sinclair/typebox";
 import { isResultError, isResults, isResultSingle } from "@baseless/core/result";
 import MemoryStorage from "./memory_storage.ts";
-import { CommandSingle } from "@baseless/core/command";
 import { stableStringify } from "./stablestringify.ts";
 import { assertIdentity, type Identity } from "@baseless/core/identity";
 import {
@@ -20,6 +19,7 @@ import {
 } from "@baseless/server/authentication/types";
 import { EventEmitter } from "@baseless/core/eventemitter";
 import { isPathMatching } from "@baseless/core/path";
+import { Command, isCommandRpc } from "../core/command.ts";
 
 export interface ClientInitialization {
 	clientId: string;
@@ -167,7 +167,7 @@ export class Client {
 	#commandCache: Map<string, Promise<unknown>> = new Map();
 	#commandQueue: Array<
 		{
-			command: CommandSingle;
+			command: Command;
 			resolve: (value: unknown | PromiseLike<unknown>) => void;
 			reject: (reason?: any) => void;
 		}
@@ -227,23 +227,25 @@ export class Client {
 						const command = commands[index];
 						command.resolve(value.value);
 						// deno-fmt-ignore
-						if (
-							(
-								isPathMatching(["authentication", "submitPrompt"], command.command.rpc) ||
-								isPathMatching(["registration", "submitPrompt"], command.command.rpc) ||
-								isPathMatching(["registration", "submitValidationCode"], command.command.rpc) ||
-								isPathMatching(["registration", "getCeremony"], command.command.rpc) ||
-								isPathMatching(["authentication", "getCeremony"], command.command.rpc)
-							) && isAuthenticationTokens(value.value)
-						) {
-							// Switch to latest tokens
-							this.tokens = [...this.tokens, value.value];
-							this.currentToken = value.value;
-						} else if (
-							isPathMatching(["authentication", "signOut"], command.command.rpc)
-						) {
-							this.tokens = this.tokens.filter((_, i) => i !== this.#currentTokenIndex);
-							this.currentToken = undefined;
+						if (isCommandRpc(command.command)) {
+							if (
+								(
+									isPathMatching(["authentication", "submitPrompt"], command.command.rpc) ||
+									isPathMatching(["registration", "submitPrompt"], command.command.rpc) ||
+									isPathMatching(["registration", "submitValidationCode"], command.command.rpc) ||
+									isPathMatching(["registration", "getCeremony"], command.command.rpc) ||
+									isPathMatching(["authentication", "getCeremony"], command.command.rpc)
+								) && isAuthenticationTokens(value.value)
+							) {
+								// Switch to latest tokens
+								this.tokens = [...this.tokens, value.value];
+								this.currentToken = value.value;
+							} else if (
+								isPathMatching(["authentication", "signOut"], command.command.rpc)
+							) {
+								this.tokens = this.tokens.filter((_, i) => i !== this.#currentTokenIndex);
+								this.currentToken = undefined;
+							}
 						}
 					} else {
 						commands[index].reject(value.error);
@@ -270,7 +272,7 @@ export class Client {
 		}
 	}
 
-	#enqueueCommand(command: CommandSingle): Promise<unknown> {
+	#enqueueCommand(command: Command): Promise<unknown> {
 		const key = stableStringify(command);
 		const cachedCommand = this.#commandCache.get(key);
 		if (cachedCommand) {
@@ -294,7 +296,7 @@ export class Client {
 
 	rpc(key: string[], input: unknown): Promise<unknown> {
 		return this.#enqueueCommand({
-			kind: "command",
+			kind: "rpc",
 			rpc: key,
 			input,
 		});

@@ -20,7 +20,7 @@ export class DenoKVProvider extends KVProvider {
 		this.#storage = storage;
 	}
 
-	async get(key: string[], options?: KVGetOptions): Promise<KVKey> {
+	async get(key: string[], _options?: KVGetOptions): Promise<KVKey> {
 		const now = new Date().getTime();
 		const value = await this.#storage.get<
 			{ value: string; expiration: number }

@@ -1,3 +1,4 @@
+// deno-lint-ignore-file explicit-function-return-type
 import { generateKeyPair } from "jose";
 import { configureAuthentication } from "./application.ts";
 import { choice, sequence } from "./ceremony.ts";
@@ -48,7 +49,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			document: {} as never,
 			kv: kvProvider as never,
 			notification: notificationProvider as never,
-			waitUntil(promise) {},
+			waitUntil(_promise) {},
 		};
 		context.document = new DocumentProviderFacade(app, context, documentProvider) as never;
 		const identity = { identityId: id("id_") };
@@ -87,7 +88,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 	await t.step("authentication.getCeremony", async () => {
 		const { app, context } = await setupServer();
 		const result = await app.invokeRpc({
-			key: ["authentication", "getCeremony"],
+			rpc: ["authentication", "getCeremony"],
 			input: undefined,
 			context,
 		});
@@ -143,7 +144,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			let state: string | undefined;
 			{
 				const result = await app.invokeRpc({
-					key: ["authentication", "submitPrompt"],
+					rpc: ["authentication", "submitPrompt"],
 					input: {
 						id: "email1",
 						value: "foo@test.local",
@@ -168,7 +169,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			}
 			{
 				const result = await app.invokeRpc({
-					key: ["authentication", "submitPrompt"],
+					rpc: ["authentication", "submitPrompt"],
 					input: {
 						id: "password",
 						value: "password",
@@ -185,7 +186,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			let state: string | undefined;
 			{
 				const result = await app.invokeRpc({
-					key: ["authentication", "submitPrompt"],
+					rpc: ["authentication", "submitPrompt"],
 					input: {
 						id: "email2",
 						value: "bar@test.local",
@@ -210,7 +211,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			}
 			{
 				const result = await app.invokeRpc({
-					key: ["authentication", "submitPrompt"],
+					rpc: ["authentication", "submitPrompt"],
 					input: {
 						id: "email1",
 						value: "foo@test.local",
@@ -235,7 +236,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			}
 			{
 				const result = await app.invokeRpc({
-					key: ["authentication", "submitPrompt"],
+					rpc: ["authentication", "submitPrompt"],
 					input: {
 						id: "password",
 						value: "password",
@@ -251,7 +252,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 	await t.step("registration.getCeremony", async () => {
 		const { app, context } = await setupServer();
 		const result = await app.invokeRpc({
-			key: ["registration", "getCeremony"],
+			rpc: ["registration", "getCeremony"],
 			input: undefined,
 			context,
 		});
@@ -308,7 +309,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			let state: string | undefined;
 			{
 				const result = await app.invokeRpc({
-					key: ["registration", "submitPrompt"],
+					rpc: ["registration", "submitPrompt"],
 					input: {
 						id: "email1",
 						value: "john@test.local",
@@ -339,7 +340,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 				const notifications = (context.notification as MemoryNotificationProvider).notifications;
 				notifications.clear();
 				const result = await app.invokeRpc({
-					key: ["registration", "sendValidationCode"],
+					rpc: ["registration", "sendValidationCode"],
 					input: {
 						id: "email1",
 						locale: "en",
@@ -354,7 +355,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			}
 			{
 				const result = await app.invokeRpc({
-					key: ["registration", "submitValidationCode"],
+					rpc: ["registration", "submitValidationCode"],
 					input: {
 						id: "email1",
 						value: code,
@@ -380,7 +381,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			}
 			{
 				const result = await app.invokeRpc({
-					key: ["registration", "submitPrompt"],
+					rpc: ["registration", "submitPrompt"],
 					input: {
 						id: "password",
 						value: "123",

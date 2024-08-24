@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import { Static } from "@sinclair/typebox";
 import { Document } from "@baseless/core/document";
 import { CollectionDefinition, DocumentDefinition, PickAtPath } from "../application/types.ts";

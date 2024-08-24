@@ -1,4 +1,4 @@
-// deno-lint-ignore-file require-await explicit-function-return-type
+// deno-lint-ignore-file require-await no-explicit-any
 import { assert, assertEquals, assertObjectMatch, assertRejects } from "@std/assert";
 import { ApplicationBuilder } from "./builder.ts";
 import { Type } from "@sinclair/typebox";
@@ -6,7 +6,7 @@ import { MemoryDocumentProvider } from "@baseless/inmemory-provider";
 
 Deno.test("Application", async (t) => {
 	const context: any = {};
-	await t.step("app.invokeRpc", async () => {
+	await t.step("app.handleRpcCommand", async () => {
 		const app = new ApplicationBuilder()
 			.rpc(["users", "{userId}", "kick"], {
 				input: Type.Void(),
@@ -20,40 +20,65 @@ Deno.test("Application", async (t) => {
 			})
 			.build();
 
-		assertRejects(() => app.invokeRpc({ context, key: ["users"], input: 0 }));
+		assertRejects(() => app.invokeRpc({ context, rpc: ["users"], input: 0 }));
 		assertEquals(
 			await app.invokeRpc({
 				context,
-				key: ["users", "123", "kick"],
+				rpc: ["users", "123", "kick"],
 				input: undefined,
 			}),
 			"123",
 		);
 	});
 	const documentProvider = new MemoryDocumentProvider();
-	await t.step("app.atomicDocument().set", async () => {
+	await t.step("app.getDocumentAtomic().set", async () => {
 		const app = new ApplicationBuilder()
 			.document(["users", "{userId}"], {
 				schema: Type.String(),
+				security: async () => "set",
 			})
 			.build();
 
-		await app.atomicDocument({ context, provider: documentProvider })
-			.set(["users", "1"], "foo")
-			.commit();
+		await app.commitDocumentAtomic({
+			context,
+			provider: documentProvider,
+			checks: [],
+			ops: [
+				{ type: "set", key: ["users", "1"], data: "foo" },
+				{ type: "set", key: ["users", "2"], data: "bar" },
+			],
+		});
+	});
+	await t.step("app.getDocumentAtomic().delete", async () => {
+		const app = new ApplicationBuilder()
+			.document(["users", "{userId}"], {
+				schema: Type.String(),
+				security: async () => "delete",
+			})
+			.build();
+
+		await app.commitDocumentAtomic({
+			context,
+			provider: documentProvider,
+			checks: [],
+			ops: [
+				{ type: "delete", key: ["users", "2"] },
+			],
+		});
 	});
 	await t.step("app.getDocument", async () => {
 		const app = new ApplicationBuilder()
 			.document(["users", "{userId}"], {
 				schema: Type.String(),
+				security: async () => "get",
 			})
 			.build();
 
 		await assertRejects(() =>
-			app.getDocument({ context, provider: documentProvider, key: ["users", "0"] })
+			app.getDocument({ context, provider: documentProvider, path: ["users", "2"] })
 		);
 		assertObjectMatch(
-			await app.getDocument({ context, provider: documentProvider, key: ["users", "1"] }),
+			await app.getDocument({ context, provider: documentProvider, path: ["users", "1"] }),
 			{ data: "foo" },
 		);
 	});
@@ -62,6 +87,7 @@ Deno.test("Application", async (t) => {
 		const app = new ApplicationBuilder()
 			.document(["users", "{userId}"], {
 				schema: Type.String(),
+				security: async () => "set",
 			})
 			.onDocumentSaving(["users", "{userId}"], async ({ params }) => {
 				event.push(params.userId);
@@ -71,14 +97,14 @@ Deno.test("Application", async (t) => {
 			})
 			.build();
 
-		await app.atomicDocument({ context, provider: documentProvider })
-			.set(["users", "2"], "bar")
+		await app.getDocumentAtomic({ context, provider: documentProvider })
+			.set(["users", "3"], "bar")
 			.commit();
 
-		assert(event.includes("2"));
+		assert(event.includes("3"));
 
 		await assertRejects(() =>
-			app.atomicDocument({ context, provider: documentProvider })
+			app.getDocumentAtomic({ context, provider: documentProvider })
 				.set(["users", "error"], "error")
 				.commit()
 		);
@@ -88,6 +114,7 @@ Deno.test("Application", async (t) => {
 		const app = new ApplicationBuilder()
 			.document(["users", "{userId}"], {
 				schema: Type.String(),
+				security: async () => "set",
 			})
 			.onDocumentSaved(["users", "{userId}"], async ({ params }) => {
 				event.push(params.userId);
@@ -97,13 +124,13 @@ Deno.test("Application", async (t) => {
 			})
 			.build();
 
-		await app.atomicDocument({ context, provider: documentProvider })
-			.set(["users", "3"], "bar")
+		await app.getDocumentAtomic({ context, provider: documentProvider })
+			.set(["users", "4"], "joo")
 			.commit();
 
-		assert(event.includes("3"));
+		assert(event.includes("4"));
 
-		await app.atomicDocument({ context, provider: documentProvider })
+		await app.getDocumentAtomic({ context, provider: documentProvider })
 			.set(["users", "error"], "error")
 			.commit();
 	});

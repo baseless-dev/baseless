@@ -86,7 +86,8 @@ Deno.test("Application", async (t) => {
 		const app = new ApplicationBuilder()
 			.document(["users", "{userId}"], {
 				schema: Type.String(),
-				security: async () => Permission.All,
+				security: async ({ params }) =>
+					params.userId === "deny" ? Permission.None : Permission.All,
 			})
 			.onDocumentSaving(["users", "{userId}"], async ({ params }) => {
 				event.push(params.userId);
@@ -106,6 +107,17 @@ Deno.test("Application", async (t) => {
 		});
 
 		assert(event.includes("3"));
+
+		await assertRejects(() =>
+			app.commitDocumentAtomic({
+				context,
+				provider: documentProvider,
+				checks: [],
+				operations: [
+					{ type: "set", key: ["users", "deny"], data: "deny" },
+				],
+			})
+		);
 
 		await assertRejects(() =>
 			app.commitDocumentAtomic({

@@ -6,6 +6,7 @@ import {
 } from "@baseless/inmemory-provider";
 import {
 	ApplicationBuilder,
+	component,
 	configureAuthentication,
 	Permission,
 	sequence,
@@ -29,7 +30,7 @@ Deno.test("Client", async (t) => {
 			.use(configureAuthentication({
 				keys: { ...keyPair, algo: "PS512" },
 				ceremony: sequence(
-					{ kind: "component", component: "email" },
+					component("email"),
 				),
 				identityComponentProviders: {
 					email: emailProvider,

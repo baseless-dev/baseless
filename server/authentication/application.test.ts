@@ -1,7 +1,7 @@
 // deno-lint-ignore-file explicit-function-return-type
 import { generateKeyPair } from "jose";
 import { configureAuthentication } from "./application.ts";
-import { choice, sequence } from "./ceremony.ts";
+import { choice, component, sequence } from "./ceremony.ts";
 import { EmailIdentityComponentProvider } from "./provider/email.ts";
 import { PasswordIdentityComponentProvider } from "./provider/password.ts";
 import {
@@ -26,13 +26,13 @@ Deno.test("AuthenticationApplication", async (t) => {
 			keys: { ...keyPair, algo: "PS512" },
 			ceremony: choice(
 				sequence(
-					{ kind: "component", component: "email1" },
-					{ kind: "component", component: "password" },
+					component("email1"),
+					component("password"),
 				),
 				sequence(
-					{ kind: "component", component: "email2" },
-					{ kind: "component", component: "email1" },
-					{ kind: "component", component: "password" },
+					component("email2"),
+					component("email1"),
+					component("password"),
 				),
 			),
 			identityComponentProviders: {
@@ -341,7 +341,8 @@ Deno.test("AuthenticationApplication", async (t) => {
 			}
 			let code: string | undefined;
 			{
-				const notifications = (context.notification as MemoryNotificationProvider).notifications;
+				const notifications =
+					(context.notification as MemoryNotificationProvider).notifications;
 				notifications.clear();
 				const result = await app.invokeRpc({
 					rpc: ["registration", "sendValidationCode"],

@@ -55,6 +55,15 @@ export function choice(...components: AuthenticationCeremony[]): AuthenticationC
 	return { kind: "choice", components };
 }
 
+/**
+ * Create a {@link AuthenticationCeremonyComponent}.
+ * @param component The component name
+ * @returns The {@link AuthenticationCeremonyComponent}
+ */
+export function component(component: string): AuthenticationCeremonyComponent {
+	return { kind: "component", component };
+}
+
 export const AuthenticationCeremonyComponent: TObject<{
 	kind: TLiteral<"component">;
 	component: TString;

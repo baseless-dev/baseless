@@ -9,7 +9,9 @@ import {
 } from "../mod.ts";
 import { AuthenticationCeremony } from "./ceremony.ts";
 import { AuthenticationComponent } from "./component.ts";
-import { NotificationProvider } from "./provider.ts";
+import type { NotificationProvider } from "./provider.ts";
+import type { KeyLike } from "jose";
+import { IdentityComponentProvider } from "./provider.ts";
 
 export interface Session {
 	sessionId?: ID<"sid_">;
@@ -170,3 +172,30 @@ export const RegistrationGetCeremonyResponse = Type.Union([
 	RegistrationCeremonyStep,
 	AuthenticationTokens,
 ], { $id: "RegistrationGetCeremonyResponse" });
+
+export type AuthenticationCeremonyResolver = (
+	options: {
+		context: AuthenticationContext;
+		flow: "authentication" | "registration";
+		identityId?: ID<"id_">;
+	},
+) => Promise<AuthenticationCeremony>;
+
+export interface AuthenticationConfiguration {
+	keys: {
+		algo: string;
+		privateKey: KeyLike;
+		publicKey: KeyLike;
+	};
+	ceremony:
+		| AuthenticationCeremony
+		| AuthenticationCeremonyResolver;
+	identityComponentProviders: Record<string, IdentityComponentProvider>;
+	notificationProvider: NotificationProvider;
+	ceremonyTTL?: number;
+	accessTokenTTL?: number;
+	refreshTokenTTL?: number;
+	rateLimitPeriod?: number;
+	rateLimitCount?: number;
+	allowAnonymous?: boolean;
+}

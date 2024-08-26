@@ -11,20 +11,41 @@ import {
 } from "@baseless/inmemory-provider";
 import { assert, assertEquals, assertObjectMatch } from "@std/assert";
 import { id } from "@baseless/core/id";
-import { AuthenticationContext } from "./types.ts";
+import { AuthenticationConfiguration, AuthenticationContext } from "./types.ts";
 import { ApplicationDocumentProviderFacade } from "../application/documentfacade.ts";
+import { PolicyIdentityComponentProvider } from "./provider/policy.ts";
 
 Deno.test("AuthenticationApplication", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
-	const setupServer = async () => {
+	const setupServer = async (
+		options?: Partial<
+			Pick<AuthenticationConfiguration, "ceremony" | "identityComponentProviders">
+		>,
+	) => {
 		const notificationProvider = new MemoryNotificationProvider();
 		const kvProvider = new MemoryKVProvider();
 		const documentProvider = new MemoryDocumentProvider();
 		const emailProvider = new EmailIdentityComponentProvider();
 		const passwordProvider = new PasswordIdentityComponentProvider("le_salt");
+		const policiesProvider = new PolicyIdentityComponentProvider([
+			{
+				identifier: "tos",
+				version: "1",
+				required: true,
+				name: { en: "Terms of Service" },
+				content: { en: "Blablabla" },
+			},
+			{
+				identifier: "pp",
+				version: "1",
+				required: false,
+				name: { en: "Privacy Policy" },
+				content: { en: "Blablabla" },
+			},
+		]);
 		const app = configureAuthentication({
 			keys: { ...keyPair, algo: "PS512" },
-			ceremony: choice(
+			ceremony: options?.ceremony ?? choice(
 				sequence(
 					component("email1"),
 					component("password"),
@@ -35,10 +56,11 @@ Deno.test("AuthenticationApplication", async (t) => {
 					component("password"),
 				),
 			),
-			identityComponentProviders: {
+			identityComponentProviders: options?.identityComponentProviders ?? {
 				email1: emailProvider,
 				email2: emailProvider,
 				password: passwordProvider,
+				terms: policiesProvider,
 			},
 			notificationProvider,
 		})
@@ -397,6 +419,86 @@ Deno.test("AuthenticationApplication", async (t) => {
 				assert(result && typeof result === "object");
 				assert("access_token" in result && typeof result.access_token === "string");
 			}
+		}
+	});
+	await t.step("getCeremony with custom resolver", async () => {
+		const { app, context } = await setupServer({
+			ceremony: async ({ flow }) => {
+				return flow === "authentication"
+					? sequence(
+						component("email1"),
+						component("password"),
+						component("terms"),
+					)
+					: sequence(
+						component("terms"),
+						component("email1"),
+						component("password"),
+					);
+			},
+		});
+		// Authentication flow
+		{
+			const result = await app.invokeRpc({
+				rpc: ["authentication", "getCeremony"],
+				input: undefined,
+				context,
+			});
+			assertEquals(
+				result,
+				{
+					ceremony: {
+						kind: "sequence",
+						components: [
+							{ kind: "component", component: "email1" },
+							{ kind: "component", component: "password" },
+							{ kind: "component", component: "terms" },
+						],
+					},
+					current: {
+						kind: "component",
+						id: "email1",
+						prompt: "email",
+						options: {},
+					},
+					state: undefined,
+				},
+			);
+		}
+		// Registration flow
+		{
+			const result = await app.invokeRpc({
+				rpc: ["registration", "getCeremony"],
+				input: undefined,
+				context,
+			});
+			assert(result && typeof result === "object");
+			assertObjectMatch(
+				result,
+				{
+					ceremony: {
+						kind: "sequence",
+						components: [
+							{ kind: "component", component: "terms" },
+							{ kind: "component", component: "email1" },
+							{ kind: "component", component: "password" },
+						],
+					},
+					current: {
+						kind: "component",
+						id: "terms",
+						prompt: "policy",
+						options: {
+							documents: [
+								{ identifier: "tos", version: "1" },
+								{ identifier: "pp", version: "1" },
+							],
+						},
+					},
+					state: undefined,
+					validating: false,
+				},
+			);
 		}
 	});
 });

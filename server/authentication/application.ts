@@ -11,12 +11,11 @@ import {
 	getAuthenticationCeremonyComponentAtPath,
 	simplifyAuthenticationCeremony,
 } from "./ceremony.ts";
-import { NotificationProvider } from "./provider.ts";
-import { IdentityComponentProvider } from "./provider.ts";
 import { AuthenticationComponent, AuthenticationComponentPrompt } from "./component.ts";
 import {
 	assertSession,
 	AuthenticationCollections,
+	AuthenticationConfiguration,
 	AuthenticationContext,
 	AuthenticationDecoration,
 	AuthenticationDocuments,
@@ -32,23 +31,6 @@ import {
 	Session,
 } from "./types.ts";
 
-export interface AuthenticationConfiguration {
-	keys: {
-		algo: string;
-		privateKey: KeyLike;
-		publicKey: KeyLike;
-	};
-	ceremony: AuthenticationCeremony;
-	identityComponentProviders: Record<string, IdentityComponentProvider>;
-	notificationProvider: NotificationProvider;
-	ceremonyTTL?: number;
-	accessTokenTTL?: number;
-	refreshTokenTTL?: number;
-	rateLimitPeriod?: number;
-	rateLimitCount?: number;
-	allowAnonymous?: boolean;
-}
-
 export function configureAuthentication(
 	configuration: AuthenticationConfiguration,
 ): ApplicationBuilder<
@@ -61,7 +43,6 @@ export function configureAuthentication(
 	const accessTokenTTL = configuration.accessTokenTTL ?? 1000 * 60 * 10;
 	const refreshTokenTTL = configuration.refreshTokenTTL ?? 1000 * 60 * 60 * 24 * 2;
 	const ceremonyTTL = configuration.ceremonyTTL ?? 1000 * 60 * 5;
-	const ceremony = simplifyAuthenticationCeremony(configuration.ceremony);
 
 	return new ApplicationBuilder()
 		.decorate(async (context) => {
@@ -198,11 +179,17 @@ export function configureAuthentication(
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const state = await decryptState<AuthenticationState>(input);
+				const ceremony = await getCeremonyFromFlow({
+					context,
+					flow: "authentication",
+					identityId: state.identityId,
+				});
 				const component = await getCurrentAuthenticationCeremonyFromState(
+					ceremony,
 					state.choices ?? [],
 				);
 				if (component === true) {
-					return createSessionAndTokens(context, state);
+					throw new InvalidAuthenticationStateError();
 				}
 
 				const current = await mapCeremonyToComponent(context, component);
@@ -219,7 +206,13 @@ export function configureAuthentication(
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const state = await decryptState<AuthenticationState>(input.state);
+				const ceremony = await getCeremonyFromFlow({
+					context,
+					flow: "authentication",
+					identityId: state.identityId,
+				});
 				let component = await getCurrentAuthenticationCeremonyFromState(
+					ceremony,
 					state.choices ?? [],
 				);
 				if (component === true) {
@@ -263,7 +256,10 @@ export function configureAuthentication(
 				}
 				// Advance the ceremony
 				state.choices = [...state.choices ?? [], input.id];
-				component = await getCurrentAuthenticationCeremonyFromState(state.choices);
+				component = await getCurrentAuthenticationCeremonyFromState(
+					ceremony,
+					state.choices,
+				);
 				if (component === true) {
 					return createSessionAndTokens(context, state);
 				}
@@ -282,7 +278,13 @@ export function configureAuthentication(
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const state = await decryptState<AuthenticationState>(input.state);
+				const ceremony = await getCeremonyFromFlow({
+					context,
+					flow: "authentication",
+					identityId: state.identityId,
+				});
 				const component = await getCurrentAuthenticationCeremonyFromState(
+					ceremony,
 					state.choices ?? [],
 				);
 				if (component === true) {
@@ -572,7 +574,20 @@ export function configureAuthentication(
 		}
 	}
 
+	async function getCeremonyFromFlow({ context, flow, identityId }: {
+		context: AuthenticationContext;
+		flow: "authentication" | "registration";
+		identityId?: ID<"id_">;
+	}): Promise<AuthenticationCeremony> {
+		if (typeof configuration.ceremony === "function") {
+			const ceremony = await configuration.ceremony({ context, flow, identityId });
+			return simplifyAuthenticationCeremony(ceremony);
+		}
+		return simplifyAuthenticationCeremony(configuration.ceremony);
+	}
+
 	async function getCurrentAuthenticationCeremonyFromState(
+		ceremony: AuthenticationCeremony,
 		choices: string[],
 	): Promise<
 		Exclude<
@@ -621,7 +636,15 @@ export function configureAuthentication(
 		const state = await decryptState<RegistrationState>(input);
 		const choices = state.components?.map((c) => c.componentId) ?? [];
 		let validating = false;
-		const ceremonyComponent = await getCurrentAuthenticationCeremonyFromState(choices);
+		const ceremony = await getCeremonyFromFlow({
+			context,
+			flow: "registration",
+			identityId: state.identityId,
+		});
+		const ceremonyComponent = await getCurrentAuthenticationCeremonyFromState(
+			ceremony,
+			choices,
+		);
 		let authenticationComponent: AuthenticationComponent;
 
 		const lastComponent = state.components?.at(-1);

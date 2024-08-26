@@ -6,6 +6,7 @@ import {
 } from "@baseless/inmemory-provider";
 import {
 	ApplicationBuilder,
+	AuthenticationConfiguration,
 	component,
 	configureAuthentication,
 	Permission,
@@ -22,17 +23,19 @@ import { isIdentity } from "@baseless/core/identity";
 Deno.test("Client", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
 	const notificationProvider = new MemoryNotificationProvider();
-	const setupClient = () => {
+	const setupClient = async (
+		options?: Partial<
+			Pick<AuthenticationConfiguration, "ceremony" | "identityComponentProviders">
+		>,
+	) => {
 		const kvProvider = new MemoryKVProvider();
 		const documentProvider = new MemoryDocumentProvider();
 		const emailProvider = new EmailIdentityComponentProvider();
 		const appBuilder = new ApplicationBuilder()
 			.use(configureAuthentication({
 				keys: { ...keyPair, algo: "PS512" },
-				ceremony: sequence(
-					component("email"),
-				),
-				identityComponentProviders: {
+				ceremony: options?.ceremony ?? sequence(component("email")),
+				identityComponentProviders: options?.identityComponentProviders ?? {
 					email: emailProvider,
 				},
 				notificationProvider,
@@ -66,13 +69,13 @@ Deno.test("Client", async (t) => {
 	};
 
 	await t.step("single rpc", async () => {
-		using client = setupClient();
+		using client = await setupClient();
 		const result = await client.rpc(["hello", "World"], void 0);
 		assertEquals(result, "Hello World");
 	});
 
 	await t.step("batched rpc", async () => {
-		using client = setupClient();
+		using client = await setupClient();
 		const [result1, result2, result3] = await Promise.all([
 			client.rpc(["hello", "Foo"], void 0),
 			client.rpc(["hello", "Bar"], void 0),
@@ -84,7 +87,7 @@ Deno.test("Client", async (t) => {
 	});
 
 	await t.step("onAuthenticationStateChange", async () => {
-		using client = setupClient();
+		using client = await setupClient();
 		const events: any[] = [];
 		using _listener = client.onAuthenticationStateChange((identity) => {
 			events.push(identity);

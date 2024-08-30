@@ -358,7 +358,7 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				value: Type.Unknown(),
-				state: Type.Optional(RegistrationEncryptedState),
+				state: RegistrationEncryptedState,
 			}),
 			output: RegistrationGetCeremonyResponse,
 			security: async () => Permission.Execute,
@@ -417,7 +417,7 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				locale: Type.String(),
-				state: Type.Optional(RegistrationEncryptedState),
+				state: RegistrationEncryptedState,
 			}),
 			output: Type.Boolean(),
 			security: async () => Permission.Execute,
@@ -451,7 +451,7 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				value: Type.Unknown(),
-				state: Type.Optional(RegistrationEncryptedState),
+				state: RegistrationEncryptedState,
 			}),
 			output: RegistrationGetCeremonyResponse,
 			security: async () => Permission.Execute,

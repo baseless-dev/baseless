@@ -89,10 +89,13 @@ Deno.test("Client", async (t) => {
 			events.push(identity);
 		});
 
+		const begin = await client.rpc(["registration", "begin"], void 0);
+		assert("state" in begin);
+
 		const submitEmail = await client.rpc(["registration", "submitPrompt"], {
 			id: "email",
 			value: "foo@test.local",
-			state: undefined,
+			state: begin.state,
 		});
 		assert("state" in submitEmail);
 

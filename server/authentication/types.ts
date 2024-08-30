@@ -1,4 +1,4 @@
-import { TBoolean, TObject, TString, TUnknown, TVoid, Type } from "@sinclair/typebox";
+import { TArray, TBoolean, TObject, TString, TUnknown, TVoid, Type } from "@sinclair/typebox";
 import { ID, isID, TID } from "@baseless/core/id";
 import { Identity, IdentityComponent } from "@baseless/core/identity";
 import { CollectionDefinitionWithoutSecurity, Context, DocumentDefinitionWithoutSecurity, RpcDefinition } from "../mod.ts";
@@ -44,8 +44,8 @@ export type AuthenticationRpcs = [
 		typeof AuthenticationTokens
 	>,
 	RpcDefinition<
-		["authentication", "getCeremony"],
-		typeof AuthenticationEncryptedState,
+		["authentication", "begin"],
+		TArray<TString>,
 		typeof AuthenticationGetCeremonyResponse
 	>,
 	RpcDefinition<
@@ -59,8 +59,8 @@ export type AuthenticationRpcs = [
 		TBoolean
 	>,
 	RpcDefinition<
-		["registration", "getCeremony"],
-		typeof RegistrationEncryptedState,
+		["registration", "begin"],
+		TVoid,
 		typeof RegistrationGetCeremonyResponse
 	>,
 	RpcDefinition<
@@ -115,7 +115,7 @@ export interface AuthenticationState {
 	scope: string[];
 }
 
-export const AuthenticationEncryptedState = Type.Union([Type.String(), Type.Undefined()], {
+export const AuthenticationEncryptedState = Type.String({
 	$id: "AuthenticationEncryptedState",
 });
 
@@ -140,7 +140,7 @@ export const AuthenticationTokens = Type.Object({
 
 export const AuthenticationGetCeremonyResponse = Type.Union([
 	Type.Object({
-		state: Type.Optional(AuthenticationEncryptedState),
+		state: AuthenticationEncryptedState,
 		ceremony: AuthenticationCeremony,
 		current: AuthenticationComponent,
 	}, { $id: "AuthenticationCeremonyStep" }),
@@ -152,12 +152,12 @@ export interface RegistrationState {
 	components: IdentityComponent[];
 }
 
-export const RegistrationEncryptedState = Type.Union([Type.String(), Type.Undefined()], {
+export const RegistrationEncryptedState = Type.String({
 	$id: "RegistrationEncryptedState",
 });
 
 export const RegistrationCeremonyStep = Type.Object({
-	state: Type.Optional(RegistrationEncryptedState),
+	state: RegistrationEncryptedState,
 	ceremony: AuthenticationCeremony,
 	current: AuthenticationComponent,
 	validating: Type.Boolean(),

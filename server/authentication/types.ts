@@ -9,9 +9,9 @@ import {
 } from "../mod.ts";
 import { AuthenticationCeremony } from "./ceremony.ts";
 import { AuthenticationComponent } from "./component.ts";
-import type { NotificationProvider } from "./provider.ts";
 import type { KeyLike } from "jose";
-import { IdentityComponentProvider } from "./provider.ts";
+import { NotificationProvider } from "../provider/notification.ts";
+import { IdentityComponentProvider } from "../provider/identitycomponent.ts";
 
 export interface Session {
 	sessionId?: ID<"sid_">;
@@ -116,8 +116,8 @@ export type AuthenticationContext = Context<
 
 export interface AuthenticationState {
 	identityId?: ID<"id_">;
-	choices?: string[];
-	scope?: string[];
+	choices: string[];
+	scope: string[];
 }
 
 export const AuthenticationEncryptedState = Type.Union([Type.String(), Type.Undefined()], {
@@ -154,7 +154,7 @@ export const AuthenticationGetCeremonyResponse = Type.Union([
 
 export interface RegistrationState {
 	identityId?: ID<"id_">;
-	components?: IdentityComponent[];
+	components: IdentityComponent[];
 }
 
 export const RegistrationEncryptedState = Type.Union([Type.String(), Type.Undefined()], {

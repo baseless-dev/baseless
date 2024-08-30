@@ -1,24 +1,10 @@
-import { IdentityComponentProvider } from "../provider.ts";
+import { IdentityComponentProvider } from "../../provider/identitycomponent.ts";
 import { Identity, IdentityComponent } from "@baseless/core/identity";
 import { AuthenticationComponentPrompt } from "../component.ts";
 import { AuthenticationContext } from "../types.ts";
 import { otp } from "../otp.ts";
 
 export class EmailIdentityComponentProvider implements IdentityComponentProvider {
-	buildIdentityComponent(
-		{ value }: {
-			componentId: string;
-			context: AuthenticationContext;
-			identityComponent?: IdentityComponent;
-			value: unknown;
-		},
-	): Promise<Omit<IdentityComponent, "identityId" | "componentId">> {
-		return Promise.resolve({
-			identification: `${value}`,
-			data: {},
-			confirmed: false,
-		});
-	}
 	getSignInPrompt(
 		options: {
 			componentId: string;
@@ -26,12 +12,7 @@ export class EmailIdentityComponentProvider implements IdentityComponentProvider
 			identityComponent?: IdentityComponent;
 		},
 	): Promise<AuthenticationComponentPrompt> {
-		return Promise.resolve({
-			kind: "component",
-			id: options.componentId,
-			prompt: "email",
-			options: {},
-		});
+		return this.getSetupPrompt(options);
 	}
 	async verifySignInPrompt(
 		options: {
@@ -63,6 +44,20 @@ export class EmailIdentityComponentProvider implements IdentityComponentProvider
 			id: options.componentId,
 			prompt: "email",
 			options: {},
+		});
+	}
+	setupIdentityComponent(
+		{ value }: {
+			componentId: string;
+			context: AuthenticationContext;
+			identityComponent?: IdentityComponent;
+			value: unknown;
+		},
+	): Promise<Omit<IdentityComponent, "identityId" | "componentId">> {
+		return Promise.resolve({
+			identification: `${value}`,
+			data: {},
+			confirmed: false,
 		});
 	}
 	getValidationPrompt(

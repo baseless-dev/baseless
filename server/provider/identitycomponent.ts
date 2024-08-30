@@ -1,22 +1,21 @@
 import { Identity, IdentityComponent } from "@baseless/core/identity";
 import { AuthenticationComponentPrompt } from "../authentication/component.ts";
-import { Notification, NotificationTransport } from "@baseless/core/notification";
-import { AuthenticationContext } from "./types.ts";
+import { AuthenticationContext } from "../authentication/types.ts";
 
 /**
  * An Identity Component Provider.
  */
 export interface IdentityComponentProvider {
 	/**
-	 * Build an {@link IdentityComponent} from a value.
+	 * Check if a sign in prompt is required.
 	 * @param options
-	 * @returns Partial {@link IdentityComponent}
+	 * @returns Whether a sign in prompt is required.
 	 */
-	buildIdentityComponent: (options: {
+	skipSignInPrompt?: (options: {
 		componentId: string;
 		context: AuthenticationContext;
-		value: unknown;
-	}) => Promise<Omit<IdentityComponent, "identityId" | "componentId">>;
+		identityComponent?: IdentityComponent;
+	}) => Promise<boolean>;
 
 	/**
 	 * Retrieve an {@link AuthenticationComponentPrompt} for signing in.
@@ -64,6 +63,17 @@ export interface IdentityComponentProvider {
 	}) => Promise<AuthenticationComponentPrompt>;
 
 	/**
+	 * Build an {@link IdentityComponent} from a value.
+	 * @param options
+	 * @returns Partial {@link IdentityComponent}
+	 */
+	setupIdentityComponent: (options: {
+		componentId: string;
+		context: AuthenticationContext;
+		value: unknown;
+	}) => Promise<Omit<IdentityComponent, "identityId" | "componentId">>;
+
+	/**
 	 * Retrieve an {@link AuthenticationComponentPrompt} for validating.
 	 * @param options
 	 * @returns The validation {@link AuthenticationComponentPrompt}.
@@ -96,26 +106,4 @@ export interface IdentityComponentProvider {
 		identityComponent?: IdentityComponent;
 		value: unknown;
 	}) => Promise<boolean>;
-}
-
-export interface NotificationProvider {
-	getNotificationTransports: (
-		identityId: Identity["identityId"],
-		transportKind: NotificationTransport["kind"],
-	) => Promise<NotificationTransport>;
-	addTransportToIdentity: (
-		identityId: Identity["identityId"],
-		transport: NotificationTransport,
-	) => Promise<boolean>;
-	listTransportsForIdentity: (
-		identityId: Identity["identityId"],
-	) => Promise<NotificationTransport[]>;
-	removeTransportFromIdentity: (
-		identityId: Identity["identityId"],
-		transportKind: NotificationTransport["kind"],
-	) => Promise<boolean>;
-	sendNotification: (
-		identityId: Identity["identityId"],
-		notification: Notification,
-	) => Promise<boolean>;
 }

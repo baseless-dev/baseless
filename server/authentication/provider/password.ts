@@ -1,4 +1,4 @@
-import { IdentityComponentProvider } from "../provider.ts";
+import { IdentityComponentProvider } from "../../provider/identitycomponent.ts";
 import { Identity, IdentityComponent } from "@baseless/core/identity";
 import { AuthenticationComponentPrompt } from "../component.ts";
 import { AuthenticationContext } from "../types.ts";
@@ -22,32 +22,14 @@ export class PasswordIdentityComponentProvider implements IdentityComponentProvi
 		);
 	}
 
-	async buildIdentityComponent(
-		options: {
-			componentId: string;
-			context: AuthenticationContext;
-			value: unknown;
-		},
-	): Promise<Omit<IdentityComponent, "identityId" | "componentId">> {
-		const hash = await this.hashPassword(`${options.value}`);
-		return Promise.resolve({
-			data: { hash },
-			confirmed: true,
-		});
-	}
 	getSignInPrompt(
 		options: {
 			componentId: string;
 			context: AuthenticationContext;
-			identityId?: Identity["identityId"];
+			identityComponent?: IdentityComponent;
 		},
 	): Promise<AuthenticationComponentPrompt> {
-		return Promise.resolve({
-			kind: "component",
-			id: options.componentId,
-			prompt: "password",
-			options: {},
-		});
+		return this.getSetupPrompt(options);
 	}
 	async verifySignInPrompt(
 		options: {
@@ -73,6 +55,19 @@ export class PasswordIdentityComponentProvider implements IdentityComponentProvi
 			id: options.componentId,
 			prompt: "password",
 			options: {},
+		});
+	}
+	async setupIdentityComponent(
+		options: {
+			componentId: string;
+			context: AuthenticationContext;
+			value: unknown;
+		},
+	): Promise<Omit<IdentityComponent, "identityId" | "componentId">> {
+		const hash = await this.hashPassword(`${options.value}`);
+		return Promise.resolve({
+			data: { hash },
+			confirmed: true,
 		});
 	}
 }

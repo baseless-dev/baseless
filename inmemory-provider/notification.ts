@@ -1,6 +1,6 @@
-import { NotificationProvider } from "@baseless/server/authentication";
-import { Identity } from "@baseless/core/identity";
-import { Notification, NotificationTransport } from "@baseless/core/notification";
+import type { NotificationProvider } from "@baseless/server/provider";
+import type { Identity } from "@baseless/core/identity";
+import type { Notification, NotificationTransport } from "@baseless/core/notification";
 
 export class MemoryNotificationProvider implements NotificationProvider {
 	#storage: Map<

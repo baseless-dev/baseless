@@ -19,7 +19,10 @@ Deno.test("AuthenticationApplication", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
 	const setupServer = async (
 		options?: Partial<
-			Pick<AuthenticationConfiguration, "ceremony" | "identityComponentProviders">
+			Pick<
+				AuthenticationConfiguration,
+				"ceremony" | "identityComponentProviders"
+			>
 		>,
 	) => {
 		const notificationProvider = new MemoryNotificationProvider();
@@ -27,40 +30,38 @@ Deno.test("AuthenticationApplication", async (t) => {
 		const documentProvider = new MemoryDocumentProvider();
 		const emailProvider = new EmailIdentityComponentProvider();
 		const passwordProvider = new PasswordIdentityComponentProvider("le_salt");
-		const policiesProvider = new PolicyIdentityComponentProvider([
-			{
-				identifier: "tos",
-				version: "1",
-				required: true,
-				name: { en: "Terms of Service" },
-				content: { en: "Blablabla" },
-			},
-			{
-				identifier: "pp",
-				version: "1",
-				required: false,
-				name: { en: "Privacy Policy" },
-				content: { en: "Blablabla" },
-			},
-		]);
+		const policyProvider = new PolicyIdentityComponentProvider([{
+			identifier: "tos",
+			version: "1",
+			required: true,
+			name: { en: "Terms of Services" },
+			content: { en: "..." },
+		}, {
+			identifier: "privacy",
+			version: "2",
+			required: false,
+			name: { en: "Privacy Policy" },
+			content: { en: "..." },
+		}]);
 		const app = configureAuthentication({
 			keys: { ...keyPair, algo: "PS512" },
-			ceremony: options?.ceremony ?? choice(
-				sequence(
-					component("email1"),
-					component("password"),
-				),
-				sequence(
-					component("email2"),
-					component("email1"),
-					component("password"),
-				),
-			),
+			ceremony: options?.ceremony ??
+				(async ({ flow }) =>
+					flow === "authentication"
+						? sequence(
+							component("email"),
+							component("password"),
+							component("policy"),
+						)
+						: sequence(
+							component("policy"),
+							component("email"),
+							component("password"),
+						)),
 			identityComponentProviders: options?.identityComponentProviders ?? {
-				email1: emailProvider,
-				email2: emailProvider,
+				email: emailProvider,
 				password: passwordProvider,
-				terms: policiesProvider,
+				policy: policyProvider,
 			},
 			notificationProvider,
 		})
@@ -79,17 +80,10 @@ Deno.test("AuthenticationApplication", async (t) => {
 			documentProvider,
 		) as never;
 		const identity = { identityId: id("id_") };
-		const email1Component = {
+		const emailComponent = {
 			identityId: identity.identityId,
-			componentId: "email1",
+			componentId: "email",
 			identification: "foo@test.local",
-			confirmed: true,
-			data: {},
-		};
-		const email2Component = {
-			identityId: identity.identityId,
-			componentId: "email2",
-			identification: "bar@test.local",
 			confirmed: true,
 			data: {},
 		};
@@ -101,173 +95,114 @@ Deno.test("AuthenticationApplication", async (t) => {
 				hash: await passwordProvider.hashPassword("password"),
 			},
 		};
+		const policyComponent = {
+			identityId: identity.identityId,
+			componentId: "policy",
+			confirmed: true,
+			data: {},
+		};
 		await context.document.atomic()
 			.set(["identities", identity.identityId], identity)
-			.set(["identities", identity.identityId, "components", "email1"], email1Component)
-			.set(["identities", identity.identityId, "components", "email2"], email2Component)
+			.set(["identities", identity.identityId, "components", "email"], emailComponent)
 			.set(["identities", identity.identityId, "components", "password"], passwordComponent)
+			.set(["identities", identity.identityId, "components", "policy"], policyComponent)
 			.commit();
 
 		return { app, context, identity };
 	};
 
-	await t.step("authentication.getCeremony", async () => {
+	await t.step("authentication.begin", async () => {
 		const { app, context } = await setupServer();
 		const result = await app.invokeRpc({
-			rpc: ["authentication", "getCeremony"],
-			input: undefined,
+			rpc: ["authentication", "begin"],
+			input: [],
 			context,
 		});
-		assertEquals(
-			result,
-			{
-				ceremony: {
-					kind: "choice",
-					components: [
-						{
-							kind: "sequence",
-							components: [
-								{ kind: "component", component: "email1" },
-								{ kind: "component", component: "password" },
-							],
-						},
-						{
-							kind: "sequence",
-							components: [
-								{ kind: "component", component: "email2" },
-								{ kind: "component", component: "email1" },
-								{ kind: "component", component: "password" },
-							],
-						},
-					],
-				},
-				current: {
-					kind: "choice",
-					prompts: [
-						{
-							kind: "component",
-							id: "email1",
-							prompt: "email",
-							options: {},
-						},
-						{
-							kind: "component",
-							id: "email2",
-							prompt: "email",
-							options: {},
-						},
-					],
-				},
-				state: undefined,
+		assert(result && typeof result === "object");
+		assert("state" in result && typeof result.state === "string");
+		assertObjectMatch(result, {
+			ceremony: {
+				kind: "sequence",
+				components: [
+					{ kind: "component", component: "email" },
+					{ kind: "component", component: "password" },
+					{ kind: "component", component: "policy" },
+				],
 			},
-		);
+		});
 	});
 	await t.step("authentication.submitPrompt", async () => {
 		const { app, context } = await setupServer();
-
-		// SignIn email1 -> password
+		// Sign-in with email + password and accept policies
 		{
 			let state: string | undefined;
 			{
 				const result = await app.invokeRpc({
-					rpc: ["authentication", "submitPrompt"],
-					input: {
-						id: "email1",
-						value: "foo@test.local",
-						state: undefined,
-					},
+					rpc: ["authentication", "begin"],
+					input: [],
 					context,
 				});
 				assert(result && typeof result === "object");
-				assertObjectMatch(
-					result,
-					{
-						current: {
-							kind: "component",
-							id: "password",
-							prompt: "password",
-							options: {},
-						},
-					},
-				);
 				assert("state" in result && typeof result.state === "string");
 				state = result.state;
 			}
 			{
 				const result = await app.invokeRpc({
 					rpc: ["authentication", "submitPrompt"],
-					input: {
-						id: "password",
-						value: "password",
-						state,
-					},
+					input: { id: "email", value: "foo@test.local", state },
+					context,
+				});
+				assert(result && typeof result === "object");
+				assert("state" in result && typeof result.state === "string");
+				state = result.state;
+			}
+			{
+				const result = await app.invokeRpc({
+					rpc: ["authentication", "submitPrompt"],
+					input: { id: "password", value: "password", state },
+					context,
+				});
+				assert(result && typeof result === "object");
+				assert("state" in result && typeof result.state === "string");
+				state = result.state;
+			}
+			{
+				const result = await app.invokeRpc({
+					rpc: ["authentication", "submitPrompt"],
+					input: { id: "policy", value: { tos: "1", privacy: "2" }, state },
 					context,
 				});
 				assert(result && typeof result === "object");
 				assert("access_token" in result && typeof result.access_token === "string");
 			}
 		}
-		// SignIn email2 -> email1 -> password
+		// Now that policies are accepted, sign-in with email + password only
 		{
 			let state: string | undefined;
 			{
 				const result = await app.invokeRpc({
-					rpc: ["authentication", "submitPrompt"],
-					input: {
-						id: "email2",
-						value: "bar@test.local",
-						state: undefined,
-					},
+					rpc: ["authentication", "begin"],
+					input: [],
 					context,
 				});
 				assert(result && typeof result === "object");
-				assertObjectMatch(
-					result,
-					{
-						current: {
-							kind: "component",
-							id: "email1",
-							prompt: "email",
-							options: {},
-						},
-					},
-				);
 				assert("state" in result && typeof result.state === "string");
 				state = result.state;
 			}
 			{
 				const result = await app.invokeRpc({
 					rpc: ["authentication", "submitPrompt"],
-					input: {
-						id: "email1",
-						value: "foo@test.local",
-						state,
-					},
+					input: { id: "email", value: "foo@test.local", state },
 					context,
 				});
 				assert(result && typeof result === "object");
-				assertObjectMatch(
-					result,
-					{
-						current: {
-							kind: "component",
-							id: "password",
-							prompt: "password",
-							options: {},
-						},
-					},
-				);
 				assert("state" in result && typeof result.state === "string");
 				state = result.state;
 			}
 			{
 				const result = await app.invokeRpc({
 					rpc: ["authentication", "submitPrompt"],
-					input: {
-						id: "password",
-						value: "password",
-						state,
-					},
+					input: { id: "password", value: "password", state },
 					context,
 				});
 				assert(result && typeof result === "object");
@@ -275,89 +210,63 @@ Deno.test("AuthenticationApplication", async (t) => {
 			}
 		}
 	});
-	await t.step("registration.getCeremony", async () => {
+	await t.step("registration.begin", async () => {
 		const { app, context } = await setupServer();
 		const result = await app.invokeRpc({
-			rpc: ["registration", "getCeremony"],
-			input: undefined,
+			rpc: ["registration", "begin"],
+			input: void 0,
 			context,
 		});
-		assertEquals(
-			result,
-			{
-				ceremony: {
-					kind: "choice",
-					components: [
-						{
-							kind: "sequence",
-							components: [
-								{ kind: "component", component: "email1" },
-								{ kind: "component", component: "password" },
-							],
-						},
-						{
-							kind: "sequence",
-							components: [
-								{ kind: "component", component: "email2" },
-								{ kind: "component", component: "email1" },
-								{ kind: "component", component: "password" },
-							],
-						},
-					],
-				},
-				current: {
-					kind: "choice",
-					prompts: [
-						{
-							kind: "component",
-							id: "email1",
-							prompt: "email",
-							options: {},
-						},
-						{
-							kind: "component",
-							id: "email2",
-							prompt: "email",
-							options: {},
-						},
-					],
-				},
-				state: undefined,
-				validating: false,
+		assert(result && typeof result === "object");
+		assert("state" in result && typeof result.state === "string");
+		assertObjectMatch(result, {
+			ceremony: {
+				kind: "sequence",
+				components: [
+					{ kind: "component", component: "policy" },
+					{ kind: "component", component: "email" },
+					{ kind: "component", component: "password" },
+				],
 			},
-		);
+		});
 	});
 	await t.step("registration.submitPrompt", async () => {
 		const { app, context } = await setupServer();
 
-		// Register email1 -> password
+		// Register policy and email + password
 		{
 			let state: string | undefined;
 			{
 				const result = await app.invokeRpc({
+					rpc: ["registration", "begin"],
+					input: void 0,
+					context,
+				});
+				assert(result && typeof result === "object");
+				assert("state" in result && typeof result.state === "string");
+				state = result.state;
+			}
+			{
+				const result = await app.invokeRpc({
+					rpc: ["registration", "submitPrompt"],
+					input: { id: "policy", value: { tos: "1", privacy: "2" }, state },
+					context,
+				});
+				assert(result && typeof result === "object");
+				assert("state" in result && typeof result.state === "string");
+				state = result.state;
+			}
+			{
+				const result = await app.invokeRpc({
 					rpc: ["registration", "submitPrompt"],
 					input: {
-						id: "email1",
+						id: "email",
 						value: "john@test.local",
-						state: undefined,
+						state,
 					},
 					context,
 				});
 				assert(result && typeof result === "object");
-				assertObjectMatch(
-					result,
-					{
-						validating: true,
-						current: {
-							kind: "component",
-							id: "email1",
-							prompt: "otp",
-							options: {
-								digits: 8,
-							},
-						},
-					},
-				);
 				assert("state" in result && typeof result.state === "string");
 				state = result.state;
 			}
@@ -369,7 +278,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 				const result = await app.invokeRpc({
 					rpc: ["registration", "sendValidationCode"],
 					input: {
-						id: "email1",
+						id: "email",
 						locale: "en",
 						state,
 					},
@@ -384,25 +293,13 @@ Deno.test("AuthenticationApplication", async (t) => {
 				const result = await app.invokeRpc({
 					rpc: ["registration", "submitValidationCode"],
 					input: {
-						id: "email1",
+						id: "email",
 						value: code,
 						state,
 					},
 					context,
 				});
 				assert(result && typeof result === "object");
-				assertObjectMatch(
-					result,
-					{
-						validating: false,
-						current: {
-							kind: "component",
-							id: "password",
-							prompt: "password",
-							options: {},
-						},
-					},
-				);
 				assert("state" in result && typeof result.state === "string");
 				state = result.state;
 			}
@@ -420,85 +317,38 @@ Deno.test("AuthenticationApplication", async (t) => {
 				assert("access_token" in result && typeof result.access_token === "string");
 			}
 		}
-	});
-	await t.step("getCeremony with custom resolver", async () => {
-		const { app, context } = await setupServer({
-			ceremony: async ({ flow }) => {
-				return flow === "authentication"
-					? sequence(
-						component("email1"),
-						component("password"),
-						component("terms"),
-					)
-					: sequence(
-						component("terms"),
-						component("email1"),
-						component("password"),
-					);
-			},
-		});
-		// Authentication flow
+		// Sign-in with email + password only
 		{
-			const result = await app.invokeRpc({
-				rpc: ["authentication", "getCeremony"],
-				input: undefined,
-				context,
-			});
-			assertEquals(
-				result,
-				{
-					ceremony: {
-						kind: "sequence",
-						components: [
-							{ kind: "component", component: "email1" },
-							{ kind: "component", component: "password" },
-							{ kind: "component", component: "terms" },
-						],
-					},
-					current: {
-						kind: "component",
-						id: "email1",
-						prompt: "email",
-						options: {},
-					},
-					state: undefined,
-				},
-			);
-		}
-		// Registration flow
-		{
-			const result = await app.invokeRpc({
-				rpc: ["registration", "getCeremony"],
-				input: undefined,
-				context,
-			});
-			assert(result && typeof result === "object");
-			assertObjectMatch(
-				result,
-				{
-					ceremony: {
-						kind: "sequence",
-						components: [
-							{ kind: "component", component: "terms" },
-							{ kind: "component", component: "email1" },
-							{ kind: "component", component: "password" },
-						],
-					},
-					current: {
-						kind: "component",
-						id: "terms",
-						prompt: "policy",
-						options: {
-							documents: [
-								{ identifier: "tos", version: "1" },
-								{ identifier: "pp", version: "1" },
-							],
-						},
-					},
-					state: undefined,
-					validating: false,
-				},
-			);
+			let state: string | undefined;
+			{
+				const result = await app.invokeRpc({
+					rpc: ["authentication", "begin"],
+					input: [],
+					context,
+				});
+				assert(result && typeof result === "object");
+				assert("state" in result && typeof result.state === "string");
+				state = result.state;
+			}
+			{
+				const result = await app.invokeRpc({
+					rpc: ["authentication", "submitPrompt"],
+					input: { id: "email", value: "john@test.local", state },
+					context,
+				});
+				assert(result && typeof result === "object");
+				assert("state" in result && typeof result.state === "string");
+				state = result.state;
+			}
+			{
+				const result = await app.invokeRpc({
+					rpc: ["authentication", "submitPrompt"],
+					input: { id: "password", value: "123", state },
+					context,
+				});
+				assert(result && typeof result === "object");
+				assert("access_token" in result && typeof result.access_token === "string");
+			}
 		}
 	});
 });

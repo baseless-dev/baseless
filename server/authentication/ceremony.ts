@@ -1,13 +1,4 @@
-import {
-	type TArray,
-	type TLiteral,
-	type TObject,
-	type TRecursive,
-	type TString,
-	type TThis,
-	type TUnion,
-	Type,
-} from "@sinclair/typebox";
+import { type TArray, type TLiteral, type TObject, type TRecursive, type TString, type TThis, type TUnion, Type } from "@sinclair/typebox";
 
 export interface AuthenticationCeremonyComponent {
 	kind: "component";
@@ -266,15 +257,11 @@ export function simplifyAuthenticationCeremony(
 				components.push(c);
 			}
 		}
-		const uniqueComponents = components.filter((c, i) =>
-			components.findIndex(isAuthenticationCeremonyEquals.bind(null, c)) === i
-		);
+		const uniqueComponents = components.filter((c, i) => components.findIndex(isAuthenticationCeremonyEquals.bind(null, c)) === i);
 		if (uniqueComponents.length === 1) {
 			return uniqueComponents[0];
 		}
-		return ceremony.kind === "sequence"
-			? sequence(...uniqueComponents)
-			: choice(...uniqueComponents);
+		return ceremony.kind === "sequence" ? sequence(...uniqueComponents) : choice(...uniqueComponents);
 	}
 	return ceremony;
 }

@@ -1,9 +1,5 @@
 // deno-lint-ignore-file require-await no-explicit-any
-import {
-	MemoryDocumentProvider,
-	MemoryKVProvider,
-	MemoryNotificationProvider,
-} from "@baseless/inmemory-provider";
+import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
 import {
 	ApplicationBuilder,
 	AuthenticationConfiguration,

@@ -29,9 +29,7 @@ export class Server {
 			const protocols = request.headers.get("Sec-WebSocket-Protocol")?.split(",") ?? [];
 			// Same method used in Kubernetes
 			// https://github.com/kubernetes/kubernetes/commit/714f97d7baf4975ad3aa47735a868a81a984d1f0
-			const encodedBearer = protocols.find((protocol) =>
-				protocol.startsWith("base64url.bearer.authorization.baseless.dev.")
-			);
+			const encodedBearer = protocols.find((protocol) => protocol.startsWith("base64url.bearer.authorization.baseless.dev."));
 			if (encodedBearer) {
 				const base64Decoded = decodeBase64Url(encodedBearer.slice(44));
 				request.headers.set(

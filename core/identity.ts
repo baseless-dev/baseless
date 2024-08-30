@@ -1,11 +1,4 @@
-import {
-	type TObject,
-	type TOptional,
-	type TRecord,
-	type TString,
-	type TUnknown,
-	Type,
-} from "@sinclair/typebox";
+import { type TObject, type TOptional, type TRecord, type TString, type TUnknown, Type } from "@sinclair/typebox";
 import { ID, isID, type TID } from "./id.ts";
 
 /**

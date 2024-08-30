@@ -4,11 +4,7 @@ import { configureAuthentication } from "./application.ts";
 import { choice, component, sequence } from "./ceremony.ts";
 import { EmailIdentityComponentProvider } from "./provider/email.ts";
 import { PasswordIdentityComponentProvider } from "./provider/password.ts";
-import {
-	MemoryDocumentProvider,
-	MemoryKVProvider,
-	MemoryNotificationProvider,
-} from "@baseless/inmemory-provider";
+import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
 import { assert, assertEquals, assertObjectMatch } from "@std/assert";
 import { id } from "@baseless/core/id";
 import { AuthenticationConfiguration, AuthenticationContext } from "./types.ts";
@@ -272,16 +268,11 @@ Deno.test("AuthenticationApplication", async (t) => {
 			}
 			let code: string | undefined;
 			{
-				const notifications =
-					(context.notification as MemoryNotificationProvider).notifications;
+				const notifications = (context.notification as MemoryNotificationProvider).notifications;
 				notifications.clear();
 				const result = await app.invokeRpc({
 					rpc: ["registration", "sendValidationCode"],
-					input: {
-						id: "email",
-						locale: "en",
-						state,
-					},
+					input: { id: "email", locale: "en", state },
 					context,
 				});
 				assert(result === true);
@@ -292,11 +283,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			{
 				const result = await app.invokeRpc({
 					rpc: ["registration", "submitValidationCode"],
-					input: {
-						id: "email",
-						value: code,
-						state,
-					},
+					input: { id: "email", value: code, state },
 					context,
 				});
 				assert(result && typeof result === "object");
@@ -306,11 +293,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			{
 				const result = await app.invokeRpc({
 					rpc: ["registration", "submitPrompt"],
-					input: {
-						id: "password",
-						value: "123",
-						state,
-					},
+					input: { id: "password", value: "123", state },
 					context,
 				});
 				assert(result && typeof result === "object");

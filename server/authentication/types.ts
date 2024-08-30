@@ -1,12 +1,7 @@
 import { TBoolean, TObject, TString, TUnknown, TVoid, Type } from "@sinclair/typebox";
 import { ID, isID, TID } from "@baseless/core/id";
 import { Identity, IdentityComponent } from "@baseless/core/identity";
-import {
-	CollectionDefinitionWithoutSecurity,
-	Context,
-	DocumentDefinitionWithoutSecurity,
-	RpcDefinition,
-} from "../mod.ts";
+import { CollectionDefinitionWithoutSecurity, Context, DocumentDefinitionWithoutSecurity, RpcDefinition } from "../mod.ts";
 import { AuthenticationCeremony } from "./ceremony.ts";
 import { AuthenticationComponent } from "./component.ts";
 import type { KeyLike } from "jose";

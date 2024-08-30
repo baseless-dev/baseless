@@ -1,13 +1,4 @@
-import {
-	type TArray,
-	type TLiteral,
-	type TObject,
-	type TRecursive,
-	type TThis,
-	type TUnion,
-	type TUnknown,
-	Type,
-} from "@sinclair/typebox";
+import { type TArray, type TLiteral, type TObject, type TRecursive, type TThis, type TUnion, type TUnknown, Type } from "@sinclair/typebox";
 
 export interface ResultSingle {
 	kind: "result";

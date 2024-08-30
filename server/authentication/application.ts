@@ -235,8 +235,7 @@ export function configureAuthentication(
 				if (!currentComponent) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const identityComponentProvider =
-					configuration.identityComponentProviders[currentComponent.component];
+				const identityComponentProvider = configuration.identityComponentProviders[currentComponent.component];
 				if (!identityComponentProvider) {
 					throw new UnknownIdentityComponentError();
 				}
@@ -264,14 +263,13 @@ export function configureAuthentication(
 				if (isID("id_", result)) {
 					state.identityId = result;
 				}
-				const { choices: nextChoices, component: nextComponent } =
-					await getCurrentAuthenticationCeremony({
-						ceremony,
-						choices: [...choices, currentComponent.component],
-						context,
-						flow: "authentication",
-						identityId: state.identityId,
-					});
+				const { choices: nextChoices, component: nextComponent } = await getCurrentAuthenticationCeremony({
+					ceremony,
+					choices: [...choices, currentComponent.component],
+					context,
+					flow: "authentication",
+					identityId: state.identityId,
+				});
 				if (nextComponent === true) {
 					return createSessionAndTokens(context, state);
 				}
@@ -315,8 +313,7 @@ export function configureAuthentication(
 				if (!currentComponent) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const identityComponentProvider =
-					configuration.identityComponentProviders[currentComponent.component];
+				const identityComponentProvider = configuration.identityComponentProviders[currentComponent.component];
 				if (!identityComponentProvider) {
 					throw new UnknownIdentityComponentError();
 				}
@@ -371,10 +368,9 @@ export function configureAuthentication(
 				if (currentComponent === true) {
 					throw new RegistrationSubmitPromptError();
 				}
-				const pickedComponent: AuthenticationComponentPrompt | undefined =
-					currentComponent.current.kind === "choice"
-						? currentComponent.current.prompts.find((c) => c.id === input.id)
-						: currentComponent.current;
+				const pickedComponent: AuthenticationComponentPrompt | undefined = currentComponent.current.kind === "choice"
+					? currentComponent.current.prompts.find((c) => c.id === input.id)
+					: currentComponent.current;
 
 				if (!pickedComponent || pickedComponent.id !== input.id) {
 					throw new RegistrationSubmitPromptError();
@@ -431,10 +427,9 @@ export function configureAuthentication(
 				if (currentComponent === true) {
 					throw new RegistrationSubmitPromptError();
 				}
-				const pickedComponent: AuthenticationComponentPrompt | undefined =
-					currentComponent.current.kind === "choice"
-						? currentComponent.current.prompts.find((c) => c.id === input.id)
-						: currentComponent.current;
+				const pickedComponent: AuthenticationComponentPrompt | undefined = currentComponent.current.kind === "choice"
+					? currentComponent.current.prompts.find((c) => c.id === input.id)
+					: currentComponent.current;
 				if (!pickedComponent || pickedComponent.id !== input.id) {
 					throw new RegistrationSubmitPromptError();
 				}
@@ -466,10 +461,9 @@ export function configureAuthentication(
 				if (currentComponent === true) {
 					throw new RegistrationSubmitPromptError();
 				}
-				const pickedComponent: AuthenticationComponentPrompt | undefined =
-					currentComponent.current.kind === "choice"
-						? currentComponent.current.prompts.find((c) => c.id === input.id)
-						: currentComponent.current;
+				const pickedComponent: AuthenticationComponentPrompt | undefined = currentComponent.current.kind === "choice"
+					? currentComponent.current.prompts.find((c) => c.id === input.id)
+					: currentComponent.current;
 
 				if (!pickedComponent || pickedComponent.id !== input.id) {
 					throw new RegistrationSubmitPromptError();
@@ -480,9 +474,7 @@ export function configureAuthentication(
 					throw new UnknownIdentityComponentError();
 				}
 
-				const identityComponent = (state.components ?? []).find((c) =>
-					c.componentId === pickedComponent.id
-				);
+				const identityComponent = (state.components ?? []).find((c) => c.componentId === pickedComponent.id);
 				if (!identityComponent) {
 					throw new RegistrationSubmitPromptError();
 				}
@@ -504,11 +496,7 @@ export function configureAuthentication(
 
 				const nextComponent = await getRegistrationCeremony(newEncryptedState, context);
 				if (nextComponent === true) {
-					const identityId = await createIdentity(
-						context,
-						state.identityId!,
-						state.components!,
-					);
+					const identityId = await createIdentity(context, state.identityId!, state.components!);
 					return createSessionAndTokens(context, { scope: [], identityId, choices: [] });
 				}
 				return nextComponent;
@@ -567,53 +555,35 @@ export function configureAuthentication(
 		ceremony: AuthenticationCeremonyComponent | AuthenticationCeremonyChoiceShallow,
 	): Promise<AuthenticationComponent> {
 		if (ceremony.kind === "component") {
-			const identityComponentProvider =
-				configuration.identityComponentProviders[ceremony.component];
+			const identityComponentProvider = configuration.identityComponentProviders[ceremony.component];
 			if (!identityComponentProvider) {
 				throw new UnknownIdentityComponentError();
 			}
 			const identityComponent = identityId
-				? await context.document.get([
-					"identities",
-					identityId,
-					"components",
-					ceremony.component,
-				]).then((doc) => doc.data).catch((_) => undefined)
+				? await context.document.get(["identities", identityId, "components", ceremony.component])
+					.then((doc) => doc.data).catch((_) => undefined)
 				: undefined;
 			if (identityComponent && identityComponent.confirmed === false) {
 				throw new AuthenticationSubmitPromptError();
 			}
-			return identityComponentProvider.getSignInPrompt({
-				componentId: ceremony.component,
-				context,
-				identityComponent,
-			});
+			return identityComponentProvider.getSignInPrompt({ componentId: ceremony.component, context, identityComponent });
 		} else {
 			const component: AuthenticationComponent = {
 				kind: "choice",
 				prompts: await Promise.all(
 					ceremony.components.map(async (component) => {
-						const identityComponentProvider =
-							configuration.identityComponentProviders[component.component];
+						const identityComponentProvider = configuration.identityComponentProviders[component.component];
 						if (!identityComponentProvider) {
 							throw new UnknownIdentityComponentError();
 						}
 						const identityComponent = identityId
-							? await context.document.get([
-								"identities",
-								identityId,
-								"components",
-								component.component,
-							]).then((doc) => doc.data).catch((_) => undefined)
+							? await context.document.get(["identities", identityId, "components", component.component])
+								.then((doc) => doc.data).catch((_) => undefined)
 							: undefined;
 						if (!identityComponent || identityComponent.confirmed === false) {
 							throw new AuthenticationSubmitPromptError();
 						}
-						return identityComponentProvider.getSignInPrompt({
-							componentId: component.component,
-							context,
-							identityComponent,
-						});
+						return identityComponentProvider.getSignInPrompt({ componentId: component.component, context, identityComponent });
 					}),
 				),
 			};
@@ -655,35 +625,22 @@ export function configureAuthentication(
 			} else if (component === true) {
 				return { choices, component };
 			} else if (flow === "authentication") {
-				const components = component.kind === "component"
-					? [component]
-					: component.components;
+				const components = component.kind === "component" ? [component] : component.components;
 				const unskippableComponents = [];
 				for (const component of components) {
 					if (component.kind === "component") {
-						const provider =
-							configuration.identityComponentProviders[component.component];
+						const provider = configuration.identityComponentProviders[component.component];
 						if (!provider) {
 							throw new UnknownIdentityComponentError();
 						}
 						const identityComponent = identityId
-							? await context.document.get([
-								"identities",
-								identityId,
-								"components",
-								component.component,
-							]).then((doc) => doc.data).catch((_) => undefined)
+							? await context.document.get(["identities", identityId, "components", component.component])
+								.then((doc) => doc.data).catch((_) => undefined)
 							: undefined;
 						if (identityComponent && identityComponent.confirmed === false) {
 							throw new AuthenticationSubmitPromptError();
 						}
-						if (
-							await provider.skipSignInPrompt?.({
-								componentId: component.component,
-								context,
-								identityComponent,
-							}) === true
-						) {
+						if (await provider.skipSignInPrompt?.({ componentId: component.component, context, identityComponent }) === true) {
 							choices.push(component.component);
 							continue;
 						}

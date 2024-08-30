@@ -1,13 +1,4 @@
-import {
-	type TArray,
-	type TLiteral,
-	type TObject,
-	type TRecord,
-	type TString,
-	type TUnion,
-	TUnknown,
-	Type,
-} from "@sinclair/typebox";
+import { type TArray, type TLiteral, type TObject, type TRecord, type TString, type TUnion, TUnknown, Type } from "@sinclair/typebox";
 
 export interface AuthenticationComponentPrompt {
 	kind: "component";

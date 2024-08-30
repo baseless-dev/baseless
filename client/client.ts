@@ -13,10 +13,7 @@ import { isResultError, isResults, isResultSingle } from "@baseless/core/result"
 import MemoryStorage from "./memory_storage.ts";
 import { stableStringify } from "./stablestringify.ts";
 import { assertIdentity, type Identity } from "@baseless/core/identity";
-import {
-	type AuthenticationTokens,
-	isAuthenticationTokens,
-} from "@baseless/server/authentication/types";
+import { type AuthenticationTokens, isAuthenticationTokens } from "@baseless/server/authentication/types";
 import { EventEmitter } from "@baseless/core/eventemitter";
 import { isPathMatching } from "@baseless/core/path";
 import { Command, isCommandRpc } from "../core/command.ts";
@@ -211,9 +208,7 @@ export class Client {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
-					...(currentToken?.access_token
-						? { Authorization: `Bearer ${currentToken.access_token}` }
-						: {}),
+					...(currentToken?.access_token ? { Authorization: `Bearer ${currentToken.access_token}` } : {}),
 				},
 				body: JSON.stringify({
 					kind: "commands",

@@ -73,9 +73,7 @@ Deno.test("Application", async (t) => {
 			})
 			.build();
 
-		await assertRejects(() =>
-			app.getDocument({ context, provider: documentProvider, path: ["users", "2"] })
-		);
+		await assertRejects(() => app.getDocument({ context, provider: documentProvider, path: ["users", "2"] }));
 		assertObjectMatch(
 			await app.getDocument({ context, provider: documentProvider, path: ["users", "1"] }),
 			{ data: "foo" },
@@ -86,8 +84,7 @@ Deno.test("Application", async (t) => {
 		const app = new ApplicationBuilder()
 			.document(["users", "{userId}"], {
 				schema: Type.String(),
-				security: async ({ params }) =>
-					params.userId === "deny" ? Permission.None : Permission.All,
+				security: async ({ params }) => params.userId === "deny" ? Permission.None : Permission.All,
 			})
 			.onDocumentSaving(["users", "{userId}"], async ({ params }) => {
 				event.push(params.userId);

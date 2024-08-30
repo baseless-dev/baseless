@@ -44,14 +44,10 @@ export class DenoKVProvider extends KVProvider {
 	}
 	async put(key: string[], value: unknown, options?: KVPutOptions): Promise<void> {
 		const expireIn = options?.expiration
-			? options.expiration instanceof Date
-				? options.expiration.getTime() - new Date().getTime()
-				: options.expiration
+			? options.expiration instanceof Date ? options.expiration.getTime() - new Date().getTime() : options.expiration
 			: undefined;
 		const expiration = options?.expiration
-			? options.expiration instanceof Date
-				? options.expiration.getTime()
-				: options.expiration + new Date().getTime()
+			? options.expiration instanceof Date ? options.expiration.getTime() : options.expiration + new Date().getTime()
 			: undefined;
 		const result = await this.#storage.set(key, { value, expiration }, { expireIn });
 		if (!result.ok) {

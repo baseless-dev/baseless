@@ -25,9 +25,7 @@ export class PolicyIdentityComponentProvider implements IdentityComponentProvide
 	verifyRequiredDocumentAccepted(responses: Record<string, string>): boolean {
 		return this.#documents
 			.filter((doc) => doc.required === true)
-			.every((doc) =>
-				doc.identifier in responses && responses[doc.identifier] === doc.version
-			);
+			.every((doc) => doc.identifier in responses && responses[doc.identifier] === doc.version);
 	}
 
 	skipSignInPrompt(options: {

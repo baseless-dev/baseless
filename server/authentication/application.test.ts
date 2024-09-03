@@ -1,26 +1,19 @@
 // deno-lint-ignore-file explicit-function-return-type
 import { generateKeyPair } from "jose";
 import { configureAuthentication } from "./application.ts";
-import { choice, component, sequence } from "./ceremony.ts";
+import { component, sequence } from "./ceremony.ts";
 import { EmailIdentityComponentProvider } from "./provider/email.ts";
 import { PasswordIdentityComponentProvider } from "./provider/password.ts";
 import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
-import { assert, assertEquals, assertObjectMatch } from "@std/assert";
+import { assert, assertObjectMatch } from "@std/assert";
 import { id } from "@baseless/core/id";
-import { AuthenticationConfiguration, AuthenticationContext } from "./types.ts";
+import { AuthenticationContext } from "./types.ts";
 import { ApplicationDocumentProviderFacade } from "../application/documentfacade.ts";
 import { PolicyIdentityComponentProvider } from "./provider/policy.ts";
 
 Deno.test("AuthenticationApplication", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
-	const setupServer = async (
-		options?: Partial<
-			Pick<
-				AuthenticationConfiguration,
-				"ceremony" | "identityComponentProviders"
-			>
-		>,
-	) => {
+	const setupServer = async () => {
 		const notificationProvider = new MemoryNotificationProvider();
 		const kvProvider = new MemoryKVProvider();
 		const documentProvider = new MemoryDocumentProvider();
@@ -40,26 +33,25 @@ Deno.test("AuthenticationApplication", async (t) => {
 			content: { en: "..." },
 		}]);
 		const app = configureAuthentication({
-			keys: { ...keyPair, algo: "PS512" },
-			ceremony: options?.ceremony ??
-				(async ({ flow }) =>
-					flow === "authentication"
-						? sequence(
-							component("email"),
-							component("password"),
-							component("policy"),
-						)
-						: sequence(
-							component("policy"),
-							component("email"),
-							component("password"),
-						)),
-			identityComponentProviders: options?.identityComponentProviders ?? {
+			ceremony: async ({ flow }) =>
+				flow === "authentication"
+					? sequence(
+						component("email"),
+						component("password"),
+						component("policy"),
+					)
+					: sequence(
+						component("policy"),
+						component("email"),
+						component("password"),
+					),
+			identityComponentProviders: {
 				email: emailProvider,
 				password: passwordProvider,
 				policy: policyProvider,
 			},
 			notificationProvider,
+			keys: { ...keyPair, algo: "PS512" },
 		})
 			.build();
 		const context: AuthenticationContext = {

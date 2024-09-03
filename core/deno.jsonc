@@ -3,10 +3,9 @@
 	"version": "0.3.0-rc.1",
 	"exports": {
 		".": "./mod.ts",
-		"./authentication": "./authentication.ts",
 		"./command": "./command.ts",
-		"./eventemitter": "./eventemitter.ts",
 		"./document": "./document.ts",
+		"./eventemitter": "./eventemitter.ts",
 		"./id": "./id.ts",
 		"./identity": "./identity.ts",
 		"./notification": "./notification.ts",

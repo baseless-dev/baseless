@@ -1,14 +1,6 @@
 // deno-lint-ignore-file require-await no-explicit-any
 import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
-import {
-	ApplicationBuilder,
-	AuthenticationConfiguration,
-	component,
-	configureAuthentication,
-	Permission,
-	sequence,
-	Server,
-} from "@baseless/server";
+import { ApplicationBuilder, component, configureAuthentication, Permission, sequence, Server } from "@baseless/server";
 import { EmailIdentityComponentProvider } from "@baseless/server/authentication";
 import { generateKeyPair } from "jose";
 import { Client } from "./client.ts";
@@ -19,19 +11,15 @@ import { isIdentity } from "@baseless/core/identity";
 Deno.test("Client", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
 	const notificationProvider = new MemoryNotificationProvider();
-	const setupClient = async (
-		options?: Partial<
-			Pick<AuthenticationConfiguration, "ceremony" | "identityComponentProviders">
-		>,
-	) => {
+	const setupClient = async () => {
 		const kvProvider = new MemoryKVProvider();
 		const documentProvider = new MemoryDocumentProvider();
 		const emailProvider = new EmailIdentityComponentProvider();
 		const appBuilder = new ApplicationBuilder()
 			.use(configureAuthentication({
 				keys: { ...keyPair, algo: "PS512" },
-				ceremony: options?.ceremony ?? sequence(component("email")),
-				identityComponentProviders: options?.identityComponentProviders ?? {
+				ceremony: sequence(component("email")),
+				identityComponentProviders: {
 					email: emailProvider,
 				},
 				notificationProvider,

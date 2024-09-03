@@ -9,16 +9,15 @@
 		"./provider": "./provider/mod.ts",
 		"./provider/document.test": "./provider/document.test.ts",
 		"./provider/kv.test": "./provider/kv.test.ts",
-		"./provider/session.test": "./provider/session.test.ts",
 		"./server": "./server.ts"
 	},
 	"publish": {
 		"include": [
 			"LICENSE",
-			"*.ts"
+			"**/*.ts"
 		],
 		"exclude": [
-			"*.test.ts"
+			"**/*.test.ts"
 		]
 	}
 }

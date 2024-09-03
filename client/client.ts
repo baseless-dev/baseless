@@ -174,6 +174,7 @@ export class Client {
 	async #processCommandQueue(): Promise<void> {
 		const now = Date.now() / 1000 >> 0;
 		let currentToken = this.currentToken;
+		// Reauthenticate if token is expired
 		if (
 			currentToken?.access_token && currentToken.refresh_token &&
 			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
@@ -227,9 +228,7 @@ export class Client {
 								(
 									isPathMatching(["authentication", "submitPrompt"], command.command.rpc) ||
 									isPathMatching(["registration", "submitPrompt"], command.command.rpc) ||
-									isPathMatching(["registration", "submitValidationCode"], command.command.rpc) ||
-									isPathMatching(["registration", "getCeremony"], command.command.rpc) ||
-									isPathMatching(["authentication", "getCeremony"], command.command.rpc)
+									isPathMatching(["registration", "submitValidationCode"], command.command.rpc)
 								) && isAuthenticationTokens(value.value)
 							) {
 								// Switch to latest tokens

@@ -15,6 +15,7 @@ Deno.test("Client", async (t) => {
 		const kvProvider = new MemoryKVProvider();
 		const documentProvider = new MemoryDocumentProvider();
 		const emailProvider = new EmailIdentityComponentProvider();
+		let ref = 0;
 		const appBuilder = new ApplicationBuilder()
 			.use(configureAuthentication({
 				keys: { ...keyPair, algo: "PS512" },
@@ -28,7 +29,7 @@ Deno.test("Client", async (t) => {
 				input: Type.Void(),
 				output: Type.String(),
 				security: async () => Permission.All,
-				handler: async ({ params }) => `Hello ${params.world}`,
+				handler: async ({ params }) => `${++ref}. Hello ${params.world}`,
 			});
 
 		const app = appBuilder.build();
@@ -55,19 +56,21 @@ Deno.test("Client", async (t) => {
 	await t.step("single rpc", async () => {
 		using client = await setupClient();
 		const result = await client.rpc(["hello", "World"], void 0);
-		assertEquals(result, "Hello World");
+		assertEquals(result, "1. Hello World");
 	});
 
 	await t.step("batched rpc", async () => {
 		using client = await setupClient();
-		const [result1, result2, result3] = await Promise.all([
+		const [result1, result2, result3, result4] = await Promise.all([
 			client.rpc(["hello", "Foo"], void 0),
 			client.rpc(["hello", "Bar"], void 0),
 			client.rpc(["hello", "Foo"], void 0),
+			client.rpc(["hello", "Foo"], void 0, false),
 		]);
-		assertEquals(result1, "Hello Foo");
-		assertEquals(result2, "Hello Bar");
-		assertEquals(result3, "Hello Foo");
+		assertEquals(result1, "1. Hello Foo");
+		assertEquals(result2, "2. Hello Bar");
+		assertEquals(result3, "1. Hello Foo");
+		assertEquals(result4, "3. Hello Foo");
 	});
 
 	await t.step("onAuthenticationStateChange", async () => {

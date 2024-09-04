@@ -266,11 +266,13 @@ export class Client {
 		}
 	}
 
-	#enqueueCommand(command: Command): Promise<unknown> {
+	#enqueueCommand(command: Command, dedup: boolean): Promise<unknown> {
 		const key = stableStringify(command);
-		const cachedCommand = this.#commandCache.get(key);
-		if (cachedCommand) {
-			return cachedCommand;
+		if (dedup === true) {
+			const cachedCommand = this.#commandCache.get(key);
+			if (cachedCommand) {
+				return cachedCommand;
+			}
 		}
 		const { promise, resolve, reject } = Promise.withResolvers<unknown>();
 		this.#commandQueue.push({ command, resolve, reject });
@@ -288,12 +290,12 @@ export class Client {
 		return this.#events.on("onAuthenticationStateChange", listener);
 	}
 
-	rpc(key: string[], input: unknown): Promise<unknown> {
+	rpc(key: string[], input: unknown, dedup = true): Promise<unknown> {
 		return this.#enqueueCommand({
 			kind: "rpc",
 			rpc: key,
 			input,
-		});
+		}, dedup);
 	}
 }
 
@@ -311,5 +313,6 @@ export interface TypedClient<
 	>(
 		key: TRpcPath,
 		input: Static<TRpcDefinition["input"]>,
+		dedup?: boolean,
 	): Promise<Static<TRpcDefinition["output"]>>;
 }

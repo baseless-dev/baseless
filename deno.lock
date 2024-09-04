@@ -12,6 +12,7 @@
       "jsr:@std/assert@^0.223.0": "jsr:@std/assert@0.223.0",
       "jsr:@std/bytes@^0.218.2": "jsr:@std/bytes@0.218.2",
       "jsr:@std/encoding@1.0.2": "jsr:@std/encoding@1.0.2",
+      "jsr:@std/fmt": "jsr:@std/fmt@0.218.2",
       "jsr:@std/fmt@^0.218.2": "jsr:@std/fmt@0.218.2",
       "jsr:@std/fs": "jsr:@std/fs@1.0.2",
       "jsr:@std/fs@^0.218.2": "jsr:@std/fs@0.218.2",

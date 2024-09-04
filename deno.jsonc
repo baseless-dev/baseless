@@ -7,6 +7,7 @@
 		"./server"
 	],
 	"tasks": {
+		"local-deploy": "deno run -A ./scripts/local-deploy.ts",
 		"test": "deno test -A --unstable-kv",
 		"testfast": "deno test -A --unstable-kv --parallel --fail-fast"
 	},

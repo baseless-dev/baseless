@@ -3,6 +3,7 @@ import ts from "npm:typescript";
 import { walk } from "jsr:@std/fs";
 import { dirname, extname, globToRegExp, join, relative } from "jsr:@std/path";
 import * as colors from "jsr:@std/fmt/colors";
+import { format } from "jsr:@std/fmt/duration";
 
 const rm = (path: string) => Deno.remove(path, { recursive: true }).catch((_) => {});
 const clearDir = async (path: string) => {
@@ -11,6 +12,8 @@ const clearDir = async (path: string) => {
 	}
 };
 const mkdir = (path: string) => Deno.mkdir(path, { recursive: true });
+
+const timeStart = performance.now();
 
 const cwd = Deno.cwd();
 
@@ -97,6 +100,8 @@ await Deno.writeTextFile(
 	),
 );
 
+console.log(colors.dim(`• Installing dependencies...`));
+
 const npmInstall = new Deno.Command(`npm`, {
 	cwd: join(cwd, "_npm"),
 	args: ["i"],
@@ -109,6 +114,8 @@ await npmInstall.status;
 const printer = ts.createPrinter();
 
 for (const summary of workspaceSummaries) {
+	console.log(colors.dim(`• Transpiling ${summary.name}...`));
+
 	const workspaceRoot = join(cwd, summary.location);
 	const packageRoot = join(cwd, "_npm", summary.name);
 	const walkedFiles = await Array.fromAsync(walk(workspaceRoot, {
@@ -204,6 +211,8 @@ for (const summary of workspaceSummaries) {
 	await rm(join(packageRoot, "tsconfig.json"));
 }
 
+console.log(colors.dim(`• Linking modules...`));
+
 const npmLink = new Deno.Command(`npm`, {
 	cwd: join(cwd, "_npm"),
 	args: ["link", "--workspaces"],
@@ -212,6 +221,8 @@ const npmLink = new Deno.Command(`npm`, {
 })
 	.spawn();
 await npmLink.status;
+
+console.log(colors.green("✓") + colors.dim(` Build took ${format(performance.now() - timeStart, { ignoreZero: true })}.`));
 
 type PackageSummary = {
 	name: string;

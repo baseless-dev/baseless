@@ -52,7 +52,7 @@ export class Client {
 	constructor(initialization: ClientInitialization) {
 		this.#clientId = initialization.clientId;
 		this.#apiEndpoint = initialization.apiEndpoint;
-		this.#fetch = initialization.fetch ?? globalThis.fetch;
+		this.#fetch = initialization.fetch ?? globalThis.fetch.bind(globalThis);
 		this.#batchSize = initialization.batchSize ?? 10;
 		this.#tokens = [];
 		this.#currentTokenIndex = -1;

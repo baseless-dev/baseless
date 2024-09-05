@@ -22,13 +22,10 @@ const { workspace: workspaces, imports } = JSON.parse(await Deno.readTextFile(jo
 	imports: Record<string, string>;
 };
 
-// workspaces.splice(0, workspaces.length, "./core");
-
-const workspaceSummaries: Array<PackageSummary & { location: string }> = [];
+const workspaceSummaries: Array<PackageSummary> = [];
 
 for (const workspace of workspaces) {
 	const config = JSON.parse(await Deno.readTextFile(join(cwd, workspace, "deno.jsonc"))) as PackageSummary;
-
 	workspaceSummaries.push({ ...config, location: workspace });
 	const rootDir = join(cwd, "_npm", config.name);
 
@@ -65,24 +62,6 @@ for (const workspace of workspaces) {
 			"  ",
 		),
 	);
-
-	await Deno.writeTextFile(
-		join(cwd, "_npm", config.name, "tsconfig.json"),
-		JSON.stringify(
-			{
-				include: ["**/*.ts", "**/*.tsx"],
-				exclude: ["node_modules"],
-				compilerOptions: {
-					target: "ESNext",
-					module: "ESNext",
-					moduleResolution: "NodeNext",
-					allowImportingTsExtensions: true,
-				},
-			},
-			undefined,
-			"  ",
-		),
-	);
 }
 
 await Deno.writeTextFile(
@@ -113,7 +92,7 @@ await npmInstall.status;
 
 const printer = ts.createPrinter();
 
-for (const summary of workspaceSummaries) {
+async function compileSummary(summary: PackageSummary): Promise<void> {
 	console.log(colors.dim(`• Transpiling ${summary.name}...`));
 
 	const workspaceRoot = join(cwd, summary.location);
@@ -126,6 +105,7 @@ for (const summary of workspaceSummaries) {
 		join(workspaceRoot, "deno.jsonc"),
 		...walkedFiles.map((file) => file.path),
 	];
+
 	for (const file of files) {
 		const ext = extname(file);
 
@@ -176,6 +156,24 @@ for (const summary of workspaceSummaries) {
 		}
 	}
 
+	await Deno.writeTextFile(
+		join(packageRoot, "tsconfig.json"),
+		JSON.stringify(
+			{
+				include: ["**/*.ts", "**/*.tsx"],
+				exclude: ["node_modules"],
+				compilerOptions: {
+					target: "ESNext",
+					module: "ESNext",
+					moduleResolution: "NodeNext",
+					allowImportingTsExtensions: true,
+				},
+			},
+			undefined,
+			"  ",
+		),
+	);
+
 	const typeCompile = new Deno.Command(`npx`, {
 		cwd: packageRoot,
 		args: [
@@ -211,6 +209,11 @@ for (const summary of workspaceSummaries) {
 	await rm(join(packageRoot, "tsconfig.json"));
 }
 
+for (const summary of workspaceSummaries) {
+	await compileSummary(summary);
+}
+console.log(colors.green("•") + colors.dim(` Done transpiling`));
+
 console.log(colors.dim(`• Linking modules...`));
 
 const npmLink = new Deno.Command(`npm`, {
@@ -224,7 +227,41 @@ await npmLink.status;
 
 console.log(colors.green("✓") + colors.dim(` Build took ${format(performance.now() - timeStart, { ignoreZero: true })}.`));
 
+if (Deno.args.includes("--watch")) {
+	console.log(colors.blue("○") + colors.dim(` Watching for changes...`));
+	const workspaceChanges = new Set<PackageSummary>();
+	let processChangesTimer: number | undefined;
+	const processChanges = async () => {
+		const changes = Array.from(workspaceChanges);
+		workspaceChanges.clear();
+
+		for (const change of changes) {
+			await compileSummary(change);
+		}
+		console.log(colors.green("•") + colors.dim(` Done transpiling`));
+		if (workspaceChanges.size) {
+			processChangesTimer = setTimeout(processChanges, 100);
+		} else {
+			processChangesTimer = undefined;
+		}
+	};
+	const watcher = Deno.watchFs(cwd);
+	for await (const event of watcher) {
+		if (event.kind === "modify" || event.kind === "create") {
+			const file = event.paths[0];
+			const workspaceSummary = workspaceSummaries.find((w) => file.startsWith(join(cwd, w.location)));
+			if (workspaceSummary) {
+				workspaceChanges.add(workspaceSummary);
+				if (!processChangesTimer) {
+					processChangesTimer = setTimeout(processChanges, 100);
+				}
+			}
+		}
+	}
+}
+
 type PackageSummary = {
+	location: string;
 	name: string;
 	version: string;
 	exports: Record<string, string>;

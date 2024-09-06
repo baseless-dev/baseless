@@ -27,41 +27,43 @@ const workspaceSummaries: Array<PackageSummary> = [];
 for (const workspace of workspaces) {
 	const config = JSON.parse(await Deno.readTextFile(join(cwd, workspace, "deno.jsonc"))) as PackageSummary;
 	workspaceSummaries.push({ ...config, location: workspace });
-	const rootDir = join(cwd, "_npm", config.name);
 
-	await mkdir(rootDir);
-	await clearDir(rootDir);
+	if (!Deno.args.includes("--only") || Deno.args.includes(config.name)) {
+		const rootDir = join(cwd, "_npm", config.name);
+		await mkdir(rootDir);
+		await clearDir(rootDir);
 
-	await Deno.writeTextFile(
-		join(cwd, "_npm", config.name, "package.json"),
-		JSON.stringify(
-			{
-				name: config.name,
-				version: config.version,
-				type: "module",
-				exports: Object.fromEntries(
-					Object.entries(config.exports).map(([k, v]) => [k, {
-						types: `./${join("./_dist", v.replace(/\.tsx?$/, ".d.ts"))}`,
-						default: v.replace(/\.ts(x)?$/, ".js$1"),
-					}]),
-				),
-				devDependencies: {
-					"typescript": "*",
+		await Deno.writeTextFile(
+			join(cwd, "_npm", config.name, "package.json"),
+			JSON.stringify(
+				{
+					name: config.name,
+					version: config.version,
+					type: "module",
+					exports: Object.fromEntries(
+						Object.entries(config.exports).map(([k, v]) => [k, {
+							types: `./${join("./_dist", v.replace(/\.tsx?$/, ".d.ts"))}`,
+							default: v.replace(/\.ts(x)?$/, ".js"),
+						}]),
+					),
+					devDependencies: {
+						"typescript": "*",
+					},
+					dependencies: Object.fromEntries(
+						Object.values(imports).map((
+							v,
+						) => [
+							v.match(/^(npm|jsr):(.*)@([^\/]*)/)![2],
+							v.replace(/^npm:(.*)@([^\\/]+).*$/, "$2")
+								.replace(/^jsr:@(.*)/, (_, p) => `npm:@jsr/${p.replaceAll("/", "__")}`),
+						]),
+					),
 				},
-				dependencies: Object.fromEntries(
-					Object.values(imports).map((
-						v,
-					) => [
-						v.match(/^(npm|jsr):(.*)@([^\/]*)/)![2],
-						v.replace(/^npm:(.*)@([^\\/]+).*$/, "$2")
-							.replace(/^jsr:@(.*)/, (_, p) => `npm:@jsr/${p.replaceAll("/", "__")}`),
-					]),
-				),
-			},
-			undefined,
-			"  ",
-		),
-	);
+				undefined,
+				"  ",
+			),
+		);
+	}
 }
 
 await Deno.writeTextFile(
@@ -119,7 +121,7 @@ async function compileSummary(summary: PackageSummary): Promise<void> {
 							node.moduleSpecifier &&
 							ts.isStringLiteral(node.moduleSpecifier)
 						) {
-							node.moduleSpecifier.text = node.moduleSpecifier.text.replace(/\.ts(x)?$/, ".js$1");
+							node.moduleSpecifier.text = node.moduleSpecifier.text.replace(/\.ts(x)?$/, ".js");
 							return context.factory.createImportDeclaration(
 								node.modifiers,
 								node.importClause,
@@ -131,7 +133,7 @@ async function compileSummary(summary: PackageSummary): Promise<void> {
 							node.moduleSpecifier &&
 							ts.isStringLiteral(node.moduleSpecifier)
 						) {
-							node.moduleSpecifier.text = node.moduleSpecifier.text.replace(/\.ts(x)?$/, ".js$1");
+							node.moduleSpecifier.text = node.moduleSpecifier.text.replace(/\.ts(x)?$/, ".js");
 							return context.factory.createExportDeclaration(
 								node.modifiers,
 								node.isTypeOnly,
@@ -167,6 +169,9 @@ async function compileSummary(summary: PackageSummary): Promise<void> {
 					module: "ESNext",
 					moduleResolution: "NodeNext",
 					allowImportingTsExtensions: true,
+					jsx: "react-jsx",
+					jsxImportSource: "react",
+					jsxImportSourceTypes: "@types/react",
 				},
 			},
 			undefined,
@@ -210,7 +215,9 @@ async function compileSummary(summary: PackageSummary): Promise<void> {
 }
 
 for (const summary of workspaceSummaries) {
-	await compileSummary(summary);
+	if (!Deno.args.includes("--only") || Deno.args.includes(summary.name)) {
+		await compileSummary(summary);
+	}
 }
 console.log(colors.green("•") + colors.dim(` Done transpiling`));
 

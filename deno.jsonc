@@ -2,8 +2,9 @@
 	"workspace": [
 		"./client",
 		"./core",
-		"./inmemory-provider",
 		"./deno-provider",
+		"./inmemory-provider",
+		"./react",
 		"./server"
 	],
 	"tasks": {
@@ -12,6 +13,9 @@
 		"testfast": "deno test -A --unstable-kv --parallel --fail-fast"
 	},
 	"compilerOptions": {
+		"jsx": "react-jsx",
+		"jsxImportSource": "react",
+		"jsxImportSourceTypes": "@types/react"
 	},
 	"lint": {
 		"rules": {
@@ -24,10 +28,12 @@
 		"lineWidth": 140
 	},
 	"imports": {
-		"jose": "npm:jose@5.7.0",
 		"@sinclair/typebox": "npm:@sinclair/typebox@0.33.7",
 		"@sinclair/typebox/value": "npm:@sinclair/typebox@0.33.7/value",
 		"@std/assert": "jsr:@std/assert@1.0.2",
-		"@std/encoding": "jsr:@std/encoding@1.0.2"
+		"@std/encoding": "jsr:@std/encoding@1.0.2",
+		"@types/react": "npm:@types/react@18",
+		"jose": "npm:jose@5.7.0",
+		"react": "npm:react@18.3.1"
 	}
 }

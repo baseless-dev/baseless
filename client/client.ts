@@ -111,6 +111,21 @@ export class Client {
 		}
 	}
 
+	get currentIdentity(): Identity | undefined {
+		const currentToken = this.currentToken;
+		if (currentToken) {
+			try {
+				const { sub: identityId, data } = JSON.parse(
+					atob(currentToken.id_token.split(".").at(1)!),
+				);
+				const identity = { identityId, data };
+				assertIdentity(identity);
+				return identity;
+			} catch (_error) {}
+		}
+		return undefined;
+	}
+
 	#readData(): void {
 		const tokens = JSON.parse(
 			this.#storage.getItem(`baseless:${this.#clientId}:tokens`) ?? "{}",

@@ -1,0 +1,20 @@
+{
+	"name": "@baseless/react",
+	"version": "0.3.0-rc.1",
+	"exports": {
+		".": "./mod.ts",
+		"./Authentication": "./Authentication.tsx",
+		"./useClient": "./useClient.ts",
+		"./useIdentity": "./useIdentity.ts"
+	},
+	"publish": {
+		"include": [
+			"LICENSE",
+			"*.ts",
+			"*.tsx"
+		],
+		"exclude": [
+			"*.test.ts"
+		]
+	}
+}

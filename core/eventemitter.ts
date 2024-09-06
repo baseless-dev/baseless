@@ -38,13 +38,16 @@ export class EventEmitter<TEvents extends Record<string, unknown[]> = {}> {
 	on<TEvent extends keyof TEvents>(
 		event: TEvent,
 		handler: (...args: TEvents[TEvent]) => void | Promise<void>,
-	): Disposable {
+	): Disposable & { dispose(): void } {
 		if (!this.#handlers.has(event)) {
 			this.#handlers.set(event, new Set());
 		}
 		this.#handlers.get(event)!.add(handler as any);
 		return {
 			[Symbol.dispose]: () => {
+				this.#handlers.get(event)!.delete(handler as any);
+			},
+			dispose: () => {
 				this.#handlers.get(event)!.delete(handler as any);
 			},
 		};

@@ -138,12 +138,14 @@ export const AuthenticationTokens = Type.Object({
 	refresh_token: Type.Optional(Type.String()),
 }, { $id: "AuthenticationTokens" });
 
+export const AuthenticationCeremonyStep = Type.Object({
+	state: AuthenticationEncryptedState,
+	ceremony: AuthenticationCeremony,
+	current: AuthenticationComponent,
+}, { $id: "AuthenticationCeremonyStep" });
+
 export const AuthenticationGetCeremonyResponse = Type.Union([
-	Type.Object({
-		state: AuthenticationEncryptedState,
-		ceremony: AuthenticationCeremony,
-		current: AuthenticationComponent,
-	}, { $id: "AuthenticationCeremonyStep" }),
+	AuthenticationCeremonyStep,
 	AuthenticationTokens,
 ], { $id: "AuthenticationGetCeremonyResponse" });
 

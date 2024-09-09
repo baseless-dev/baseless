@@ -1,14 +1,35 @@
 #!/usr/bin/env -S deno serve
 // deno-lint-ignore-file require-await
-import { ApplicationBuilder, Permission, Server } from "../../server/mod.ts";
-import { MemoryDocumentProvider, MemoryKVProvider } from "../../inmemory-provider/mod.ts";
+import { generateKeyPair } from "jose";
+import { ApplicationBuilder, component, Permission, sequence, Server } from "../../server/mod.ts";
+import {
+	configureAuthentication,
+	EmailIdentityComponentProvider,
+	PasswordIdentityComponentProvider,
+} from "../../server/authentication/mod.ts";
+import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider } from "../../inmemory-provider/mod.ts";
 import { Type } from "npm:@sinclair/typebox@0.33.7";
+import { id } from "../../core/id.ts";
+
+const keyPair = await generateKeyPair("PS512");
 
 const kvProvider = new MemoryKVProvider();
 const documentProvider = new MemoryDocumentProvider();
+const notificationProvider = new MemoryNotificationProvider();
+const emailProvider = new EmailIdentityComponentProvider();
+const passwordProvider = new PasswordIdentityComponentProvider("lesalt");
 
 let ref = 0;
 const appBuilder = new ApplicationBuilder()
+	.use(configureAuthentication({
+		keys: { ...keyPair, algo: "PS512" },
+		ceremony: sequence(component("email"), component("password")),
+		identityComponentProviders: {
+			email: emailProvider,
+			password: passwordProvider,
+		},
+		notificationProvider,
+	}))
 	.rpc(["hello", "{world}"], {
 		input: Type.Void(),
 		output: Type.TemplateLiteral([Type.Number(), Type.Literal(". Hello "), Type.String()]),
@@ -17,6 +38,27 @@ const appBuilder = new ApplicationBuilder()
 	});
 
 const app = appBuilder.build();
+
+const dummyIdentityId = id("id_");
+documentProvider.atomic()
+	.set(["identities", dummyIdentityId], { identityId: dummyIdentityId })
+	.set(["identities", dummyIdentityId, "components", "email"], {
+		identityId: dummyIdentityId,
+		componentId: "email",
+		identification: "foo@test.local",
+		confirmed: true,
+		data: {},
+	})
+	.set(["identities", dummyIdentityId, "components", "password"], {
+		identityId: dummyIdentityId,
+		componentId: "password",
+		confirmed: true,
+		data: {
+			hash: await passwordProvider.hashPassword("123"),
+		},
+	})
+	.set(["identifications", "email", "foo@test.local"], dummyIdentityId)
+	.commit();
 
 const server = new Server({
 	application: app,

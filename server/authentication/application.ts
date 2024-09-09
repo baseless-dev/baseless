@@ -14,6 +14,7 @@ import {
 import { AuthenticationComponent, AuthenticationComponentPrompt } from "./component.ts";
 import {
 	assertSession,
+	AuthenticationCeremonyStep,
 	AuthenticationCollections,
 	AuthenticationConfiguration,
 	AuthenticationContext,
@@ -175,7 +176,7 @@ export function configureAuthentication(
 		})
 		.rpc(["authentication", "begin"], {
 			input: Type.Array(Type.String()),
-			output: AuthenticationGetCeremonyResponse,
+			output: AuthenticationCeremonyStep,
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const ceremony = await getCeremonyFromFlow({
@@ -273,7 +274,7 @@ export function configureAuthentication(
 				if (nextComponent === true) {
 					return createSessionAndTokens(context, state);
 				}
-				const current = await mapCeremonyToComponent(context, state.identityId, component);
+				const current = await mapCeremonyToComponent(context, state.identityId, nextComponent);
 				const nextState = await encryptState<AuthenticationState>({
 					...state,
 					choices: nextChoices,

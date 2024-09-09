@@ -2,7 +2,7 @@
 /** @jsxImportSource npm:react@18.3.1 */
 /** @jsxImportSourceTypes npm:@types/react@18 */
 // @deno-types="npm:@types/react"
-import { createContext, type JSX, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useClient } from "./mod.ts";
 import type { Client, ClientFromApplicationBuilder } from "@baseless/client";
 import type {
@@ -15,8 +15,11 @@ import type {
 import type { AuthenticationCeremonyStep, AuthenticationComponent, AuthenticationComponentPrompt } from "@baseless/server/authentication";
 import type { Static } from "@sinclair/typebox";
 import useKeyedPromise from "./useKeyedPromise.ts";
+import { id } from "../core/id.ts";
 
 export interface AuthenticationController {
+	key: string;
+	currentComponent: Static<typeof AuthenticationComponent>;
 	reset: () => void;
 	back: () => void;
 	select: (current: AuthenticationComponent) => void;
@@ -37,17 +40,10 @@ export function useAuthentication(): AuthenticationController {
 export function Authentication({
 	children,
 	client = useClient(),
-	prompts,
 }: {
-	children: (controller: AuthenticationController, prompt: JSX.Element) => JSX.Element;
+	children: ReactNode | ((controller: AuthenticationController) => ReactNode);
 	client: Client;
-	prompts: {
-		choice: (
-			controller: Omit<AuthenticationController, "send" | "submit">,
-			prompts: Array<Static<typeof AuthenticationComponentPrompt>>,
-		) => JSX.Element;
-	} & Record<string, (controller: AuthenticationController, prompt: Static<typeof AuthenticationComponentPrompt>) => JSX.Element>;
-}): JSX.Element {
+}): ReactNode {
 	const authClient = client as ClientFromApplicationBuilder<
 		ApplicationBuilder<
 			AuthenticationDecoration,
@@ -81,6 +77,8 @@ export function Authentication({
 	}, [setSteps]);
 
 	const controller = useMemo(() => ({
+		key: id(),
+		currentComponent: currentStep.current,
 		reset: () => (setSteps([]), saveSteps(undefined)),
 		back: () => (setSteps(steps.slice(0, -1)), saveSteps(undefined)),
 		select: (current: AuthenticationComponent) => (setSteps([...steps, { ...currentStep, current }]), saveSteps(undefined)),
@@ -135,17 +133,30 @@ export function Authentication({
 		}
 	}, [authClient, currentStep, steps, setSteps, saveSteps]);
 
+	const node = useMemo(() => (typeof children === "function" ? children(controller) : children), [children, controller]);
+
+	return <AuthenticationContext.Provider key={controller.key} value={controller}>{node}</AuthenticationContext.Provider>;
+}
+
+export function AuthenticationPrompt({ prompts }: {
+	prompts: {
+		choice: (
+			controller: Omit<AuthenticationController, "send" | "submit">,
+			prompts: Array<Static<typeof AuthenticationComponentPrompt>>,
+		) => ReactNode;
+	} & Record<string, (controller: AuthenticationController, prompt: Static<typeof AuthenticationComponentPrompt>) => ReactNode>;
+}): ReactNode {
+	const controller = useAuthentication();
 	const prompt = useMemo(() => {
-		return currentStep.current.kind === "choice"
-			? prompts["choice"](controller, currentStep.current.prompts)
-			: currentStep.current.prompt in prompts
-			? prompts[currentStep.current.prompt](controller, currentStep.current)
+		return controller.currentComponent.kind === "choice"
+			? prompts["choice"](controller, controller.currentComponent.prompts)
+			: controller.currentComponent.prompt in prompts
+			? prompts[controller.currentComponent.prompt](controller, controller.currentComponent)
 			: undefined;
-	}, [currentStep, prompts, controller]);
+	}, [controller.currentComponent, prompts, controller]);
 
 	if (!prompt) {
-		throw new Error(`No prompt for ${currentStep.current.kind === "choice" ? "choice" : currentStep.current.prompt}`);
+		throw new Error(`No prompt for ${controller.currentComponent.kind === "choice" ? "choice" : controller.currentComponent.prompt}`);
 	}
-
-	return <AuthenticationContext.Provider value={controller}>{children(controller, prompt)}</AuthenticationContext.Provider>;
+	return prompt;
 }

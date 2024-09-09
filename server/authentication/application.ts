@@ -229,9 +229,7 @@ export function configureAuthentication(
 				if (component === true) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const currentComponent = component.kind === "choice"
-					? component.components.find((c) => c.component === input.id)
-					: component;
+				const currentComponent = component.kind === "choice" ? component.components.find((c) => c.component === input.id) : component;
 
 				if (!currentComponent) {
 					throw new InvalidAuthenticationStateError();
@@ -307,9 +305,7 @@ export function configureAuthentication(
 				if (component === true) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const currentComponent = component.kind === "choice"
-					? component.components.find((c) => c.component === input.id)
-					: component;
+				const currentComponent = component.kind === "choice" ? component.components.find((c) => c.component === input.id) : component;
 
 				if (!currentComponent) {
 					throw new InvalidAuthenticationStateError();

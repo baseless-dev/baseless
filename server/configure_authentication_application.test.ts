@@ -1,15 +1,15 @@
 // deno-lint-ignore-file explicit-function-return-type
 import { generateKeyPair } from "jose";
-import { configureAuthentication } from "./application.ts";
-import { component, sequence } from "./ceremony.ts";
-import { EmailIdentityComponentProvider } from "./provider/email.ts";
-import { PasswordIdentityComponentProvider } from "./provider/password.ts";
+import { configureAuthentication } from "./configure_authentication_application.ts";
+import { component, sequence } from "@baseless/core/authentication-ceremony";
+import { EmailIdentityComponentProvider } from "./providers/email.ts";
+import { PasswordIdentityComponentProvider } from "./providers/password.ts";
 import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
 import { assert, assertObjectMatch } from "@std/assert";
 import { id } from "@baseless/core/id";
 import { AuthenticationContext } from "./types.ts";
-import { ApplicationDocumentProviderFacade } from "../application/documentfacade.ts";
-import { PolicyIdentityComponentProvider } from "./provider/policy.ts";
+import { ApplicationDocumentProviderFacade } from "./application_document_facade.ts";
+import { PolicyIdentityComponentProvider } from "./providers/policy.ts";
 
 Deno.test("AuthenticationApplication", async (t) => {
 	const keyPair = await generateKeyPair("PS512");

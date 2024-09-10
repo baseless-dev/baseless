@@ -5,7 +5,8 @@
 		".": "./mod.ts",
 		"./Authentication": "./Authentication.tsx",
 		"./useClient": "./useClient.ts",
-		"./useIdentity": "./useIdentity.ts"
+		"./useIdentity": "./useIdentity.ts",
+		"./useKeyedPromise": "./useKeyedPromise.ts"
 	},
 	"publish": {
 		"include": [

@@ -23,7 +23,7 @@ export function useKeyedPromise<T extends unknown>(
 	expiration?: number | Date | ((value: T) => number | Date | Promise<number | Date>),
 ): T {
 	let item = map.get(key);
-	if (!item) {
+	if (!item || ("expiration" in item && item.expiration && item.expiration <= Date.now())) {
 		const promise = Promise.resolve(initialValue instanceof Function ? initialValue() : initialValue)
 			.then((value) => {
 				item!.value = value;
@@ -43,9 +43,6 @@ export function useKeyedPromise<T extends unknown>(
 	}
 	if (!("value" in item)) {
 		throw item.promise;
-	}
-	if (item.expiration && item.expiration < Date.now()) {
-		return undefined as never;
 	}
 	return item.value as never;
 }

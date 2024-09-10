@@ -23,7 +23,7 @@ import {
 	DocumentGetOptions,
 	DocumentListEntry,
 	DocumentProvider,
-} from "../provider/document.ts";
+} from "./document_provider.ts";
 
 export class Application {
 	#decorators: ReadonlyArray<Decorator<any>>;

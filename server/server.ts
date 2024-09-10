@@ -1,10 +1,11 @@
-import { Application, Context } from "./application/mod.ts";
-import { DocumentProvider } from "./provider/document.ts";
-import { KVProvider } from "./provider/kv.ts";
+import { Application } from "./application.ts";
+import { DocumentProvider } from "./document_provider.ts";
+import { KVProvider } from "./kv_provider.ts";
 import { decodeBase64Url } from "@std/encoding/base64url";
 import { type Command, Commands, isCommand, isCommands } from "@baseless/core/command";
 import { Result, ResultError, ResultSingle } from "@baseless/core/result";
-import { ApplicationDocumentProviderFacade } from "./application/documentfacade.ts";
+import { ApplicationDocumentProviderFacade } from "./application_document_facade.ts";
+import { Context } from "./types.ts";
 
 export class Server {
 	#application: Application;

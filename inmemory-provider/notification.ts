@@ -1,4 +1,4 @@
-import type { NotificationProvider } from "@baseless/server/provider";
+import type { NotificationProvider } from "@baseless/server/notification-provider";
 import type { Identity } from "@baseless/core/identity";
 import type { Notification, NotificationTransport } from "@baseless/core/notification";
 

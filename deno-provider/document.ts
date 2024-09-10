@@ -7,7 +7,7 @@ import {
 	DocumentListOptions,
 	DocumentNotFoundError,
 	DocumentProvider,
-} from "@baseless/server/provider";
+} from "@baseless/server/document-provider";
 
 export class DenoKVDocumentProvider extends DocumentProvider {
 	#storage: Deno.Kv;

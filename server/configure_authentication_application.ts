@@ -2,35 +2,34 @@
 import { JWTPayload, jwtVerify, type KeyLike, SignJWT } from "jose";
 import { assertID, ID, id, isID } from "@baseless/core/id";
 import { Identity, IdentityComponent } from "@baseless/core/identity";
-import { ApplicationBuilder, ForbiddenError, Permission } from "../application/mod.ts";
 import { Static, Type } from "@sinclair/typebox";
+import { Permission } from "./types.ts";
 import {
 	AuthenticationCeremony,
 	AuthenticationCeremonyChoiceShallow,
 	AuthenticationCeremonyComponent,
 	getAuthenticationCeremonyComponentAtPath,
 	simplifyAuthenticationCeremony,
-} from "./ceremony.ts";
-import { AuthenticationComponent, AuthenticationComponentPrompt } from "./component.ts";
+} from "@baseless/core/authentication-ceremony";
+import { AuthenticationComponent, AuthenticationComponentPrompt } from "@baseless/core/authentication-component";
 import {
-	assertSession,
-	AuthenticationCeremonyStep,
 	AuthenticationCollections,
 	AuthenticationConfiguration,
 	AuthenticationContext,
 	AuthenticationDecoration,
 	AuthenticationDocuments,
-	AuthenticationEncryptedState,
-	AuthenticationGetCeremonyResponse,
 	AuthenticationRpcs,
 	AuthenticationState,
-	AuthenticationTokens,
-	RegistrationCeremonyStep,
-	RegistrationEncryptedState,
-	RegistrationGetCeremonyResponse,
 	RegistrationState,
-	Session,
 } from "./types.ts";
+import { ApplicationBuilder } from "./application_builder.ts";
+import { assertSession, type Session } from "@baseless/core/session";
+import { AuthenticationTokens } from "@baseless/core/authentication-tokens";
+import { AuthenticationStep } from "@baseless/core/authentication-step";
+import { AuthenticationResponse } from "@baseless/core/authentication-response";
+import { ForbiddenError } from "./application.ts";
+import { RegistrationResponse } from "@baseless/core/registration-response";
+import { RegistrationStep } from "@baseless/core/registration-step";
 
 export function configureAuthentication(
 	configuration: AuthenticationConfiguration,
@@ -47,7 +46,7 @@ export function configureAuthentication(
 
 	return new ApplicationBuilder()
 		.decorate(async (context) => {
-			let currentSession: (Session & Session) | undefined;
+			let currentSession: Session | undefined;
 			if (context.request.headers.has("Authorization")) {
 				const authorization = context.request.headers.get("Authorization") ?? "";
 				const [, scheme, token] = authorization.match(/^([^ ]+) (.+)$/) ?? [];
@@ -176,7 +175,7 @@ export function configureAuthentication(
 		})
 		.rpc(["authentication", "begin"], {
 			input: Type.Array(Type.String()),
-			output: AuthenticationCeremonyStep,
+			output: AuthenticationStep,
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const ceremony = await getCeremonyFromFlow({
@@ -208,9 +207,9 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				value: Type.Unknown(),
-				state: AuthenticationEncryptedState,
+				state: Type.String(),
 			}),
-			output: AuthenticationGetCeremonyResponse,
+			output: AuthenticationResponse,
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const state = await decryptState<AuthenticationState>(input.state);
@@ -229,7 +228,9 @@ export function configureAuthentication(
 				if (component === true) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const currentComponent = component.kind === "choice" ? component.components.find((c) => c.component === input.id) : component;
+				const currentComponent = component.kind === "choice"
+					? component.components.find((c) => c.component === input.id)
+					: component;
 
 				if (!currentComponent) {
 					throw new InvalidAuthenticationStateError();
@@ -284,7 +285,7 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				locale: Type.String(),
-				state: AuthenticationEncryptedState,
+				state: Type.String(),
 			}),
 			output: Type.Boolean(),
 			security: async () => Permission.Execute,
@@ -305,7 +306,9 @@ export function configureAuthentication(
 				if (component === true) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const currentComponent = component.kind === "choice" ? component.components.find((c) => c.component === input.id) : component;
+				const currentComponent = component.kind === "choice"
+					? component.components.find((c) => c.component === input.id)
+					: component;
 
 				if (!currentComponent) {
 					throw new InvalidAuthenticationStateError();
@@ -337,7 +340,7 @@ export function configureAuthentication(
 		})
 		.rpc(["registration", "begin"], {
 			input: Type.Void(),
-			output: RegistrationGetCeremonyResponse,
+			output: RegistrationResponse,
 			security: async () => Permission.Execute,
 			handler: async ({ context }) => {
 				const state = await encryptState<RegistrationState>({
@@ -355,9 +358,9 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				value: Type.Unknown(),
-				state: RegistrationEncryptedState,
+				state: Type.String(),
 			}),
-			output: RegistrationGetCeremonyResponse,
+			output: RegistrationResponse,
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const state = await decryptState<RegistrationState>(input.state);
@@ -414,7 +417,7 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				locale: Type.String(),
-				state: RegistrationEncryptedState,
+				state: Type.String(),
 			}),
 			output: Type.Boolean(),
 			security: async () => Permission.Execute,
@@ -448,9 +451,9 @@ export function configureAuthentication(
 			input: Type.Object({
 				id: Type.String(),
 				value: Type.Unknown(),
-				state: RegistrationEncryptedState,
+				state: Type.String(),
 			}),
-			output: RegistrationGetCeremonyResponse,
+			output: RegistrationResponse,
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				const state = await decryptState<RegistrationState>(input.state);
@@ -681,9 +684,9 @@ export function configureAuthentication(
 	}
 
 	async function getRegistrationCeremony(
-		input: Static<typeof RegistrationEncryptedState>,
+		input: string,
 		context: AuthenticationContext,
-	): Promise<Static<typeof RegistrationCeremonyStep> | true> {
+	): Promise<RegistrationStep | true> {
 		const state = await decryptState<RegistrationState>(input).catch((_) => ({
 			components: [],
 			identityId: undefined,

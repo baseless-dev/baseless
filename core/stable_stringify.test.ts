@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { stableStringify } from "./stablestringify.ts";
+import { stableStringify } from "./stable_stringify.ts";
 
 Deno.test("Stable Stringify", () => {
 	class A {

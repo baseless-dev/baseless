@@ -1,12 +1,19 @@
 // deno-lint-ignore-file require-await no-explicit-any
 import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
-import { ApplicationBuilder, component, configureAuthentication, Permission, sequence, Server } from "@baseless/server";
-import { EmailIdentityComponentProvider } from "@baseless/server/authentication";
 import { generateKeyPair } from "jose";
 import { Client } from "./client.ts";
-import { Type } from "@sinclair/typebox";
 import { assert, assertEquals } from "@std/assert";
 import { isIdentity } from "@baseless/core/identity";
+import {
+	ApplicationBuilder,
+	component,
+	configureAuthentication,
+	EmailIdentityComponentProvider,
+	Permission,
+	sequence,
+	Server,
+	Type,
+} from "@baseless/server";
 
 Deno.test("Client", async (t) => {
 	const keyPair = await generateKeyPair("PS512");

@@ -1,22 +1,22 @@
 // deno-lint-ignore-file no-explicit-any
+import type { Static } from "@sinclair/typebox";
+import { isResultError, isResults, isResultSingle } from "@baseless/core/result";
+import MemoryStorage from "@baseless/core/memory-storage";
+import { stableStringify } from "@baseless/core/stable-stringify";
+import { assertIdentity, type Identity } from "@baseless/core/identity";
+import { type AuthenticationTokens, isAuthenticationTokens } from "@baseless/core/authentication-tokens";
+import { EventEmitter } from "@baseless/core/eventemitter";
+import { isPathMatching } from "@baseless/core/path";
+import { Command, isCommandRpc } from "@baseless/core/command";
+import type { ApplicationBuilder } from "@baseless/server/application-builder";
 import type {
-	ApplicationBuilder,
 	CollectionDefinition,
 	DocumentDefinition,
 	EventDefinition,
 	PickAtPath,
 	RpcDefinition,
 	WithSecurity,
-} from "@baseless/server/application";
-import type { Static } from "@sinclair/typebox";
-import { isResultError, isResults, isResultSingle } from "@baseless/core/result";
-import MemoryStorage from "./memory_storage.ts";
-import { stableStringify } from "./stablestringify.ts";
-import { assertIdentity, type Identity } from "@baseless/core/identity";
-import { type AuthenticationTokens, isAuthenticationTokens } from "@baseless/server/authentication/types";
-import { EventEmitter } from "@baseless/core/eventemitter";
-import { isPathMatching } from "@baseless/core/path";
-import { Command, isCommandRpc } from "../core/command.ts";
+} from "@baseless/server/types";
 
 export interface ClientInitialization {
 	clientId: string;

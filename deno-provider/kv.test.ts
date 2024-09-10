@@ -1,4 +1,4 @@
-import { testKVProvider } from "@baseless/server/provider/kv.test";
+import { testKVProvider } from "../server/kv_provider.test.ts";
 import { DenoKVProvider } from "./kv.ts";
 
 Deno.test("DenoKVProvider", async (t) => {

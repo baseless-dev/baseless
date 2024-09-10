@@ -3,13 +3,19 @@
 	"version": "0.3.0-rc.1",
 	"exports": {
 		".": "./mod.ts",
-		"./application": "./application/mod.ts",
-		"./authentication": "./authentication/mod.ts",
-		"./authentication/types": "./authentication/types.ts",
-		"./provider": "./provider/mod.ts",
-		"./provider/document.test": "./provider/document.test.ts",
-		"./provider/kv.test": "./provider/kv.test.ts",
-		"./server": "./server.ts"
+		"./application": "./application.ts",
+		"./application-builder": "./application_builder.ts",
+		"./application-document-facade": "./application_document_facade.ts",
+		"./configure-authentication-application": "./configure_authentication_application.ts",
+		"./document-provider": "./document_provider.ts",
+		"./identity-component-provider": "./identity_component_provider.ts",
+		"./kv-provider": "./kv_provider.ts",
+		"./notification-provider": "./notification_provider.ts",
+		"./providers/email": "./providers/email.ts",
+		"./providers/password": "./providers/password.ts",
+		"./providers/policy": "./providers/policy.ts",
+		"./server": "./server.ts",
+		"./types": "./types.ts"
 	},
 	"publish": {
 		"include": [

@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
-import { Static } from "@sinclair/typebox";
-import { Document } from "@baseless/core/document";
-import { CollectionDefinition, DocumentDefinition, PickAtPath } from "../application/types.ts";
+import type { Static } from "@sinclair/typebox";
+import type { Document } from "@baseless/core/document";
+import type { CollectionDefinition, DocumentDefinition, PickAtPath } from "./types.ts";
 
 export interface DocumentGetOptions {
 	readonly consistency: "strong" | "eventual";

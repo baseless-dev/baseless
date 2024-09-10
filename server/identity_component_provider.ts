@@ -1,6 +1,6 @@
 import { Identity, IdentityComponent } from "@baseless/core/identity";
-import { AuthenticationComponentPrompt } from "../authentication/component.ts";
-import { AuthenticationContext } from "../authentication/types.ts";
+import { AuthenticationComponentPrompt } from "@baseless/core/authentication-component";
+import { AuthenticationContext } from "./types.ts";
 
 /**
  * An Identity Component Provider.

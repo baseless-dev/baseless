@@ -163,8 +163,9 @@ async function compileSummary(summary: PackageSummary): Promise<void> {
 		JSON.stringify(
 			{
 				include: ["**/*.ts", "**/*.tsx"],
-				exclude: ["node_modules"],
+				exclude: ["node_modules", "_dist"],
 				compilerOptions: {
+					rootDir: "./",
 					target: "ESNext",
 					module: "ESNext",
 					moduleResolution: "NodeNext",

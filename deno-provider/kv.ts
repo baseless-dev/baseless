@@ -8,7 +8,7 @@ import {
 	KVProvider,
 	KVPutError,
 	KVPutOptions,
-} from "@baseless/server/provider";
+} from "@baseless/server/kv-provider";
 
 export class DenoKVProvider extends KVProvider {
 	#storage: Deno.Kv;

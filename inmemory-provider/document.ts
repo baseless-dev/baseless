@@ -6,9 +6,9 @@ import {
 	DocumentListOptions,
 	DocumentNotFoundError,
 	DocumentProvider,
-} from "@baseless/server/provider";
+} from "@baseless/server/document-provider";
 import { Document } from "@baseless/core/document";
-import OrderedMap from "./orderedmap.ts";
+import OrderedMap from "@baseless/core/ordered-map";
 
 function keyPathToKeyString(key: string[]): string {
 	return key.map((p) => p.replaceAll("/", "\\/")).join("/");

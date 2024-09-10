@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await no-explicit-any
 import { assert, assertEquals, assertObjectMatch, assertRejects } from "@std/assert";
-import { ApplicationBuilder } from "./builder.ts";
+import { ApplicationBuilder } from "./application_builder.ts";
 import { Type } from "@sinclair/typebox";
 import { MemoryDocumentProvider } from "@baseless/inmemory-provider";
 import { Permission } from "./types.ts";

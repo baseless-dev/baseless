@@ -12,14 +12,14 @@ import type {
 	AuthenticationDocuments,
 	AuthenticationRpcs,
 } from "@baseless/server";
-import type { AuthenticationCeremonyStep, AuthenticationComponent, AuthenticationComponentPrompt } from "@baseless/server/authentication";
-import type { Static } from "@sinclair/typebox";
+import type { AuthenticationComponent, AuthenticationComponentPrompt } from "@baseless/core/authentication-component";
+import type { AuthenticationStep } from "@baseless/core/authentication-step";
 import useKeyedPromise from "./useKeyedPromise.ts";
 import { id } from "../core/id.ts";
 
 export interface AuthenticationController {
 	key: string;
-	currentComponent: Static<typeof AuthenticationComponent>;
+	currentComponent: AuthenticationComponent;
 	reset: () => void;
 	back: () => void;
 	select: (current: AuthenticationComponent) => void;
@@ -55,7 +55,7 @@ export function Authentication({
 	>;
 
 	const initialState = useKeyedPromise(client, () => authClient.rpc(["authentication", "begin"], []), 1000 * 60 * 5);
-	const [steps, setSteps] = useState<Static<typeof AuthenticationCeremonyStep>[]>(() => {
+	const [steps, setSteps] = useState<AuthenticationStep[]>(() => {
 		try {
 			const saved = localStorage.getItem("baseless_authentication");
 			if (saved) {
@@ -138,18 +138,14 @@ export function Authentication({
 	return <AuthenticationContext.Provider key={controller.key} value={controller}>{node}</AuthenticationContext.Provider>;
 }
 
-export function AuthenticationPrompt({ prompts }: {
-	prompts: {
-		choice: (
-			controller: Omit<AuthenticationController, "send" | "submit">,
-			prompts: Array<Static<typeof AuthenticationComponentPrompt>>,
-		) => ReactNode;
-	} & Record<string, (controller: AuthenticationController, prompt: Static<typeof AuthenticationComponentPrompt>) => ReactNode>;
+export function AuthenticationPrompt({ choice, prompts }: {
+	choice: (controller: Omit<AuthenticationController, "send" | "submit">, prompts: Array<AuthenticationComponentPrompt>) => ReactNode;
+	prompts: Record<string, (controller: AuthenticationController, prompt: AuthenticationComponentPrompt) => ReactNode>;
 }): ReactNode {
 	const controller = useAuthentication();
 	const prompt = useMemo(() => {
 		return controller.currentComponent.kind === "choice"
-			? prompts["choice"](controller, controller.currentComponent.prompts)
+			? choice(controller, controller.currentComponent.prompts)
 			: controller.currentComponent.prompt in prompts
 			? prompts[controller.currentComponent.prompt](controller, controller.currentComponent)
 			: undefined;

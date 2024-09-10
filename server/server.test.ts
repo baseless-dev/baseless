@@ -4,8 +4,8 @@ import { Server } from "./server.ts";
 import { Type } from "@sinclair/typebox";
 import { isResultError, isResultSingle } from "@baseless/core/result";
 import { MemoryDocumentProvider, MemoryKVProvider } from "@baseless/inmemory-provider";
-import { ApplicationBuilder } from "./application/builder.ts";
-import { Permission } from "./application/types.ts";
+import { ApplicationBuilder } from "./application_builder.ts";
+import { Permission } from "./types.ts";
 
 Deno.test("Server", async (t) => {
 	const setupServer = () => {

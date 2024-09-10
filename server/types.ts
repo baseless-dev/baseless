@@ -1,9 +1,19 @@
 // deno-lint-ignore-file no-explicit-any ban-types
-import type { Static, TSchema } from "@sinclair/typebox";
-import type { IDocumentAtomic, IDocumentProvider } from "../provider/document.ts";
-import type { KVProvider } from "../provider/kv.ts";
+import type { Static, TArray, TBoolean, TObject, TSchema, TString, TUnknown, TVoid } from "@sinclair/typebox";
+import type { IDocumentAtomic, IDocumentProvider } from "./document_provider.ts";
+import type { KVProvider } from "./kv_provider.ts";
 import type { PathAsType, ReplaceVariableInPathSegment } from "@baseless/core/path";
 import type { Document } from "@baseless/core/document";
+import type { NotificationProvider } from "./notification_provider.ts";
+import type { Session } from "@baseless/core/session";
+import { KeyLike } from "jose";
+import { ID, TID } from "../core/id.ts";
+import { Identity, IdentityComponent } from "../core/identity.ts";
+import { IdentityComponentProvider } from "./identity_component_provider.ts";
+import { AuthenticationTokens } from "@baseless/core/authentication-tokens";
+import { AuthenticationResponse } from "@baseless/core/authentication-response";
+import { RegistrationResponse } from "@baseless/core/registration-response";
+import { AuthenticationCeremony } from "@baseless/core/authentication-ceremony";
 
 export type Path = Array<string>;
 
@@ -323,3 +333,119 @@ export type WithSecurity<T extends unknown[]> =
 			? [First, ...WithSecurity<Rest>]
 			: WithSecurity<Rest>
 		: never;
+
+export type AuthenticationDecoration = {
+	notification: NotificationProvider;
+	currentSession: Session | undefined;
+};
+
+export type AuthenticationRpcs = [
+	RpcDefinition<["authentication", "signOut"], TVoid, TBoolean>,
+	RpcDefinition<
+		["authentication", "refreshAccessToken"],
+		TString,
+		typeof AuthenticationTokens
+	>,
+	RpcDefinition<
+		["authentication", "begin"],
+		TArray<TString>,
+		typeof AuthenticationResponse
+	>,
+	RpcDefinition<
+		["authentication", "submitPrompt"],
+		TObject<{ id: TString; value: TUnknown; state: TString }>,
+		typeof AuthenticationResponse
+	>,
+	RpcDefinition<
+		["authentication", "sendPrompt"],
+		TObject<{ id: TString; locale: TString; state: TString }>,
+		TBoolean
+	>,
+	RpcDefinition<
+		["registration", "begin"],
+		TVoid,
+		typeof RegistrationResponse
+	>,
+	RpcDefinition<
+		["registration", "submitPrompt"],
+		TObject<{ id: TString; value: TUnknown; state: TString }>,
+		typeof RegistrationResponse
+	>,
+	RpcDefinition<
+		["registration", "sendValidationCode"],
+		TObject<{ id: TString; locale: TString; state: TString }>,
+		TBoolean
+	>,
+	RpcDefinition<
+		["registration", "submitValidationCode"],
+		TObject<{ id: TString; value: TUnknown; state: TString }>,
+		typeof RegistrationResponse
+	>,
+];
+
+export type AuthenticationDocuments = [
+	DocumentDefinitionWithoutSecurity<
+		["identities", string],
+		typeof Identity
+	>,
+	DocumentDefinitionWithoutSecurity<
+		["identities", string, "components", string],
+		typeof IdentityComponent
+	>,
+	DocumentDefinitionWithoutSecurity<
+		["identifications", "{kind}", "{identification}"],
+		TID<"id_">
+	>,
+];
+
+export type AuthenticationCollections = [
+	CollectionDefinitionWithoutSecurity<["identities"], typeof Identity>,
+	CollectionDefinitionWithoutSecurity<
+		["identities", "{identityId}", "components"],
+		typeof IdentityComponent
+	>,
+];
+
+export type AuthenticationContext = Context<
+	AuthenticationDecoration,
+	AuthenticationDocuments,
+	AuthenticationCollections
+>;
+
+export interface AuthenticationState {
+	identityId?: ID<"id_">;
+	choices: string[];
+	scope: string[];
+}
+
+export interface RegistrationState {
+	identityId?: ID<"id_">;
+	components: IdentityComponent[];
+}
+
+export type AuthenticationCeremonyResolver = (
+	options: {
+		context: AuthenticationContext;
+		flow: "authentication" | "registration";
+		identityId?: ID<"id_">;
+	},
+) => Promise<AuthenticationCeremony>;
+
+export interface AuthenticationConfiguration {
+	keys: {
+		algo: string;
+		privateKey: KeyLike;
+		publicKey: KeyLike;
+	};
+	ceremony:
+		| AuthenticationCeremony
+		| AuthenticationCeremonyResolver;
+	identityComponentProviders: Record<string, IdentityComponentProvider>;
+	notificationProvider: NotificationProvider;
+	ceremonyTTL?: number;
+	accessTokenTTL?: number;
+	refreshTokenTTL?: number;
+	rateLimitPeriod?: number;
+	rateLimitCount?: number;
+	allowAnonymous?: boolean;
+}

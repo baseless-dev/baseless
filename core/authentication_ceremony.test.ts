@@ -10,7 +10,7 @@ import {
 	sequence,
 	simplifyAuthenticationCeremony,
 	walkAuthenticationCeremony,
-} from "./ceremony.ts";
+} from "./authentication_ceremony.ts";
 
 Deno.test("AuthenticationCeremony", async (t) => {
 	const a = { kind: "component", component: "a" } as const;

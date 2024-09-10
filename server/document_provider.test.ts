@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert/equals";
 import { assertRejects } from "@std/assert/rejects";
 import { assert } from "@std/assert/assert";
-import { DocumentProvider } from "./document.ts";
+import { DocumentProvider } from "./document_provider.ts";
 
 export async function testDocumentProvider(
 	provider: DocumentProvider,

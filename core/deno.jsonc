@@ -3,14 +3,26 @@
 	"version": "0.3.0-rc.1",
 	"exports": {
 		".": "./mod.ts",
+		"./authentication-ceremony": "./authentication_ceremony.ts",
+		"./authentication-component": "./authentication_component.ts",
+		"./authentication-response": "./authentication_response.ts",
+		"./authentication-step": "./authentication_step.ts",
+		"./authentication-tokens": "./authentication_tokens.ts",
 		"./command": "./command.ts",
 		"./document": "./document.ts",
 		"./eventemitter": "./eventemitter.ts",
 		"./id": "./id.ts",
 		"./identity": "./identity.ts",
+		"./memory-storage": "./memory_storage.ts",
 		"./notification": "./notification.ts",
+		"./ordered-map": "./ordered_map.ts",
+		"./otp": "./otp.ts",
 		"./path": "./path.ts",
-		"./result": "./result.ts"
+		"./registration-response": "./registration_response.ts",
+		"./registration-step": "./registration_step.ts",
+		"./result": "./result.ts",
+		"./session": "./session.ts",
+		"./stable-stringify": "./stable_stringify.ts"
 	},
 	"publish": {
 		"include": [

@@ -1,15 +1,19 @@
 #!/usr/bin/env -S deno serve
 // deno-lint-ignore-file require-await
 import { generateKeyPair } from "jose";
-import { ApplicationBuilder, component, Permission, sequence, Server } from "../../server/mod.ts";
+import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
+import { id } from "@baseless/core/id";
 import {
+	ApplicationBuilder,
+	component,
 	configureAuthentication,
 	EmailIdentityComponentProvider,
 	PasswordIdentityComponentProvider,
-} from "../../server/authentication/mod.ts";
-import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider } from "../../inmemory-provider/mod.ts";
-import { Type } from "npm:@sinclair/typebox@0.33.7";
-import { id } from "../../core/id.ts";
+	Permission,
+	sequence,
+	Server,
+	Type,
+} from "@baseless/server";
 
 const keyPair = await generateKeyPair("PS512");
 

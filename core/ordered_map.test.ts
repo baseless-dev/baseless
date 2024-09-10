@@ -1,5 +1,5 @@
-import { assertEquals } from "jsr:@std/assert@1.0.0/equals";
-import OrderedMap from "./orderedmap.ts";
+import { assertEquals } from "@std/assert/equals";
+import OrderedMap from "./ordered_map.ts";
 
 Deno.test("OrderedMap", async (t) => {
 	await t.step("set/get/has/delete/clear", () => {

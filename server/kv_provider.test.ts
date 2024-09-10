@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert/equals";
 import { assertExists } from "@std/assert/exists";
 import { assertRejects } from "@std/assert/rejects";
-import { KVProvider } from "./kv.ts";
+import { KVProvider } from "./kv_provider.ts";
 
 export async function testKVProvider(
 	kv: KVProvider,

@@ -1,10 +1,9 @@
 // @deno-types="npm:@types/react"
 import { useEffect, useState } from "react";
 import { useClient } from "./useClient.ts";
-import type { Client } from "@baseless/client";
-import type { Identity } from "@baseless/core";
+import type { Identity } from "@baseless/core/identity";
 
-export function useIdentity({ client = useClient() }: { client?: Client }): Identity | undefined {
+export function useIdentity(client = useClient()): Identity | undefined {
 	const [identity, setIdentity] = useState<Identity | undefined>(client.currentIdentity);
 
 	useEffect(() => {

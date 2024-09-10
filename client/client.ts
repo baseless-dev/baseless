@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import type { Static } from "@sinclair/typebox";
-import { isResultError, isResults, isResultSingle } from "@baseless/core/result";
+import { isResults, isResultSingle, Results } from "@baseless/core/result";
 import MemoryStorage from "@baseless/core/memory-storage";
 import { stableStringify } from "@baseless/core/stable-stringify";
 import { assertIdentity, type Identity } from "@baseless/core/identity";
@@ -23,6 +23,7 @@ export interface ClientInitialization {
 	apiEndpoint: string;
 	fetch?: typeof globalThis.fetch;
 	batchSize?: number;
+	storage?: Storage;
 }
 
 // deno-fmt-ignore
@@ -57,7 +58,9 @@ export class Client {
 		this.#tokens = [];
 		this.#currentTokenIndex = -1;
 		this.#events = new EventEmitter();
-		this.storage = new MemoryStorage();
+		this.storage = initialization.storage ?? new MemoryStorage();
+		this.#readData();
+		this.#setupTimer();
 	}
 
 	[Symbol.dispose](): void {
@@ -95,27 +98,21 @@ export class Client {
 	}
 
 	set currentToken(value: AuthenticationTokens | undefined) {
-		if (!value) {
-			this.#currentTokenIndex = -1;
-			this.#writeData();
-			this.#setupTimer();
-			return;
-		}
-		const index = this.#tokens.indexOf(value);
-		if (index > -1) {
+		const index = !value ? -1 : this.#tokens.indexOf(value);
+		if (index >= -1) {
 			this.#currentTokenIndex = index;
-			this.#writeData();
-			this.#setupTimer();
 		} else {
 			throw new Error("Invalid token index");
 		}
+		this.#writeData();
+		this.#setupTimer();
 	}
 
 	get currentIdentity(): Identity | undefined {
 		const currentToken = this.currentToken;
 		if (currentToken) {
 			try {
-				const { sub: identityId, data } = JSON.parse(
+				const { sub: identityId, data = {} } = JSON.parse(
 					atob(currentToken.id_token.split(".").at(1)!),
 				);
 				const identity = { identityId, data };
@@ -155,7 +152,7 @@ export class Client {
 			const { exp: refreshTokenExp = Number.MAX_VALUE } = currentToken.refresh_token
 				? JSON.parse(atob(currentToken.refresh_token.split(".").at(1)!))
 				: {};
-			const { sub: identityId, data } = JSON.parse(
+			const { sub: identityId, data = {} } = JSON.parse(
 				atob(currentToken.id_token.split(".").at(1)!),
 			);
 			const identity = { identityId, data };
@@ -200,22 +197,23 @@ export class Client {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					kind: "command",
-					rpc: ["authentication", "refreshToken"],
+					kind: "rpc",
+					rpc: ["authentication", "refreshAccessToken"],
 					input: currentToken.refresh_token,
 				}),
 			});
-			const token = await response.json();
-			if (isAuthenticationTokens(token)) {
+			const result = await response.json();
+			if (isResultSingle(result) && isAuthenticationTokens(result.value)) {
 				this.tokens = [
 					...this.tokens.filter((_, i) => i !== this.#currentTokenIndex),
-					token,
+					result.value,
 				];
-				this.currentToken = token;
-				currentToken = token;
+				this.currentToken = result.value;
+				currentToken = result.value;
 			} else {
 				this.tokens = this.tokens.filter((_, i) => i !== this.#currentTokenIndex);
 				this.currentToken = undefined;
+				currentToken = undefined;
 			}
 		}
 		const commands = this.#commandQueue.splice(0, this.#batchSize);
@@ -226,49 +224,44 @@ export class Client {
 					"Content-Type": "application/json",
 					...(currentToken?.access_token ? { Authorization: `Bearer ${currentToken.access_token}` } : {}),
 				},
-				body: JSON.stringify({
-					kind: "commands",
-					commands: commands.map((c) => c.command),
-				}),
+				body: commands.length > 1
+					? JSON.stringify({
+						kind: "commands",
+						commands: commands.map((c) => c.command),
+					})
+					: JSON.stringify(commands[0].command),
 			});
 			const result = await response.json();
-			if (isResults(result)) {
-				for (const [index, value] of result.results.entries()) {
-					if (isResultSingle(value)) {
-						const command = commands[index];
-						command.resolve(value.value);
-						// deno-fmt-ignore
-						if (isCommandRpc(command.command)) {
-							if (
-								(
-									isPathMatching(["authentication", "submitPrompt"], command.command.rpc) ||
-									isPathMatching(["registration", "submitPrompt"], command.command.rpc) ||
-									isPathMatching(["registration", "submitValidationCode"], command.command.rpc)
-								) && isAuthenticationTokens(value.value)
-							) {
-								// Switch to latest tokens
-								this.tokens = [...this.tokens, value.value];
-								this.currentToken = value.value;
-							} else if (
-								isPathMatching(["authentication", "signOut"], command.command.rpc)
-							) {
-								this.tokens = this.tokens.filter((_, i) => i !== this.#currentTokenIndex);
-								this.currentToken = undefined;
-							}
+			const results: Results = isResults(result) ? result : { kind: "results", results: [result] };
+			for (const [index, value] of results.results.entries()) {
+				if (isResultSingle(value)) {
+					const command = commands[index];
+					command.resolve(value.value);
+					// deno-fmt-ignore
+					if (isCommandRpc(command.command)) {
+						if (
+							(
+								isPathMatching(["authentication", "submitPrompt"], command.command.rpc) ||
+								isPathMatching(["registration", "submitPrompt"], command.command.rpc) ||
+								isPathMatching(["registration", "submitValidationCode"], command.command.rpc)
+							) && isAuthenticationTokens(value.value)
+						) {
+							// Switch to latest tokens
+							this.tokens = [...this.tokens, value.value];
+							this.currentToken = value.value;
+						} else if (
+							isPathMatching(["authentication", "signOut"], command.command.rpc)
+						) {
+							this.tokens = this.tokens.filter((_, i) => i !== this.#currentTokenIndex);
+							this.currentToken = undefined;
 						}
-					} else {
-						commands[index].reject(value.error);
 					}
+				} else {
+					commands[index].reject(value.error);
 				}
-			} else if (isResultError(result)) {
-				// TODO if authentication token error, clear token
-				for (const command of commands) {
-					command.reject(result.error);
-				}
-			} else {
-				throw "UnknownError";
 			}
 		} catch (error) {
+			// TODO if AuthenticationError, clear token
 			for (const command of commands) {
 				command.reject(error);
 			}

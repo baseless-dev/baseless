@@ -30,10 +30,14 @@ export function useKeyedPromise<T extends unknown>(
 				if (typeof expiration === "function") {
 					return expiration(value);
 				}
-				return undefined;
+				return expiration;
 			})
 			.then((expiration) => {
-				item!.expiration = expiration instanceof Date ? expiration.getTime() : expiration;
+				item!.expiration = expiration instanceof Date
+					? expiration.getTime()
+					: typeof expiration === "number"
+					? expiration + Date.now()
+					: undefined;
 				if (item!.expiration && timer === undefined) {
 					timer = setTimeout(cleanExpiredKeys, 10000);
 				}

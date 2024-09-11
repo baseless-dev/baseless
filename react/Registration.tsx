@@ -28,10 +28,10 @@ export interface RegistrationController {
 	submit: (value: unknown) => Promise<void>;
 }
 
-const RegistrationContext = createContext<RegistrationController>(null!);
+const RegistrationControllerContext = createContext<RegistrationController>(null!);
 
-export function useRegistration(): RegistrationController {
-	const controller = useContext(RegistrationContext);
+export function useRegistrationController(): RegistrationController {
+	const controller = useContext(RegistrationControllerContext);
 	if (!controller) {
 		throw new Error("useRegistration must be used within an Registration");
 	}
@@ -150,7 +150,7 @@ export function Registration({
 
 	const node = useMemo(() => (typeof children === "function" ? children(controller) : children), [children, controller]);
 
-	return <RegistrationContext.Provider key={controller.key} value={controller}>{node}</RegistrationContext.Provider>;
+	return <RegistrationControllerContext.Provider key={controller.key} value={controller}>{node}</RegistrationControllerContext.Provider>;
 }
 
 export function RegistrationPrompt({ choice, prompts }: {
@@ -160,7 +160,7 @@ export function RegistrationPrompt({ choice, prompts }: {
 	) => ReactNode;
 	prompts: Record<string, (controller: Omit<RegistrationController, "select">, prompt: AuthenticationComponentPrompt) => ReactNode>;
 }): ReactNode {
-	const controller = useRegistration();
+	const controller = useRegistrationController();
 	const prompt = useMemo(() => {
 		return controller.currentComponent.kind === "choice"
 			? choice(controller, controller.currentComponent.prompts)

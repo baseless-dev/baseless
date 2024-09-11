@@ -27,10 +27,10 @@ export interface AuthenticationController {
 	submit: (value: unknown) => Promise<void>;
 }
 
-const AuthenticationContext = createContext<AuthenticationController>(null!);
+const AuthenticationControllerContext = createContext<AuthenticationController>(null!);
 
-export function useAuthentication(): AuthenticationController {
-	const controller = useContext(AuthenticationContext);
+export function useAuthenticationController(): AuthenticationController {
+	const controller = useContext(AuthenticationControllerContext);
 	if (!controller) {
 		throw new Error("useAuthentication must be used within an Authentication");
 	}
@@ -143,14 +143,16 @@ export function Authentication({
 
 	const node = useMemo(() => (typeof children === "function" ? children(controller) : children), [children, controller]);
 
-	return <AuthenticationContext.Provider key={controller.key} value={controller}>{node}</AuthenticationContext.Provider>;
+	return (
+		<AuthenticationControllerContext.Provider key={controller.key} value={controller}>{node}</AuthenticationControllerContext.Provider>
+	);
 }
 
 export function AuthenticationPrompt({ choice, prompts }: {
 	choice: (controller: Omit<AuthenticationController, "send" | "submit">, prompts: Array<AuthenticationComponentPrompt>) => ReactNode;
 	prompts: Record<string, (controller: Omit<AuthenticationController, "select">, prompt: AuthenticationComponentPrompt) => ReactNode>;
 }): ReactNode {
-	const controller = useAuthentication();
+	const controller = useAuthenticationController();
 	const prompt = useMemo(() => {
 		return controller.currentComponent.kind === "choice"
 			? choice(controller, controller.currentComponent.prompts)

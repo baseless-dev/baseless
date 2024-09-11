@@ -3,7 +3,7 @@
 /** @jsxImportSourceTypes npm:@types/react@18 */
 // @deno-types="npm:@types/react"
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useClient } from "./mod.ts";
+import { useClient } from "./useClient.ts";
 import type { Client, ClientFromApplicationBuilder } from "@baseless/client";
 import type {
 	ApplicationBuilder,
@@ -15,7 +15,7 @@ import type {
 import type { AuthenticationComponent, AuthenticationComponentPrompt } from "@baseless/core/authentication-component";
 import type { AuthenticationStep } from "@baseless/core/authentication-step";
 import useKeyedPromise from "./useKeyedPromise.ts";
-import { id } from "../core/id.ts";
+import { id } from "@baseless/core/id";
 
 export interface AuthenticationController {
 	key: string;

@@ -63,9 +63,7 @@ export function configureAuthentication(
 								aat,
 							};
 						}
-					} catch (error) {
-						console.error(error);
-					}
+					} catch (error) {}
 				} else if (scheme === "Token" && isID("sk_", token)) {
 					try {
 						const key = await context.kv.get(["session-secret-tokens", token]);
@@ -76,6 +74,7 @@ export function configureAuthentication(
 					}
 				}
 				if (!currentSession) {
+					// TODO AuthorizationError?
 					throw new ForbiddenError();
 				}
 			}

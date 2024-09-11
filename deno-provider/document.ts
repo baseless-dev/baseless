@@ -1,10 +1,10 @@
-import { Document } from "../core/document.ts";
+import type { Document } from "../core/document.ts";
 import {
 	DocumentAtomic,
 	DocumentAtomicCommitError,
-	DocumentGetOptions,
-	DocumentListEntry,
-	DocumentListOptions,
+	type DocumentGetOptions,
+	type DocumentListEntry,
+	type DocumentListOptions,
 	DocumentNotFoundError,
 	DocumentProvider,
 } from "@baseless/server/document-provider";

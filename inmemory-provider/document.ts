@@ -1,13 +1,13 @@
 import {
 	DocumentAtomic,
 	DocumentAtomicCommitError,
-	DocumentGetOptions,
-	DocumentListEntry,
-	DocumentListOptions,
+	type DocumentGetOptions,
+	type DocumentListEntry,
+	type DocumentListOptions,
 	DocumentNotFoundError,
 	DocumentProvider,
 } from "@baseless/server/document-provider";
-import { Document } from "@baseless/core/document";
+import type { Document } from "@baseless/core/document";
 import OrderedMap from "@baseless/core/ordered-map";
 
 function keyPathToKeyString(key: string[]): string {

@@ -1,12 +1,12 @@
 // deno-lint-ignore-file require-await
 import {
-	KVGetOptions,
-	KVKey,
+	type KVGetOptions,
+	type KVKey,
 	KVKeyNotFoundError,
-	KVListOptions,
-	KVListResult,
+	type KVListOptions,
+	type KVListResult,
 	KVProvider,
-	KVPutOptions,
+	type KVPutOptions,
 } from "@baseless/server/kv-provider";
 
 export class MemoryKVProvider extends KVProvider {

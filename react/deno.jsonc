@@ -4,6 +4,7 @@
 	"exports": {
 		".": "./mod.ts",
 		"./Authentication": "./Authentication.tsx",
+		"./Registration": "./Registration.tsx",
 		"./useClient": "./useClient.ts",
 		"./useIdentity": "./useIdentity.ts",
 		"./useKeyedPromise": "./useKeyedPromise.ts"

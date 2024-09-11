@@ -13,35 +13,36 @@ import type {
 	AuthenticationRpcs,
 } from "@baseless/server";
 import type { AuthenticationComponent, AuthenticationComponentPrompt } from "@baseless/core/authentication-component";
-import type { AuthenticationStep } from "@baseless/core/authentication-step";
+import type { RegistrationStep } from "@baseless/core/registration-step";
 import useKeyedPromise from "./useKeyedPromise.ts";
 import { id } from "../core/id.ts";
 
-export interface AuthenticationController {
+export interface RegistrationController {
 	key: string;
 	currentComponent: AuthenticationComponent;
 	reset: () => void;
 	back: () => void;
 	select: (current: AuthenticationComponent) => void;
-	send: (locale: string) => Promise<boolean>;
+	sendValidationCode: (locale: string) => Promise<boolean>;
+	submitValidationCode: (code: string) => Promise<void>;
 	submit: (value: unknown) => Promise<void>;
 }
 
-const AuthenticationContext = createContext<AuthenticationController>(null!);
+const RegistrationContext = createContext<RegistrationController>(null!);
 
-export function useAuthentication(): AuthenticationController {
-	const controller = useContext(AuthenticationContext);
+export function useRegistration(): RegistrationController {
+	const controller = useContext(RegistrationContext);
 	if (!controller) {
-		throw new Error("useAuthentication must be used within an Authentication");
+		throw new Error("useRegistration must be used within an Registration");
 	}
 	return controller;
 }
 
-export function Authentication({
+export function Registration({
 	children,
 	client = useClient(),
 }: {
-	children: ReactNode | ((controller: AuthenticationController) => ReactNode);
+	children: ReactNode | ((controller: RegistrationController) => ReactNode);
 	client: Client;
 }): ReactNode {
 	const authClient = client as ClientFromApplicationBuilder<
@@ -54,10 +55,10 @@ export function Authentication({
 		>
 	>;
 
-	const initialState = useKeyedPromise(client, () => authClient.rpc(["authentication", "begin"], []), 1000 * 60 * 5);
-	const [steps, setSteps] = useState<AuthenticationStep[]>(() => {
+	const initialState = useKeyedPromise(client, () => authClient.rpc(["registration", "begin"], void 0), 1000 * 60 * 5);
+	const [steps, setSteps] = useState<RegistrationStep[]>(() => {
 		try {
-			const saved = localStorage.getItem("baseless_authentication");
+			const saved = localStorage.getItem("baseless_registration");
 			if (saved) {
 				return JSON.parse(saved);
 			}
@@ -70,9 +71,9 @@ export function Authentication({
 
 	const saveSteps = useCallback((newSteps: typeof steps | undefined) => {
 		if (newSteps) {
-			localStorage.setItem("baseless_authentication", JSON.stringify(newSteps));
+			localStorage.setItem("baseless_registration", JSON.stringify(newSteps));
 		} else {
-			localStorage.removeItem("baseless_authentication");
+			localStorage.removeItem("baseless_registration");
 		}
 	}, [setSteps]);
 
@@ -82,19 +83,25 @@ export function Authentication({
 		reset: () => (setSteps([]), saveSteps(undefined)),
 		back: () => (setSteps(steps.slice(0, -1)), saveSteps(undefined)),
 		select: (current: AuthenticationComponent) => (setSteps([...steps, { ...currentStep, current }]), saveSteps(undefined)),
-		send: (locale: string) =>
-			authClient.rpc(["authentication", "sendPrompt"], {
+		sendValidationCode: (locale: string) =>
+			authClient.rpc(["registration", "sendValidationCode"], {
 				state: currentStep.state,
 				id: currentStep.current.kind === "component" ? currentStep.current.id : "",
 				locale,
 			}),
+		submitValidationCode: (value: unknown) =>
+			authClient.rpc(["registration", "submitValidationCode"], {
+				state: currentStep.state,
+				id: currentStep.current.kind === "component" ? currentStep.current.id : "",
+				value,
+			}).then((_) => {}),
 		submit: async (value: unknown) => {
 			if (currentStep.current.kind === "component" && currentStep.current.prompt === "oauth2") {
 				window.location.href = currentStep.current.options.authorizationUrl as string;
 				saveSteps([...steps]);
 				return;
 			}
-			const result = await authClient.rpc(["authentication", "submitPrompt"], {
+			const result = await authClient.rpc(["registration", "submitPrompt"], {
 				state: currentStep.state,
 				id: currentStep.current.kind === "component" ? currentStep.current.id : "",
 				value,
@@ -107,7 +114,7 @@ export function Authentication({
 				saveSteps(undefined);
 			}
 		},
-	} satisfies AuthenticationController), [
+	} satisfies RegistrationController), [
 		authClient,
 		currentStep,
 		steps,
@@ -123,7 +130,7 @@ export function Authentication({
 				url.searchParams.delete("code");
 				url.searchParams.delete("scope");
 				(globalThis as any).history.replaceState(null, "", url.toString());
-				authClient.rpc(["authentication", "submitPrompt"], {
+				authClient.rpc(["registration", "submitPrompt"], {
 					state: currentStep.state,
 					id: currentStep.current.id,
 					value: { code, state, scope },
@@ -143,14 +150,17 @@ export function Authentication({
 
 	const node = useMemo(() => (typeof children === "function" ? children(controller) : children), [children, controller]);
 
-	return <AuthenticationContext.Provider key={controller.key} value={controller}>{node}</AuthenticationContext.Provider>;
+	return <RegistrationContext.Provider key={controller.key} value={controller}>{node}</RegistrationContext.Provider>;
 }
 
-export function AuthenticationPrompt({ choice, prompts }: {
-	choice: (controller: Omit<AuthenticationController, "send" | "submit">, prompts: Array<AuthenticationComponentPrompt>) => ReactNode;
-	prompts: Record<string, (controller: Omit<AuthenticationController, "select">, prompt: AuthenticationComponentPrompt) => ReactNode>;
+export function RegistrationPrompt({ choice, prompts }: {
+	choice: (
+		controller: Omit<RegistrationController, "send" | "sendValidationCode" | "submitValidationCode">,
+		prompts: Array<AuthenticationComponentPrompt>,
+	) => ReactNode;
+	prompts: Record<string, (controller: Omit<RegistrationController, "select">, prompt: AuthenticationComponentPrompt) => ReactNode>;
 }): ReactNode {
-	const controller = useAuthentication();
+	const controller = useRegistration();
 	const prompt = useMemo(() => {
 		return controller.currentComponent.kind === "choice"
 			? choice(controller, controller.currentComponent.prompts)

@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any ban-types
 import type { Static, TArray, TBoolean, TObject, TSchema, TString, TUnknown, TVoid } from "@sinclair/typebox";
-import type { IDocumentAtomic, IDocumentProvider } from "./document_provider.ts";
+import type { TypedDocumentAtomic, TypedDocumentProvider } from "./document_provider.ts";
 import type { KVProvider } from "./kv_provider.ts";
 import type { PathAsType, ReplaceVariableInPathSegment } from "@baseless/core/path";
 import type { Document } from "@baseless/core/document";
@@ -25,7 +25,7 @@ export type Context<
 	request: Request;
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 	kv: KVProvider; // TODO KVService
-	document: IDocumentProvider<TDocument, TCollection>;
+	document: TypedDocumentProvider<TDocument, TCollection>;
 	// TODO event: EventService<TClient>
 	// TODO storage: StorageService<TClient>
 } & TDecoration;
@@ -249,7 +249,7 @@ export type DocumentAtomicSetListenerHandler<
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
 	document: Document<Static<TDocumentSchema>>;
-	atomic: IDocumentAtomic<TDocument, TCollection>;
+	atomic: TypedDocumentAtomic<TDocument>;
 }) => Promise<void>;
 
 export interface DocumentAtomicSetListener<
@@ -269,7 +269,7 @@ export type DocumentAtomicDeleteListenerHandler<
 > = (options: {
 	context: Context<TDecoration, TDocument, TCollection>;
 	params: PathAsType<TPath>;
-	atomic: IDocumentAtomic<TDocument, TCollection>;
+	atomic: TypedDocumentAtomic<TDocument>;
 }) => Promise<void>;
 
 export interface DocumentAtomicDeleteListener<

@@ -1,4 +1,14 @@
-import { type TArray, type TLiteral, type TObject, type TRecursive, type TThis, type TUnion, type TUnknown, Type } from "@sinclair/typebox";
+import {
+	type TArray,
+	type TLiteral,
+	type TObject,
+	TOptional,
+	type TRecursive,
+	type TThis,
+	type TUnion,
+	type TUnknown,
+	Type,
+} from "@sinclair/typebox";
 
 export interface ResultSingle {
 	kind: "result";
@@ -7,16 +17,15 @@ export interface ResultSingle {
 
 export const ResultSingle: TObject<{
 	kind: TLiteral<"result">;
-	value: TUnknown;
+	value: TOptional<TUnknown>;
 }> = Type.Object({
 	kind: Type.Literal("result"),
-	value: Type.Unknown(),
+	value: Type.Optional(Type.Unknown()),
 }, { $id: "ResultSingle" });
 
 export function isResultSingle(value: unknown): value is ResultSingle {
 	return !!value && typeof value === "object" && "kind" in value &&
-		value.kind === "result" &&
-		"value" in value;
+		value.kind === "result";
 }
 
 export interface ResultError {

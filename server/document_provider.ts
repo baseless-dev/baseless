@@ -98,7 +98,7 @@ export class DocumentAtomicCommitError extends Error {
 	}
 }
 
-export interface IDocumentProvider<
+export interface TypedDocumentProvider<
 	TDocument extends Array<DocumentDefinition<any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any>>,
 > {
@@ -124,19 +124,18 @@ export interface IDocumentProvider<
 		options: DocumentListOptions<TCollectionPath>,
 	): AsyncIterableIterator<DocumentListEntry<Static<TCollectionDefinition["schema"]>>>;
 
-	atomic(): IDocumentAtomic<TDocument, TCollection>;
+	atomic(): TypedDocumentAtomic<TDocument>;
 }
 
-export interface IDocumentAtomic<
+export interface TypedDocumentAtomic<
 	TDocument extends Array<DocumentDefinition<any, any>>,
-	TCollection extends Array<CollectionDefinition<any, any>>,
-> {
+> extends DocumentAtomic {
 	check<
 		const TDocumentPath extends TDocument[number]["matcher"],
 	>(
 		key: TDocumentPath,
 		versionstamp: string | null,
-	): IDocumentAtomic<TDocument, TCollection>;
+	): TypedDocumentAtomic<TDocument>;
 
 	set<
 		const TDocumentPath extends TDocument[number]["matcher"],
@@ -144,13 +143,13 @@ export interface IDocumentAtomic<
 	>(
 		key: TDocumentPath,
 		data: Static<TDocumentDefinition["schema"]>,
-	): IDocumentAtomic<TDocument, TCollection>;
+	): TypedDocumentAtomic<TDocument>;
 
 	delete<
 		const TDocumentPath extends TDocument[number]["matcher"],
 	>(
 		key: TDocumentPath,
-	): IDocumentAtomic<TDocument, TCollection>;
+	): TypedDocumentAtomic<TDocument>;
 
 	commit(): Promise<void>;
 }

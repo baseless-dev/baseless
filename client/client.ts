@@ -402,7 +402,7 @@ export interface CollectionsClient {
 
 export interface TypedDocumentsClient<
 	TDocument extends Array<DocumentDefinition<any, any>> = [],
-> {
+> extends DocumentsClient {
 	<
 		const TDocumentPath extends TDocument[number]["matcher"],
 		const TDocumentDefinition extends PickAtPath<TDocument, TDocumentPath>,
@@ -414,7 +414,7 @@ export interface TypedDocumentsClient<
 
 export interface TypedCollectionsClient<
 	TCollection extends Array<CollectionDefinition<any, any>> = [],
-> {
+> extends CollectionsClient {
 	<
 		const TCollectionPath extends TCollection[number]["matcher"],
 		const TCollectionDefinition extends PickAtPath<TCollection, TCollectionPath>,

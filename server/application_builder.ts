@@ -582,7 +582,7 @@ export class ApplicationBuilder<
 			TOtherFolder
 		>,
 	): ApplicationBuilder<
-		TDecoration | TOtherDecoration,
+		TDecoration & TOtherDecoration,
 		[...TRpc, ...TOtherRpc],
 		[...TEvent, ...TOtherEvent],
 		[...TDocument, ...TOtherDocument],

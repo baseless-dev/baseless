@@ -613,4 +613,18 @@ export class ApplicationBuilder<
 	// folder(path, { mimetypes, extensions, security? })
 	// file(path, { mimetypes, extensions, security? })
 	// room(path, { security? })
+
+	inspect(): {
+		rpc: Array<RpcDefinition<any, any, any>>;
+		event: Array<EventDefinition<any, any>>;
+		document: Array<DocumentDefinition<any, any>>;
+		collection: Array<CollectionDefinition<any, any>>;
+	} {
+		return {
+			rpc: this.#rpc,
+			event: this.#event,
+			document: this.#document,
+			collection: this.#collection,
+		};
+	}
 }

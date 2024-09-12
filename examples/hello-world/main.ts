@@ -78,6 +78,8 @@ const server = new Server({
 	kv: kvProvider,
 });
 
+export { appBuilder };
+
 export default {
 	async fetch(req): Promise<Response> {
 		if (req.method === "OPTIONS") {

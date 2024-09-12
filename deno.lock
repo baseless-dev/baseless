@@ -11,14 +11,17 @@
       "jsr:@std/assert@^0.219.1": "jsr:@std/assert@0.219.1",
       "jsr:@std/assert@^0.223.0": "jsr:@std/assert@0.223.0",
       "jsr:@std/bytes@^0.218.2": "jsr:@std/bytes@0.218.2",
+      "jsr:@std/cli@1.0.5": "jsr:@std/cli@1.0.5",
       "jsr:@std/encoding@1.0.2": "jsr:@std/encoding@1.0.2",
       "jsr:@std/fmt": "jsr:@std/fmt@0.218.2",
       "jsr:@std/fmt@^0.218.2": "jsr:@std/fmt@0.218.2",
       "jsr:@std/fs": "jsr:@std/fs@1.0.2",
+      "jsr:@std/fs@1.0.3": "jsr:@std/fs@1.0.3",
       "jsr:@std/fs@^0.218.2": "jsr:@std/fs@0.218.2",
       "jsr:@std/internal@^1.0.1": "jsr:@std/internal@1.0.1",
       "jsr:@std/io@^0.218.2": "jsr:@std/io@0.218.2",
       "jsr:@std/path": "jsr:@std/path@1.0.3",
+      "jsr:@std/path@1.0.4": "jsr:@std/path@1.0.4",
       "jsr:@std/path@^0.218.2": "jsr:@std/path@0.218.2",
       "jsr:@std/path@^0.219.1": "jsr:@std/path@0.219.1",
       "jsr:@std/path@^0.223.0": "jsr:@std/path@0.223.0",
@@ -28,7 +31,7 @@
       "npm:jose@5.7.0": "npm:jose@5.7.0",
       "npm:react": "npm:react@18.3.1",
       "npm:react@18.3.1": "npm:react@18.3.1",
-      "npm:typescript": "npm:typescript@5.4.5"
+      "npm:typescript": "npm:typescript@5.5.4"
     },
     "jsr": {
       "@deno/cache-dir@0.8.0": {
@@ -75,6 +78,9 @@
       "@std/bytes@0.218.2": {
         "integrity": "91fe54b232dcca73856b79a817247f4a651dbb60d51baafafb6408c137241670"
       },
+      "@std/cli@1.0.5": {
+        "integrity": "c93cce26ffd26f617c15a12874e1bfeabc90b1eee86017c9639093734c2bf587"
+      },
       "@std/encoding@1.0.2": {
         "integrity": "7ed640c777e3275550e2cd937c440acdbebfdcd2d13ef67052f0536bf43e707f"
       },
@@ -96,6 +102,9 @@
         "dependencies": [
           "jsr:@std/path@^1.0.3"
         ]
+      },
+      "@std/fs@1.0.3": {
+        "integrity": "3cb839b1360b0a42d8b367c3093bfe4071798e6694fa44cf1963e04a8edba4fe"
       },
       "@std/internal@1.0.1": {
         "integrity": "6f8c7544d06a11dd256c8d6ba54b11ed870aac6c5aeafff499892662c57673e6"
@@ -127,6 +136,9 @@
       },
       "@std/path@1.0.3": {
         "integrity": "cd89d014ce7eb3742f2147b990f6753ee51d95276bfc211bc50c860c1bc7df6f"
+      },
+      "@std/path@1.0.4": {
+        "integrity": "48dd5d8389bcfcd619338a01bdf862cb7799933390146a54ae59356a0acc7105"
       }
     },
     "npm": {
@@ -169,8 +181,8 @@
           "loose-envify": "loose-envify@1.4.0"
         }
       },
-      "typescript@5.4.5": {
-        "integrity": "sha512-vcI4UpRgg81oIRUFwR0WSIHKt11nJ7SAVlYNIu+QpqeyXP+gpQJy/Z4+F0aGxSE4MqwjyXvW/TzgkLAx2AGHwQ==",
+      "typescript@5.5.4": {
+        "integrity": "sha512-Mtq29sKDAEYP7aljRgtPOpTvOfbwRWlS6dPRzwjdE+C0R4brX/GUyhHSecbHMFLNBLcJIPt9nl9yG5TZ1weH+Q==",
         "dependencies": {}
       }
     }
@@ -214,7 +226,10 @@
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@1.0.2",
+      "jsr:@std/cli@1.0.5",
       "jsr:@std/encoding@1.0.2",
+      "jsr:@std/fs@1.0.3",
+      "jsr:@std/path@1.0.4",
       "npm:@sinclair/typebox@0.33.7",
       "npm:@types/react@18",
       "npm:jose@5.7.0",

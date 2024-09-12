@@ -31,7 +31,10 @@
 		"@sinclair/typebox": "npm:@sinclair/typebox@0.33.7",
 		"@sinclair/typebox/value": "npm:@sinclair/typebox@0.33.7/value",
 		"@std/assert": "jsr:@std/assert@1.0.2",
+		"@std/cli": "jsr:@std/cli@1.0.5",
 		"@std/encoding": "jsr:@std/encoding@1.0.2",
+		"@std/fs": "jsr:@std/fs@1.0.3",
+		"@std/path": "jsr:@std/path@1.0.4",
 		"@types/react": "npm:@types/react@18",
 		"jose": "npm:jose@5.7.0",
 		"react": "npm:react@18.3.1"

@@ -408,8 +408,12 @@ export interface TypedDocumentsClient<
 		const TDocumentDefinition extends PickAtPath<TDocument, TDocumentPath>,
 	>(key: TDocumentPath): DocumentClient<Static<TDocumentDefinition["schema"]>>;
 	atomic(): TypedDocumentAtomic<TDocument>;
-	getMany(keys: TDocument[number]["matcher"]): Promise<Document[]>;
-	watchMany(keys: TDocument[number]["matcher"], abortSignal?: AbortSignal): AsyncIterableIterator<Document> & AsyncDisposable;
+	getMany<
+		const TDocumentPath extends TDocument[number]["matcher"],
+	>(keys: Array<TDocumentPath>): Promise<Document[]>;
+	watchMany<
+		const TDocumentPath extends TDocument[number]["matcher"],
+	>(keys: Array<TDocumentPath>, abortSignal?: AbortSignal): AsyncIterableIterator<Document> & AsyncDisposable;
 }
 
 export interface TypedCollectionsClient<

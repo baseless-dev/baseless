@@ -126,13 +126,13 @@ export class Server {
 							provider: this.#documentProvider,
 						});
 					} else if (command.kind === "document-list") {
-						result = await this.#application.listDocument({
+						result = await Array.fromAsync(this.#application.listDocument({
 							context,
 							cursor: command.cursor,
 							limit: command.limit,
 							prefix: command.prefix,
 							provider: this.#documentProvider,
-						});
+						}));
 					} else if (command.kind === "document-atomic") {
 						result = await this.#application.commitDocumentAtomic({
 							checks: command.checks,

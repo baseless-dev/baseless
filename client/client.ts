@@ -17,6 +17,8 @@ import type {
 	RpcDefinition,
 	WithSecurity,
 } from "@baseless/server/types";
+import { Document } from "@baseless/core/document";
+import { DocumentAtomic, DocumentListEntry, DocumentListOptions, TypedDocumentAtomic } from "@baseless/server/document-provider";
 
 export interface ClientInitialization {
 	clientId: string;
@@ -69,6 +71,10 @@ export class Client {
 
 	dispose(): void {
 		this[Symbol.dispose]();
+	}
+
+	get clientId(): string {
+		return this.#clientId;
 	}
 
 	get storage(): Storage {
@@ -305,6 +311,114 @@ export class Client {
 			input,
 		}, dedup);
 	}
+
+	collections(key: string[]): CollectionClient {
+		// deno-lint-ignore no-this-alias
+		const client = this;
+		return {
+			async *list(options): AsyncIterableIterator<DocumentListEntry> {
+				const entries = await client.#enqueueCommand({
+					kind: "document-list",
+					prefix: key,
+					cursor: options?.cursor,
+					limit: options?.limit,
+				}, false);
+				yield* (entries as any);
+			},
+			watch: () => {
+				throw "TODO";
+			},
+		};
+	}
+
+	documents: DocumentsClient = Object.assign(
+		(key: string[]) => new DocumentClient(key, this.#enqueueCommand.bind(this)),
+		{
+			atomic: () => new DocumentAtomicClient(this.#enqueueCommand.bind(this)),
+			getMany: (keys: string[][]) => {
+				return this.#enqueueCommand({
+					kind: "document-get-many",
+					paths: keys,
+				}, false) as never;
+			},
+			watchMany: (keys: string[][]) => {
+				throw "TODO!";
+			},
+		},
+	);
+}
+
+export class DocumentClient<TData = unknown> {
+	#key: string[];
+	#enqueueCommand: (command: Command, dedup: boolean) => Promise<unknown>;
+	constructor(key: string[], enqueueCommand: (command: Command, dedup: boolean) => Promise<unknown>) {
+		this.#key = key;
+		this.#enqueueCommand = enqueueCommand;
+	}
+	get(): Promise<Document<TData>> {
+		return this.#enqueueCommand({
+			kind: "document-get",
+			path: this.#key,
+		}, false) as never;
+	}
+	watch(abortSignal?: AbortSignal): AsyncIterableIterator<Document<TData>> {
+		throw "TODO!";
+	}
+}
+
+export interface CollectionClient<TData = unknown> {
+	list(options?: Omit<DocumentListOptions, "prefix">): AsyncIterableIterator<DocumentListEntry<TData>>;
+	watch(
+		options?: Omit<DocumentListOptions, "prefix">,
+		abortSignal?: AbortSignal,
+	): AsyncIterableIterator<Iterator<DocumentListEntry<TData>>>;
+}
+
+export class DocumentAtomicClient extends DocumentAtomic {
+	#enqueueCommand: (command: Command, dedup: boolean) => Promise<unknown>;
+	constructor(enqueueCommand: (command: Command, dedup: boolean) => Promise<unknown>) {
+		super();
+		this.#enqueueCommand = enqueueCommand;
+	}
+	commit(): Promise<void> {
+		return this.#enqueueCommand({
+			kind: "document-atomic",
+			checks: this.checks,
+			ops: this.operations,
+		}, false) as never;
+	}
+}
+
+export interface DocumentsClient {
+	(key: string[]): DocumentClient;
+	atomic(): DocumentAtomic;
+	getMany(keys: string[][]): Promise<Document[]>;
+	watchMany(keys: string[][], abortSignal?: AbortSignal): AsyncIterableIterator<Document> & AsyncDisposable;
+}
+
+export interface CollectionsClient {
+	(key: string[]): CollectionClient;
+}
+
+export interface TypedDocumentsClient<
+	TDocument extends Array<DocumentDefinition<any, any>> = [],
+> {
+	<
+		const TDocumentPath extends TDocument[number]["matcher"],
+		const TDocumentDefinition extends PickAtPath<TDocument, TDocumentPath>,
+	>(key: TDocumentPath): DocumentClient<Static<TDocumentDefinition["schema"]>>;
+	atomic(): TypedDocumentAtomic<TDocument>;
+	getMany(keys: TDocument[number]["matcher"]): Promise<Document[]>;
+	watchMany(keys: TDocument[number]["matcher"], abortSignal?: AbortSignal): AsyncIterableIterator<Document> & AsyncDisposable;
+}
+
+export interface TypedCollectionsClient<
+	TCollection extends Array<CollectionDefinition<any, any>> = [],
+> {
+	<
+		const TCollectionPath extends TCollection[number]["matcher"],
+		const TCollectionDefinition extends PickAtPath<TCollection, TCollectionPath>,
+	>(key: TCollectionPath): CollectionClient<Static<TCollectionDefinition["schema"]>>;
 }
 
 export interface TypedClient<
@@ -323,4 +437,8 @@ export interface TypedClient<
 		input: Static<TRpcDefinition["input"]>,
 		dedup?: boolean,
 	): Promise<Static<TRpcDefinition["output"]>>;
+
+	documents: TypedDocumentsClient<TDocument>;
+
+	collections: TypedCollectionsClient<TCollection>;
 }

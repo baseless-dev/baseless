@@ -37,6 +37,14 @@ Deno.test("Client", async (t) => {
 				output: Type.String(),
 				security: async () => Permission.All,
 				handler: async ({ params }) => `${++ref}. Hello ${params.world}`,
+			})
+			.collection(["users"], {
+				schema: Type.String(),
+				security: async () => Permission.All,
+			})
+			.document(["config"], {
+				schema: Type.String(),
+				security: async () => Permission.All,
 			});
 
 		const app = appBuilder.build();
@@ -120,5 +128,27 @@ Deno.test("Client", async (t) => {
 		assert(events.length === 2);
 		assert(isIdentity(events[0]));
 		assert(events[1] === undefined);
+	});
+
+	await t.step("documents", async () => {
+		using client = await setupClient();
+
+		await client.documents.atomic()
+			.set(["config"], "a")
+			.set(["users", "1"], "One")
+			.set(["users", "2"], "Two")
+			.commit();
+
+		const config = await client.documents(["config"]).get();
+		assertEquals(config.data, "a");
+
+		const users = await Array.fromAsync(client.collections(["users"]).list());
+		assert(users.length === 2);
+		assertEquals(users[0].document.data, "One");
+		assertEquals(users[1].document.data, "Two");
+
+		// for await (const config of client.documents(["config"]).watch()) {
+		// 	console.log(config.data);
+		// }
 	});
 });

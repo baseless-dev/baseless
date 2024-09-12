@@ -39,6 +39,10 @@ const appBuilder = new ApplicationBuilder()
 		output: Type.TemplateLiteral([Type.Number(), Type.Literal(". Hello "), Type.String()]),
 		security: async () => Permission.All,
 		handler: async ({ params }) => `${++ref}. Hello ${params.world}`,
+	})
+	.collection(["items"], {
+		schema: Type.String(),
+		security: async ({ context }) => context.currentSession ? Permission.All : Permission.None,
 	});
 
 const app = appBuilder.build();
@@ -62,6 +66,10 @@ documentProvider.atomic()
 		},
 	})
 	.set(["identifications", "email", "foo@test.local"], dummyIdentityId)
+	.set(["items", "1"], "One")
+	.set(["items", "2"], "Two")
+	.set(["items", "3"], "Three")
+	.set(["items", "4"], "Four")
 	.commit();
 
 const server = new Server({

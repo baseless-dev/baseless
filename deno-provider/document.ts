@@ -1,4 +1,4 @@
-import type { Document } from "../core/document.ts";
+import type { Document } from "@baseless/core/document";
 import {
 	DocumentAtomic,
 	DocumentAtomicCommitError,

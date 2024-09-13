@@ -143,9 +143,8 @@ export function Authentication({
 
 	const node = useMemo(() => (typeof children === "function" ? children(controller) : children), [children, controller]);
 
-	return (
-		<AuthenticationControllerContext.Provider key={controller.key} value={controller}>{node}</AuthenticationControllerContext.Provider>
-	);
+	return <AuthenticationControllerContext.Provider key={controller.key} value={controller}>{node}
+	</AuthenticationControllerContext.Provider>;
 }
 
 export function AuthenticationPrompt({ choice, prompts }: {

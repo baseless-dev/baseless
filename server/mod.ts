@@ -8,5 +8,5 @@ export * from "./providers/password.ts";
 export * from "./providers/policy.ts";
 export * from "./server.ts";
 export * from "./types.ts";
-export * from "../core/authentication_ceremony.ts";
+export * from "@baseless/core/authentication-ceremony";
 export { Type } from "@sinclair/typebox";

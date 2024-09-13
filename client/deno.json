@@ -1,11 +1,10 @@
 {
 	"name": "@baseless/client",
-	"version": "0.3.0-rc.1",
+	"version": "0.3.0-rc.2",
 	"exports": {
 		".": "./mod.ts",
 		"./bls": "./cli.ts",
-		"./client": "./client.ts",
-		"./types": "./types.ts"
+		"./client": "./client.ts"
 	},
 	"publish": {
 		"include": [

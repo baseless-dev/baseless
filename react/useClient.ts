@@ -1,4 +1,4 @@
-// @deno-types="npm:@types/react"
+// @deno-types="npm:@types/react@18"
 import { createContext, useContext } from "react";
 import type { Client } from "@baseless/client";
 

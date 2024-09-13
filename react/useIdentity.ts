@@ -1,4 +1,4 @@
-// @deno-types="npm:@types/react"
+// @deno-types="npm:@types/react@18"
 import { useEffect, useState } from "react";
 import { useClient } from "./useClient.ts";
 import type { Identity } from "@baseless/core/identity";

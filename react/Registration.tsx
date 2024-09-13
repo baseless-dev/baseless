@@ -1,7 +1,7 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource npm:react@18.3.1 */
 /** @jsxImportSourceTypes npm:@types/react@18 */
-// @deno-types="npm:@types/react"
+// @deno-types="npm:@types/react@18"
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useClient } from "./useClient.ts";
 import type { Client, ClientFromApplicationBuilder } from "@baseless/client";

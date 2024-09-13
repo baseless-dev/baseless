@@ -7,7 +7,7 @@ import type { Document } from "@baseless/core/document";
 import type { NotificationProvider } from "./notification_provider.ts";
 import type { Session } from "@baseless/core/session";
 import { KeyLike } from "jose";
-import { ID, TID } from "../core/id.ts";
+import { ID, TID } from "@baseless/core/id";
 import { Identity, IdentityComponent } from "../core/identity.ts";
 import { IdentityComponentProvider } from "./identity_component_provider.ts";
 import { AuthenticationTokens } from "@baseless/core/authentication-tokens";

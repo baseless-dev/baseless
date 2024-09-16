@@ -17,7 +17,7 @@ const timeStart = performance.now();
 
 const cwd = Deno.cwd();
 
-const { workspace: workspaces, imports } = JSON.parse(await Deno.readTextFile(join(cwd, "./deno.jsonc"))) as {
+const { workspace: workspaces, imports } = JSON.parse(await Deno.readTextFile(join(cwd, "./deno.json"))) as {
 	workspace: string[];
 	imports: Record<string, string>;
 };
@@ -25,7 +25,7 @@ const { workspace: workspaces, imports } = JSON.parse(await Deno.readTextFile(jo
 const workspaceSummaries: Array<PackageSummary> = [];
 
 for (const workspace of workspaces) {
-	const config = JSON.parse(await Deno.readTextFile(join(cwd, workspace, "deno.jsonc"))) as PackageSummary;
+	const config = JSON.parse(await Deno.readTextFile(join(cwd, workspace, "deno.json"))) as PackageSummary;
 	workspaceSummaries.push({ ...config, location: workspace });
 
 	if (!Deno.args.includes("--only") || Deno.args.includes(config.name)) {
@@ -104,7 +104,7 @@ async function compileSummary(summary: PackageSummary): Promise<void> {
 		skip: summary.publish?.exclude?.map((p) => globToRegExp(join(workspaceRoot, p))) ?? [],
 	}));
 	const files = [
-		join(workspaceRoot, "deno.jsonc"),
+		join(workspaceRoot, "deno.json"),
 		...walkedFiles.map((file) => file.path),
 	];
 
@@ -234,6 +234,8 @@ const npmLink = new Deno.Command(`npm`, {
 await npmLink.status;
 
 console.log(colors.green("✓") + colors.dim(` Build took ${format(performance.now() - timeStart, { ignoreZero: true })}.`));
+
+console.log(colors.yellow("! Watch out for devdependencies"));
 
 if (Deno.args.includes("--watch")) {
 	console.log(colors.blue("○") + colors.dim(` Watching for changes...`));

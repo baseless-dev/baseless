@@ -15,17 +15,18 @@
       "jsr:@std/encoding@1.0.2": "jsr:@std/encoding@1.0.2",
       "jsr:@std/fmt": "jsr:@std/fmt@0.218.2",
       "jsr:@std/fmt@^0.218.2": "jsr:@std/fmt@0.218.2",
-      "jsr:@std/fs": "jsr:@std/fs@1.0.2",
+      "jsr:@std/fs": "jsr:@std/fs@1.0.3",
       "jsr:@std/fs@1.0.3": "jsr:@std/fs@1.0.3",
       "jsr:@std/fs@^0.218.2": "jsr:@std/fs@0.218.2",
       "jsr:@std/internal@^1.0.1": "jsr:@std/internal@1.0.1",
       "jsr:@std/io@^0.218.2": "jsr:@std/io@0.218.2",
-      "jsr:@std/path": "jsr:@std/path@1.0.3",
+      "jsr:@std/path": "jsr:@std/path@1.0.4",
       "jsr:@std/path@1.0.4": "jsr:@std/path@1.0.4",
       "jsr:@std/path@^0.218.2": "jsr:@std/path@0.218.2",
       "jsr:@std/path@^0.219.1": "jsr:@std/path@0.219.1",
       "jsr:@std/path@^0.223.0": "jsr:@std/path@0.223.0",
       "jsr:@std/path@^1.0.3": "jsr:@std/path@1.0.3",
+      "jsr:@std/path@^1.0.4": "jsr:@std/path@1.0.4",
       "npm:@sinclair/typebox@0.33.7": "npm:@sinclair/typebox@0.33.7",
       "npm:@types/react": "npm:@types/react@18.3.3",
       "npm:jose@5.7.0": "npm:jose@5.7.0",
@@ -104,7 +105,10 @@
         ]
       },
       "@std/fs@1.0.3": {
-        "integrity": "3cb839b1360b0a42d8b367c3093bfe4071798e6694fa44cf1963e04a8edba4fe"
+        "integrity": "3cb839b1360b0a42d8b367c3093bfe4071798e6694fa44cf1963e04a8edba4fe",
+        "dependencies": [
+          "jsr:@std/path@^1.0.4"
+        ]
       },
       "@std/internal@1.0.1": {
         "integrity": "6f8c7544d06a11dd256c8d6ba54b11ed870aac6c5aeafff499892662c57673e6"

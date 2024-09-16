@@ -90,7 +90,7 @@ export function configureAuthentication(
 			["identities", "{identityId}", "components", "{kind}"],
 			async ({ params, atomic, context, document }) => {
 				// When new identity component is created with an identification, ensure that it's unique in the identifications collection
-				if (document.data.identification) {
+				if (document.data.identification && document.data.confirmed) {
 					const doc = await context.document.get([
 						"identifications",
 						document.data.componentId,
@@ -211,6 +211,7 @@ export function configureAuthentication(
 			output: AuthenticationResponse,
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
+				debugger;
 				const state = await decryptState<AuthenticationState>(input.state);
 				const ceremony = await getCeremonyFromFlow({
 					context,
@@ -227,7 +228,9 @@ export function configureAuthentication(
 				if (component === true) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const currentComponent = component.kind === "choice" ? component.components.find((c) => c.component === input.id) : component;
+				const currentComponent = component.kind === "choice"
+					? component.components.find((c) => c.component === input.id)
+					: component;
 
 				if (!currentComponent) {
 					throw new InvalidAuthenticationStateError();
@@ -303,7 +306,9 @@ export function configureAuthentication(
 				if (component === true) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const currentComponent = component.kind === "choice" ? component.components.find((c) => c.component === input.id) : component;
+				const currentComponent = component.kind === "choice"
+					? component.components.find((c) => c.component === input.id)
+					: component;
 
 				if (!currentComponent) {
 					throw new InvalidAuthenticationStateError();

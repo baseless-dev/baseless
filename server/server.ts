@@ -40,7 +40,7 @@ export class Server {
 			} else {
 				request.headers.delete("Authorization");
 			}
-			const [_context, waitUntilPromises] = await this.#constructContext(request);
+			const [_context, waitUntilPromises] = await this.makeContext(request);
 			// TODO call security handler (which one?)
 			// TODO handle websocket upgrade with provider
 			return [new Response(null, { status: 501 }), waitUntilPromises];
@@ -72,7 +72,7 @@ export class Server {
 		return this.#handleCommand(command, new Request("https://local/"));
 	}
 
-	async #constructContext(
+	async makeContext(
 		request: Request,
 	): Promise<[Context<Record<string, unknown>, [], []>, PromiseLike<unknown>[]]> {
 		const waitUntilPromises: PromiseLike<unknown>[] = [];
@@ -98,7 +98,7 @@ export class Server {
 		request: Request,
 	): Promise<[Result, PromiseLike<unknown>[]]> {
 		try {
-			const [context, waitUntilPromises] = await this.#constructContext(request);
+			const [context, waitUntilPromises] = await this.makeContext(request);
 
 			const bulk = isCommands(command);
 			const commands = bulk ? command.commands : [command];

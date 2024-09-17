@@ -17,6 +17,7 @@
 		"jsxImportSource": "react",
 		"jsxImportSourceTypes": "@types/react"
 	},
+	"exclude": ["_npm"],
 	"lint": {
 		"rules": {
 			"tags": ["recommended"],

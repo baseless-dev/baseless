@@ -1,6 +1,6 @@
 {
 	"name": "@baseless/client",
-	"version": "0.3.0-rc.2",
+	"version": "0.3.0-rc.3",
 	"exports": {
 		".": "./mod.ts",
 		"./bls": "./cli.ts",

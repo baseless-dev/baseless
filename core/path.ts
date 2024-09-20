@@ -143,24 +143,6 @@ export type ExtractParamInPath<TPath extends string[]> = {
 	[K in keyof TPath]: TPath[K] extends `{${infer Name}}` ? Name : never;
 };
 
-// deno-fmt-ignore
-export type PathAsString<TPath extends string[]> =
-	TPath extends [infer Head]
-	? Head extends string
-		? Head extends `{${string}}`
-			? `%`
-			: Head
-		: ""
-	: TPath extends [infer Head, ...infer Tail]
-		? Head extends string
-			? Tail extends string[]
-				? Head extends `{${string}}`
-					? `%/${PathAsString<Tail>}`
-					: `${Head}/${PathAsString<Tail>}`
-				: ""
-			: ""
-		: "";
-
 export type PathAsType<TPath extends string[]> = {
 	[param in ExtractParamInPath<TPath>[number]]: string;
 };
@@ -195,27 +177,4 @@ export function PathAsSchema<const TPath extends string[]>(path: TPath): PathAsS
 	return Type.Object(props) as never;
 }
 
-// deno-fmt-ignore
-// deno-lint-ignore no-explicit-any
-type _PathAsObject<TPath extends any[], T> = 
-	TPath extends []
-		? T
-		: TPath extends [infer Head]
-			? Head extends `{${string}}`
-				? Record<string, T>
-				: Head extends string
-					? { [K in Head]: T }
-					: never
-			: TPath extends [infer Head, ...infer Tail]
-				? Head extends `{${string}}`
-					? Record<string, _PathAsObject<Tail, T>>
-					: Head extends string
-						? { [K in Head]: _PathAsObject<Tail, T> }
-						: never
-				: never;
-
-export type PathAsObject<T extends { path: string[] }> = _PathAsObject<T["path"], T>;
-
-export type PathMatcher<T> = (
-	path: string[],
-) => IterableIterator<T>;
+export type PathMatcher<T> = (path: string[]) => IterableIterator<T>;

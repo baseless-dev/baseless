@@ -179,12 +179,72 @@ export function isCommandDocumentAtomic(value?: unknown): value is CommandDocume
 		value.ops.every(isCommandDocumentAtomicOp);
 }
 
+export interface CommandEventPublish {
+	kind: "event-publish";
+	event: string[];
+	payload: unknown;
+}
+
+export const CommandEventPublish: TObject<{
+	kind: TLiteral<"event-publish">;
+	event: TArray<TString>;
+	payload: TUnknown;
+}> = Type.Object({
+	kind: Type.Literal("event-publish"),
+	event: Type.Array(Type.String()),
+	payload: Type.Unknown(),
+}, { $id: "CommandEventPublish" });
+
+export function isCommandEventPublish(value?: unknown): value is CommandEventPublish {
+	return !!value && typeof value === "object" && "kind" in value && value.kind === "event-publish" && "event" in value &&
+		Array.isArray(value.event) && value.event.every((v) => typeof v === "string") && "payload" in value;
+}
+
+export interface CommandEventSubscribe {
+	kind: "event-subscribe";
+	event: string[];
+}
+
+export const CommandEventSubscribe: TObject<{
+	kind: TLiteral<"event-subscribe">;
+	event: TArray<TString>;
+}> = Type.Object({
+	kind: Type.Literal("event-subscribe"),
+	event: Type.Array(Type.String()),
+}, { $id: "CommandEventSubscribe" });
+
+export function isCommandEventSubscribe(value?: unknown): value is CommandEventSubscribe {
+	return !!value && typeof value === "object" && "kind" in value && value.kind === "event-subscribe" && "event" in value &&
+		Array.isArray(value.event) && value.event.every((v) => typeof v === "string");
+}
+
+export interface CommandEventUnsubscribe {
+	kind: "event-unsubscribe";
+	event: string[];
+}
+
+export const CommandEventUnsubscribe: TObject<{
+	kind: TLiteral<"event-unsubscribe">;
+	event: TArray<TString>;
+}> = Type.Object({
+	kind: Type.Literal("event-unsubscribe"),
+	event: Type.Array(Type.String()),
+}, { $id: "CommandEventUnsubscribe" });
+
+export function isCommandEventUnsubscribe(value?: unknown): value is CommandEventUnsubscribe {
+	return !!value && typeof value === "object" && "kind" in value && value.kind === "event-unsubscribe" && "event" in value &&
+		Array.isArray(value.event) && value.event.every((v) => typeof v === "string");
+}
+
 export type Command =
 	| CommandRpc
 	| CommandDocumentGet
 	| CommandDocumentGetMany
 	| CommandDocumentList
-	| CommandDocumentAtomic;
+	| CommandDocumentAtomic
+	| CommandEventPublish
+	| CommandEventSubscribe
+	| CommandEventUnsubscribe;
 
 export const Command: TUnion<[
 	typeof CommandRpc,
@@ -192,17 +252,24 @@ export const Command: TUnion<[
 	typeof CommandDocumentGetMany,
 	typeof CommandDocumentList,
 	typeof CommandDocumentAtomic,
+	typeof CommandEventPublish,
+	typeof CommandEventSubscribe,
+	typeof CommandEventUnsubscribe,
 ]> = Type.Union([
 	CommandRpc,
 	CommandDocumentGet,
 	CommandDocumentGetMany,
 	CommandDocumentList,
 	CommandDocumentAtomic,
+	CommandEventPublish,
+	CommandEventSubscribe,
+	CommandEventUnsubscribe,
 ], { $id: "Command" });
 
 export function isCommand(value?: unknown): value is Command {
 	return isCommandRpc(value) || isCommandDocumentGet(value) || isCommandDocumentGetMany(value) ||
-		isCommandDocumentList(value) || isCommandDocumentAtomic(value);
+		isCommandDocumentList(value) || isCommandDocumentAtomic(value) || isCommandEventPublish(value) || isCommandEventSubscribe(value) ||
+		isCommandEventUnsubscribe(value);
 }
 
 export interface Commands {

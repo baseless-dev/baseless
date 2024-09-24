@@ -1,17 +1,17 @@
 // deno-lint-ignore-file no-explicit-any
 import { Document } from "@baseless/core/document";
 import { Application } from "./application.ts";
-import { Context } from "./types.ts";
+import { TypedContext } from "./types.ts";
 import { DocumentAtomic, DocumentGetOptions, DocumentListEntry, DocumentListOptions, DocumentProvider } from "./document_provider.ts";
 
 export class ApplicationDocumentProviderFacade extends DocumentProvider {
 	#application: Application;
-	#context: Context<any, any, any>;
+	#context: TypedContext<any, any, any, any>;
 	#provider: DocumentProvider;
 
 	constructor(
 		application: Application,
-		context: Context<any, any, any>,
+		context: TypedContext<any, any, any, any>,
 		provider: DocumentProvider,
 	) {
 		super();
@@ -62,12 +62,12 @@ export class ApplicationDocumentProviderFacade extends DocumentProvider {
 
 export class ApplicationDocumentAtomicFacade extends DocumentAtomic {
 	#application: Application;
-	#context: Context<any, any, any>;
+	#context: TypedContext<any, any, any, any>;
 	#provider: DocumentProvider;
 
 	constructor(
 		application: Application,
-		context: Context<any, any, any>,
+		context: TypedContext<any, any, any, any>,
 		provider: DocumentProvider,
 	) {
 		super();

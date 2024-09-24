@@ -5,7 +5,6 @@ import type {
 	CollectionDefinitionSecurity,
 	CollectionDefinitionWithoutSecurity,
 	CollectionDefinitionWithSecurity,
-	Context,
 	Decorator,
 	DocumentAtomicDeleteListener,
 	DocumentAtomicDeleteListenerHandler,
@@ -32,6 +31,7 @@ import type {
 	RpcDefinitionSecurity,
 	RpcDefinitionWithoutSecurity,
 	RpcDefinitionWithSecurity,
+	TypedContext,
 } from "./types.ts";
 import { Application } from "./application.ts";
 
@@ -112,7 +112,7 @@ export class ApplicationBuilder<
 	}
 
 	decorate<const TNewContext extends {}>(
-		decorator: (context: Context<TDecoration, TDocument, TCollection>) => Promise<TNewContext>,
+		decorator: (context: TypedContext<TDecoration, TEvent, TDocument, TCollection>) => Promise<TNewContext>,
 	): ApplicationBuilder<
 		TDecoration & TNewContext,
 		TRpc,
@@ -148,6 +148,7 @@ export class ApplicationBuilder<
 			handler: RpcDefinitionHandler<
 				TPath,
 				TDecoration,
+				TEvent,
 				TDocument,
 				TCollection,
 				TInputSchema,
@@ -156,6 +157,7 @@ export class ApplicationBuilder<
 			security: RpcDefinitionSecurity<
 				TPath,
 				TDecoration,
+				TEvent,
 				TDocument,
 				TCollection,
 				TInputSchema
@@ -182,6 +184,7 @@ export class ApplicationBuilder<
 			handler: RpcDefinitionHandler<
 				TPath,
 				TDecoration,
+				TEvent,
 				TDocument,
 				TCollection,
 				TInputSchema,
@@ -219,6 +222,7 @@ export class ApplicationBuilder<
 			security: EventDefinitionSecurity<
 				TPath,
 				TDecoration,
+				TEvent,
 				TDocument,
 				TCollection,
 				TPayloadSchema
@@ -269,9 +273,9 @@ export class ApplicationBuilder<
 			security: DocumentDefinitionSecurity<
 				TPath,
 				TDecoration,
+				TEvent,
 				TDocument,
-				TCollection,
-				TDocumentSchema
+				TCollection
 			>;
 		},
 	): ApplicationBuilder<
@@ -318,7 +322,7 @@ export class ApplicationBuilder<
 		path: TPath,
 		options: {
 			schema: TCollectionSchema;
-			security: CollectionDefinitionSecurity<TPath, TDecoration, TDocument, TCollection>;
+			security: CollectionDefinitionSecurity<TPath, TDecoration, TEvent, TDocument, TCollection>;
 		},
 	): ApplicationBuilder<
 		TDecoration,
@@ -374,6 +378,7 @@ export class ApplicationBuilder<
 		handler: EventListenerHandler<
 			TPath,
 			TDecoration,
+			TEvent,
 			TDocument,
 			TCollection,
 			TEventDefinition["payload"]
@@ -409,6 +414,7 @@ export class ApplicationBuilder<
 		handler: DocumentAtomicSetListenerHandler<
 			TPath,
 			TDecoration,
+			TEvent,
 			TDocument,
 			TCollection,
 			TDocumentDefinition["schema"]
@@ -444,6 +450,7 @@ export class ApplicationBuilder<
 		handler: DocumentSetListenerHandler<
 			TPath,
 			TDecoration,
+			TEvent,
 			TDocument,
 			TCollection,
 			TDocumentDefinition["schema"]
@@ -465,6 +472,7 @@ export class ApplicationBuilder<
 		handler: DocumentSetListenerHandler<
 			TPath,
 			TDecoration,
+			TEvent,
 			TDocument,
 			TCollection,
 			TDocumentDefinition["schema"]
@@ -495,15 +503,14 @@ export class ApplicationBuilder<
 
 	onDocumentDeleting<
 		const TPath extends TDocument[number]["matcher"],
-		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
 		handler: DocumentAtomicDeleteListenerHandler<
 			TPath,
 			TDecoration,
+			TEvent,
 			TDocument,
-			TCollection,
-			TDocumentDefinition["schema"]
+			TCollection
 		>,
 	): ApplicationBuilder<
 		TDecoration,
@@ -530,15 +537,14 @@ export class ApplicationBuilder<
 
 	onDocumentDeleted<
 		const TPath extends TDocument[number]["matcher"],
-		const TDocumentDefinition extends PickAtPath<TDocument, TPath>,
 	>(
 		path: TPath,
 		handler: DocumentDeleteListenerHandler<
 			TPath,
 			TDecoration,
+			TEvent,
 			TDocument,
-			TCollection,
-			TDocumentDefinition["schema"]
+			TCollection
 		>,
 	): ApplicationBuilder<
 		TDecoration,

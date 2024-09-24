@@ -52,6 +52,7 @@ Deno.test("Client", async (t) => {
 		const server = new Server({
 			application: app,
 			document: documentProvider,
+			event: {} as never,
 			kv: kvProvider,
 		});
 

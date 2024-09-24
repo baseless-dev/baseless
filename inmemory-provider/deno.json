@@ -4,6 +4,7 @@
 	"exports": {
 		".": "./mod.ts",
 		"./document": "./document.ts",
+		"./event": "./event.ts",
 		"./kv": "./kv.ts",
 		"./notification": "./notification.ts"
 	},

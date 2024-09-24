@@ -6,44 +6,68 @@ import { type Command, Commands, isCommand, isCommands } from "@baseless/core/co
 import { Result, ResultError, ResultSingle } from "@baseless/core/result";
 import { ApplicationDocumentProviderFacade } from "./application_document_facade.ts";
 import { Context } from "./types.ts";
+import { HubProvider } from "./hub_provider.ts";
+import { ApplicationEventProviderFacade } from "./application_event_facade.ts";
+import { EventProvider } from "./event_provider.ts";
 
 export class Server {
 	#application: Application;
-	#kvProvider: KVProvider;
 	#documentProvider: DocumentProvider;
+	#eventProvider: EventProvider;
+	#hubProvider?: HubProvider;
+	#kvProvider: KVProvider;
 
 	constructor(
 		options: {
 			application: Application;
-			kv: KVProvider;
 			document: DocumentProvider;
+			event: EventProvider;
+			hub?: HubProvider;
+			kv: KVProvider;
 		},
 	) {
 		this.#application = options.application;
-		this.#kvProvider = options.kv;
 		this.#documentProvider = options.document;
+		this.#eventProvider = options.event;
+		this.#hubProvider = options.hub;
+		this.#kvProvider = options.kv;
 	}
 
 	async handleRequest(request: Request): Promise<[Response, PromiseLike<unknown>[]]> {
 		const upgrade = request.headers.get("Upgrade")?.toLowerCase();
-		if (upgrade === "websocket") {
+		if (this.#hubProvider && upgrade === "websocket") {
+			// Request in a websocket upgrade might be special like in Deno, do not alter it
+			let requestForContext: Request;
 			const protocols = request.headers.get("Sec-WebSocket-Protocol")?.split(",") ?? [];
 			// Same method used in Kubernetes
 			// https://github.com/kubernetes/kubernetes/commit/714f97d7baf4975ad3aa47735a868a81a984d1f0
 			const encodedBearer = protocols.find((protocol) => protocol.startsWith("base64url.bearer.authorization.baseless.dev."));
 			if (encodedBearer) {
 				const base64Decoded = decodeBase64Url(encodedBearer.slice(44));
-				request.headers.set(
-					"Authorization",
-					`Bearer ${new TextDecoder().decode(base64Decoded)}`,
-				);
+				requestForContext = new Request(request.url, {
+					headers: {
+						...request.headers,
+						"Authorization": `Bearer ${new TextDecoder().decode(base64Decoded)}`,
+					},
+				});
+			} else if (request.headers.has("Authorization")) {
+				const headers = new Headers(request.headers);
+				headers.delete("Authorization");
+				requestForContext = new Request(request.url, { headers });
 			} else {
-				request.headers.delete("Authorization");
+				requestForContext = request;
 			}
-			const [_context, waitUntilPromises] = await this.makeContext(request);
-			// TODO call security handler (which one?)
-			// TODO handle websocket upgrade with provider
-			return [new Response(null, { status: 501 }), waitUntilPromises];
+			try {
+				const [context, waitUntilPromises] = await this.makeContext(requestForContext);
+				// TODO security?
+				const response = await this.#hubProvider.transfer(request, context);
+				return [response, waitUntilPromises];
+			} catch (error) {
+				return [
+					Response.json({ kind: "error", error: error?.name ?? error }, { status: 500 }),
+					[],
+				];
+			}
 		}
 		if (
 			request.method !== "POST" ||
@@ -74,21 +98,19 @@ export class Server {
 
 	async makeContext(
 		request: Request,
-	): Promise<[Context<Record<string, unknown>, [], []>, PromiseLike<unknown>[]]> {
+	): Promise<[Context, PromiseLike<unknown>[]]> {
 		const waitUntilPromises: PromiseLike<unknown>[] = [];
-		const context: Context<Record<string, unknown>, [], []> = {
+		const context: Context = {
 			request,
+			document: {} as never, // lazy initilization
+			event: {} as never, // lazy initilization
 			kv: this.#kvProvider,
-			document: {} as never, // lazy initilization of IDocumentProvider
 			waitUntil: (promise: PromiseLike<unknown>) => {
 				waitUntilPromises.push(promise);
 			},
 		};
-		context.document = new ApplicationDocumentProviderFacade(
-			this.#application,
-			context,
-			this.#documentProvider,
-		) as never;
+		context.document = new ApplicationDocumentProviderFacade(this.#application, context, this.#documentProvider) as never;
+		context.event = new ApplicationEventProviderFacade(this.#application, context, this.#eventProvider) as never;
 		await this.#application.decorate(context);
 		return [context, waitUntilPromises];
 	}
@@ -139,6 +161,13 @@ export class Server {
 							context,
 							operations: command.ops,
 							provider: this.#documentProvider,
+						});
+					} else if (command.kind === "event-publish") {
+						result = await this.#application.publishEvent({
+							context,
+							event: command.event,
+							payload: command.payload,
+							provider: this.#eventProvider,
 						});
 					} else {
 						throw "UnknownCommand";

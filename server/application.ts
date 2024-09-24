@@ -2,7 +2,6 @@
 import { createPathMatcher, PathAsType, PathMatcher } from "@baseless/core/path";
 import {
 	type CollectionDefinition,
-	type Context,
 	type Decorator,
 	DocumentAtomicDeleteListener,
 	DocumentAtomicSetListener,
@@ -14,6 +13,7 @@ import {
 	hasPermission,
 	Permission,
 	type RpcDefinition,
+	type TypedContext,
 } from "./types.ts";
 import { Value } from "@sinclair/typebox/value";
 import { Document } from "@baseless/core/document";
@@ -24,21 +24,16 @@ import {
 	DocumentListEntry,
 	DocumentProvider,
 } from "./document_provider.ts";
+import { EventProvider } from "./event_provider.ts";
+import type { ID } from "@baseless/core/id";
 
 export class Application {
 	#decorators: ReadonlyArray<Decorator<any>>;
-	#rpcDefinitions: ReadonlyArray<RpcDefinition<any, any, any>>;
-	#eventDefinitions: ReadonlyArray<EventDefinition<any, any>>;
-	#documentDefinitions: ReadonlyArray<DocumentDefinition<any, any>>;
-	#collectionDefinitions: ReadonlyArray<CollectionDefinition<any, any>>;
-	#eventListeners: ReadonlyArray<EventListener<any, any>>;
-	#documentSavingListeners: ReadonlyArray<DocumentAtomicSetListener<any, any>>;
-	#documentSavedListeners: ReadonlyArray<DocumentSetListener<any, any>>;
-	#documentDeletingListeners: ReadonlyArray<DocumentAtomicDeleteListener<any, any>>;
-	#documentDeletedListeners: ReadonlyArray<DocumentDeleteListener<any, any>>;
+	#eventMatcher: PathMatcher<EventDefinition<any, any>>;
 	#rpcMatcher: PathMatcher<RpcDefinition<any, any, any>>;
 	#documentMatcher: PathMatcher<DocumentDefinition<any, any>>;
 	#collectionMatcher: PathMatcher<CollectionDefinition<any, any>>;
+	#eventListenersMatcher: PathMatcher<EventListener<any, any>>;
 	#documentSavingListenersMatcher: PathMatcher<DocumentAtomicSetListener<any, any>>;
 	#documentSavedListenersMatcher: PathMatcher<DocumentSetListener<any, any>>;
 	#documentDeletingListenersMatcher: PathMatcher<DocumentAtomicDeleteListener<any, any>>;
@@ -57,15 +52,7 @@ export class Application {
 		documentDeletedListeners: ReadonlyArray<DocumentDeleteListener<any, any>>,
 	) {
 		this.#decorators = decorators;
-		this.#rpcDefinitions = rpcDefinitions;
-		this.#eventDefinitions = eventDefinitions;
-		this.#documentDefinitions = documentDefinitions;
-		this.#collectionDefinitions = collectionDefinitions;
-		this.#eventListeners = eventListeners;
-		this.#documentSavingListeners = documentSavingListeners;
-		this.#documentSavedListeners = documentSavedListeners;
-		this.#documentDeletingListeners = documentDeletingListeners;
-		this.#documentDeletedListeners = documentDeletedListeners;
+		this.#eventMatcher = createPathMatcher(eventDefinitions);
 		this.#rpcMatcher = createPathMatcher(rpcDefinitions);
 		this.#documentMatcher = createPathMatcher([
 			...documentDefinitions,
@@ -77,13 +64,14 @@ export class Application {
 			})),
 		]);
 		this.#collectionMatcher = createPathMatcher(collectionDefinitions);
+		this.#eventListenersMatcher = createPathMatcher(eventListeners);
 		this.#documentSavingListenersMatcher = createPathMatcher(documentSavingListeners);
 		this.#documentSavedListenersMatcher = createPathMatcher(documentSavedListeners);
 		this.#documentDeletingListenersMatcher = createPathMatcher(documentDeletingListeners);
 		this.#documentDeletedListenersMatcher = createPathMatcher(documentDeletedListeners);
 	}
 
-	async decorate(context: Context<any, any, any>): Promise<void> {
+	async decorate(context: TypedContext<any, any, any, any>): Promise<void> {
 		for (const decorator of this.#decorators) {
 			const result = await decorator(context);
 			Object.assign(context, result);
@@ -92,7 +80,7 @@ export class Application {
 
 	async invokeRpc({ bypassSecurity, context, input, rpc }: {
 		bypassSecurity?: boolean;
-		context: Context<any, any, any>;
+		context: TypedContext<any, any, any, any>;
 		input: unknown;
 		rpc: string[];
 	}): Promise<unknown> {
@@ -127,7 +115,7 @@ export class Application {
 
 	async getDocument({ bypassSecurity, context, options, path, provider }: {
 		bypassSecurity?: boolean;
-		context: Context<any, any, any>;
+		context: TypedContext<any, any, any, any>;
 		options?: DocumentGetOptions;
 		path: string[];
 		provider: DocumentProvider;
@@ -157,7 +145,7 @@ export class Application {
 
 	async getManyDocument({ bypassSecurity, context, options, paths, provider }: {
 		bypassSecurity?: boolean;
-		context: Context<any, any, any>;
+		context: TypedContext<any, any, any, any>;
 		options?: DocumentGetOptions;
 		paths: Array<string[]>;
 		provider: DocumentProvider;
@@ -187,7 +175,7 @@ export class Application {
 
 	async *listDocument({ bypassSecurity, context, cursor, limit, prefix, provider }: {
 		bypassSecurity?: boolean;
-		context: Context<any, any, any>;
+		context: TypedContext<any, any, any, any>;
 		cursor?: string;
 		limit?: number;
 		prefix: string[];
@@ -218,7 +206,7 @@ export class Application {
 	async commitDocumentAtomic({ bypassSecurity, checks, context, operations, provider }: {
 		bypassSecurity?: boolean;
 		checks: DocumentAtomicCheck[];
-		context: Context<any, any, any>;
+		context: TypedContext<any, any, any, any>;
 		operations: DocumentAtomicOperation[];
 		provider: DocumentProvider;
 	}): Promise<void> {
@@ -290,6 +278,107 @@ export class Application {
 				}
 			}
 		}
+	}
+
+	async publishEvent({ bypassSecurity, context, event, payload, provider }: {
+		bypassSecurity?: boolean;
+		context: TypedContext<any, any, any, any>;
+		event: string[];
+		payload: unknown;
+		provider: EventProvider;
+	}): Promise<void> {
+		const firstResult = this.#eventMatcher(event).next();
+		if (firstResult.done) {
+			throw new UnknownRpcError();
+		}
+		const definition = firstResult.value;
+		if (!Value.Check(definition.payload, payload)) {
+			throw new InvalidPayloadError();
+		}
+		const definitionOptions = {
+			context,
+			params: PathAsType(definition.path, event),
+			payload,
+		};
+		if (
+			bypassSecurity !== true &&
+			(
+				!("security" in definition) ||
+				!hasPermission(await definition.security(definitionOptions), Permission.Publish)
+			)
+		) {
+			throw new ForbiddenError();
+		}
+		await provider.publish(event, payload);
+		for (const listener of this.#eventListenersMatcher(event)) {
+			const params = PathAsType(listener.path, event);
+			await listener.handler({ context, params, payload }).catch((_) => {});
+		}
+	}
+	async subscribeEvent({ bypassSecurity, context, event, hubId, provider }: {
+		bypassSecurity?: boolean;
+		context: TypedContext<any, any, any, any>;
+		event: string[];
+		hubId: ID<"hub_">;
+		provider: EventProvider;
+	}): Promise<void> {
+		const firstResult = this.#eventMatcher(event).next();
+		if (firstResult.done) {
+			throw new UnknownRpcError();
+		}
+		const definition = firstResult.value;
+		const definitionOptions = {
+			context,
+			params: PathAsType(definition.path, event),
+		};
+		if (
+			bypassSecurity !== true &&
+			(
+				!("security" in definition) ||
+				!hasPermission(await definition.security(definitionOptions), Permission.Subscribe)
+			)
+		) {
+			throw new ForbiddenError();
+		}
+		await provider.subscribe(event, hubId);
+	}
+
+	async unsubscribeEvent({ bypassSecurity, context, event, hubId, provider }: {
+		bypassSecurity?: boolean;
+		context: TypedContext<any, any, any, any>;
+		event: string[];
+		hubId: ID<"hub_">;
+		provider: EventProvider;
+	}): Promise<void> {
+		const firstResult = this.#eventMatcher(event).next();
+		if (firstResult.done) {
+			throw new UnknownRpcError();
+		}
+		const definition = firstResult.value;
+		const definitionOptions = {
+			context,
+			params: PathAsType(definition.path, event),
+		};
+		if (
+			bypassSecurity !== true &&
+			(
+				!("security" in definition) ||
+				!hasPermission(await definition.security(definitionOptions), Permission.Subscribe)
+			)
+		) {
+			throw new ForbiddenError();
+		}
+		await provider.unsubscribe(event, hubId);
+	}
+
+	async unsubscribeAllEvent({ bypassSecurity, context, hubId, provider }: {
+		bypassSecurity?: boolean;
+		context: TypedContext<any, any, any, any>;
+		hubId: ID<"hub_">;
+		provider: EventProvider;
+	}): Promise<void> {
+		// TODO security?
+		await provider.unsubscribeAll(hubId);
 	}
 }
 

@@ -4,6 +4,7 @@
 	"exports": {
 		".": "./mod.ts",
 		"./document": "./document.ts",
+		"./hub": "./hub.ts",
 		"./kv": "./kv.ts"
 	},
 	"publish": {

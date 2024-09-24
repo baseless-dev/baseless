@@ -1,7 +1,7 @@
 {
 	"deno.enable": true,
 	"deno.lint": true,
-	"deno.unstable": true,
+	"deno.unstable": ["kv"],
 	"deno.codeLens.referencesAllFunctions": true,
 	"deno.codeLens.references": true,
 	"deno.codeLens.implementations": true,

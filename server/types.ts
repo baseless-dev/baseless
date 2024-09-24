@@ -59,7 +59,7 @@ export const Permission = {
 	Subscribe: 0b1000000,
 } as const;
 
-export type Permission = typeof Permission[keyof typeof Permission];
+export type Permission = number;
 
 export function hasPermission(mask: Permission, value: Permission): boolean {
 	return (mask & value) > 0;

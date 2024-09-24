@@ -1,8 +1,9 @@
 #!/usr/bin/env -S deno serve
 // deno-lint-ignore-file require-await
 import { generateKeyPair } from "jose";
-import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
-import { id } from "@baseless/core/id";
+import { MemoryDocumentProvider, MemoryEventProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
+import { DenoHubProvider } from "@baseless/deno-provider/hub";
+import { id, ksuid } from "@baseless/core/id";
 import {
 	ApplicationBuilder,
 	component,
@@ -19,6 +20,8 @@ const keyPair = await generateKeyPair("PS512");
 
 const kvProvider = new MemoryKVProvider();
 const documentProvider = new MemoryDocumentProvider();
+const hubProvider = new DenoHubProvider();
+const eventProvider = new MemoryEventProvider(hubProvider);
 const notificationProvider = new MemoryNotificationProvider();
 const emailProvider = new EmailIdentityComponentProvider();
 const passwordProvider = new PasswordIdentityComponentProvider("lesalt");
@@ -75,6 +78,8 @@ documentProvider.atomic()
 const server = new Server({
 	application: app,
 	document: documentProvider,
+	event: eventProvider,
+	hub: hubProvider,
 	kv: kvProvider,
 });
 
@@ -93,9 +98,9 @@ export default {
 			});
 		}
 		const [response, _promises] = await server.handleRequest(req);
-		response.headers.set("Access-Control-Allow-Origin", req.headers.get("Origin") ?? "*");
-		response.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-		response.headers.set("Access-Control-Allow-Headers", "*");
+		// response.headers.set("Access-Control-Allow-Origin", req.headers.get("Origin") ?? "*");
+		// response.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+		// response.headers.set("Access-Control-Allow-Headers", "*");
 		return response;
 	},
 } satisfies Deno.ServeDefaultExport;

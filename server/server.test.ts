@@ -11,7 +11,7 @@ import { DenoHubProvider } from "@baseless/deno-provider/hub";
 Deno.test("Server", async (t) => {
 	const setupBaselessServer = () => {
 		const app = new ApplicationBuilder()
-			.emits(["foo"], { payload: Type.String(), security: async () => Permission.All })
+			.event(["foo"], { payload: Type.String(), security: async () => Permission.All })
 			.rpc(["hello"], {
 				input: Type.String(),
 				output: Type.String(),

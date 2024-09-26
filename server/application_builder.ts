@@ -231,7 +231,7 @@ export class ApplicationBuilder<
 		);
 	}
 
-	emits<const TPath extends Path, const TPayloadSchema extends TSchema>(
+	event<const TPath extends Path, const TPayloadSchema extends TSchema>(
 		path: TPath,
 		options: {
 			payload: TPayloadSchema;
@@ -253,7 +253,7 @@ export class ApplicationBuilder<
 		TFile,
 		TFolder
 	>;
-	emits<const TPath extends Path, const TPayloadSchema extends TSchema>(
+	event<const TPath extends Path, const TPayloadSchema extends TSchema>(
 		path: TPath,
 		options: {
 			payload: TPayloadSchema;
@@ -267,7 +267,7 @@ export class ApplicationBuilder<
 		TFile,
 		TFolder
 	>;
-	emits(path: any, options: any): any {
+	event(path: any, options: any): any {
 		return new ApplicationBuilder(
 			this.#decorator,
 			this.#rpc,

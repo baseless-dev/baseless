@@ -53,7 +53,7 @@ const appBuilder = new ApplicationBuilder()
 	.onHubDisconnect(async ({ context, hubId }) => {
 		console.log("disconnected", { hubId, identityId: context.currentSession?.identityId });
 	})
-	.emits(["message"], {
+	.event(["message"], {
 		payload: Type.String(),
 		security: async ({ context }) => Permission.All,
 	})

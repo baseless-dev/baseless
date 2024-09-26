@@ -15,6 +15,7 @@ import { AuthenticationResponse } from "@baseless/core/authentication-response";
 import { RegistrationResponse } from "@baseless/core/registration-response";
 import { AuthenticationCeremony } from "@baseless/core/authentication-ceremony";
 import { EventProvider, TypedEventProvider } from "./event_provider.ts";
+import { HubService } from "./hub_service.ts";
 
 export type Path = Array<string>;
 
@@ -23,6 +24,7 @@ export interface Context {
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 	document: DocumentProvider;
 	event: EventProvider;
+	hub: HubService;
 	kv: KVProvider;
 }
 
@@ -36,6 +38,7 @@ export type TypedContext<
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 	document: TypedDocumentProvider<TDocument, TCollection>;
 	event: TypedEventProvider<TEvent>;
+	hub: HubService;
 	kv: KVProvider;
 	// TODO event: EventService<TClient>
 	// TODO storage: StorageService<TClient>
@@ -332,11 +335,24 @@ export type DocumentDeleteListenerHandler<
 
 export interface DocumentDeleteListener<
 	TPath extends string[],
-	TDocumentSchema extends TSchema,
 > {
 	path: TPath;
 	handler: DocumentDeleteListenerHandler<TPath, any, [], [], []>;
 }
+
+export interface HubListener {
+	handler: HubListenerHandler<any, any, any, any>;
+}
+
+export type HubListenerHandler<
+	TDecoration extends {},
+	TEvent extends Array<EventDefinition<any, any>>,
+	TDocument extends Array<DocumentDefinition<any, any>>,
+	TCollection extends Array<CollectionDefinition<any, any>>,
+> = (options: {
+	context: TypedContext<TDecoration, TEvent, TDocument, TCollection>;
+	hubId: ID<"hub_">;
+}) => Promise<void>;
 
 export type PickAtPath<TEvent extends Array<{ path: any }>, TPath extends string[]> = {
 	[K in keyof TEvent]: TPath extends ReplaceVariableInPathSegment<TEvent[K]["path"]> ? TEvent[K]

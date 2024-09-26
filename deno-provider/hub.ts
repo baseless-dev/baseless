@@ -21,10 +21,11 @@ export class DenoHubProvider extends HubProvider {
 		abortController.signal.addEventListener("abort", async () => {
 			await context.event.unsubscribeAll(hubId);
 			this.#socketMap.delete(hubId);
+			await context.hub.disconnectHub(hubId);
 		}, { once: true });
 
-		socket.addEventListener("open", () => {
-			// console.log("server:onopen");
+		socket.addEventListener("open", async () => {
+			await context.hub.connectHub(hubId);
 		}, { signal: abortController.signal });
 		socket.addEventListener("error", (e) => {
 			// console.log("server:onerror", e);

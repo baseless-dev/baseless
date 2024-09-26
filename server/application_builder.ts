@@ -24,6 +24,8 @@ import type {
 	EventDefinitionWithSecurity,
 	EventListener,
 	EventListenerHandler,
+	HubListener,
+	HubListenerHandler,
 	Path,
 	PickAtPath,
 	RpcDefinition,
@@ -50,10 +52,12 @@ export class ApplicationBuilder<
 	#document: Array<DocumentDefinition<any, any>>;
 	#collection: Array<CollectionDefinition<any, any>>;
 	#eventListeners: Array<EventListener<any, any>>;
+	#hubConnectedListeners: Array<HubListener>;
+	#hubDisconnectedListeners: Array<HubListener>;
 	#documentSavingListeners: Array<DocumentAtomicSetListener<any, any>>;
 	#documentSavedListeners: Array<DocumentSetListener<any, any>>;
 	#documentDeletingListeners: Array<DocumentAtomicDeleteListener<any, any>>;
-	#documentDeletedListeners: Array<DocumentDeleteListener<any, any>>;
+	#documentDeletedListeners: Array<DocumentDeleteListener<any>>;
 
 	constructor();
 	constructor(
@@ -63,10 +67,12 @@ export class ApplicationBuilder<
 		document: Array<DocumentDefinition<any, any>>,
 		collection: Array<CollectionDefinition<any, any>>,
 		eventListeners: Array<EventListener<any, any>>,
+		hubConnectedListeners: Array<HubListener>,
+		hubDisconnectedListeners: Array<HubListener>,
 		documentSavingListeners: Array<DocumentAtomicSetListener<any, any>>,
 		documentSavedListeners: Array<DocumentSetListener<any, any>>,
 		documentDeletingListeners: Array<DocumentAtomicDeleteListener<any, any>>,
-		documentDeletedListeners: Array<DocumentDeleteListener<any, any>>,
+		documentDeletedListeners: Array<DocumentDeleteListener<any>>,
 	);
 	constructor(
 		context?: Array<Decorator<any>>,
@@ -75,10 +81,12 @@ export class ApplicationBuilder<
 		document?: Array<DocumentDefinition<any, any>>,
 		collection?: Array<CollectionDefinition<any, any>>,
 		eventListeners?: Array<EventListener<any, any>>,
+		hubConnectedListeners?: Array<HubListener>,
+		hubDisconnectedListeners?: Array<HubListener>,
 		documentSavingListeners?: Array<DocumentAtomicSetListener<any, any>>,
 		documentSavedListeners?: Array<DocumentSetListener<any, any>>,
 		documentDeletingListeners?: Array<DocumentAtomicDeleteListener<any, any>>,
-		documentDeletedListeners?: Array<DocumentDeleteListener<any, any>>,
+		documentDeletedListeners?: Array<DocumentDeleteListener<any>>,
 	) {
 		this.#decorator = [...context ?? []];
 		this.#rpc = [...rpc ?? []];
@@ -86,6 +94,8 @@ export class ApplicationBuilder<
 		this.#document = [...document ?? []];
 		this.#collection = [...collection ?? []];
 		this.#eventListeners = [...eventListeners ?? []];
+		this.#hubConnectedListeners = [...hubConnectedListeners ?? []];
+		this.#hubDisconnectedListeners = [...hubDisconnectedListeners ?? []];
 		this.#documentSavingListeners = [
 			...documentSavingListeners ?? [],
 		];
@@ -104,6 +114,8 @@ export class ApplicationBuilder<
 			[...this.#document],
 			[...this.#collection],
 			[...this.#eventListeners],
+			[...this.#hubConnectedListeners],
+			[...this.#hubDisconnectedListeners],
 			[...this.#documentSavingListeners],
 			[...this.#documentSavedListeners],
 			[...this.#documentDeletingListeners],
@@ -129,6 +141,8 @@ export class ApplicationBuilder<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
+			this.#hubConnectedListeners,
+			this.#hubDisconnectedListeners,
 			this.#documentSavingListeners,
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
@@ -208,6 +222,8 @@ export class ApplicationBuilder<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
+			this.#hubConnectedListeners,
+			this.#hubDisconnectedListeners,
 			this.#documentSavingListeners,
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
@@ -259,6 +275,8 @@ export class ApplicationBuilder<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
+			this.#hubConnectedListeners,
+			this.#hubDisconnectedListeners,
 			this.#documentSavingListeners,
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
@@ -311,6 +329,8 @@ export class ApplicationBuilder<
 			[...this.#document, { path, ...options }],
 			this.#collection,
 			this.#eventListeners,
+			this.#hubConnectedListeners,
+			this.#hubDisconnectedListeners,
 			this.#documentSavingListeners,
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
@@ -363,6 +383,8 @@ export class ApplicationBuilder<
 			this.#document,
 			[...this.#collection, { path, ...options }],
 			this.#eventListeners,
+			this.#hubConnectedListeners,
+			this.#hubDisconnectedListeners,
 			this.#documentSavingListeners,
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
@@ -399,6 +421,72 @@ export class ApplicationBuilder<
 			this.#document,
 			this.#collection,
 			[...this.#eventListeners, { path, handler }],
+			this.#hubConnectedListeners,
+			this.#hubDisconnectedListeners,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
+		);
+	}
+
+	onHubConnect(
+		handler: HubListenerHandler<
+			TDecoration,
+			TEvent,
+			TDocument,
+			TCollection
+		>,
+	): ApplicationBuilder<
+		TDecoration,
+		TRpc,
+		TEvent,
+		TDocument,
+		TCollection,
+		TFile,
+		TFolder
+	> {
+		return new ApplicationBuilder(
+			this.#decorator,
+			this.#rpc,
+			this.#event,
+			this.#document,
+			this.#collection,
+			this.#eventListeners,
+			[...this.#hubConnectedListeners, { handler }],
+			this.#hubDisconnectedListeners,
+			this.#documentSavingListeners,
+			this.#documentSavedListeners,
+			this.#documentDeletingListeners,
+			this.#documentDeletedListeners,
+		);
+	}
+
+	onHubDisconnect(
+		handler: HubListenerHandler<
+			TDecoration,
+			TEvent,
+			TDocument,
+			TCollection
+		>,
+	): ApplicationBuilder<
+		TDecoration,
+		TRpc,
+		TEvent,
+		TDocument,
+		TCollection,
+		TFile,
+		TFolder
+	> {
+		return new ApplicationBuilder(
+			this.#decorator,
+			this.#rpc,
+			this.#event,
+			this.#document,
+			this.#collection,
+			this.#eventListeners,
+			this.#hubConnectedListeners,
+			[...this.#hubDisconnectedListeners, { handler }],
 			this.#documentSavingListeners,
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
@@ -435,6 +523,8 @@ export class ApplicationBuilder<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
+			this.#hubConnectedListeners,
+			this.#hubDisconnectedListeners,
 			[...this.#documentSavingListeners, { path, handler }],
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
@@ -494,6 +584,8 @@ export class ApplicationBuilder<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
+			this.#hubConnectedListeners,
+			this.#hubDisconnectedListeners,
 			this.#documentSavingListeners,
 			[...this.#documentSavedListeners, { path, handler }],
 			this.#documentDeletingListeners,
@@ -528,6 +620,8 @@ export class ApplicationBuilder<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
+			this.#hubConnectedListeners,
+			this.#hubDisconnectedListeners,
 			this.#documentSavingListeners,
 			this.#documentSavedListeners,
 			[...this.#documentDeletingListeners, { path, handler }],
@@ -562,6 +656,8 @@ export class ApplicationBuilder<
 			this.#document,
 			this.#collection,
 			this.#eventListeners,
+			this.#hubConnectedListeners,
+			this.#hubDisconnectedListeners,
 			this.#documentSavingListeners,
 			this.#documentSavedListeners,
 			this.#documentDeletingListeners,
@@ -603,6 +699,8 @@ export class ApplicationBuilder<
 			[...this.#document, ...application.#document],
 			[...this.#collection, ...application.#collection],
 			[...this.#eventListeners, ...application.#eventListeners],
+			[...this.#hubConnectedListeners, ...application.#hubConnectedListeners],
+			[...this.#hubDisconnectedListeners, ...application.#hubDisconnectedListeners],
 			[
 				...this.#documentSavingListeners,
 				...application.#documentSavingListeners,

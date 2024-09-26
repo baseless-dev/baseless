@@ -9,6 +9,7 @@ import { Context } from "./types.ts";
 import { HubProvider } from "./hub_provider.ts";
 import { ApplicationEventProviderFacade } from "./application_event_facade.ts";
 import { EventProvider } from "./event_provider.ts";
+import { ApplicationHubServiceFacade } from "./application_hub_facade.ts";
 
 export class Server {
 	#application: Application;
@@ -104,6 +105,7 @@ export class Server {
 			request,
 			document: {} as never, // lazy initilization
 			event: {} as never, // lazy initilization
+			hub: {} as never, // lazy initilization
 			kv: this.#kvProvider,
 			waitUntil: (promise: PromiseLike<unknown>) => {
 				waitUntilPromises.push(promise);
@@ -111,6 +113,7 @@ export class Server {
 		};
 		context.document = new ApplicationDocumentProviderFacade(this.#application, context, this.#documentProvider) as never;
 		context.event = new ApplicationEventProviderFacade(this.#application, context, this.#eventProvider) as never;
+		context.hub = new ApplicationHubServiceFacade(this.#application, context, this.#hubProvider!) as never;
 		await this.#application.decorate(context);
 		return [context, waitUntilPromises];
 	}

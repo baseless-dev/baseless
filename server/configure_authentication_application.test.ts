@@ -59,6 +59,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			currentSession: undefined,
 			document: {} as never,
 			event: {} as never,
+			hub: {} as never,
 			kv: kvProvider as never,
 			notification: notificationProvider as never,
 			waitUntil(_promise) {},

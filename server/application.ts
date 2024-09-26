@@ -2,6 +2,7 @@
 import { createPathMatcher, PathAsType, PathMatcher } from "@baseless/core/path";
 import {
 	type CollectionDefinition,
+	Context,
 	type Decorator,
 	DocumentAtomicDeleteListener,
 	DocumentAtomicSetListener,
@@ -11,9 +12,9 @@ import {
 	type EventDefinition,
 	type EventListener,
 	hasPermission,
+	HubListener,
 	Permission,
 	type RpcDefinition,
-	type TypedContext,
 } from "./types.ts";
 import { Value } from "@sinclair/typebox/value";
 import { Document } from "@baseless/core/document";
@@ -26,6 +27,7 @@ import {
 } from "./document_provider.ts";
 import { EventProvider } from "./event_provider.ts";
 import type { ID } from "@baseless/core/id";
+import { HubProvider } from "./hub_provider.ts";
 
 export class Application {
 	#decorators: ReadonlyArray<Decorator<any>>;
@@ -34,10 +36,12 @@ export class Application {
 	#documentMatcher: PathMatcher<DocumentDefinition<any, any>>;
 	#collectionMatcher: PathMatcher<CollectionDefinition<any, any>>;
 	#eventListenersMatcher: PathMatcher<EventListener<any, any>>;
+	#hubConnectedListenersMatcher: Array<HubListener>;
+	#hubDisconnectedListenersMatcher: Array<HubListener>;
 	#documentSavingListenersMatcher: PathMatcher<DocumentAtomicSetListener<any, any>>;
 	#documentSavedListenersMatcher: PathMatcher<DocumentSetListener<any, any>>;
 	#documentDeletingListenersMatcher: PathMatcher<DocumentAtomicDeleteListener<any, any>>;
-	#documentDeletedListenersMatcher: PathMatcher<DocumentDeleteListener<any, any>>;
+	#documentDeletedListenersMatcher: PathMatcher<DocumentDeleteListener<any>>;
 
 	constructor(
 		decorators: ReadonlyArray<Decorator<any>>,
@@ -46,10 +50,12 @@ export class Application {
 		documentDefinitions: ReadonlyArray<DocumentDefinition<any, any>>,
 		collectionDefinitions: ReadonlyArray<CollectionDefinition<any, any>>,
 		eventListeners: ReadonlyArray<EventListener<any, any>>,
+		hubConnectedListeners: ReadonlyArray<HubListener>,
+		hubDisconnectedListeners: ReadonlyArray<HubListener>,
 		documentSavingListeners: ReadonlyArray<DocumentAtomicSetListener<any, any>>,
 		documentSavedListeners: ReadonlyArray<DocumentSetListener<any, any>>,
 		documentDeletingListeners: ReadonlyArray<DocumentAtomicDeleteListener<any, any>>,
-		documentDeletedListeners: ReadonlyArray<DocumentDeleteListener<any, any>>,
+		documentDeletedListeners: ReadonlyArray<DocumentDeleteListener<any>>,
 	) {
 		this.#decorators = decorators;
 		this.#eventMatcher = createPathMatcher(eventDefinitions);
@@ -65,13 +71,15 @@ export class Application {
 		]);
 		this.#collectionMatcher = createPathMatcher(collectionDefinitions);
 		this.#eventListenersMatcher = createPathMatcher(eventListeners);
+		this.#hubConnectedListenersMatcher = [...hubConnectedListeners];
+		this.#hubDisconnectedListenersMatcher = [...hubDisconnectedListeners];
 		this.#documentSavingListenersMatcher = createPathMatcher(documentSavingListeners);
 		this.#documentSavedListenersMatcher = createPathMatcher(documentSavedListeners);
 		this.#documentDeletingListenersMatcher = createPathMatcher(documentDeletingListeners);
 		this.#documentDeletedListenersMatcher = createPathMatcher(documentDeletedListeners);
 	}
 
-	async decorate(context: TypedContext<any, any, any, any>): Promise<void> {
+	async decorate(context: Context): Promise<void> {
 		for (const decorator of this.#decorators) {
 			const result = await decorator(context);
 			Object.assign(context, result);
@@ -80,7 +88,7 @@ export class Application {
 
 	async invokeRpc({ bypassSecurity, context, input, rpc }: {
 		bypassSecurity?: boolean;
-		context: TypedContext<any, any, any, any>;
+		context: Context;
 		input: unknown;
 		rpc: string[];
 	}): Promise<unknown> {
@@ -115,7 +123,7 @@ export class Application {
 
 	async getDocument({ bypassSecurity, context, options, path, provider }: {
 		bypassSecurity?: boolean;
-		context: TypedContext<any, any, any, any>;
+		context: Context;
 		options?: DocumentGetOptions;
 		path: string[];
 		provider: DocumentProvider;
@@ -145,7 +153,7 @@ export class Application {
 
 	async getManyDocument({ bypassSecurity, context, options, paths, provider }: {
 		bypassSecurity?: boolean;
-		context: TypedContext<any, any, any, any>;
+		context: Context;
 		options?: DocumentGetOptions;
 		paths: Array<string[]>;
 		provider: DocumentProvider;
@@ -175,7 +183,7 @@ export class Application {
 
 	async *listDocument({ bypassSecurity, context, cursor, limit, prefix, provider }: {
 		bypassSecurity?: boolean;
-		context: TypedContext<any, any, any, any>;
+		context: Context;
 		cursor?: string;
 		limit?: number;
 		prefix: string[];
@@ -206,7 +214,7 @@ export class Application {
 	async commitDocumentAtomic({ bypassSecurity, checks, context, operations, provider }: {
 		bypassSecurity?: boolean;
 		checks: DocumentAtomicCheck[];
-		context: TypedContext<any, any, any, any>;
+		context: Context;
 		operations: DocumentAtomicOperation[];
 		provider: DocumentProvider;
 	}): Promise<void> {
@@ -280,9 +288,27 @@ export class Application {
 		}
 	}
 
+	async connectHub({ context, hubId }: {
+		context: Context;
+		hubId: ID<"hub_">;
+	}): Promise<void> {
+		for (const listener of this.#hubConnectedListenersMatcher) {
+			await listener.handler({ context, hubId });
+		}
+	}
+
+	async disconnectHub({ context, hubId }: {
+		context: Context;
+		hubId: ID<"hub_">;
+	}): Promise<void> {
+		for (const listener of this.#hubDisconnectedListenersMatcher) {
+			await listener.handler({ context, hubId });
+		}
+	}
+
 	async publishEvent({ bypassSecurity, context, event, payload, provider }: {
 		bypassSecurity?: boolean;
-		context: TypedContext<any, any, any, any>;
+		context: Context;
 		event: string[];
 		payload: unknown;
 		provider: EventProvider;
@@ -315,9 +341,10 @@ export class Application {
 			await listener.handler({ context, params, payload }).catch((_) => {});
 		}
 	}
+
 	async subscribeEvent({ bypassSecurity, context, event, hubId, provider }: {
 		bypassSecurity?: boolean;
-		context: TypedContext<any, any, any, any>;
+		context: Context;
 		event: string[];
 		hubId: ID<"hub_">;
 		provider: EventProvider;
@@ -345,7 +372,7 @@ export class Application {
 
 	async unsubscribeEvent({ bypassSecurity, context, event, hubId, provider }: {
 		bypassSecurity?: boolean;
-		context: TypedContext<any, any, any, any>;
+		context: Context;
 		event: string[];
 		hubId: ID<"hub_">;
 		provider: EventProvider;
@@ -373,7 +400,7 @@ export class Application {
 
 	async unsubscribeAllEvent({ bypassSecurity, context, hubId, provider }: {
 		bypassSecurity?: boolean;
-		context: TypedContext<any, any, any, any>;
+		context: Context;
 		hubId: ID<"hub_">;
 		provider: EventProvider;
 	}): Promise<void> {

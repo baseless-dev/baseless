@@ -2,7 +2,7 @@
 import { Application } from "./application.ts";
 import { TypedContext } from "./types.ts";
 import { EventProvider } from "./event_provider.ts";
-import { ID } from "../core/id.ts";
+import { ID } from "@baseless/core/id";
 
 export class ApplicationEventProviderFacade extends EventProvider {
 	#application: Application;
@@ -29,6 +29,7 @@ export class ApplicationEventProviderFacade extends EventProvider {
 			provider: this.#provider,
 		});
 	}
+
 	subscribe(key: string[], hubId: ID<"hub_">): Promise<void> {
 		return this.#application.subscribeEvent({
 			bypassSecurity: true,
@@ -38,6 +39,7 @@ export class ApplicationEventProviderFacade extends EventProvider {
 			provider: this.#provider,
 		});
 	}
+
 	unsubscribe(key: string[], hubId: ID<"hub_">): Promise<void> {
 		return this.#application.unsubscribeEvent({
 			bypassSecurity: true,

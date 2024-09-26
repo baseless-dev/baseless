@@ -46,6 +46,19 @@ const appBuilder = new ApplicationBuilder()
 	.collection(["items"], {
 		schema: Type.String(),
 		security: async ({ context }) => context.currentSession ? Permission.All : Permission.None,
+	})
+	.onHubConnect(async ({ context, hubId }) => {
+		console.log("connected", { hubId, identityId: context.currentSession?.identityId });
+	})
+	.onHubDisconnect(async ({ context, hubId }) => {
+		console.log("disconnected", { hubId, identityId: context.currentSession?.identityId });
+	})
+	.emits(["message"], {
+		payload: Type.String(),
+		security: async ({ context }) => Permission.All,
+	})
+	.onEvent(["message"], async ({ context, payload }) => {
+		console.log("message", { identityId: context.currentSession?.identityId, message: payload });
 	});
 
 const app = appBuilder.build();

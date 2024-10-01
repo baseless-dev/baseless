@@ -19,6 +19,12 @@ import type {
 } from "@baseless/server/types";
 import { Document } from "@baseless/core/document";
 import { DocumentAtomic, DocumentListEntry, DocumentListOptions, TypedDocumentAtomic } from "@baseless/server/document-provider";
+import { encodeBase64Url } from "@std/encoding/base64url";
+import { isEvent } from "@baseless/core/event";
+
+function keyPathToKeyString(key: string[]): string {
+	return key.map((p) => p.replaceAll("/", "\\/")).join("/");
+}
 
 export interface ClientInitialization {
 	clientId: string;
@@ -50,7 +56,9 @@ export class Client {
 	#currentTokenIndex: number;
 	#expirationTimer?: number;
 	#accessTokenExpiration?: number;
-	#events: EventEmitter<{ onAuthenticationStateChange: [identity: Identity | undefined] }>;
+	#authEvents: EventEmitter<{ onAuthenticationStateChange: [identity: Identity | undefined] }>;
+	#events: EventEmitter<{ [key: string]: [unknown] }>;
+	#socket?: Promise<WebSocket>;
 
 	constructor(initialization: ClientInitialization) {
 		this.#clientId = initialization.clientId;
@@ -59,18 +67,27 @@ export class Client {
 		this.#batchSize = initialization.batchSize ?? 10;
 		this.#tokens = [];
 		this.#currentTokenIndex = -1;
+		this.#authEvents = new EventEmitter();
 		this.#events = new EventEmitter();
 		this.storage = initialization.storage ?? new MemoryStorage();
 		this.#readData();
 		this.#setupTimer();
 	}
 
-	[Symbol.dispose](): void {
-		this.#expirationTimer && clearTimeout(this.#expirationTimer);
+	[Symbol.asyncDispose](): Promise<void> {
+		return this.dispose();
 	}
 
-	dispose(): void {
-		this[Symbol.dispose]();
+	async dispose(): Promise<void> {
+		if (this.#expirationTimer) {
+			clearTimeout(this.#expirationTimer);
+		}
+		const socket = await this.#socket;
+		if (socket) {
+			console.log("Client.dispose");
+			socket.close();
+			this.#socket = undefined;
+		}
 	}
 
 	get clientId(): string {
@@ -171,11 +188,11 @@ export class Client {
 				},
 				expiration * 1000 - Date.now(),
 			);
-			this.#events.emit("onAuthenticationStateChange", identity);
+			this.#authEvents.emit("onAuthenticationStateChange", identity);
 		} else {
 			this.#expirationTimer && clearTimeout(this.#expirationTimer);
 			this.#expirationTimer = undefined;
-			this.#events.emit("onAuthenticationStateChange", undefined);
+			this.#authEvents.emit("onAuthenticationStateChange", undefined);
 		}
 	}
 
@@ -189,7 +206,7 @@ export class Client {
 	> = [];
 	#batchTimout: number | null = null;
 
-	async #processCommandQueue(): Promise<void> {
+	async #reauthenticateIfNeeded(): Promise<void> {
 		const now = Date.now() / 1000 >> 0;
 		let currentToken = this.currentToken;
 		// Reauthenticate if token is expired
@@ -222,6 +239,11 @@ export class Client {
 				currentToken = undefined;
 			}
 		}
+	}
+
+	async #processCommandQueue(): Promise<void> {
+		await this.#reauthenticateIfNeeded();
+		const currentToken = this.currentToken;
 		const commands = this.#commandQueue.splice(0, this.#batchSize);
 		try {
 			const response = await this.#fetch(this.#apiEndpoint, {
@@ -298,10 +320,52 @@ export class Client {
 		return promise;
 	}
 
+	#ensureWebSocket(): Promise<WebSocket> {
+		this.#socket ??= new Promise<WebSocket>((resolve, reject) => {
+			this.#reauthenticateIfNeeded()
+				.then(() => {
+					const url = new URL(this.#apiEndpoint);
+					url.protocol = url.protocol === "http:" ? "ws:" : "wss:";
+					const currentToken = this.currentToken;
+					const protocols: string[] = [];
+					if (currentToken?.access_token) {
+						protocols.push(`base64url.bearer.authorization.baseless.dev.${encodeBase64Url(currentToken.access_token)}`);
+					}
+					const ready = Promise.withResolvers<WebSocket>();
+					const readyAbortController = new AbortController();
+					const messageAbortController = new AbortController();
+					const socket = new WebSocket(url, protocols);
+					socket.addEventListener("open", () => {
+						ready.resolve(socket);
+						readyAbortController.abort();
+					}, { once: true, signal: readyAbortController.signal });
+					socket.addEventListener("close", (event) => {
+						ready.reject(event);
+						readyAbortController.abort();
+					}, { once: true, signal: readyAbortController.signal });
+					socket.addEventListener("close", () => {
+						messageAbortController.abort();
+					}, { signal: messageAbortController.signal });
+					socket.addEventListener("message", (e) => {
+						const data = e.data;
+						const event = JSON.parse(data.toString());
+						if (isEvent(event)) {
+							this.#events.emit(keyPathToKeyString(event.event), event.payload);
+						}
+					}, { signal: messageAbortController.signal });
+
+					return ready.promise;
+				})
+				.then(resolve)
+				.catch(reject);
+		});
+		return this.#socket;
+	}
+
 	onAuthenticationStateChange(
 		listener: (identity: Identity | undefined) => void | Promise<void>,
 	): Disposable {
-		return this.#events.on("onAuthenticationStateChange", listener);
+		return this.#authEvents.on("onAuthenticationStateChange", listener);
 	}
 
 	rpc(key: string[], input: unknown, dedup = true): Promise<unknown> {
@@ -346,6 +410,10 @@ export class Client {
 			},
 		},
 	);
+
+	events(key: string[]): EventClient {
+		return new EventClient(key, this.#ensureWebSocket.bind(this), this.#events);
+	}
 }
 
 export class DocumentClient<TData = unknown> {
@@ -398,6 +466,48 @@ export interface DocumentsClient {
 
 export interface CollectionsClient {
 	(key: string[]): CollectionClient;
+}
+
+export class EventClient<TPayload = unknown> {
+	#key: string[];
+	#ensureWebSocket: () => Promise<WebSocket>;
+	#eventEmitter: EventEmitter<{ [key: string]: [unknown] }>;
+	constructor(key: string[], ensureWebSocket: () => Promise<WebSocket>, eventEmitter: EventEmitter) {
+		this.#key = key;
+		this.#ensureWebSocket = ensureWebSocket;
+		this.#eventEmitter = eventEmitter;
+	}
+
+	async publish(payload: TPayload): Promise<void> {
+		const socket = await this.#ensureWebSocket();
+		socket.send(JSON.stringify({ kind: "event-publish", event: this.#key, payload }));
+	}
+
+	async *subscribe(signal?: AbortSignal): AsyncIterableIterator<TPayload> {
+		const socket = await this.#ensureWebSocket();
+		const key = this.#key;
+		const eventEmitter = this.#eventEmitter;
+		socket.send(JSON.stringify({ kind: "event-subscribe", event: key }));
+		let disposable: Disposable;
+		const abortController = new AbortController();
+		abortController.signal.addEventListener("abort", () => {
+			socket.send(JSON.stringify({ kind: "event-unsubscribe", event: key }));
+			disposable[Symbol.dispose]();
+		});
+		const eventStream = new ReadableStream<TPayload>({
+			start(controller): void {
+				disposable = eventEmitter.on(keyPathToKeyString(key), (payload) => {
+					controller.enqueue(payload as TPayload);
+				});
+				abortController.signal.addEventListener("abort", () => controller.close());
+			},
+			cancel(): void {
+				// abortController.abort();
+			},
+		});
+		signal?.addEventListener("abort", () => abortController.abort());
+		yield* eventStream.values();
+	}
 }
 
 export interface TypedDocumentsClient<

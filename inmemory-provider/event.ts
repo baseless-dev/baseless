@@ -1,6 +1,7 @@
 import { EventProvider } from "@baseless/server/event-provider";
 import type { HubProvider } from "@baseless/server/hub-provider";
 import type { ID } from "@baseless/core/id";
+import type { Event } from "@baseless/core/event";
 
 function keyPathToKeyString(key: string[]): string {
 	return key.map((p) => p.replaceAll("/", "\\/")).join("/");
@@ -17,9 +18,11 @@ export class MemoryEventProvider extends EventProvider {
 
 	publish(key: string[], payload: unknown): Promise<void> {
 		const subscribers = this.#subscribers.get(keyPathToKeyString(key));
+		const event: Event = { kind: "event", event: key, payload };
+		const eventString = JSON.stringify(event);
 		if (subscribers) {
 			for (const hubId of subscribers) {
-				this.#hub.sendToHub(hubId, JSON.stringify(payload));
+				this.#hub.sendToHub(hubId, eventString);
 			}
 		}
 		return Promise.resolve();

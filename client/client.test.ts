@@ -1,7 +1,7 @@
 // deno-lint-ignore-file require-await no-explicit-any
-import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
+import { MemoryDocumentProvider, MemoryEventProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
 import { generateKeyPair } from "jose";
-import { Client } from "./client.ts";
+import { Client, ClientFromApplicationBuilder } from "./client.ts";
 import { assert, assertEquals } from "@std/assert";
 import { isIdentity } from "@baseless/core/identity";
 import {
@@ -14,14 +14,23 @@ import {
 	Server,
 	Type,
 } from "@baseless/server";
+import { DenoHubProvider } from "@baseless/deno-provider/hub";
 
 Deno.test("Client", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
 	const notificationProvider = new MemoryNotificationProvider();
-	const setupClient = async () => {
+	const setup = async (
+		options?: { hostname?: string; port?: number },
+	): Promise<ClientFromApplicationBuilder<typeof appBuilder>> => {
+		const hostname = options?.hostname ?? "localhost";
+		const port = options?.port ?? 0;
+		const abortController = new AbortController();
+		const ready = Promise.withResolvers<URL>();
+
 		const kvProvider = new MemoryKVProvider();
 		const documentProvider = new MemoryDocumentProvider();
 		const emailProvider = new EmailIdentityComponentProvider();
+		const hubProvider = new DenoHubProvider();
 		let ref = 0;
 		const appBuilder = new ApplicationBuilder()
 			.use(configureAuthentication({
@@ -38,6 +47,10 @@ Deno.test("Client", async (t) => {
 				security: async () => Permission.All,
 				handler: async ({ params }) => `${++ref}. Hello ${params.world}`,
 			})
+			.event(["foo"], {
+				payload: Type.String(),
+				security: async () => Permission.All,
+			})
 			.collection(["users"], {
 				schema: Type.String(),
 				security: async () => Permission.All,
@@ -52,31 +65,51 @@ Deno.test("Client", async (t) => {
 		const server = new Server({
 			application: app,
 			document: documentProvider,
-			event: {} as never,
+			event: new MemoryEventProvider(hubProvider),
+			hub: hubProvider,
 			kv: kvProvider,
 		});
 
-		const client = Client.fromApplicationBuilder<typeof appBuilder>({
-			clientId: "test",
-			apiEndpoint: "http://test.local",
-			async fetch(input, init): Promise<Response> {
-				const request = new Request(input, init);
+		Deno.serve(
+			{
+				hostname,
+				port,
+				signal: abortController.signal,
+				onListen(netAddr): void {
+					ready.resolve(new URL(`http://${netAddr.hostname}:${netAddr.port}`));
+				},
+			},
+			async (request) => {
 				const [response, _promises] = await server.handleRequest(request);
 				return response;
 			},
+		);
+
+		const url = await ready.promise;
+
+		const client = new Client({
+			clientId: "test",
+			apiEndpoint: url.toString(),
 		});
 
-		return client;
+		const oldDispose = client[Symbol.asyncDispose].bind(client);
+
+		return Object.assign(client, {
+			[Symbol.asyncDispose](): void {
+				oldDispose();
+				abortController.abort();
+			},
+		}) as never;
 	};
 
 	await t.step("single rpc", async () => {
-		using client = await setupClient();
+		await using client = await setup();
 		const result = await client.rpc(["hello", "World"], void 0);
 		assertEquals(result, "1. Hello World");
 	});
 
 	await t.step("batched rpc", async () => {
-		using client = await setupClient();
+		await using client = await setup();
 		const [result1, result2, result3, result4] = await Promise.all([
 			client.rpc(["hello", "Foo"], void 0),
 			client.rpc(["hello", "Bar"], void 0),
@@ -90,7 +123,7 @@ Deno.test("Client", async (t) => {
 	});
 
 	await t.step("onAuthenticationStateChange", async () => {
-		using client = await setupClient();
+		await using client = await setup();
 		const events: any[] = [];
 		using _listener = client.onAuthenticationStateChange((identity) => {
 			events.push(identity);
@@ -131,8 +164,43 @@ Deno.test("Client", async (t) => {
 		assert(events[1] === undefined);
 	});
 
+	await t.step("events", async () => {
+		await using client = await setup();
+
+		const iter = client.events(["foo"]).subscribe();
+
+		{
+			const event = iter.next();
+			await client.events(["foo"]).publish("Foo");
+			assertEquals(await event, { done: false, value: "Foo" });
+		}
+		{
+			const event = iter.next();
+			await client.events(["foo"]).publish("Bar");
+			assertEquals(await event, { done: false, value: "Bar" });
+		}
+		{
+			const ac = new AbortController();
+
+			let i = 1;
+			const timer = setInterval(() => {
+				client.events(["foo"]).publish(`Event${++i}`);
+			}, 100);
+			ac.signal.addEventListener("abort", () => {
+				clearInterval(timer);
+			});
+			setTimeout(() => ac.abort(), 1000);
+
+			for await (const event of client.events(["foo"]).subscribe(ac.signal)) {
+				console.log(event);
+			}
+
+			console.log("Blep");
+		}
+	});
+
 	await t.step("documents", async () => {
-		using client = await setupClient();
+		await using client = await setup();
 
 		await client.documents.atomic()
 			.set(["config"], "a")

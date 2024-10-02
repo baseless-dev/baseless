@@ -84,7 +84,6 @@ export class Client {
 		}
 		const socket = await this.#socket;
 		if (socket) {
-			console.log("Client.dispose");
 			socket.close();
 			this.#socket = undefined;
 		}
@@ -484,26 +483,34 @@ export class EventClient<TPayload = unknown> {
 	}
 
 	async *subscribe(signal?: AbortSignal): AsyncIterableIterator<TPayload> {
-		const socket = await this.#ensureWebSocket();
 		const key = this.#key;
+		const event = keyPathToKeyString(key);
 		const eventEmitter = this.#eventEmitter;
-		socket.send(JSON.stringify({ kind: "event-subscribe", event: key }));
-		let disposable: Disposable;
 		const abortController = new AbortController();
-		abortController.signal.addEventListener("abort", () => {
-			socket.send(JSON.stringify({ kind: "event-unsubscribe", event: key }));
-			disposable[Symbol.dispose]();
-		});
+		const socket = await this.#ensureWebSocket();
+		// Subscribe if not already subscribed
+		if (!eventEmitter.listeners().has(event)) {
+			socket.send(JSON.stringify({ kind: "event-subscribe", event: key }));
+		}
 		const eventStream = new ReadableStream<TPayload>({
 			start(controller): void {
-				disposable = eventEmitter.on(keyPathToKeyString(key), (payload) => {
+				const disposable = eventEmitter.on(event, (payload) => {
 					controller.enqueue(payload as TPayload);
 				});
-				abortController.signal.addEventListener("abort", () => controller.close());
+				abortController.signal.addEventListener("abort", () => {
+					disposable[Symbol.dispose]();
+					controller.close();
+				});
 			},
 			cancel(): void {
 				// abortController.abort();
 			},
+		});
+		// Unsubscribe if no listeners left
+		abortController.signal.addEventListener("abort", () => {
+			if (!eventEmitter.listeners().has(event)) {
+				socket.send(JSON.stringify({ kind: "event-unsubscribe", event: key }));
+			}
 		});
 		signal?.addEventListener("abort", () => abortController.abort());
 		yield* eventStream.values();

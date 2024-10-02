@@ -179,24 +179,6 @@ Deno.test("Client", async (t) => {
 			await client.events(["foo"]).publish("Bar");
 			assertEquals(await event, { done: false, value: "Bar" });
 		}
-		{
-			const ac = new AbortController();
-
-			let i = 1;
-			const timer = setInterval(() => {
-				client.events(["foo"]).publish(`Event${++i}`);
-			}, 100);
-			ac.signal.addEventListener("abort", () => {
-				clearInterval(timer);
-			});
-			setTimeout(() => ac.abort(), 1000);
-
-			for await (const event of client.events(["foo"]).subscribe(ac.signal)) {
-				console.log(event);
-			}
-
-			console.log("Blep");
-		}
 	});
 
 	await t.step("documents", async () => {

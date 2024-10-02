@@ -3,13 +3,13 @@
  * Provides methods for listening and emitting events
  */
 export class EventEmitter<TEvents extends Record<string, unknown[]> = {}> {
-	#handlers: Map<
+	#listeners: Map<
 		keyof TEvents,
 		Set<(...args: TEvents[keyof TEvents]) => void | Promise<void>>
 	>;
 	public constructor();
 	public constructor(
-		handlers: Map<
+		listeners: Map<
 			keyof TEvents,
 			Set<(...args: TEvents[keyof TEvents]) => void | Promise<void>>
 		>,
@@ -20,7 +20,11 @@ export class EventEmitter<TEvents extends Record<string, unknown[]> = {}> {
 			Set<(...args: TEvents[keyof TEvents]) => void | Promise<void>>
 		>,
 	) {
-		this.#handlers = new Map(handlers);
+		this.#listeners = new Map(handlers);
+	}
+
+	listeners(): Map<string, ReadonlySet<(...args: any[]) => void | Promise<void>>> {
+		return new Map(this.#listeners) as never;
 	}
 
 	register<
@@ -32,20 +36,20 @@ export class EventEmitter<TEvents extends Record<string, unknown[]> = {}> {
 			[event in TEvent]: TArgs;
 		}
 	> {
-		return new EventEmitter(this.#handlers) as any;
+		return new EventEmitter(this.#listeners) as any;
 	}
 
 	on<TEvent extends keyof TEvents>(
 		event: TEvent,
 		handler: (...args: TEvents[TEvent]) => void | Promise<void>,
 	): Disposable {
-		if (!this.#handlers.has(event)) {
-			this.#handlers.set(event, new Set());
+		if (!this.#listeners.has(event)) {
+			this.#listeners.set(event, new Set());
 		}
-		this.#handlers.get(event)!.add(handler as any);
+		this.#listeners.get(event)!.add(handler as any);
 		return {
 			[Symbol.dispose]: () => {
-				this.#handlers.get(event)!.delete(handler as any);
+				this.#listeners.get(event)!.delete(handler as any);
 			},
 		};
 	}
@@ -54,10 +58,10 @@ export class EventEmitter<TEvents extends Record<string, unknown[]> = {}> {
 		event: TEvent,
 		...args: TEvents[TEvent]
 	): Promise<void> {
-		if (!this.#handlers.has(event)) {
+		if (!this.#listeners.has(event)) {
 			return;
 		}
-		for (const handler of this.#handlers.get(event)!) {
+		for (const handler of this.#listeners.get(event)!) {
 			await handler(...args);
 		}
 	}

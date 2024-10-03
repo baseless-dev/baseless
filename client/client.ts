@@ -542,6 +542,15 @@ export interface TypedCollectionsClient<
 	>(key: TCollectionPath): CollectionClient<Static<TCollectionDefinition["schema"]>>;
 }
 
+export interface TypedEventClient<
+	TEvent extends Array<EventDefinition<any, any>> = [],
+> extends EventClient {
+	<
+		const TEventPath extends TEvent[number]["matcher"],
+		const TEventDefinition extends PickAtPath<TEvent, TEventPath>,
+	>(key: TEventPath): EventClient<Static<TEventDefinition["payload"]>>;
+}
+
 export interface TypedClient<
 	TRpc extends Array<RpcDefinition<any, any, any>> = [],
 	TEvent extends Array<EventDefinition<any, any>> = [],
@@ -562,4 +571,6 @@ export interface TypedClient<
 	documents: TypedDocumentsClient<TDocument>;
 
 	collections: TypedCollectionsClient<TCollection>;
+
+	events: TypedEventClient<TEvent>;
 }

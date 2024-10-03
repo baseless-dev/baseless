@@ -113,7 +113,7 @@ Deno.test("Server", async (t) => {
 		response1.body?.cancel();
 
 		const message1 = await ws.nextMessage();
-		assertEquals(message1.data, JSON.stringify("foofoo"));
+		assertEquals(message1.data, JSON.stringify({ kind: "event", event: ["foo"], payload: "foofoo" }));
 
 		ws.close();
 

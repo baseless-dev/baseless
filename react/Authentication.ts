@@ -1,10 +1,8 @@
-/** @jsxRuntime automatic */
-/** @jsxImportSource npm:react@18.3.1 */
-/** @jsxImportSourceTypes npm:@types/react@18 */
 // @deno-types="npm:@types/react@18"
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { jsx } from "react/jsx-runtime";
 import { useClient } from "./useClient.ts";
-import type { Client, ClientFromApplicationBuilder } from "@baseless/client";
+import type { Client, TypedClientFromApplicationBuilder } from "@baseless/client";
 import type {
 	ApplicationBuilder,
 	AuthenticationCollections,
@@ -44,7 +42,7 @@ export function Authentication({
 	children: ReactNode | ((controller: AuthenticationController) => ReactNode);
 	client: Client;
 }): ReactNode {
-	const authClient = client as ClientFromApplicationBuilder<
+	const authClient = client as never as TypedClientFromApplicationBuilder<
 		ApplicationBuilder<
 			AuthenticationDecoration,
 			AuthenticationRpcs,
@@ -143,8 +141,7 @@ export function Authentication({
 
 	const node = useMemo(() => (typeof children === "function" ? children(controller) : children), [children, controller]);
 
-	return <AuthenticationControllerContext.Provider key={controller.key} value={controller}>{node}
-	</AuthenticationControllerContext.Provider>;
+	return jsx(AuthenticationControllerContext.Provider, { value: controller, children: node }, controller.key);
 }
 
 export function AuthenticationPrompt({ choice, prompts }: {

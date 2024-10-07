@@ -4,7 +4,8 @@
 	"exports": {
 		".": "./mod.ts",
 		"./bls": "./cli.ts",
-		"./client": "./client.ts"
+		"./client": "./client.ts",
+		"./types": "./types.ts"
 	},
 	"publish": {
 		"include": [

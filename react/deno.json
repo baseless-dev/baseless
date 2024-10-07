@@ -3,8 +3,8 @@
 	"version": "0.3.0-rc.3",
 	"exports": {
 		".": "./mod.ts",
-		"./Authentication": "./Authentication.tsx",
-		"./Registration": "./Registration.tsx",
+		"./Authentication": "./Authentication.ts",
+		"./Registration": "./Registration.ts",
 		"./useClient": "./useClient.ts",
 		"./useIdentity": "./useIdentity.ts",
 		"./useKeyedPromise": "./useKeyedPromise.ts"

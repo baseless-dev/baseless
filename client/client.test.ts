@@ -79,7 +79,7 @@ Deno.test("Client", async (t) => {
 				port,
 				signal: abortController.signal,
 				onListen(netAddr): void {
-					ready.resolve(new URL(`http://${netAddr.hostname}:${netAddr.port}`));
+					ready.resolve(new URL(`http://${netAddr.hostname === "::1" ? "[::1]" : netAddr.hostname}:${netAddr.port}`));
 				},
 			},
 			async (request) => {

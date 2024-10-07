@@ -1,13 +1,22 @@
 import { HubProvider } from "@baseless/server/hub-provider";
 import { type ID, id } from "@baseless/core/id";
 import type { Context } from "@baseless/server/types";
-import { isCommandEventPublish, isCommandEventSubscribe, isCommandEventUnsubscribe } from "@baseless/core/command";
+import {
+	isCommandCollectionUnwatch,
+	isCommandCollectionWatch,
+	isCommandDocumentUnwatch,
+	isCommandDocumentWatch,
+	isCommandEventPublish,
+	isCommandEventSubscribe,
+	isCommandEventUnsubscribe,
+} from "@baseless/core/command";
 
 export class DenoHubProvider extends HubProvider {
 	#socketMap = new Map<ID<"hub_">, { socket: WebSocket }>();
 
 	sendToHub(hubId: ID<"hub_">, data: string | ArrayBufferLike | Blob | ArrayBufferView): Promise<void> {
 		const { socket } = this.#socketMap.get(hubId) ?? {};
+		// TODO isEvent, begin with $collection, filter out before/after
 		socket?.send(data);
 		return Promise.resolve();
 	}
@@ -42,6 +51,16 @@ export class DenoHubProvider extends HubProvider {
 					await context.event.subscribe(command.event, hubId);
 				} else if (isCommandEventUnsubscribe(command)) {
 					await context.event.unsubscribe(command.event, hubId);
+				} else if (isCommandDocumentWatch(command)) {
+					await context.event.subscribe(["$document", ...command.key], hubId);
+				} else if (isCommandDocumentUnwatch(command)) {
+					await context.event.unsubscribe(["$document", ...command.key], hubId);
+				} else if (isCommandCollectionWatch(command)) {
+					// TODO before/after
+					await context.event.subscribe(["$collection", ...command.key], hubId);
+				} else if (isCommandCollectionUnwatch(command)) {
+					// TODO before/after
+					await context.event.unsubscribe(["$collection", ...command.key], hubId);
 				}
 				// deno-lint-ignore no-empty
 			} catch (_error) {}

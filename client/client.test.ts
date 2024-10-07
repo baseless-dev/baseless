@@ -1,7 +1,7 @@
 // deno-lint-ignore-file require-await no-explicit-any
 import { MemoryDocumentProvider, MemoryEventProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
 import { generateKeyPair } from "jose";
-import { Client, ClientFromApplicationBuilder } from "./client.ts";
+import { Client } from "./client.ts";
 import { assert, assertEquals } from "@std/assert";
 import { isIdentity } from "@baseless/core/identity";
 import {
@@ -15,13 +15,16 @@ import {
 	Type,
 } from "@baseless/server";
 import { DenoHubProvider } from "@baseless/deno-provider/hub";
+import { TypedClientFromApplicationBuilder } from "./types.ts";
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 Deno.test("Client", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
 	const notificationProvider = new MemoryNotificationProvider();
 	const setup = async (
 		options?: { hostname?: string; port?: number },
-	): Promise<ClientFromApplicationBuilder<typeof appBuilder>> => {
+	): Promise<TypedClientFromApplicationBuilder<typeof appBuilder>> => {
 		const hostname = options?.hostname ?? "localhost";
 		const port = options?.port ?? 0;
 		const abortController = new AbortController();
@@ -171,11 +174,13 @@ Deno.test("Client", async (t) => {
 
 		{
 			const event = iter.next();
+			await sleep(20);
 			await client.events(["foo"]).publish("Foo");
 			assertEquals(await event, { done: false, value: "Foo" });
 		}
 		{
 			const event = iter.next();
+			await sleep(20);
 			await client.events(["foo"]).publish("Bar");
 			assertEquals(await event, { done: false, value: "Bar" });
 		}
@@ -198,8 +203,35 @@ Deno.test("Client", async (t) => {
 		assertEquals(users[0].document.data, "One");
 		assertEquals(users[1].document.data, "Two");
 
-		// for await (const config of client.documents(["config"]).watch()) {
-		// 	console.log(config.data);
-		// }
+		{
+			const iter = client.documents(["config"]).watch();
+			{
+				const event = iter.next();
+				await sleep(20);
+				await client.documents.atomic().set(["config"], "b").commit();
+				assertEquals(await event, { done: false, value: { type: "set", key: ["config"], data: "b" } });
+			}
+			{
+				const event = iter.next();
+				await sleep(20);
+				await client.documents.atomic().set(["config"], "c").commit();
+				assertEquals(await event, { done: false, value: { type: "set", key: ["config"], data: "c" } });
+			}
+		}
+		{
+			const iter = client.collections(["users"]).watch();
+			{
+				const event = iter.next();
+				await sleep(20);
+				await client.documents.atomic().set(["users", "1"], "Uno").commit();
+				assertEquals(await event, { done: false, value: { type: "set", key: ["users", "1"], data: "Uno" } });
+			}
+			{
+				const event = iter.next();
+				await sleep(20);
+				await client.documents.atomic().delete(["users", "2"]).commit();
+				assertEquals(await event, { done: false, value: { type: "delete", key: ["users", "2"] } });
+			}
+		}
 	});
 });

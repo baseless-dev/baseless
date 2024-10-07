@@ -1,5 +1,5 @@
 import type { Static } from "@sinclair/typebox";
-import type { EventDefinition, PickAtPath } from "./types.ts";
+import type { CollectionDefinition, DocumentDefinition, EventDefinition, PickAtPath } from "./types.ts";
 import type { ID } from "@baseless/core/id";
 
 export abstract class EventProvider {
@@ -9,7 +9,11 @@ export abstract class EventProvider {
 	abstract unsubscribeAll(hubId: ID<"hub_">): Promise<void>;
 }
 
-export interface TypedEventProvider<TEvent extends EventDefinition<any, any>[]> extends EventProvider {
+export interface TypedEventProvider<
+	TEvent extends EventDefinition<any, any>[],
+	TDocument extends DocumentDefinition<any, any>[],
+	TCollection extends CollectionDefinition<any, any>[],
+> extends EventProvider {
 	publish<
 		const TEventPath extends TEvent[number]["matcher"],
 		const TEventDefinition extends PickAtPath<TEvent, TEventPath>,

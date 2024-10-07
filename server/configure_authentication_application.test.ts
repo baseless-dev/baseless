@@ -68,6 +68,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			app,
 			context,
 			documentProvider,
+			{} as never,
 		) as never;
 		const identity = { identityId: id("id_") };
 		const emailComponent = {

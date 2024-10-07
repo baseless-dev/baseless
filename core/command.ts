@@ -1,9 +1,10 @@
 import {
 	type TArray,
+	type TBoolean,
 	type TLiteral,
-	TNumber,
+	type TNumber,
 	type TObject,
-	TOptional,
+	type TOptional,
 	type TString,
 	type TUnion,
 	type TUnknown,
@@ -179,6 +180,110 @@ export function isCommandDocumentAtomic(value?: unknown): value is CommandDocume
 		value.ops.every(isCommandDocumentAtomicOp);
 }
 
+export interface CommandDocumentWatch {
+	kind: "document-watch";
+	key: string[];
+}
+
+export const CommandDocumentWatch: TObject<{
+	kind: TLiteral<"document-watch">;
+	key: TArray<TString>;
+}> = Type.Object({
+	kind: Type.Literal("document-watch"),
+	key: Type.Array(Type.String()),
+}, { $id: "CommandDocumentWatch" });
+
+export function isCommandDocumentWatch(value?: unknown): value is CommandDocumentWatch {
+	return !!value && typeof value === "object" && "kind" in value && value.kind === "document-watch" && "key" in value &&
+		Array.isArray(value.key) && value.key.every((v) => typeof v === "string");
+}
+
+export interface CommandDocumentUnwatch {
+	kind: "document-unwatch";
+	key: string[];
+}
+
+export const CommandDocumentUnwatch: TObject<{
+	kind: TLiteral<"document-unwatch">;
+	key: TArray<TString>;
+}> = Type.Object({
+	kind: Type.Literal("document-unwatch"),
+	key: Type.Array(Type.String()),
+}, { $id: "CommandDocumentUnwatch" });
+
+export function isCommandDocumentUnwatch(value?: unknown): value is CommandDocumentUnwatch {
+	return !!value && typeof value === "object" && "kind" in value && value.kind === "document-unwatch" && "key" in value &&
+		Array.isArray(value.key) && value.key.every((v) => typeof v === "string");
+}
+
+export interface CommandCollectionWatch {
+	kind: "collection-watch";
+	key: string[];
+	before?: string;
+	beforeInclusive?: boolean;
+	after?: string;
+	afterInclusive?: boolean;
+}
+
+export const CommandCollectionWatch: TObject<{
+	kind: TLiteral<"collection-watch">;
+	key: TArray<TString>;
+	before: TOptional<TString>;
+	beforeInclusive: TOptional<TBoolean>;
+	after: TOptional<TString>;
+	afterInclusive: TOptional<TBoolean>;
+}> = Type.Object({
+	kind: Type.Literal("collection-watch"),
+	key: Type.Array(Type.String()),
+	before: Type.Optional(Type.String()),
+	beforeInclusive: Type.Optional(Type.Boolean()),
+	after: Type.Optional(Type.String()),
+	afterInclusive: Type.Optional(Type.Boolean()),
+}, { $id: "CommandCollectionWatch" });
+
+export function isCommandCollectionWatch(value?: unknown): value is CommandCollectionWatch {
+	return !!value && typeof value === "object" && "kind" in value && value.kind === "collection-watch" && "key" in value &&
+		Array.isArray(value.key) && value.key.every((v) => typeof v === "string") &&
+		("before" in value ? typeof value.before === "string" : true) &&
+		("beforeInclusive" in value ? typeof value.beforeInclusive === "boolean" : true) &&
+		("after" in value ? typeof value.after === "string" : true) &&
+		("afterInclusive" in value ? typeof value.afterInclusive === "boolean" : true);
+}
+
+export interface CommandCollectionUnwatch {
+	kind: "collection-unwatch";
+	key: string[];
+	before?: string;
+	beforeInclusive?: boolean;
+	after?: string;
+	afterInclusive?: boolean;
+}
+
+export const CommandCollectionUnwatch: TObject<{
+	kind: TLiteral<"collection-unwatch">;
+	key: TArray<TString>;
+	before: TOptional<TString>;
+	beforeInclusive: TOptional<TBoolean>;
+	after: TOptional<TString>;
+	afterInclusive: TOptional<TBoolean>;
+}> = Type.Object({
+	kind: Type.Literal("collection-unwatch"),
+	key: Type.Array(Type.String()),
+	before: Type.Optional(Type.String()),
+	beforeInclusive: Type.Optional(Type.Boolean()),
+	after: Type.Optional(Type.String()),
+	afterInclusive: Type.Optional(Type.Boolean()),
+}, { $id: "CommandCollectionUnwatch" });
+
+export function isCommandCollectionUnwatch(value?: unknown): value is CommandCollectionUnwatch {
+	return !!value && typeof value === "object" && "kind" in value && value.kind === "collection-unwatch" && "key" in value &&
+		Array.isArray(value.key) && value.key.every((v) => typeof v === "string") &&
+		("before" in value ? typeof value.before === "string" : true) &&
+		("beforeInclusive" in value ? typeof value.beforeInclusive === "boolean" : true) &&
+		("after" in value ? typeof value.after === "string" : true) &&
+		("afterInclusive" in value ? typeof value.afterInclusive === "boolean" : true);
+}
+
 export interface CommandEventPublish {
 	kind: "event-publish";
 	event: string[];
@@ -242,6 +347,10 @@ export type Command =
 	| CommandDocumentGetMany
 	| CommandDocumentList
 	| CommandDocumentAtomic
+	| CommandDocumentWatch
+	| CommandDocumentUnwatch
+	| CommandCollectionWatch
+	| CommandCollectionUnwatch
 	| CommandEventPublish
 	| CommandEventSubscribe
 	| CommandEventUnsubscribe;
@@ -252,6 +361,10 @@ export const Command: TUnion<[
 	typeof CommandDocumentGetMany,
 	typeof CommandDocumentList,
 	typeof CommandDocumentAtomic,
+	typeof CommandDocumentWatch,
+	typeof CommandDocumentUnwatch,
+	typeof CommandCollectionWatch,
+	typeof CommandCollectionUnwatch,
 	typeof CommandEventPublish,
 	typeof CommandEventSubscribe,
 	typeof CommandEventUnsubscribe,
@@ -261,6 +374,10 @@ export const Command: TUnion<[
 	CommandDocumentGetMany,
 	CommandDocumentList,
 	CommandDocumentAtomic,
+	CommandDocumentWatch,
+	CommandDocumentUnwatch,
+	CommandCollectionWatch,
+	CommandCollectionUnwatch,
 	CommandEventPublish,
 	CommandEventSubscribe,
 	CommandEventUnsubscribe,
@@ -268,7 +385,8 @@ export const Command: TUnion<[
 
 export function isCommand(value?: unknown): value is Command {
 	return isCommandRpc(value) || isCommandDocumentGet(value) || isCommandDocumentGetMany(value) ||
-		isCommandDocumentList(value) || isCommandDocumentAtomic(value) || isCommandEventPublish(value) || isCommandEventSubscribe(value) ||
+		isCommandDocumentList(value) || isCommandDocumentAtomic(value) || isCommandDocumentWatch(value) ||
+		isCommandCollectionWatch(value) || isCommandEventPublish(value) || isCommandEventSubscribe(value) ||
 		isCommandEventUnsubscribe(value);
 }
 

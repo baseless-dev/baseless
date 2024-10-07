@@ -37,7 +37,7 @@ export type TypedContext<
 	request: Request;
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 	document: TypedDocumentProvider<TDocument, TCollection>;
-	event: TypedEventProvider<TEvent>;
+	event: TypedEventProvider<TEvent, TDocument, TCollection>;
 	hub: HubService;
 	kv: KVProvider;
 	// TODO event: EventService<TClient>

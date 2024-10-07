@@ -111,7 +111,12 @@ export class Server {
 				waitUntilPromises.push(promise);
 			},
 		};
-		context.document = new ApplicationDocumentProviderFacade(this.#application, context, this.#documentProvider) as never;
+		context.document = new ApplicationDocumentProviderFacade(
+			this.#application,
+			context,
+			this.#documentProvider,
+			this.#eventProvider,
+		) as never;
 		context.event = new ApplicationEventProviderFacade(this.#application, context, this.#eventProvider) as never;
 		context.hub = new ApplicationHubServiceFacade(this.#application, context, this.#hubProvider!) as never;
 		await this.#application.decorate(context);
@@ -163,7 +168,8 @@ export class Server {
 							checks: command.checks,
 							context,
 							operations: command.ops,
-							provider: this.#documentProvider,
+							documentProvider: this.#documentProvider,
+							eventProvider: this.#eventProvider,
 						});
 					} else if (command.kind === "event-publish") {
 						result = await this.#application.publishEvent({

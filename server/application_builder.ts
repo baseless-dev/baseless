@@ -36,6 +36,7 @@ import type {
 	TypedContext,
 } from "./types.ts";
 import { Application } from "./application.ts";
+import { DocumentChange, TDocumentChange } from "@baseless/core/document";
 
 export class ApplicationBuilder<
 	TDecoration extends {} = {},
@@ -299,7 +300,7 @@ export class ApplicationBuilder<
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
-		TEvent,
+		TEvent | [EventDefinitionWithSecurity<["$document", ...TPath], TDocumentChange<TDocumentSchema>>],
 		TDocument | [DocumentDefinitionWithSecurity<TPath, TDocumentSchema>],
 		TCollection,
 		TFile,
@@ -313,7 +314,7 @@ export class ApplicationBuilder<
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
-		TEvent,
+		TEvent | [EventDefinitionWithoutSecurity<["$document", ...TPath], TDocumentChange<TDocumentSchema>>],
 		TDocument | [
 			DocumentDefinitionWithoutSecurity<TPath, TDocumentSchema>,
 		],
@@ -325,7 +326,10 @@ export class ApplicationBuilder<
 		return new ApplicationBuilder(
 			this.#decorator,
 			this.#rpc,
-			this.#event,
+			[
+				...this.#event,
+				{ path: ["$document", ...path], payload: DocumentChange(options.schema), security: options.security } as never,
+			],
 			[...this.#document, { path, ...options }],
 			this.#collection,
 			this.#eventListeners,
@@ -347,7 +351,9 @@ export class ApplicationBuilder<
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
-		TEvent,
+		TEvent | [EventDefinitionWithSecurity<["$document", ...TPath, "{docId}"], TDocumentChange<TCollectionSchema>>] | [
+			EventDefinitionWithSecurity<["$collection", ...TPath], TDocumentChange<TCollectionSchema>>,
+		],
 		TDocument | [
 			DocumentDefinitionWithSecurity<[...TPath, "{docId}"], TCollectionSchema>,
 		],
@@ -365,7 +371,9 @@ export class ApplicationBuilder<
 	): ApplicationBuilder<
 		TDecoration,
 		TRpc,
-		TEvent,
+		TEvent | [EventDefinitionWithoutSecurity<["$document", ...TPath, "{docId}"], TDocumentChange<TCollectionSchema>>] | [
+			EventDefinitionWithoutSecurity<["$collection", ...TPath], TDocumentChange<TCollectionSchema>>,
+		],
 		TDocument | [
 			DocumentDefinitionWithoutSecurity<[...TPath, "{docId}"], TCollectionSchema>,
 		],
@@ -379,7 +387,11 @@ export class ApplicationBuilder<
 		return new ApplicationBuilder(
 			this.#decorator,
 			this.#rpc,
-			this.#event,
+			[
+				...this.#event,
+				{ path: ["$document", ...path, "{docId}"], payload: DocumentChange(options.schema), security: options.security } as never,
+				{ path: ["$collection", ...path], payload: DocumentChange(options.schema), security: options.security } as never,
+			],
 			this.#document,
 			[...this.#collection, { path, ...options }],
 			this.#eventListeners,

@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { createPathMatcher, PathAsType, PathMatcher } from "@baseless/core/path";
+import { createPathMatcher, isPathMatching, PathAsType, PathMatcher } from "@baseless/core/path";
 import {
 	type CollectionDefinition,
 	Context,
@@ -211,21 +211,22 @@ export class Application {
 		yield* provider.list({ prefix, cursor, limit });
 	}
 
-	async commitDocumentAtomic({ bypassSecurity, checks, context, operations, provider }: {
+	async commitDocumentAtomic({ bypassSecurity, checks, context, operations, documentProvider, eventProvider }: {
 		bypassSecurity?: boolean;
 		checks: DocumentAtomicCheck[];
 		context: Context;
 		operations: DocumentAtomicOperation[];
-		provider: DocumentProvider;
+		documentProvider: DocumentProvider;
+		eventProvider: EventProvider;
 	}): Promise<void> {
 		if (bypassSecurity !== true) {
 			await this.getManyDocument({
 				paths: checks.map((c) => c.key),
 				context,
-				provider,
+				provider: documentProvider,
 			});
 		}
-		const atomic = provider.atomic();
+		const atomic = documentProvider.atomic();
 		for (const check of checks) {
 			atomic.check(check.key, check.versionstamp);
 		}
@@ -284,6 +285,21 @@ export class Application {
 					const params = PathAsType(event.path, op.key);
 					await event.handler({ context, params, document }).catch((_) => {});
 				}
+			}
+			await this.publishEvent({
+				context,
+				event: ["$document", ...op.key],
+				payload: op,
+				provider: eventProvider,
+			}).catch((_) => {});
+			const collection = this.#collectionMatcher(op.key.slice(0, -1)).next();
+			if (!collection.done) {
+				await this.publishEvent({
+					context,
+					event: ["$collection", ...collection.value.path],
+					payload: op,
+					provider: eventProvider,
+				}).catch((_) => {});
 			}
 		}
 	}

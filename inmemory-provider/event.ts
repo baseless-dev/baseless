@@ -18,9 +18,9 @@ export class MemoryEventProvider extends EventProvider {
 
 	publish(key: string[], payload: unknown): Promise<void> {
 		const subscribers = this.#subscribers.get(keyPathToKeyString(key));
-		const event: Event = { kind: "event", event: key, payload };
-		const eventString = JSON.stringify(event);
 		if (subscribers) {
+			const event: Event = { kind: "event", event: key, payload };
+			const eventString = JSON.stringify(event);
 			for (const hubId of subscribers) {
 				this.#hub.sendToHub(hubId, eventString);
 			}

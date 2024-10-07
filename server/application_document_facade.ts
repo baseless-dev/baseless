@@ -3,21 +3,25 @@ import { Document } from "@baseless/core/document";
 import { Application } from "./application.ts";
 import { TypedContext } from "./types.ts";
 import { DocumentAtomic, DocumentGetOptions, DocumentListEntry, DocumentListOptions, DocumentProvider } from "./document_provider.ts";
+import { EventProvider } from "./event_provider.ts";
 
 export class ApplicationDocumentProviderFacade extends DocumentProvider {
 	#application: Application;
 	#context: TypedContext<any, any, any, any>;
-	#provider: DocumentProvider;
+	#documentProvider: DocumentProvider;
+	#eventProvider: EventProvider;
 
 	constructor(
 		application: Application,
 		context: TypedContext<any, any, any, any>,
-		provider: DocumentProvider,
+		documentProvider: DocumentProvider,
+		eventProvider: EventProvider,
 	) {
 		super();
 		this.#application = application;
 		this.#context = context;
-		this.#provider = provider;
+		this.#documentProvider = documentProvider;
+		this.#eventProvider = eventProvider;
 	}
 
 	get(key: string[], options?: DocumentGetOptions): Promise<Document> {
@@ -26,7 +30,7 @@ export class ApplicationDocumentProviderFacade extends DocumentProvider {
 			context: this.#context,
 			options,
 			path: key,
-			provider: this.#provider,
+			provider: this.#documentProvider,
 		});
 	}
 
@@ -36,7 +40,7 @@ export class ApplicationDocumentProviderFacade extends DocumentProvider {
 			context: this.#context,
 			options,
 			paths: keys,
-			provider: this.#provider,
+			provider: this.#documentProvider,
 		});
 	}
 
@@ -47,7 +51,7 @@ export class ApplicationDocumentProviderFacade extends DocumentProvider {
 			cursor: options.cursor,
 			limit: options.limit,
 			prefix: options.prefix,
-			provider: this.#provider,
+			provider: this.#documentProvider,
 		});
 	}
 
@@ -55,7 +59,8 @@ export class ApplicationDocumentProviderFacade extends DocumentProvider {
 		return new ApplicationDocumentAtomicFacade(
 			this.#application,
 			this.#context,
-			this.#provider,
+			this.#documentProvider,
+			this.#eventProvider,
 		);
 	}
 }
@@ -63,17 +68,20 @@ export class ApplicationDocumentProviderFacade extends DocumentProvider {
 export class ApplicationDocumentAtomicFacade extends DocumentAtomic {
 	#application: Application;
 	#context: TypedContext<any, any, any, any>;
-	#provider: DocumentProvider;
+	#documentProvider: DocumentProvider;
+	#eventProvider: EventProvider;
 
 	constructor(
 		application: Application,
 		context: TypedContext<any, any, any, any>,
-		provider: DocumentProvider,
+		documentProvider: DocumentProvider,
+		eventProvider: EventProvider,
 	) {
 		super();
 		this.#application = application;
 		this.#context = context;
-		this.#provider = provider;
+		this.#documentProvider = documentProvider;
+		this.#eventProvider = eventProvider;
 	}
 
 	commit(): Promise<void> {
@@ -81,7 +89,8 @@ export class ApplicationDocumentAtomicFacade extends DocumentAtomic {
 			bypassSecurity: true,
 			checks: this.checks,
 			context: this.#context,
-			provider: this.#provider,
+			documentProvider: this.#documentProvider,
+			eventProvider: this.#eventProvider,
 			operations: this.operations,
 		});
 	}

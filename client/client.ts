@@ -1,5 +1,4 @@
 // deno-lint-ignore-file no-explicit-any
-import type { Static } from "@sinclair/typebox";
 import { isResults, isResultSingle, Results } from "@baseless/core/result";
 import MemoryStorage from "@baseless/core/memory-storage";
 import { stableStringify } from "@baseless/core/stable-stringify";
@@ -7,20 +6,21 @@ import { assertIdentity, type Identity } from "@baseless/core/identity";
 import { type AuthenticationTokens, isAuthenticationTokens } from "@baseless/core/authentication-tokens";
 import { EventEmitter } from "@baseless/core/eventemitter";
 import { isPathMatching } from "@baseless/core/path";
-import { Command, isCommandRpc } from "@baseless/core/command";
+import { Command, CommandCollectionWatch, isCommandRpc } from "@baseless/core/command";
 import type { ApplicationBuilder } from "@baseless/server/application-builder";
-import type {
-	CollectionDefinition,
-	DocumentDefinition,
-	EventDefinition,
-	PickAtPath,
-	RpcDefinition,
-	WithSecurity,
-} from "@baseless/server/types";
-import { Document } from "@baseless/core/document";
-import { DocumentAtomic, DocumentListEntry, DocumentListOptions, TypedDocumentAtomic } from "@baseless/server/document-provider";
+import { DocumentAtomic, DocumentListEntry, DocumentListOptions } from "@baseless/server/document-provider";
 import { encodeBase64Url } from "@std/encoding/base64url";
 import { isEvent } from "@baseless/core/event";
+import {
+	IClient,
+	ICollectionClient,
+	ICollectionsClient,
+	IDocumentClient,
+	IDocumentsClient,
+	IEventsClient,
+	TypedClientFromApplicationBuilder,
+} from "./types.ts";
+import { Document, DocumentChange } from "@baseless/core/document";
 
 function keyPathToKeyString(key: string[]): string {
 	return key.map((p) => p.replaceAll("/", "\\/")).join("/");
@@ -34,51 +34,76 @@ export interface ClientInitialization {
 	storage?: Storage;
 }
 
-// deno-fmt-ignore
-export type ClientFromApplicationBuilder<T extends ApplicationBuilder> = T extends
-	ApplicationBuilder<any, infer TRpc, infer TEvent, infer TDocument, infer TCollection, infer TFile, infer TFolder>
-	? TypedClient<WithSecurity<TRpc>, WithSecurity<TEvent>, WithSecurity<TDocument>, WithSecurity<TCollection>, WithSecurity<TFile>, WithSecurity<TFolder>>
-	: never;
-
-export class Client {
+export class Client implements IClient {
 	static fromApplicationBuilder<
 		TApplication extends ApplicationBuilder,
-	>(initialization: ClientInitialization): ClientFromApplicationBuilder<TApplication> {
+	>(initialization: ClientInitialization): TypedClientFromApplicationBuilder<TApplication> {
 		return new Client(initialization) as never;
 	}
 
-	#clientId: string;
-	#apiEndpoint: string;
-	#fetch: typeof globalThis.fetch;
-	#batchSize: number;
+	#internal: ClientInternal;
+
+	constructor(initialization: ClientInitialization) {
+		this.#internal = new ClientInternal(initialization);
+	}
+	get clientId(): string {
+		return this.#internal.clientId;
+	}
+	setStorage(storage: Storage): void {
+		this.#internal.setStorage(storage);
+	}
+	get currentIdentity(): Readonly<Identity> | undefined {
+		return this.#internal.getCurrentIdentity();
+	}
+	onAuthenticationStateChange(listener: (identity: Readonly<Identity> | undefined) => void | Promise<void>): Disposable {
+		return this.#internal.authEvents.on("onAuthenticationStateChange", listener);
+	}
+	rpc(key: string[], input: unknown, dedup?: boolean): Promise<unknown> {
+		return this.#internal.rpc(key, input, dedup);
+	}
+	get collections(): ICollectionsClient {
+		return this.#internal.collections.bind(this.#internal);
+	}
+	get documents(): IDocumentsClient {
+		return this.#internal.documents;
+	}
+	get events(): IEventsClient {
+		return this.#internal.events.bind(this.#internal);
+	}
+	[Symbol.asyncDispose](): PromiseLike<void> {
+		return this.#internal[Symbol.asyncDispose]();
+	}
+}
+
+class ClientInternal implements AsyncDisposable {
+	clientId: string;
+	apiEndpoint: string;
+	fetch: typeof globalThis.fetch;
+	batchSize: number;
 	#storage!: Storage;
 	#tokens: AuthenticationTokens[];
 	#currentTokenIndex: number;
 	#expirationTimer?: number;
 	#accessTokenExpiration?: number;
-	#authEvents: EventEmitter<{ onAuthenticationStateChange: [identity: Identity | undefined] }>;
-	#events: EventEmitter<{ [key: string]: [unknown] }>;
+	authEvents: EventEmitter<{ onAuthenticationStateChange: [identity: Identity | undefined] }>;
+	genericEvents: EventEmitter<{ [key: string]: [unknown] }>;
 	#socket?: Promise<WebSocket>;
 
 	constructor(initialization: ClientInitialization) {
-		this.#clientId = initialization.clientId;
-		this.#apiEndpoint = initialization.apiEndpoint;
-		this.#fetch = initialization.fetch ?? globalThis.fetch.bind(globalThis);
-		this.#batchSize = initialization.batchSize ?? 10;
+		this.clientId = initialization.clientId;
+		this.apiEndpoint = initialization.apiEndpoint;
+		this.fetch = initialization.fetch ?? globalThis.fetch.bind(globalThis);
+		this.batchSize = initialization.batchSize ?? 10;
 		this.#tokens = [];
 		this.#currentTokenIndex = -1;
-		this.#authEvents = new EventEmitter();
-		this.#events = new EventEmitter();
-		this.storage = initialization.storage ?? new MemoryStorage();
+		this.authEvents = new EventEmitter();
+		this.genericEvents = new EventEmitter();
+		this.setStorage(initialization.storage ?? new MemoryStorage());
 		this.#readData();
 		this.#setupTimer();
 	}
 
-	[Symbol.asyncDispose](): Promise<void> {
-		return this.dispose();
-	}
-
-	async dispose(): Promise<void> {
+	async [Symbol.asyncDispose](): Promise<void> {
 		if (this.#expirationTimer) {
 			clearTimeout(this.#expirationTimer);
 		}
@@ -89,84 +114,26 @@ export class Client {
 		}
 	}
 
-	get clientId(): string {
-		return this.#clientId;
-	}
-
-	get storage(): Storage {
-		return this.#storage;
-	}
-
-	set storage(storage: Storage) {
+	setStorage(storage: Storage): void {
 		this.#storage = storage;
 		this.#readData();
 		this.#setupTimer();
 	}
 
-	get tokens(): ReadonlyArray<Readonly<AuthenticationTokens>> {
-		return this.#tokens;
-	}
-
-	set tokens(value: AuthenticationTokens[]) {
-		this.#tokens = value;
-		this.#writeData();
-		if (this.#currentTokenIndex >= this.#tokens.length) {
-			this.#currentTokenIndex = -1;
-		}
-	}
-
-	get currentToken(): AuthenticationTokens | undefined {
-		return this.#tokens[this.#currentTokenIndex];
-	}
-
-	set currentToken(value: AuthenticationTokens | undefined) {
-		const index = !value ? -1 : this.#tokens.indexOf(value);
-		if (index >= -1) {
-			this.#currentTokenIndex = index;
-		} else {
-			throw new Error("Invalid token index");
-		}
-		this.#writeData();
-		this.#setupTimer();
-	}
-
-	get currentIdentity(): Identity | undefined {
-		const currentToken = this.currentToken;
-		if (currentToken) {
-			try {
-				const { sub: identityId, data = {} } = JSON.parse(
-					atob(currentToken.id_token.split(".").at(1)!),
-				);
-				const identity = { identityId, data };
-				assertIdentity(identity);
-				return identity;
-			} catch (_error) {}
-		}
-		return undefined;
-	}
-
 	#readData(): void {
-		const tokens = JSON.parse(
-			this.#storage.getItem(`baseless:${this.#clientId}:tokens`) ?? "{}",
-		);
+		const tokens = JSON.parse(this.#storage.getItem(`baseless:${this.clientId}:tokens`) ?? "{}");
 		this.#tokens = Array.isArray(tokens) && tokens.every(isAuthenticationTokens) ? tokens : [];
-		const currentToken = parseInt(
-			this.#storage.getItem(`baseless:${this.#clientId}:currentToken`) ?? "-1",
-			10,
-		);
+		const currentToken = parseInt(this.#storage.getItem(`baseless:${this.clientId}:currentToken`) ?? "-1", 10);
 		this.#currentTokenIndex = currentToken;
 	}
 
 	#writeData(): void {
-		this.#storage.setItem(`baseless:${this.#clientId}:tokens`, JSON.stringify(this.#tokens));
-		this.#storage.setItem(
-			`baseless:${this.#clientId}:currentToken`,
-			this.#currentTokenIndex.toString(),
-		);
+		this.#storage.setItem(`baseless:${this.clientId}:tokens`, JSON.stringify(this.#tokens));
+		this.#storage.setItem(`baseless:${this.clientId}:currentToken`, this.#currentTokenIndex.toString());
 	}
 
 	#setupTimer(): void {
-		const currentToken = this.currentToken;
+		const currentToken = this.getCurrentToken();
 		if (currentToken) {
 			const { exp: accessTokenExp = Number.MAX_VALUE } = JSON.parse(
 				atob(currentToken.access_token.split(".").at(1)!),
@@ -183,15 +150,84 @@ export class Client {
 			this.#accessTokenExpiration = parseInt(accessTokenExp, 10);
 			this.#expirationTimer = setTimeout(
 				() => {
-					this.currentToken = undefined;
+					this.setCurrentToken(undefined);
 				},
 				expiration * 1000 - Date.now(),
 			);
-			this.#authEvents.emit("onAuthenticationStateChange", identity);
+			this.authEvents.emit("onAuthenticationStateChange", identity);
 		} else {
 			this.#expirationTimer && clearTimeout(this.#expirationTimer);
 			this.#expirationTimer = undefined;
-			this.#authEvents.emit("onAuthenticationStateChange", undefined);
+			this.authEvents.emit("onAuthenticationStateChange", undefined);
+		}
+	}
+
+	setTokens(value: AuthenticationTokens[]): void {
+		this.#tokens = value;
+		this.#writeData();
+		if (this.#currentTokenIndex >= this.#tokens.length) {
+			this.#currentTokenIndex = -1;
+		}
+	}
+
+	getCurrentToken(): AuthenticationTokens | undefined {
+		return this.#tokens[this.#currentTokenIndex];
+	}
+
+	setCurrentToken(value: AuthenticationTokens | undefined): void {
+		const index = !value ? -1 : this.#tokens.indexOf(value);
+		if (index >= -1) {
+			this.#currentTokenIndex = index;
+		} else {
+			throw new Error("Invalid token index");
+		}
+		this.#writeData();
+		this.#setupTimer();
+	}
+
+	getCurrentIdentity(): Identity | undefined {
+		const currentToken = this.getCurrentToken();
+		if (currentToken) {
+			try {
+				const { sub: identityId, data = {} } = JSON.parse(
+					atob(currentToken.id_token.split(".").at(1)!),
+				);
+				const identity = { identityId, data };
+				assertIdentity(identity);
+				return identity;
+			} catch (_error) {}
+		}
+		return undefined;
+	}
+
+	async reauthenticateIfNeeded(): Promise<void> {
+		const now = Date.now() / 1000 >> 0;
+		const currentToken = this.getCurrentToken();
+		// Reauthenticate if token is expired
+		if (
+			currentToken?.access_token && currentToken.refresh_token &&
+			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
+		) {
+			const response = await this.fetch(this.apiEndpoint, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					kind: "rpc",
+					rpc: ["authentication", "refreshAccessToken"],
+					input: currentToken.refresh_token,
+				}),
+			});
+			const result = await response.json();
+			if (isResultSingle(result) && isAuthenticationTokens(result.value)) {
+				this.setTokens([
+					...this.#tokens.filter((_, i) => i !== this.#currentTokenIndex),
+					result.value,
+				]);
+				this.setCurrentToken(result.value);
+			} else {
+				this.setTokens(this.#tokens.filter((_, i) => i !== this.#currentTokenIndex));
+				this.setCurrentToken(undefined);
+			}
 		}
 	}
 
@@ -205,47 +241,12 @@ export class Client {
 	> = [];
 	#batchTimout: number | null = null;
 
-	async #reauthenticateIfNeeded(): Promise<void> {
-		const now = Date.now() / 1000 >> 0;
-		let currentToken = this.currentToken;
-		// Reauthenticate if token is expired
-		if (
-			currentToken?.access_token && currentToken.refresh_token &&
-			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
-		) {
-			const response = await this.#fetch(this.#apiEndpoint, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					kind: "rpc",
-					rpc: ["authentication", "refreshAccessToken"],
-					input: currentToken.refresh_token,
-				}),
-			});
-			const result = await response.json();
-			if (isResultSingle(result) && isAuthenticationTokens(result.value)) {
-				this.tokens = [
-					...this.tokens.filter((_, i) => i !== this.#currentTokenIndex),
-					result.value,
-				];
-				this.currentToken = result.value;
-				currentToken = result.value;
-			} else {
-				this.tokens = this.tokens.filter((_, i) => i !== this.#currentTokenIndex);
-				this.currentToken = undefined;
-				currentToken = undefined;
-			}
-		}
-	}
-
 	async #processCommandQueue(): Promise<void> {
-		await this.#reauthenticateIfNeeded();
-		const currentToken = this.currentToken;
-		const commands = this.#commandQueue.splice(0, this.#batchSize);
+		await this.reauthenticateIfNeeded();
+		const currentToken = this.getCurrentToken();
+		const commands = this.#commandQueue.splice(0, this.batchSize);
 		try {
-			const response = await this.#fetch(this.#apiEndpoint, {
+			const response = await this.fetch(this.apiEndpoint, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -274,13 +275,13 @@ export class Client {
 							) && isAuthenticationTokens(value.value)
 						) {
 							// Switch to latest tokens
-							this.tokens = [...this.tokens, value.value];
-							this.currentToken = value.value;
+							this.setTokens([...this.#tokens, value.value]);
+							this.setCurrentToken(value.value);
 						} else if (
 							isPathMatching(["authentication", "signOut"], command.command.rpc)
 						) {
-							this.tokens = this.tokens.filter((_, i) => i !== this.#currentTokenIndex);
-							this.currentToken = undefined;
+							this.setTokens(this.#tokens.filter((_, i) => i !== this.#currentTokenIndex));
+							this.setCurrentToken(undefined);
 						}
 					}
 				} else {
@@ -301,7 +302,7 @@ export class Client {
 		}
 	}
 
-	#enqueueCommand(command: Command, dedup: boolean): Promise<unknown> {
+	enqueueCommand(command: Command, dedup: boolean): Promise<unknown> {
 		const key = stableStringify(command);
 		if (dedup === true) {
 			const cachedCommand = this.#commandCache.get(key);
@@ -321,11 +322,11 @@ export class Client {
 
 	#ensureWebSocket(): Promise<WebSocket> {
 		this.#socket ??= new Promise<WebSocket>((resolve, reject) => {
-			this.#reauthenticateIfNeeded()
+			this.reauthenticateIfNeeded()
 				.then(() => {
-					const url = new URL(this.#apiEndpoint);
+					const url = new URL(this.apiEndpoint);
 					url.protocol = url.protocol === "http:" ? "ws:" : "wss:";
-					const currentToken = this.currentToken;
+					const currentToken = this.getCurrentToken();
 					const protocols: string[] = [];
 					if (currentToken?.access_token) {
 						protocols.push(`base64url.bearer.authorization.baseless.dev.${encodeBase64Url(currentToken.access_token)}`);
@@ -349,7 +350,7 @@ export class Client {
 						const data = e.data;
 						const event = JSON.parse(data.toString());
 						if (isEvent(event)) {
-							this.#events.emit(keyPathToKeyString(event.event), event.payload);
+							this.genericEvents.emit(keyPathToKeyString(event.event), event.payload);
 						}
 					}, { signal: messageAbortController.signal });
 
@@ -361,14 +362,13 @@ export class Client {
 		return this.#socket;
 	}
 
-	onAuthenticationStateChange(
-		listener: (identity: Identity | undefined) => void | Promise<void>,
-	): Disposable {
-		return this.#authEvents.on("onAuthenticationStateChange", listener);
+	async sendWebSocketCommand(command: Command): Promise<void> {
+		const socket = await this.#ensureWebSocket();
+		socket.send(JSON.stringify(command));
 	}
 
 	rpc(key: string[], input: unknown, dedup = true): Promise<unknown> {
-		return this.#enqueueCommand({
+		return this.enqueueCommand({
 			kind: "rpc",
 			rpc: key,
 			input,
@@ -376,126 +376,54 @@ export class Client {
 	}
 
 	collections(key: string[]): CollectionClient {
-		// deno-lint-ignore no-this-alias
-		const client = this;
-		return {
-			async *list(options): AsyncIterableIterator<DocumentListEntry> {
-				const entries = await client.#enqueueCommand({
-					kind: "document-list",
-					prefix: key,
-					cursor: options?.cursor,
-					limit: options?.limit,
-				}, false);
-				yield* (entries as any);
-			},
-			watch: () => {
-				throw "TODO";
-			},
-		};
+		return new CollectionClient(this, key);
 	}
 
-	documents: DocumentsClient = Object.assign(
-		(key: string[]) => new DocumentClient(key, this.#enqueueCommand.bind(this)),
+	documents: IDocumentsClient = Object.assign(
+		(key: string[]) => new DocumentClient(this, key),
 		{
-			atomic: () => new DocumentAtomicClient(this.#enqueueCommand.bind(this)),
+			atomic: () => new DocumentAtomicClient(this),
 			getMany: (keys: string[][]) => {
-				return this.#enqueueCommand({
+				return this.enqueueCommand({
 					kind: "document-get-many",
 					paths: keys,
 				}, false) as never;
-			},
-			watchMany: (keys: string[][]) => {
-				throw "TODO!";
 			},
 		},
 	);
 
 	events(key: string[]): EventClient {
-		return new EventClient(key, this.#ensureWebSocket.bind(this), this.#events);
+		return new EventClient(this, key);
 	}
 }
 
-export class DocumentClient<TData = unknown> {
+export class DocumentClient implements IDocumentClient {
+	#internal: ClientInternal;
 	#key: string[];
-	#enqueueCommand: (command: Command, dedup: boolean) => Promise<unknown>;
-	constructor(key: string[], enqueueCommand: (command: Command, dedup: boolean) => Promise<unknown>) {
+	constructor(internal: ClientInternal, key: string[]) {
+		this.#internal = internal;
 		this.#key = key;
-		this.#enqueueCommand = enqueueCommand;
 	}
-	get(): Promise<Document<TData>> {
-		return this.#enqueueCommand({
+	get(): Promise<Document<unknown>> {
+		return this.#internal.enqueueCommand({
 			kind: "document-get",
 			path: this.#key,
 		}, false) as never;
 	}
-	watch(abortSignal?: AbortSignal): AsyncIterableIterator<Document<TData>> {
-		throw "TODO!";
-	}
-}
 
-export interface CollectionClient<TData = unknown> {
-	list(options?: Omit<DocumentListOptions, "prefix">): AsyncIterableIterator<DocumentListEntry<TData>>;
-	watch(
-		options?: Omit<DocumentListOptions, "prefix">,
-		abortSignal?: AbortSignal,
-	): AsyncIterableIterator<Iterator<DocumentListEntry<TData>>>;
-}
-
-export class DocumentAtomicClient extends DocumentAtomic {
-	#enqueueCommand: (command: Command, dedup: boolean) => Promise<unknown>;
-	constructor(enqueueCommand: (command: Command, dedup: boolean) => Promise<unknown>) {
-		super();
-		this.#enqueueCommand = enqueueCommand;
-	}
-	commit(): Promise<void> {
-		return this.#enqueueCommand({
-			kind: "document-atomic",
-			checks: this.checks,
-			ops: this.operations,
-		}, false) as never;
-	}
-}
-
-export interface DocumentsClient {
-	(key: string[]): DocumentClient;
-	atomic(): DocumentAtomic;
-	getMany(keys: string[][]): Promise<Document[]>;
-	watchMany(keys: string[][], abortSignal?: AbortSignal): AsyncIterableIterator<Document> & AsyncDisposable;
-}
-
-export interface CollectionsClient {
-	(key: string[]): CollectionClient;
-}
-
-export class EventClient<TPayload = unknown> {
-	#key: string[];
-	#ensureWebSocket: () => Promise<WebSocket>;
-	#eventEmitter: EventEmitter<{ [key: string]: [unknown] }>;
-	constructor(key: string[], ensureWebSocket: () => Promise<WebSocket>, eventEmitter: EventEmitter) {
-		this.#key = key;
-		this.#ensureWebSocket = ensureWebSocket;
-		this.#eventEmitter = eventEmitter;
-	}
-
-	async publish(payload: TPayload): Promise<void> {
-		const socket = await this.#ensureWebSocket();
-		socket.send(JSON.stringify({ kind: "event-publish", event: this.#key, payload }));
-	}
-
-	async *subscribe(signal?: AbortSignal): AsyncIterableIterator<TPayload> {
+	async *watch(abortSignal?: AbortSignal): AsyncIterableIterator<DocumentChange<unknown>> {
 		const key = this.#key;
-		const event = keyPathToKeyString(key);
-		const eventEmitter = this.#eventEmitter;
+		const event = keyPathToKeyString(["$document", ...this.#key]);
 		const abortController = new AbortController();
-		const socket = await this.#ensureWebSocket();
+		const internal = this.#internal;
 		// Subscribe if not already subscribed
-		if (!eventEmitter.listeners().has(event)) {
-			socket.send(JSON.stringify({ kind: "event-subscribe", event: key }));
+		if (!internal.genericEvents.listeners().has(event)) {
+			internal.sendWebSocketCommand({ kind: "document-watch", key });
 		}
-		const eventStream = new ReadableStream<TPayload>({
+		const eventStream = new ReadableStream<DocumentChange<unknown>>({
 			start(controller): void {
-				const disposable = eventEmitter.on(event, (payload) => {
-					controller.enqueue(payload as TPayload);
+				const disposable = internal.genericEvents.on(event, (payload) => {
+					controller.enqueue(payload as never);
 				});
 				abortController.signal.addEventListener("abort", () => {
 					disposable[Symbol.dispose]();
@@ -508,69 +436,124 @@ export class EventClient<TPayload = unknown> {
 		});
 		// Unsubscribe if no listeners left
 		abortController.signal.addEventListener("abort", () => {
-			if (!eventEmitter.listeners().has(event)) {
-				socket.send(JSON.stringify({ kind: "event-unsubscribe", event: key }));
+			if (!internal.genericEvents.listeners().has(event)) {
+				internal.sendWebSocketCommand({ kind: "document-unwatch", key });
 			}
 		});
-		signal?.addEventListener("abort", () => abortController.abort());
+		abortSignal?.addEventListener("abort", () => abortController.abort());
 		yield* eventStream.values();
 	}
 }
 
-export interface TypedDocumentsClient<
-	TDocument extends Array<DocumentDefinition<any, any>> = [],
-> extends DocumentsClient {
-	<
-		const TDocumentPath extends TDocument[number]["matcher"],
-		const TDocumentDefinition extends PickAtPath<TDocument, TDocumentPath>,
-	>(key: TDocumentPath): DocumentClient<Static<TDocumentDefinition["schema"]>>;
-	atomic(): TypedDocumentAtomic<TDocument>;
-	getMany<
-		const TDocumentPath extends TDocument[number]["matcher"],
-	>(keys: Array<TDocumentPath>): Promise<Document[]>;
-	watchMany<
-		const TDocumentPath extends TDocument[number]["matcher"],
-	>(keys: Array<TDocumentPath>, abortSignal?: AbortSignal): AsyncIterableIterator<Document> & AsyncDisposable;
+export class DocumentAtomicClient extends DocumentAtomic {
+	#internal: ClientInternal;
+	constructor(internal: ClientInternal) {
+		super();
+		this.#internal = internal;
+	}
+	commit(): Promise<void> {
+		return this.#internal.enqueueCommand({
+			kind: "document-atomic",
+			checks: this.checks,
+			ops: this.operations,
+		}, false) as never;
+	}
 }
 
-export interface TypedCollectionsClient<
-	TCollection extends Array<CollectionDefinition<any, any>> = [],
-> extends CollectionsClient {
-	<
-		const TCollectionPath extends TCollection[number]["matcher"],
-		const TCollectionDefinition extends PickAtPath<TCollection, TCollectionPath>,
-	>(key: TCollectionPath): CollectionClient<Static<TCollectionDefinition["schema"]>>;
+export class CollectionClient implements ICollectionClient {
+	#internal: ClientInternal;
+	#key: string[];
+	constructor(internal: ClientInternal, key: string[]) {
+		this.#internal = internal;
+		this.#key = key;
+	}
+	async *list(options?: Omit<DocumentListOptions, "prefix">): AsyncIterableIterator<DocumentListEntry<unknown>> {
+		const entries = await this.#internal.enqueueCommand({
+			kind: "document-list",
+			prefix: this.#key,
+			cursor: options?.cursor,
+			limit: options?.limit,
+		}, false);
+		yield* (entries as any);
+	}
+	async *watch(
+		options?: Omit<CommandCollectionWatch, "kind" | "key">,
+		abortSignal?: AbortSignal,
+	): AsyncIterableIterator<DocumentChange<unknown>> {
+		const key = this.#key;
+		const event = keyPathToKeyString(["$collection", ...this.#key]);
+		const abortController = new AbortController();
+		const internal = this.#internal;
+		internal.sendWebSocketCommand({ ...options, kind: "collection-watch", key });
+		const eventStream = new ReadableStream<DocumentChange<unknown>>({
+			start(controller): void {
+				const disposable = internal.genericEvents.on(event, (payload) => {
+					controller.enqueue(payload as never);
+				});
+				abortController.signal.addEventListener("abort", () => {
+					disposable[Symbol.dispose]();
+					controller.close();
+				});
+			},
+			cancel(): void {
+				// abortController.abort();
+			},
+		});
+		// Unsubscribe if no listeners left
+		abortController.signal.addEventListener("abort", () => {
+			internal.sendWebSocketCommand({ ...options, kind: "collection-unwatch", key });
+		});
+		abortSignal?.addEventListener("abort", () => abortController.abort());
+		yield* eventStream.values();
+	}
 }
 
-export interface TypedEventClient<
-	TEvent extends Array<EventDefinition<any, any>> = [],
-> extends EventClient {
-	<
-		const TEventPath extends TEvent[number]["matcher"],
-		const TEventDefinition extends PickAtPath<TEvent, TEventPath>,
-	>(key: TEventPath): EventClient<Static<TEventDefinition["payload"]>>;
-}
+export class EventClient {
+	#internal: ClientInternal;
+	#key: string[];
+	constructor(internal: ClientInternal, key: string[]) {
+		this.#internal = internal;
+		this.#key = key;
+	}
 
-export interface TypedClient<
-	TRpc extends Array<RpcDefinition<any, any, any>> = [],
-	TEvent extends Array<EventDefinition<any, any>> = [],
-	TDocument extends Array<DocumentDefinition<any, any>> = [],
-	TCollection extends Array<CollectionDefinition<any, any>> = [],
-	TFile extends Array<unknown> = [],
-	TFolder extends Array<unknown> = [],
-> extends Client {
-	rpc<
-		const TRpcPath extends TRpc[number]["matcher"],
-		const TRpcDefinition extends PickAtPath<TRpc, TRpcPath>,
-	>(
-		key: TRpcPath,
-		input: Static<TRpcDefinition["input"]>,
-		dedup?: boolean,
-	): Promise<Static<TRpcDefinition["output"]>>;
+	publish(payload: unknown): Promise<void> {
+		return this.#internal.sendWebSocketCommand({
+			kind: "event-publish",
+			event: this.#key,
+			payload,
+		});
+	}
 
-	documents: TypedDocumentsClient<TDocument>;
-
-	collections: TypedCollectionsClient<TCollection>;
-
-	events: TypedEventClient<TEvent>;
+	async *subscribe(abortSignal?: AbortSignal): AsyncIterableIterator<unknown> {
+		const key = this.#key;
+		const event = keyPathToKeyString(key);
+		const abortController = new AbortController();
+		const internal = this.#internal;
+		// Subscribe if not already subscribed
+		if (!internal.genericEvents.listeners().has(event)) {
+			internal.sendWebSocketCommand({ kind: "event-subscribe", event: key });
+		}
+		const eventStream = new ReadableStream<unknown>({
+			start(controller): void {
+				const disposable = internal.genericEvents.on(event, (payload) => {
+					controller.enqueue(payload);
+				});
+				abortController.signal.addEventListener("abort", () => {
+					disposable[Symbol.dispose]();
+					controller.close();
+				});
+			},
+			cancel(): void {
+				// abortController.abort();
+			},
+		});
+		// Unsubscribe if no listeners left
+		abortController.signal.addEventListener("abort", () => {
+			if (!internal.genericEvents.listeners().has(event)) {
+				internal.sendWebSocketCommand({ kind: "event-unsubscribe", event: key });
+			}
+		});
+		abortSignal?.addEventListener("abort", () => abortController.abort());
+		yield* eventStream.values();
+	}
 }

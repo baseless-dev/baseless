@@ -30,6 +30,7 @@ Deno.test("Application", async (t) => {
 		);
 	});
 	const documentProvider = new MemoryDocumentProvider();
+	const eventProvider = {} as never;
 	await t.step("app.getDocumentAtomic().set", async () => {
 		const app = new ApplicationBuilder()
 			.document(["users", "{userId}"], {
@@ -40,7 +41,8 @@ Deno.test("Application", async (t) => {
 
 		await app.commitDocumentAtomic({
 			context,
-			provider: documentProvider,
+			documentProvider,
+			eventProvider,
 			checks: [],
 			operations: [
 				{ type: "set", key: ["users", "1"], data: "foo" },
@@ -58,7 +60,8 @@ Deno.test("Application", async (t) => {
 
 		await app.commitDocumentAtomic({
 			context,
-			provider: documentProvider,
+			documentProvider,
+			eventProvider,
 			checks: [],
 			operations: [
 				{ type: "delete", key: ["users", "2"] },
@@ -96,7 +99,8 @@ Deno.test("Application", async (t) => {
 
 		await app.commitDocumentAtomic({
 			context,
-			provider: documentProvider,
+			documentProvider,
+			eventProvider,
 			checks: [],
 			operations: [
 				{ type: "set", key: ["users", "3"], data: "foo" },
@@ -108,7 +112,8 @@ Deno.test("Application", async (t) => {
 		await assertRejects(() =>
 			app.commitDocumentAtomic({
 				context,
-				provider: documentProvider,
+				documentProvider,
+				eventProvider,
 				checks: [],
 				operations: [
 					{ type: "set", key: ["users", "deny"], data: "deny" },
@@ -119,7 +124,8 @@ Deno.test("Application", async (t) => {
 		await assertRejects(() =>
 			app.commitDocumentAtomic({
 				context,
-				provider: documentProvider,
+				documentProvider,
+				eventProvider,
 				checks: [],
 				operations: [
 					{ type: "set", key: ["users", "error"], data: "error" },
@@ -144,7 +150,8 @@ Deno.test("Application", async (t) => {
 
 		await app.commitDocumentAtomic({
 			context,
-			provider: documentProvider,
+			documentProvider,
+			eventProvider,
 			checks: [],
 			operations: [
 				{ type: "set", key: ["users", "4"], data: "joo" },
@@ -155,7 +162,8 @@ Deno.test("Application", async (t) => {
 
 		app.commitDocumentAtomic({
 			context,
-			provider: documentProvider,
+			documentProvider,
+			eventProvider,
 			checks: [],
 			operations: [
 				{ type: "set", key: ["users", "error"], data: "error" },

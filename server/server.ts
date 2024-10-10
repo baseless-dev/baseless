@@ -65,7 +65,7 @@ export class Server {
 				return [response, waitUntilPromises];
 			} catch (error) {
 				return [
-					Response.json({ kind: "error", error: error?.name ?? error }, { status: 500 }),
+					Response.json({ kind: "error", error: error instanceof Error ? error.constructor.name : error }, { status: 500 }),
 					[],
 				];
 			}
@@ -87,7 +87,7 @@ export class Server {
 			return [Response.json(result), promises];
 		} catch (error) {
 			return [
-				Response.json({ kind: "error", error: error?.name ?? error }, { status: 500 }),
+				Response.json({ kind: "error", error: error instanceof Error ? error.constructor.name : error }, { status: 500 }),
 				[],
 			];
 		}
@@ -183,7 +183,7 @@ export class Server {
 					}
 					results.push({ kind: "result", value: result });
 				} catch (error) {
-					const result = error.constructor?.name ?? error?.name ?? error;
+					const result = error instanceof Error ? error.constructor.name : error;
 					results.push({ kind: "error", error: result });
 				}
 			}
@@ -192,7 +192,7 @@ export class Server {
 
 			return [result, waitUntilPromises];
 		} catch (error) {
-			return [{ kind: "error", error: error.constructor?.name ?? error?.name ?? error }, []];
+			return [{ kind: "error", error: error instanceof Error ? error.constructor.name : error }, []];
 		}
 	}
 }

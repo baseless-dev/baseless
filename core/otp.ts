@@ -32,9 +32,7 @@ export function assertOTPAlgorithm(
 	}
 }
 
-export class InvalidOTPAlgorithmError extends Error {
-	name = "InvalidOTPAlgorithmError" as const;
-}
+export class InvalidOTPAlgorithmError extends Error {}
 
 export function isHOTPOptions(value?: unknown): value is HOTPOptions {
 	return !!value && typeof value === "object" && "key" in value &&
@@ -51,9 +49,7 @@ export function assertHOTPOptions(
 	}
 }
 
-export class InvalidHOTPOptionsError extends Error {
-	name = "InvalidHOTPOptionsError" as const;
-}
+export class InvalidHOTPOptionsError extends Error {}
 
 export function isTOTPOptions(value?: unknown): value is TOTPOptions {
 	return !!value && typeof value === "object" && "key" in value &&
@@ -71,9 +67,7 @@ export function assertTOTPOptions(
 	}
 }
 
-export class InvalidTOTPOptionsError extends Error {
-	name = "InvalidTOTPOptionsError" as const;
-}
+export class InvalidTOTPOptionsError extends Error {}
 
 export function isOTPOptions(value?: unknown): value is OTPOptions {
 	return !!value && typeof value === "object" && "digits" in value &&
@@ -88,9 +82,7 @@ export function assertOTPOptions(
 	}
 }
 
-export class InvalidOTPOptionsError extends Error {
-	name = "InvalidOTPOptionsError" as const;
-}
+export class InvalidOTPOptionsError extends Error {}
 
 /**
  * Converts a counter value to a 128-bit Uint8Array representation with padding.

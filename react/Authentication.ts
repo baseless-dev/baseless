@@ -14,6 +14,7 @@ import type { AuthenticationComponent, AuthenticationComponentPrompt } from "@ba
 import type { AuthenticationStep } from "@baseless/core/authentication-step";
 import useKeyedPromise from "./useKeyedPromise.ts";
 import { id } from "@baseless/core/id";
+import type { AuthenticationDependencies } from "../server/types.ts";
 
 export interface AuthenticationController {
 	key: string;
@@ -45,6 +46,7 @@ export function Authentication({
 	const authClient = client as never as TypedClientFromApplicationBuilder<
 		ApplicationBuilder<
 			AuthenticationDecoration,
+			AuthenticationDependencies,
 			AuthenticationRpcs,
 			[],
 			AuthenticationDocuments,

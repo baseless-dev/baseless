@@ -45,13 +45,6 @@ Deno.test("AuthenticationApplication", async (t) => {
 						component("email"),
 						component("password"),
 					),
-			identityComponentProviders: {
-				email: emailProvider,
-				password: passwordProvider,
-				policy: policyProvider,
-			},
-			notificationProvider,
-			keys: { ...keyPair, algo: "PS512" },
 		})
 			.build();
 		const context: AuthenticationContext = {
@@ -63,6 +56,13 @@ Deno.test("AuthenticationApplication", async (t) => {
 			kv: kvProvider as never,
 			notification: notificationProvider as never,
 			waitUntil(_promise) {},
+			identityComponentProviders: {
+				email: emailProvider,
+				password: passwordProvider,
+				policy: policyProvider,
+			},
+			notificationProvider,
+			authenticationKeys: { ...keyPair, algo: "PS512" },
 		};
 		context.document = new ApplicationDocumentProviderFacade(
 			app,

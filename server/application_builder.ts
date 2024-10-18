@@ -40,6 +40,7 @@ import { DocumentChange, TDocumentChange } from "@baseless/core/document";
 
 export class ApplicationBuilder<
 	TDecoration extends {} = {},
+	TDependencies extends {} = {},
 	TRpc extends Array<RpcDefinition<any, any, any>> = [],
 	TEvent extends Array<EventDefinition<any, any>> = [],
 	TDocument extends Array<DocumentDefinition<any, any>> = [],
@@ -107,7 +108,7 @@ export class ApplicationBuilder<
 		this.#documentDeletedListeners = [...documentDeletedListeners ?? []];
 	}
 
-	build(): Application {
+	build(): Application<TDependencies> {
 		return new Application(
 			[...this.#decorator],
 			[...this.#rpc],
@@ -128,6 +129,7 @@ export class ApplicationBuilder<
 		decorator: (context: TypedContext<TDecoration, TEvent, TDocument, TCollection>) => Promise<TNewContext>,
 	): ApplicationBuilder<
 		TDecoration & TNewContext,
+		TDependencies,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -149,6 +151,19 @@ export class ApplicationBuilder<
 			this.#documentDeletingListeners,
 			this.#documentDeletedListeners,
 		);
+	}
+
+	depends<const TNewDependency extends {}>(): ApplicationBuilder<
+		TDecoration & TNewDependency,
+		TDependencies & TNewDependency,
+		TRpc,
+		TEvent,
+		TDocument,
+		TCollection,
+		TFile,
+		TFolder
+	> {
+		return this as never;
 	}
 
 	rpc<
@@ -180,6 +195,7 @@ export class ApplicationBuilder<
 		},
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc | [RpcDefinitionWithSecurity<TPath, TInputSchema, TOutputSchema>],
 		TEvent,
 		TDocument,
@@ -208,6 +224,7 @@ export class ApplicationBuilder<
 		},
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc | [RpcDefinitionWithoutSecurity<TPath, TInputSchema, TOutputSchema>],
 		TEvent,
 		TDocument,
@@ -247,6 +264,7 @@ export class ApplicationBuilder<
 		},
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent | [EventDefinitionWithSecurity<TPath, TPayloadSchema>],
 		TDocument,
@@ -261,6 +279,7 @@ export class ApplicationBuilder<
 		},
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent | [EventDefinitionWithoutSecurity<TPath, TPayloadSchema>],
 		TDocument,
@@ -299,6 +318,7 @@ export class ApplicationBuilder<
 		},
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent | [EventDefinitionWithSecurity<["$document", ...TPath], TDocumentChange<TDocumentSchema>>],
 		TDocument | [DocumentDefinitionWithSecurity<TPath, TDocumentSchema>],
@@ -313,6 +333,7 @@ export class ApplicationBuilder<
 		},
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent | [EventDefinitionWithoutSecurity<["$document", ...TPath], TDocumentChange<TDocumentSchema>>],
 		TDocument | [
@@ -350,6 +371,7 @@ export class ApplicationBuilder<
 		},
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent | [EventDefinitionWithSecurity<["$document", ...TPath, "{docId}"], TDocumentChange<TCollectionSchema>>] | [
 			EventDefinitionWithSecurity<["$collection", ...TPath], TDocumentChange<TCollectionSchema>>,
@@ -370,6 +392,7 @@ export class ApplicationBuilder<
 		},
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent | [EventDefinitionWithoutSecurity<["$document", ...TPath, "{docId}"], TDocumentChange<TCollectionSchema>>] | [
 			EventDefinitionWithoutSecurity<["$collection", ...TPath], TDocumentChange<TCollectionSchema>>,
@@ -419,6 +442,7 @@ export class ApplicationBuilder<
 		>,
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -451,6 +475,7 @@ export class ApplicationBuilder<
 		>,
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -483,6 +508,7 @@ export class ApplicationBuilder<
 		>,
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -521,6 +547,7 @@ export class ApplicationBuilder<
 		>,
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -559,6 +586,7 @@ export class ApplicationBuilder<
 		>,
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -581,6 +609,7 @@ export class ApplicationBuilder<
 		>,
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -618,6 +647,7 @@ export class ApplicationBuilder<
 		>,
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -654,6 +684,7 @@ export class ApplicationBuilder<
 		>,
 	): ApplicationBuilder<
 		TDecoration,
+		TDependencies,
 		TRpc,
 		TEvent,
 		TDocument,
@@ -678,7 +709,8 @@ export class ApplicationBuilder<
 	}
 
 	use<
-		TOtherDecoration extends Record<string, unknown>,
+		TOtherDecoration extends {},
+		TOtherDependencies extends {},
 		TOtherRpc extends Array<RpcDefinition<any, any, any>>,
 		TOtherEvent extends Array<EventDefinition<any, any>>,
 		TOtherDocument extends Array<DocumentDefinition<any, any>>,
@@ -688,6 +720,7 @@ export class ApplicationBuilder<
 	>(
 		application: ApplicationBuilder<
 			TOtherDecoration,
+			TOtherDependencies,
 			TOtherRpc,
 			TOtherEvent,
 			TOtherDocument,
@@ -697,6 +730,7 @@ export class ApplicationBuilder<
 		>,
 	): ApplicationBuilder<
 		TDecoration & TOtherDecoration,
+		TDependencies & TOtherDependencies,
 		[...TRpc, ...TOtherRpc],
 		[...TEvent, ...TOtherEvent],
 		[...TDocument, ...TOtherDocument],

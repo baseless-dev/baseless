@@ -3,7 +3,7 @@ import { JWTPayload, jwtVerify, type KeyLike, SignJWT } from "jose";
 import { assertID, ID, id, isID } from "@baseless/core/id";
 import { Identity, IdentityComponent } from "@baseless/core/identity";
 import { Static, Type } from "@sinclair/typebox";
-import { Permission } from "./types.ts";
+import { type AuthenticationDependencies, Permission } from "./types.ts";
 import {
 	AuthenticationCeremony,
 	AuthenticationCeremonyChoiceShallow,
@@ -35,6 +35,7 @@ export function configureAuthentication(
 	configuration: AuthenticationConfiguration,
 ): ApplicationBuilder<
 	AuthenticationDecoration,
+	AuthenticationDependencies,
 	AuthenticationRpcs,
 	[],
 	AuthenticationDocuments,
@@ -45,6 +46,7 @@ export function configureAuthentication(
 	const ceremonyTTL = configuration.ceremonyTTL ?? 1000 * 60 * 5;
 
 	return new ApplicationBuilder()
+		.depends<AuthenticationDependencies>()
 		.decorate(async (context) => {
 			let currentSession: Session | undefined;
 			if (context.request.headers.has("Authorization")) {
@@ -52,7 +54,7 @@ export function configureAuthentication(
 				const [, scheme, token] = authorization.match(/^([^ ]+) (.+)$/) ?? [];
 				if (scheme === "Bearer") {
 					try {
-						const { payload } = await jwtVerify(token, configuration.keys.publicKey);
+						const { payload } = await jwtVerify(token, context.authenticationKeys.publicKey);
 						if (isID("sid_", payload.sub)) {
 							const key = await context.kv.get(["sessions", payload.sub]);
 							assertSession(key.value);
@@ -80,7 +82,7 @@ export function configureAuthentication(
 			}
 			return {
 				currentSession,
-				notification: configuration.notificationProvider,
+				notification: context.notificationProvider,
 			};
 		})
 		.collection(["identities"], { schema: Identity })
@@ -149,7 +151,7 @@ export function configureAuthentication(
 			handler: async (
 				{ input: refresh_token, context },
 			) => {
-				const { payload } = await jwtVerify(refresh_token, configuration.keys.publicKey);
+				const { payload } = await jwtVerify(refresh_token, context.authenticationKeys.publicKey);
 				const { sub: sessionId } = payload;
 				assertID("sid_", sessionId);
 				const kvValue = await context.kv.get(["sessions", sessionId]);
@@ -166,6 +168,7 @@ export function configureAuthentication(
 					},
 				);
 				const { access_token, id_token } = await createTokens(
+					context,
 					identity.data,
 					kvValue.value,
 				);
@@ -194,7 +197,7 @@ export function configureAuthentication(
 				}
 
 				const current = await mapCeremonyToComponent(context, undefined, component);
-				const state = await encryptState<AuthenticationState>({
+				const state = await encryptState<AuthenticationState>(context, {
 					choices,
 					identityId: undefined,
 					scope: input,
@@ -212,7 +215,7 @@ export function configureAuthentication(
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
 				debugger;
-				const state = await decryptState<AuthenticationState>(input.state);
+				const state = await decryptState<AuthenticationState>(context, input.state);
 				const ceremony = await getCeremonyFromFlow({
 					context,
 					flow: "authentication",
@@ -228,12 +231,14 @@ export function configureAuthentication(
 				if (component === true) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const currentComponent = component.kind === "choice" ? component.components.find((c) => c.component === input.id) : component;
+				const currentComponent = component.kind === "choice"
+					? component.components.find((c) => c.component === input.id)
+					: component;
 
 				if (!currentComponent) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const identityComponentProvider = configuration.identityComponentProviders[currentComponent.component];
+				const identityComponentProvider = context.identityComponentProviders[currentComponent.component];
 				if (!identityComponentProvider) {
 					throw new UnknownIdentityComponentError();
 				}
@@ -272,7 +277,7 @@ export function configureAuthentication(
 					return createSessionAndTokens(context, state);
 				}
 				const current = await mapCeremonyToComponent(context, state.identityId, nextComponent);
-				const nextState = await encryptState<AuthenticationState>({
+				const nextState = await encryptState<AuthenticationState>(context, {
 					...state,
 					choices: nextChoices,
 				});
@@ -288,7 +293,7 @@ export function configureAuthentication(
 			output: Type.Boolean(),
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
-				const state = await decryptState<AuthenticationState>(input.state);
+				const state = await decryptState<AuthenticationState>(context, input.state);
 				const ceremony = await getCeremonyFromFlow({
 					context,
 					flow: "authentication",
@@ -304,12 +309,14 @@ export function configureAuthentication(
 				if (component === true) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const currentComponent = component.kind === "choice" ? component.components.find((c) => c.component === input.id) : component;
+				const currentComponent = component.kind === "choice"
+					? component.components.find((c) => c.component === input.id)
+					: component;
 
 				if (!currentComponent) {
 					throw new InvalidAuthenticationStateError();
 				}
-				const identityComponentProvider = configuration.identityComponentProviders[currentComponent.component];
+				const identityComponentProvider = context.identityComponentProviders[currentComponent.component];
 				if (!identityComponentProvider) {
 					throw new UnknownIdentityComponentError();
 				}
@@ -339,7 +346,7 @@ export function configureAuthentication(
 			output: RegistrationResponse,
 			security: async () => Permission.Execute,
 			handler: async ({ context }) => {
-				const state = await encryptState<RegistrationState>({
+				const state = await encryptState<RegistrationState>(context, {
 					components: [],
 					identityId: undefined,
 				});
@@ -359,7 +366,7 @@ export function configureAuthentication(
 			output: RegistrationResponse,
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
-				const state = await decryptState<RegistrationState>(input.state);
+				const state = await decryptState<RegistrationState>(context, input.state);
 				const currentComponent = await getRegistrationCeremony(input.state, context);
 				if (currentComponent === true) {
 					throw new RegistrationSubmitPromptError();
@@ -372,7 +379,7 @@ export function configureAuthentication(
 					throw new RegistrationSubmitPromptError();
 				}
 
-				const provider = configuration.identityComponentProviders[pickedComponent.id];
+				const provider = context.identityComponentProviders[pickedComponent.id];
 				if (!provider) {
 					throw new UnknownIdentityComponentError();
 				}
@@ -395,7 +402,7 @@ export function configureAuthentication(
 						},
 					],
 				};
-				const newEncryptedState = await encryptState<RegistrationState>(newState);
+				const newEncryptedState = await encryptState<RegistrationState>(context, newState);
 
 				const nextComponent = await getRegistrationCeremony(newEncryptedState, context);
 				if (nextComponent === true) {
@@ -418,7 +425,7 @@ export function configureAuthentication(
 			output: Type.Boolean(),
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
-				const state = await decryptState<RegistrationState>(input.state);
+				const state = await decryptState<RegistrationState>(context, input.state);
 				const currentComponent = await getRegistrationCeremony(input.state, context);
 				if (currentComponent === true) {
 					throw new RegistrationSubmitPromptError();
@@ -430,7 +437,7 @@ export function configureAuthentication(
 					throw new RegistrationSubmitPromptError();
 				}
 
-				const provider = configuration.identityComponentProviders[pickedComponent.id];
+				const provider = context.identityComponentProviders[pickedComponent.id];
 				if (!provider || !provider.sendValidationPrompt) {
 					throw new UnknownIdentityComponentError();
 				}
@@ -452,7 +459,7 @@ export function configureAuthentication(
 			output: RegistrationResponse,
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
-				const state = await decryptState<RegistrationState>(input.state);
+				const state = await decryptState<RegistrationState>(context, input.state);
 				const currentComponent = await getRegistrationCeremony(input.state, context);
 				if (currentComponent === true) {
 					throw new RegistrationSubmitPromptError();
@@ -465,7 +472,7 @@ export function configureAuthentication(
 					throw new RegistrationSubmitPromptError();
 				}
 
-				const provider = configuration.identityComponentProviders[pickedComponent.id];
+				const provider = context.identityComponentProviders[pickedComponent.id];
 				if (!provider || !provider.verifyValidationPrompt) {
 					throw new UnknownIdentityComponentError();
 				}
@@ -488,7 +495,7 @@ export function configureAuthentication(
 
 				identityComponent.confirmed = true;
 
-				const newEncryptedState = await encryptState<RegistrationState>(state);
+				const newEncryptedState = await encryptState<RegistrationState>(context, state);
 
 				const nextComponent = await getRegistrationCeremony(newEncryptedState, context);
 				if (nextComponent === true) {
@@ -500,6 +507,7 @@ export function configureAuthentication(
 		});
 
 	async function createTokens(
+		context: AuthenticationContext,
 		identity: Identity,
 		session: Session,
 	): Promise<{ access_token: string; id_token: string; refresh_token?: string }> {
@@ -508,39 +516,41 @@ export function configureAuthentication(
 			.setSubject(session.sessionId ?? "sk")
 			.setIssuedAt()
 			.setExpirationTime((now + accessTokenTTL) / 1000 >> 0)
-			.setProtectedHeader({ alg: configuration.keys.algo })
-			.sign(configuration.keys.privateKey);
+			.setProtectedHeader({ alg: context.authenticationKeys.algo })
+			.sign(context.authenticationKeys.privateKey);
 		const id_token = await new SignJWT({ data: identity.data })
 			.setSubject(session.identityId)
 			.setIssuedAt()
-			.setProtectedHeader({ alg: configuration.keys.algo })
-			.sign(configuration.keys.privateKey);
+			.setProtectedHeader({ alg: context.authenticationKeys.algo })
+			.sign(context.authenticationKeys.privateKey);
 		const refresh_token = await new SignJWT({ scope: session.scope })
 			.setSubject(session.sessionId ?? "sk")
 			.setIssuedAt(session.aat)
 			.setExpirationTime((now + refreshTokenTTL) / 1000 >> 0)
-			.setProtectedHeader({ alg: configuration.keys.algo })
-			.sign(configuration.keys.privateKey);
+			.setProtectedHeader({ alg: context.authenticationKeys.algo })
+			.sign(context.authenticationKeys.privateKey);
 		return { access_token, id_token, refresh_token };
 	}
 
 	async function encryptState<T extends {}>(
+		context: AuthenticationContext,
 		state: T,
 	): Promise<string> {
 		const now = Date.now();
 		return new SignJWT(state as unknown as JWTPayload)
-			.setProtectedHeader({ alg: configuration.keys.algo })
+			.setProtectedHeader({ alg: context.authenticationKeys.algo })
 			.setIssuedAt()
 			.setExpirationTime((now + ceremonyTTL) / 1000 >> 0)
-			.sign(configuration.keys.privateKey);
+			.sign(context.authenticationKeys.privateKey);
 	}
 
 	async function decryptState<T extends {}>(
+		context: AuthenticationContext,
 		encryptedState: string | undefined,
 	): Promise<T> {
 		const { payload } = await jwtVerify(
 			encryptedState ?? "",
-			configuration.keys.publicKey,
+			context.authenticationKeys.publicKey,
 		);
 		return payload as T;
 	}
@@ -551,7 +561,7 @@ export function configureAuthentication(
 		ceremony: AuthenticationCeremonyComponent | AuthenticationCeremonyChoiceShallow,
 	): Promise<AuthenticationComponent> {
 		if (ceremony.kind === "component") {
-			const identityComponentProvider = configuration.identityComponentProviders[ceremony.component];
+			const identityComponentProvider = context.identityComponentProviders[ceremony.component];
 			if (!identityComponentProvider) {
 				throw new UnknownIdentityComponentError();
 			}
@@ -568,7 +578,7 @@ export function configureAuthentication(
 				kind: "choice",
 				prompts: await Promise.all(
 					ceremony.components.map(async (component) => {
-						const identityComponentProvider = configuration.identityComponentProviders[component.component];
+						const identityComponentProvider = context.identityComponentProviders[component.component];
 						if (!identityComponentProvider) {
 							throw new UnknownIdentityComponentError();
 						}
@@ -625,7 +635,7 @@ export function configureAuthentication(
 				const unskippableComponents = [];
 				for (const component of components) {
 					if (component.kind === "component") {
-						const provider = configuration.identityComponentProviders[component.component];
+						const provider = context.identityComponentProviders[component.component];
 						if (!provider) {
 							throw new UnknownIdentityComponentError();
 						}
@@ -670,6 +680,7 @@ export function configureAuthentication(
 			aat: Date.now() / 1000 >> 0,
 		};
 		const { access_token, id_token, refresh_token } = await createTokens(
+			context,
 			identity.data,
 			session,
 		);
@@ -683,7 +694,7 @@ export function configureAuthentication(
 		input: string,
 		context: AuthenticationContext,
 	): Promise<RegistrationStep | true> {
-		const state = await decryptState<RegistrationState>(input).catch((_) => ({
+		const state = await decryptState<RegistrationState>(context, input).catch((_) => ({
 			components: [],
 			identityId: undefined,
 		}));
@@ -705,7 +716,7 @@ export function configureAuthentication(
 
 		const lastComponent = state.components?.at(-1);
 		if (lastComponent && !lastComponent.confirmed) {
-			const provider = configuration.identityComponentProviders[lastComponent.componentId];
+			const provider = context.identityComponentProviders[lastComponent.componentId];
 			if (!provider || !provider.getValidationPrompt) {
 				throw new UnknownIdentityComponentError();
 			}
@@ -717,7 +728,7 @@ export function configureAuthentication(
 		} else if (ceremonyComponent === true) {
 			return true;
 		} else if (ceremonyComponent.kind === "component") {
-			const provider = configuration.identityComponentProviders[ceremonyComponent.component];
+			const provider = context.identityComponentProviders[ceremonyComponent.component];
 			if (!provider) {
 				throw new UnknownIdentityComponentError();
 			}
@@ -728,7 +739,7 @@ export function configureAuthentication(
 		} else {
 			const prompts = await Promise.all(
 				ceremonyComponent.components.map(async (component) => {
-					const provider = configuration.identityComponentProviders[component.component];
+					const provider = context.identityComponentProviders[component.component];
 					if (!provider) {
 						throw new UnknownIdentityComponentError();
 					}

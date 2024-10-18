@@ -88,13 +88,12 @@ documentProvider.atomic()
 	.set(["items", "4"], "Four")
 	.commit();
 
-const server = new Server({
-	application: app,
+const server = new Server(app, {
 	document: documentProvider,
 	event: eventProvider,
 	hub: hubProvider,
 	kv: kvProvider,
-});
+}, {});
 
 export { appBuilder };
 

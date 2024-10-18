@@ -20,13 +20,12 @@ Deno.test("Server", async (t) => {
 			})
 			.build();
 		const hubProvider = new DenoHubProvider();
-		const server = new Server({
-			application: app,
+		const server = new Server(app, {
 			document: new MemoryDocumentProvider(),
 			event: new MemoryEventProvider(hubProvider),
 			hub: hubProvider,
 			kv: new MemoryKVProvider(),
-		});
+		}, {});
 		return { app, server };
 	};
 

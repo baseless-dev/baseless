@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { createPathMatcher, isPathMatching, PathAsType, PathMatcher } from "@baseless/core/path";
+import { createPathMatcher, PathAsType, PathMatcher } from "@baseless/core/path";
 import {
 	type CollectionDefinition,
 	Context,
@@ -27,9 +27,8 @@ import {
 } from "./document_provider.ts";
 import { EventProvider } from "./event_provider.ts";
 import type { ID } from "@baseless/core/id";
-import { HubProvider } from "./hub_provider.ts";
 
-export class Application {
+export class Application<TDependencies extends {} = {}> {
 	#decorators: ReadonlyArray<Decorator<any>>;
 	#eventMatcher: PathMatcher<EventDefinition<any, any>>;
 	#rpcMatcher: PathMatcher<RpcDefinition<any, any, any>>;

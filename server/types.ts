@@ -374,6 +374,16 @@ export type AuthenticationDecoration = {
 	currentSession: Session | undefined;
 };
 
+export type AuthenticationDependencies = {
+	authenticationKeys: {
+		algo: string;
+		privateKey: KeyLike;
+		publicKey: KeyLike;
+	};
+	identityComponentProviders: Record<string, IdentityComponentProvider>;
+	notificationProvider: NotificationProvider;
+};
+
 export type AuthenticationEvents = [];
 
 export type AuthenticationRpcs = [
@@ -444,7 +454,7 @@ export type AuthenticationCollections = [
 ];
 
 export type AuthenticationContext = TypedContext<
-	AuthenticationDecoration,
+	AuthenticationDecoration & AuthenticationDependencies,
 	AuthenticationEvents,
 	AuthenticationDocuments,
 	AuthenticationCollections
@@ -470,16 +480,9 @@ export type AuthenticationCeremonyResolver = (
 ) => Promise<AuthenticationCeremony>;
 
 export interface AuthenticationConfiguration {
-	keys: {
-		algo: string;
-		privateKey: KeyLike;
-		publicKey: KeyLike;
-	};
 	ceremony:
 		| AuthenticationCeremony
 		| AuthenticationCeremonyResolver;
-	identityComponentProviders: Record<string, IdentityComponentProvider>;
-	notificationProvider: NotificationProvider;
 	ceremonyTTL?: number;
 	accessTokenTTL?: number;
 	refreshTokenTTL?: number;

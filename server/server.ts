@@ -11,27 +11,30 @@ import { ApplicationEventProviderFacade } from "./application_event_facade.ts";
 import { EventProvider } from "./event_provider.ts";
 import { ApplicationHubServiceFacade } from "./application_hub_facade.ts";
 
-export class Server {
+export class Server<TDependencies extends {} = {}> {
 	#application: Application;
 	#documentProvider: DocumentProvider;
 	#eventProvider: EventProvider;
 	#hubProvider?: HubProvider;
 	#kvProvider: KVProvider;
+	#dependencies: TDependencies;
 
 	constructor(
+		application: Application<TDependencies>,
 		options: {
-			application: Application;
 			document: DocumentProvider;
 			event: EventProvider;
 			hub?: HubProvider;
 			kv: KVProvider;
 		},
+		dependencies: TDependencies,
 	) {
-		this.#application = options.application;
+		this.#application = application;
 		this.#documentProvider = options.document;
 		this.#eventProvider = options.event;
 		this.#hubProvider = options.hub;
 		this.#kvProvider = options.kv;
+		this.#dependencies = dependencies;
 	}
 
 	async handleRequest(request: Request): Promise<[Response, PromiseLike<unknown>[]]> {
@@ -102,6 +105,7 @@ export class Server {
 	): Promise<[Context, PromiseLike<unknown>[]]> {
 		const waitUntilPromises: PromiseLike<unknown>[] = [];
 		const context: Context = {
+			...this.#dependencies,
 			request,
 			document: {} as never, // lazy initilization
 			event: {} as never, // lazy initilization

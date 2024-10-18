@@ -109,6 +109,6 @@ export interface TypedClient<
 
 // deno-fmt-ignore
 export type TypedClientFromApplicationBuilder<T extends ApplicationBuilder> = T extends
-	ApplicationBuilder<any, infer TRpc, infer TEvent, infer TDocument, infer TCollection, infer TFile, infer TFolder>
+	ApplicationBuilder<any, any, infer TRpc, infer TEvent, infer TDocument, infer TCollection, infer TFile, infer TFolder>
 	? TypedClient<WithSecurity<TRpc>, WithSecurity<TEvent>, WithSecurity<TDocument>, WithSecurity<TCollection>, WithSecurity<TFile>, WithSecurity<TFolder>>
 	: never;

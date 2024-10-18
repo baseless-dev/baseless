@@ -37,12 +37,7 @@ Deno.test("Client", async (t) => {
 		let ref = 0;
 		const appBuilder = new ApplicationBuilder()
 			.use(configureAuthentication({
-				keys: { ...keyPair, algo: "PS512" },
 				ceremony: sequence(component("email")),
-				identityComponentProviders: {
-					email: emailProvider,
-				},
-				notificationProvider,
 			}))
 			.rpc(["hello", "{world}"], {
 				input: Type.Void(),
@@ -65,12 +60,17 @@ Deno.test("Client", async (t) => {
 
 		const app = appBuilder.build();
 
-		const server = new Server({
-			application: app,
+		const server = new Server(app, {
 			document: documentProvider,
 			event: new MemoryEventProvider(hubProvider),
 			hub: hubProvider,
 			kv: kvProvider,
+		}, {
+			authenticationKeys: { ...keyPair, algo: "PS512" },
+			identityComponentProviders: {
+				email: emailProvider,
+			},
+			notificationProvider,
 		});
 
 		Deno.serve(
@@ -98,8 +98,8 @@ Deno.test("Client", async (t) => {
 		const oldDispose = client[Symbol.asyncDispose].bind(client);
 
 		return Object.assign(client, {
-			[Symbol.asyncDispose](): void {
-				oldDispose();
+			async [Symbol.asyncDispose](): Promise<void> {
+				await oldDispose();
 				abortController.abort();
 			},
 		}) as never;

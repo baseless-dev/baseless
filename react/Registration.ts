@@ -14,7 +14,7 @@ import type { AuthenticationComponent, AuthenticationComponentPrompt } from "@ba
 import type { RegistrationStep } from "@baseless/core/registration-step";
 import useKeyedPromise from "./useKeyedPromise.ts";
 import { id } from "@baseless/core/id";
-import type { AuthenticationDependencies } from "../server/types.ts";
+import type { AuthenticationDependencies } from "@baseless/server/types";
 
 export interface RegistrationController {
 	key: string;

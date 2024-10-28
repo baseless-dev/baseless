@@ -15,7 +15,7 @@ import {
 	Server,
 	Type,
 } from "@baseless/server";
-import { createConsoleLogHandler } from "../../core/logger.ts";
+import { createConsoleLogHandler, setGlobalLogHandler } from "@baseless/core/logger";
 
 const keyPair = await generateKeyPair("PS512");
 
@@ -90,7 +90,7 @@ documentProvider.atomic()
 	.set(["items", "4"], "Four")
 	.commit();
 
-createConsoleLogHandler();
+setGlobalLogHandler(createConsoleLogHandler());
 
 const server = new Server(app, {
 	document: documentProvider,

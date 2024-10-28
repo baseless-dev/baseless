@@ -23,7 +23,6 @@ export interface RegistrationController {
 	back: () => void;
 	select: (current: AuthenticationComponent) => void;
 	sendValidationCode: (locale: string) => Promise<boolean>;
-	submitValidationCode: (code: string) => Promise<void>;
 	submit: (value: unknown) => Promise<void>;
 }
 
@@ -89,23 +88,23 @@ export function Registration({
 				id: currentStep.current.kind === "component" ? currentStep.current.id : "",
 				locale,
 			}),
-		submitValidationCode: (value: unknown) =>
-			authClient.rpc(["registration", "submitValidationCode"], {
-				state: currentStep.state,
-				id: currentStep.current.kind === "component" ? currentStep.current.id : "",
-				value,
-			}).then((_) => {}),
 		submit: async (value: unknown) => {
 			if (currentStep.current.kind === "component" && currentStep.current.prompt === "oauth2") {
 				window.location.href = currentStep.current.options.authorizationUrl as string;
 				saveSteps([...steps]);
 				return;
 			}
-			const result = await authClient.rpc(["registration", "submitPrompt"], {
-				state: currentStep.state,
-				id: currentStep.current.kind === "component" ? currentStep.current.id : "",
-				value,
-			});
+			const result = currentStep.validating
+				? await authClient.rpc(["registration", "submitValidationCode"], {
+					state: currentStep.state,
+					id: currentStep.current.kind === "component" ? currentStep.current.id : "",
+					value,
+				})
+				: await authClient.rpc(["registration", "submitPrompt"], {
+					state: currentStep.state,
+					id: currentStep.current.kind === "component" ? currentStep.current.id : "",
+					value,
+				});
 			if ("access_token" in result) {
 				setSteps([]);
 				saveSteps(undefined);

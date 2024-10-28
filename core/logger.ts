@@ -101,19 +101,18 @@ export function createConsoleLogHandler(minLevel = LogLevel.DEBUG): LogHandler {
  */
 export const voidLogHandler: LogHandler = () => {};
 
-declare global {
-	// deno-lint-ignore no-var
-	var __BASELESS_CORE_LOGGER_globalLogHandler: LogHandler;
+interface GlobalThisExt {
+	__BASELESS_CORE_LOGGER_globalLogHandler: LogHandler;
 }
 
-globalThis.__BASELESS_CORE_LOGGER_globalLogHandler ??= voidLogHandler;
+(globalThis as unknown as GlobalThisExt).__BASELESS_CORE_LOGGER_globalLogHandler ??= voidLogHandler;
 
 /**
  * Set global logger handler
  * @param logHandler The log handler
  */
 export function setGlobalLogHandler(logHandler?: LogHandler): void {
-	globalThis.__BASELESS_CORE_LOGGER_globalLogHandler = logHandler ?? voidLogHandler;
+	(globalThis as unknown as GlobalThisExt).__BASELESS_CORE_LOGGER_globalLogHandler = logHandler ?? voidLogHandler;
 }
 
 /**
@@ -139,7 +138,8 @@ export function createLogger(namespace: string): Logger {
 			lvl,
 		) => [
 			lvl.toLowerCase(),
-			(msg: string) => globalThis.__BASELESS_CORE_LOGGER_globalLogHandler(namespace, lvl as LogLevel, msg),
+			(msg: string) =>
+				(globalThis as unknown as GlobalThisExt).__BASELESS_CORE_LOGGER_globalLogHandler(namespace, lvl as LogLevel, msg),
 		]),
 	) as unknown as Logger;
 }

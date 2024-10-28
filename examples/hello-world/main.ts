@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno serve
 // deno-lint-ignore-file require-await
 import { generateKeyPair } from "jose";
-import { MemoryDocumentProvider, MemoryEventProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
+import { ConsoleNotificationProvider, MemoryDocumentProvider, MemoryEventProvider, MemoryKVProvider } from "@baseless/inmemory-provider";
 import { DenoHubProvider } from "@baseless/deno-provider/hub";
 import { id, ksuid } from "@baseless/core/id";
 import {
@@ -15,6 +15,7 @@ import {
 	Server,
 	Type,
 } from "@baseless/server";
+import { createConsoleLogHandler } from "../../core/logger.ts";
 
 const keyPair = await generateKeyPair("PS512");
 
@@ -22,20 +23,14 @@ const kvProvider = new MemoryKVProvider();
 const documentProvider = new MemoryDocumentProvider();
 const hubProvider = new DenoHubProvider();
 const eventProvider = new MemoryEventProvider(hubProvider);
-const notificationProvider = new MemoryNotificationProvider();
+const notificationProvider = new ConsoleNotificationProvider();
 const emailProvider = new EmailIdentityComponentProvider();
 const passwordProvider = new PasswordIdentityComponentProvider("lesalt");
 
 let ref = 0;
 const appBuilder = new ApplicationBuilder()
 	.use(configureAuthentication({
-		keys: { ...keyPair, algo: "PS512" },
 		ceremony: sequence(component("email"), component("password")),
-		identityComponentProviders: {
-			email: emailProvider,
-			password: passwordProvider,
-		},
-		notificationProvider,
 	}))
 	.rpc(["hello", "{world}"], {
 		input: Type.Void(),
@@ -81,6 +76,13 @@ documentProvider.atomic()
 			hash: await passwordProvider.hashPassword("123"),
 		},
 	})
+	.set(["identities", dummyIdentityId, "channels", "email"], {
+		identityId: dummyIdentityId,
+		channelId: "email",
+		data: {
+			email: "foo@test.local",
+		},
+	})
 	.set(["identifications", "email", "foo@test.local"], dummyIdentityId)
 	.set(["items", "1"], "One")
 	.set(["items", "2"], "Two")
@@ -88,12 +90,23 @@ documentProvider.atomic()
 	.set(["items", "4"], "Four")
 	.commit();
 
+createConsoleLogHandler();
+
 const server = new Server(app, {
 	document: documentProvider,
 	event: eventProvider,
 	hub: hubProvider,
 	kv: kvProvider,
-}, {});
+}, {
+	authenticationKeys: { ...keyPair, algo: "PS512" },
+	identityComponentProviders: {
+		email: emailProvider,
+		password: passwordProvider,
+	},
+	channelProviders: {
+		email: notificationProvider,
+	},
+});
 
 export { appBuilder };
 

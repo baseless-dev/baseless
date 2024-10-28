@@ -88,7 +88,8 @@ Deno.test("AuthenticationApplication", async (t) => {
 			data: {},
 		};
 		const otpChannel = {
-			channelId: "text/x-otp",
+			identityId: identity.identityId,
+			channelId: "email",
 			data: {},
 		};
 		await context.document.atomic()
@@ -96,7 +97,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			.set(["identities", identity.identityId, "components", "email"], emailComponent)
 			.set(["identities", identity.identityId, "components", "password"], passwordComponent)
 			.set(["identities", identity.identityId, "components", "policy"], policyComponent)
-			.set(["identities", identity.identityId, "channels", "text/x-otp"], otpChannel)
+			.set(["identities", identity.identityId, "channels", "email"], otpChannel)
 			.commit();
 
 		return { app, context, identity, notificationProvider };

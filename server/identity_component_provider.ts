@@ -91,7 +91,7 @@ export interface IdentityComponentProvider {
 	sendValidationPrompt?: (options: {
 		componentId: string;
 		context: AuthenticationContext;
-		identityId: Identity["identityId"];
+		identityComponent?: IdentityComponent;
 		locale: string;
 	}) => Promise<boolean>;
 

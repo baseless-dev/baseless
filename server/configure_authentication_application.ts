@@ -1,7 +1,7 @@
 // deno-lint-ignore-file require-await ban-types
 import { JWTPayload, jwtVerify, type KeyLike, SignJWT } from "jose";
 import { assertID, ID, id, isID } from "@baseless/core/id";
-import { Identity, IdentityComponent } from "@baseless/core/identity";
+import { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/identity";
 import { Static, Type } from "@sinclair/typebox";
 import { type AuthenticationDependencies, Permission } from "./types.ts";
 import {
@@ -30,6 +30,7 @@ import { AuthenticationResponse } from "@baseless/core/authentication-response";
 import { ForbiddenError } from "./application.ts";
 import { RegistrationResponse } from "@baseless/core/registration-response";
 import { RegistrationStep } from "@baseless/core/registration-step";
+import type { Notification } from "@baseless/core/notification";
 
 export function configureAuthentication(
 	configuration: AuthenticationConfiguration,
@@ -47,6 +48,10 @@ export function configureAuthentication(
 
 	return new ApplicationBuilder()
 		.depends<AuthenticationDependencies>()
+		.collection(["identities"], { schema: Identity })
+		.collection(["identities", "{identityId}", "components"], { schema: IdentityComponent })
+		.collection(["identities", "{identityId}", "channels"], { schema: IdentityChannel })
+		.document(["identifications", "{kind}", "{identification}"], { schema: ID("id_") })
 		.decorate(async (context) => {
 			let currentSession: Session | undefined;
 			if (context.request.headers.has("Authorization")) {
@@ -80,14 +85,27 @@ export function configureAuthentication(
 					throw new ForbiddenError();
 				}
 			}
+
+			async function notify(identityId: ID<"id_">, notification: Notification): Promise<boolean> {
+				let notified = false;
+				for await (const entry of context.document.list({ prefix: ["identities", identityId, "channels"] })) {
+					const identityChannel = entry.document.data;
+					if (identityChannel.channelId in notification.content) {
+						const channel = context.channelProviders[identityChannel.channelId];
+						notified ||= await channel?.send(identityChannel, notification) ?? true;
+					}
+				}
+				return notified;
+			}
+			async function unsafeNotify(identityChannel: IdentityChannel, notification: Notification): Promise<boolean> {
+				const channel = context.channelProviders[identityChannel.channelId];
+				return await channel?.send(identityChannel, notification) ?? true;
+			}
 			return {
 				currentSession,
-				notification: context.notificationProvider,
+				notification: { notify, unsafeNotify },
 			};
 		})
-		.collection(["identities"], { schema: Identity })
-		.collection(["identities", "{identityId}", "components"], { schema: IdentityComponent })
-		.document(["identifications", "{kind}", "{identification}"], { schema: ID("id_") })
 		.onDocumentSaving(
 			["identities", "{identityId}", "components", "{kind}"],
 			async ({ params, atomic, context, document }) => {
@@ -214,7 +232,6 @@ export function configureAuthentication(
 			output: AuthenticationResponse,
 			security: async () => Permission.Execute,
 			handler: async ({ input, context }) => {
-				debugger;
 				const state = await decryptState<AuthenticationState>(context, input.state);
 				const ceremony = await getCeremonyFromFlow({
 					context,
@@ -438,10 +455,15 @@ export function configureAuthentication(
 					throw new UnknownIdentityComponentError();
 				}
 
+				const identityComponent = (state.components ?? []).find((c) => c.componentId === pickedComponent.id);
+				if (!identityComponent) {
+					throw new RegistrationSubmitPromptError();
+				}
+
 				return provider.sendValidationPrompt({
 					componentId: pickedComponent.id,
 					context,
-					identityId: state.identityId!,
+					identityComponent,
 					locale: input.locale,
 				});
 			},

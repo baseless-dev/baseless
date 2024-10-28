@@ -70,7 +70,9 @@ Deno.test("Client", async (t) => {
 			identityComponentProviders: {
 				email: emailProvider,
 			},
-			notificationProvider,
+			channelProviders: {
+				"email": notificationProvider,
+			},
 		});
 
 		Deno.serve(
@@ -142,15 +144,13 @@ Deno.test("Client", async (t) => {
 		});
 		assert("state" in submitEmail);
 
-		notificationProvider.notifications.clear();
 		const sendValidationCode = await client.rpc(["registration", "sendValidationCode"], {
 			id: "email",
 			locale: "en",
 			state: submitEmail.state,
 		});
 		assert(sendValidationCode === true);
-		const code = Array.from(notificationProvider.notifications.values()).at(0)!.at(0)!
-			.content["text/x-code"];
+		const code = notificationProvider.notifications.at(-1)!.content["text/x-code"];
 		assert(code && code.length > 0);
 
 		const submitValidationCode = await client.rpc(["registration", "submitValidationCode"], {

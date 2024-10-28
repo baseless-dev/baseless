@@ -4,19 +4,34 @@ import { configureAuthentication } from "./configure_authentication_application.
 import { component, sequence } from "@baseless/core/authentication-ceremony";
 import { EmailIdentityComponentProvider } from "./providers/email.ts";
 import { PasswordIdentityComponentProvider } from "./providers/password.ts";
-import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
+import { MemoryDocumentProvider, MemoryEventProvider, MemoryKVProvider, MemoryNotificationProvider } from "@baseless/inmemory-provider";
 import { assert, assertObjectMatch } from "@std/assert";
 import { id } from "@baseless/core/id";
-import { AuthenticationContext } from "./types.ts";
-import { ApplicationDocumentProviderFacade } from "./application_document_facade.ts";
 import { PolicyIdentityComponentProvider } from "./providers/policy.ts";
+import { ApplicationBuilder } from "./application_builder.ts";
+import { DenoHubProvider } from "@baseless/deno-provider";
+import { Server } from "./server.ts";
 
 Deno.test("AuthenticationApplication", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
 	const setupServer = async () => {
-		const notificationProvider = new MemoryNotificationProvider();
-		const kvProvider = new MemoryKVProvider();
-		const documentProvider = new MemoryDocumentProvider();
+		const app = new ApplicationBuilder()
+			.use(configureAuthentication({
+				ceremony: async ({ flow }) =>
+					flow === "authentication"
+						? sequence(
+							component("email"),
+							component("password"),
+							component("policy"),
+						)
+						: sequence(
+							component("policy"),
+							component("email"),
+							component("password"),
+						),
+			}))
+			.build();
+		const hubProvider = new DenoHubProvider();
 		const emailProvider = new EmailIdentityComponentProvider();
 		const passwordProvider = new PasswordIdentityComponentProvider("le_salt");
 		const policyProvider = new PolicyIdentityComponentProvider([{
@@ -32,44 +47,24 @@ Deno.test("AuthenticationApplication", async (t) => {
 			name: { en: "Privacy Policy" },
 			content: { en: "..." },
 		}]);
-		const app = configureAuthentication({
-			ceremony: async ({ flow }) =>
-				flow === "authentication"
-					? sequence(
-						component("email"),
-						component("password"),
-						component("policy"),
-					)
-					: sequence(
-						component("policy"),
-						component("email"),
-						component("password"),
-					),
-		})
-			.build();
-		const context: AuthenticationContext = {
-			request: new Request("https://test"),
-			currentSession: undefined,
-			document: {} as never,
-			event: {} as never,
-			hub: {} as never,
-			kv: kvProvider as never,
-			notification: notificationProvider as never,
-			waitUntil(_promise) {},
+		const notificationProvider = new MemoryNotificationProvider();
+		const server = new Server(app, {
+			document: new MemoryDocumentProvider(),
+			event: new MemoryEventProvider(hubProvider),
+			hub: hubProvider,
+			kv: new MemoryKVProvider(),
+		}, {
+			authenticationKeys: { ...keyPair, algo: "PS512" },
+			channelProviders: {
+				"email": notificationProvider,
+			},
 			identityComponentProviders: {
 				email: emailProvider,
 				password: passwordProvider,
 				policy: policyProvider,
 			},
-			notificationProvider,
-			authenticationKeys: { ...keyPair, algo: "PS512" },
-		};
-		context.document = new ApplicationDocumentProviderFacade(
-			app,
-			context,
-			documentProvider,
-			{} as never,
-		) as never;
+		});
+		const [context] = await server.makeContext(new Request("http://localhost"));
 		const identity = { identityId: id("id_") };
 		const emailComponent = {
 			identityId: identity.identityId,
@@ -92,14 +87,19 @@ Deno.test("AuthenticationApplication", async (t) => {
 			confirmed: true,
 			data: {},
 		};
+		const otpChannel = {
+			channelId: "text/x-otp",
+			data: {},
+		};
 		await context.document.atomic()
 			.set(["identities", identity.identityId], identity)
 			.set(["identities", identity.identityId, "components", "email"], emailComponent)
 			.set(["identities", identity.identityId, "components", "password"], passwordComponent)
 			.set(["identities", identity.identityId, "components", "policy"], policyComponent)
+			.set(["identities", identity.identityId, "channels", "text/x-otp"], otpChannel)
 			.commit();
 
-		return { app, context, identity };
+		return { app, context, identity, notificationProvider };
 	};
 
 	await t.step("authentication.begin", async () => {
@@ -222,7 +222,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 		});
 	});
 	await t.step("registration.submitPrompt", async () => {
-		const { app, context } = await setupServer();
+		const { app, context, notificationProvider } = await setupServer();
 
 		// Register policy and email + password
 		{
@@ -263,16 +263,13 @@ Deno.test("AuthenticationApplication", async (t) => {
 			}
 			let code: string | undefined;
 			{
-				const notifications = (context.notification as MemoryNotificationProvider).notifications;
-				notifications.clear();
 				const result = await app.invokeRpc({
 					rpc: ["registration", "sendValidationCode"],
 					input: { id: "email", locale: "en", state },
 					context,
 				});
 				assert(result === true);
-				assert(notifications.size === 1);
-				code = Array.from(notifications.values()).at(0)!.at(0)!.content["text/x-code"];
+				code = notificationProvider.notifications.at(-1)!.content["text/x-code"];
 				assert(code && code.length > 0);
 			}
 			{

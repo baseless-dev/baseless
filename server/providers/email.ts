@@ -81,19 +81,25 @@ export class EmailIdentityComponentProvider implements IdentityComponentProvider
 			componentId: string;
 			context: AuthenticationContext;
 			locale: string;
-			identityId: Identity["identityId"];
+			identityComponent?: IdentityComponent;
 		},
 	): Promise<boolean> {
 		const code = otp({ digits: 8 });
 		await options.context.kv.put(
-			["email-validation-code", options.identityId],
+			["email-validation-code", options.identityComponent!.identityId],
 			code,
 			{
 				expiration: 1000 * 60 * 5,
 			},
 		);
 		// TODO configurable notification
-		await options.context.notification.sendNotification(options.identityId, {
+		return options.context.notification.unsafeNotify({
+			identityId: options.identityComponent!.identityId,
+			channelId: "email",
+			data: {
+				email: options.identityComponent!.identification,
+			},
+		}, {
 			subject: "Your verification code",
 			content: {
 				"text/x-code": `${code}`,
@@ -101,7 +107,6 @@ export class EmailIdentityComponentProvider implements IdentityComponentProvider
 				"text/html": `Your verification code is <strong>${code}</strong>`,
 			},
 		});
-		return true;
 	}
 	async verifyValidationPrompt(
 		options: {

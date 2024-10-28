@@ -1,22 +1,4 @@
-import { type TObject, type TRecord, type TString, type TUnknown, Type } from "@sinclair/typebox";
-
-export interface NotificationTransport {
-	kind: string;
-	value: unknown;
-}
-
-export const NotificationTransport: TObject<{
-	kind: TString;
-	value: TUnknown;
-}> = Type.Object({
-	kind: Type.String(),
-	value: Type.Unknown(),
-}, { $id: "NotificationTransport" });
-
-export function isNotificationTransport(value: unknown): value is NotificationTransport {
-	return !!value && typeof value === "object" && "kind" in value &&
-		typeof value.kind === "string" && "value" in value;
-}
+import { type TObject, type TRecord, type TString, Type } from "@sinclair/typebox";
 
 export interface Notification {
 	subject: string;

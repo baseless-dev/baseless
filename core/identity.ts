@@ -67,3 +67,19 @@ export const IdentityComponent = Type.Object({
 	confirmed: Type.Boolean(),
 	data: Type.Record(Type.String(), Type.Unknown()),
 }, { $id: "IdentityComponent" });
+
+export interface IdentityChannel {
+	identityId: ID<"id_">;
+	channelId: string;
+	data: Record<string, unknown>;
+}
+
+export const IdentityChannel: TObject<{
+	identityId: TID<"id_">;
+	channelId: TString;
+	data: TRecord<TString, TUnknown>;
+}> = Type.Object({
+	identityId: ID("id_"),
+	channelId: Type.String(),
+	data: Type.Record(Type.String(), Type.Unknown()),
+});

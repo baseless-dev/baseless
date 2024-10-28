@@ -1,21 +1,31 @@
 // deno-lint-ignore-file no-explicit-any ban-types
-import type { Static, TArray, TBoolean, TObject, TSchema, TString, TUnknown, TVoid } from "@sinclair/typebox";
+import {
+	type Static,
+	type TArray,
+	type TBoolean,
+	type TObject,
+	type TSchema,
+	type TString,
+	type TUnknown,
+	type TVoid,
+} from "@sinclair/typebox";
 import type { DocumentProvider, TypedDocumentAtomic, TypedDocumentProvider } from "./document_provider.ts";
 import type { KVProvider } from "./kv_provider.ts";
 import type { PathAsType, ReplaceVariableInPathSegment } from "@baseless/core/path";
 import type { Document } from "@baseless/core/document";
 import type { NotificationProvider } from "./notification_provider.ts";
 import type { Session } from "@baseless/core/session";
-import { KeyLike } from "jose";
-import { ID, TID } from "@baseless/core/id";
-import { Identity, IdentityComponent } from "@baseless/core/identity";
-import { IdentityComponentProvider } from "./identity_component_provider.ts";
-import { AuthenticationTokens } from "@baseless/core/authentication-tokens";
-import { AuthenticationResponse } from "@baseless/core/authentication-response";
-import { RegistrationResponse } from "@baseless/core/registration-response";
-import { AuthenticationCeremony } from "@baseless/core/authentication-ceremony";
-import { EventProvider, TypedEventProvider } from "./event_provider.ts";
-import { HubService } from "./hub_service.ts";
+import type { KeyLike } from "jose";
+import type { ID, TID } from "@baseless/core/id";
+import type { Identity, IdentityComponent } from "@baseless/core/identity";
+import type { IdentityComponentProvider } from "./identity_component_provider.ts";
+import type { AuthenticationTokens } from "@baseless/core/authentication-tokens";
+import type { AuthenticationResponse } from "@baseless/core/authentication-response";
+import type { RegistrationResponse } from "@baseless/core/registration-response";
+import type { AuthenticationCeremony } from "@baseless/core/authentication-ceremony";
+import type { EventProvider, TypedEventProvider } from "./event_provider.ts";
+import type { HubService } from "./hub_service.ts";
+import type { NotificationChannelProvider } from "./notification_channel_provider.ts";
 
 export type Path = Array<string>;
 
@@ -381,7 +391,7 @@ export type AuthenticationDependencies = {
 		publicKey: KeyLike;
 	};
 	identityComponentProviders: Record<string, IdentityComponentProvider>;
-	notificationProvider: NotificationProvider;
+	channelProviders: Record<string, NotificationChannelProvider>;
 };
 
 export type AuthenticationEvents = [];

@@ -89,22 +89,34 @@ export const AuthenticationCeremony: TRecursive<
 	], { $id: "AuthenticationCeremony" })
 );
 
-export const AuthenticationCeremonySequence = Type.Object({
+export const AuthenticationCeremonySequence: TObject<{
+	kind: TLiteral<"sequence">;
+	components: TArray<typeof AuthenticationCeremony>;
+}> = Type.Object({
 	kind: Type.Literal("sequence"),
 	components: Type.Array(AuthenticationCeremony),
 }, { $id: "AuthenticationCeremonySequence" });
 
-export const AuthenticationCeremonyChoice = Type.Object({
+export const AuthenticationCeremonyChoice: TObject<{
+	kind: TLiteral<"choice">;
+	components: TArray<typeof AuthenticationCeremony>;
+}> = Type.Object({
 	kind: Type.Literal("choice"),
 	components: Type.Array(AuthenticationCeremony),
 }, { $id: "AuthenticationCeremonyChoice" });
 
-export const AuthenticationCeremonySequenceShallow = Type.Object({
+export const AuthenticationCeremonySequenceShallow: TObject<{
+	kind: TLiteral<"sequence">;
+	components: TArray<typeof AuthenticationCeremonyComponent>;
+}> = Type.Object({
 	kind: Type.Literal("sequence"),
 	components: Type.Array(AuthenticationCeremonyComponent),
 }, { $id: "AuthenticationCeremonySequenceShallow" });
 
-export const AuthenticationCeremonyChoiceShallow = Type.Object({
+export const AuthenticationCeremonyChoiceShallow: TObject<{
+	kind: TLiteral<"choice">;
+	components: TArray<typeof AuthenticationCeremonyComponent>;
+}> = Type.Object({
 	kind: Type.Literal("choice"),
 	components: Type.Array(AuthenticationCeremonyComponent),
 }, { $id: "AuthenticationCeremonyChoiceShallow" });

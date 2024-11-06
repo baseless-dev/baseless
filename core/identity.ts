@@ -1,4 +1,4 @@
-import { type TObject, type TOptional, type TRecord, type TString, type TUnknown, Type } from "@sinclair/typebox";
+import { TBoolean, type TObject, type TOptional, type TRecord, type TString, type TUnknown, Type } from "@sinclair/typebox";
 import { ID, isID, type TID } from "./id.ts";
 
 /**
@@ -60,7 +60,13 @@ export interface IdentityComponent {
 	data: Record<string, unknown>;
 }
 
-export const IdentityComponent = Type.Object({
+export const IdentityComponent: TObject<{
+	identityId: TID<"id_">;
+	componentId: TString;
+	identification: TOptional<TString>;
+	confirmed: TBoolean;
+	data: TRecord<TString, TUnknown>;
+}> = Type.Object({
 	identityId: ID("id_"),
 	componentId: Type.String(),
 	identification: Type.Optional(Type.String()),

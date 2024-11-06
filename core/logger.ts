@@ -138,8 +138,7 @@ export function createLogger(namespace: string): Logger {
 			lvl,
 		) => [
 			lvl.toLowerCase(),
-			(msg: string) =>
-				(globalThis as unknown as GlobalThisExt).__BASELESS_CORE_LOGGER_globalLogHandler(namespace, lvl as LogLevel, msg),
+			(msg: string) => (globalThis as unknown as GlobalThisExt).__BASELESS_CORE_LOGGER_globalLogHandler(namespace, lvl as LogLevel, msg),
 		]),
 	) as unknown as Logger;
 }

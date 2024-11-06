@@ -1,6 +1,6 @@
 {
 	"name": "@baseless/deno-provider",
-	"version": "0.3.0-rc.8",
+	"version": "0.3.0-rc.9",
 	"exports": {
 		".": "./mod.ts",
 		"./document": "./document.ts",

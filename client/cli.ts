@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run --allow-read --allow-net
 import { parseArgs } from "@std/cli/parse-args";
-import { join } from "@std/path/join";
+import { resolve } from "@std/path/resolve";
 import { exists } from "@std/fs/exists";
 import denoConfig from "./deno.json" with { type: "json" };
 import { ApplicationBuilder } from "@baseless/server/application-builder";
@@ -13,17 +13,19 @@ if (import.meta.main) {
 async function main(): Promise<void> {
 	const args = parseArgs(Deno.args, {
 		string: ["namedExport"],
-		boolean: ["help", "defaultExport", "version"],
+		boolean: ["help", "defaultExport", "react", "version"],
 		default: {
 			help: false,
 			defaultExport: false,
 			namedExport: "BaselessApp",
+			react: false,
 			version: false,
 		},
 		alias: {
 			d: "defaultExport",
-			n: "namedExport",
 			h: "help",
+			n: "namedExport",
+			r: "react",
 			v: "version",
 		},
 	});
@@ -37,7 +39,7 @@ async function main(): Promise<void> {
 	}
 
 	const path = args._[0]?.toString() ?? "";
-	const absolutePath = join(Deno.cwd(), path);
+	const absolutePath = resolve(path);
 
 	if (!await exists(absolutePath)) {
 		return console.error(`Path "${path}" does not exist.`);
@@ -127,6 +129,19 @@ async function main(): Promise<void> {
 	[]
 >;`;
 
+	if (args.react) {
+		gen += `declare module '@baseless/react' {
+	interface TClient {
+		rpcs: [\n\t\t${rpcs.join(`,\n\t\t`)}\n\t];
+		events: [\n\t\t${events.join(`,\n\t\t`)}\n\t];
+		documents: [\n\t\t${documents.join(`,\n\t\t`)}\n\t];
+		collections: [\n\t\t${collections.join(`,\n\t\t`)}\n\t];
+		files: [];
+		folders: [];
+	}
+}`;
+	}
+
 	console.log(gen);
 }
 
@@ -144,6 +159,7 @@ function printUsage(): void {
 	-h, --help                Prints help information
 	-d, --defaultExport       Application is default export
 	-n, --namedExport <NAME>  Application is named export
+	-r, --react               Generate @baseless/react typed client
 	-V, --version             Print version information`);
 }
 

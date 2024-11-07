@@ -2,7 +2,7 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { jsx } from "react/jsx-runtime";
 import { useClient } from "./useClient.ts";
-import type { Client, TypedClientFromApplicationBuilder } from "@baseless/client";
+import type { IClient, TypedClientFromApplicationBuilder } from "@baseless/client";
 import type {
 	ApplicationBuilder,
 	AuthenticationCollections,
@@ -41,7 +41,7 @@ export function Registration({
 	client = useClient(),
 }: {
 	children: ReactNode | ((controller: RegistrationController) => ReactNode);
-	client: Client;
+	client: IClient;
 }): ReactNode {
 	const authClient = client as never as TypedClientFromApplicationBuilder<
 		ApplicationBuilder<

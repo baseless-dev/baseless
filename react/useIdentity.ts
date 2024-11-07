@@ -2,9 +2,9 @@
 import { useEffect, useState } from "react";
 import { useClient } from "./useClient.ts";
 import type { Identity } from "@baseless/core/identity";
-import type { Client } from "@baseless/client";
+import type { IClient } from "@baseless/client";
 
-export function useIdentity(client: Client = useClient()): Identity | undefined {
+export function useIdentity(client: IClient = useClient()): Identity | undefined {
 	const [identity, setIdentity] = useState<Identity | undefined>(client.currentIdentity);
 
 	useEffect(() => {

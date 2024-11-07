@@ -61,21 +61,21 @@ export interface IEventClient<TPayload = unknown> {
 	subscribe: (abortSignal?: AbortSignal) => AsyncIterableIterator<TPayload>;
 }
 
-export interface TypedRpcsClient<TRpc extends Array<RpcDefinition<any, any, any>> = []> extends IRpcsClient {
+export interface TypedRpcsClient<TRpc extends Array<RpcDefinition<any, any, any>> = []> {
 	<
 		const TRpcPath extends TRpc[number]["matcher"],
 		const TRpcDefinition extends PickAtPath<TRpc, TRpcPath>,
 	>(key: TRpcPath, input: Static<TRpcDefinition["input"]>, dedup?: boolean): Promise<Static<TRpcDefinition["output"]>>;
 }
 
-export interface TypedCollectionsClient<TCollection extends Array<CollectionDefinition<any, any>> = []> extends ICollectionClient {
+export interface TypedCollectionsClient<TCollection extends Array<CollectionDefinition<any, any>> = []> {
 	<
 		const TCollectionPath extends TCollection[number]["matcher"],
 		const TCollectionDefinition extends PickAtPath<TCollection, TCollectionPath>,
 	>(key: TCollectionPath): ICollectionClient<Static<TCollectionDefinition["schema"]>>;
 }
 
-export interface TypedDocumentsClient<TDocument extends Array<DocumentDefinition<any, any>> = []> extends IDocumentsClient {
+export interface TypedDocumentsClient<TDocument extends Array<DocumentDefinition<any, any>> = []> {
 	<
 		const TDocumentPath extends TDocument[number]["matcher"],
 		const TDocumentDefinition extends PickAtPath<TDocument, TDocumentPath>,
@@ -86,7 +86,7 @@ export interface TypedDocumentsClient<TDocument extends Array<DocumentDefinition
 	>(keys: TDocumentPath) => Promise<Document[]>;
 }
 
-export interface TypedEventsClient<TEvent extends Array<EventDefinition<any, any>> = []> extends IEventsClient {
+export interface TypedEventsClient<TEvent extends Array<EventDefinition<any, any>> = []> {
 	<
 		const TEventPath extends TEvent[number]["matcher"],
 		const TEventDefinition extends PickAtPath<TEvent, TEventPath>,
@@ -100,7 +100,11 @@ export interface TypedClient<
 	TCollection extends Array<CollectionDefinition<any, any>> = [],
 	TFile extends Array<unknown> = [],
 	TFolder extends Array<unknown> = [],
-> extends IClient {
+> extends AsyncDisposable {
+	readonly clientId: string;
+	readonly currentIdentity: Readonly<Identity> | undefined;
+	setStorage: (storage: Storage) => void;
+	onAuthenticationStateChange: (listener: (identity: Readonly<Identity> | undefined) => void | Promise<void>) => Disposable;
 	rpc: TypedRpcsClient<TRpc>;
 	documents: TypedDocumentsClient<TDocument>;
 	collections: TypedCollectionsClient<TCollection>;

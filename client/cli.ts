@@ -118,6 +118,7 @@ async function main(): Promise<void> {
 		`import type { ApplicationBuilder, RpcDefinitionWithSecurity, EventDefinitionWithSecurity, DocumentDefinitionWithSecurity, CollectionDefinitionWithSecurity } from "@baseless/server";\n`;
 	gen += `\nexport type GeneratedApplicationBuilder = ApplicationBuilder<
 	{},
+	{},
 	[\n\t\t${rpcs.join(`,\n\t\t`)}\n\t],
 	[\n\t\t${events.join(`,\n\t\t`)}\n\t],
 	[\n\t\t${documents.join(`,\n\t\t`)}\n\t],

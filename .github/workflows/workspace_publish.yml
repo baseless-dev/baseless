@@ -29,7 +29,7 @@ jobs:
         run: deno run test
 
       - name: Prepublish check
-        run: deno publish --allow-slow-types --dry-run
+        run: deno publish --dry-run
 
       - name: Publish to JSR
-        run: deno publish --allow-slow-types
+        run: deno publish

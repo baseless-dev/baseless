@@ -65,7 +65,7 @@ export class Application<TDependencies extends {} = {}> {
 				path: [...definition.path, "{docId}"],
 				matcher: definition.matcher,
 				schema: definition.schema,
-				...("security" in definition ? { security: definition.security } : {}),
+				...("securityDocument" in definition ? { security: definition.securityDocument } : {}),
 			})),
 		]);
 		this.#collectionMatcher = createPathMatcher(collectionDefinitions);

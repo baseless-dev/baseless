@@ -52,6 +52,7 @@ Deno.test("Client", async (t) => {
 			.collection(["users"], {
 				schema: Type.String(),
 				security: async () => Permission.All,
+				securityDocument: async () => Permission.All,
 			})
 			.document(["config"], {
 				schema: Type.String(),

@@ -239,6 +239,7 @@ export interface CollectionDefinitionWithSecurity<
 	TCollectionSchema extends TSchema,
 > extends CollectionDefinitionWithoutSecurity<TPath, TCollectionSchema> {
 	security: CollectionDefinitionSecurity<TPath, any, [], [], []>;
+	securityDocument: DocumentDefinitionSecurity<[...TPath, "{docId}"], any, [], [], []>;
 }
 
 export type CollectionDefinition<

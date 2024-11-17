@@ -256,7 +256,7 @@ export class ApplicationBuilder<
 			security: EventDefinitionSecurity<
 				TPath,
 				TDecoration,
-				TEvent,
+				TEvent | [EventDefinitionWithoutSecurity<TPath, TPayloadSchema>],
 				TDocument,
 				TCollection,
 				TPayloadSchema
@@ -308,7 +308,13 @@ export class ApplicationBuilder<
 		path: TPath,
 		options: {
 			schema: TDocumentSchema;
-			security: DocumentDefinitionSecurity<TPath, TDecoration, TEvent, TDocument, TCollection>;
+			security: DocumentDefinitionSecurity<
+				TPath,
+				TDecoration,
+				TEvent,
+				TDocument | [DocumentDefinitionWithSecurity<TPath, TDocumentSchema>],
+				TCollection
+			>;
 		},
 	): ApplicationBuilder<
 		TDecoration,
@@ -361,8 +367,28 @@ export class ApplicationBuilder<
 		path: TPath,
 		options: {
 			schema: TCollectionSchema;
-			security: CollectionDefinitionSecurity<TPath, TDecoration, TEvent, TDocument, TCollection>;
-			securityDocument: DocumentDefinitionSecurity<[...TPath, "{docId}"], TDecoration, TEvent, TDocument, TCollection>;
+			security: CollectionDefinitionSecurity<
+				TPath,
+				TDecoration,
+				TEvent,
+				TDocument | [
+					DocumentDefinitionWithSecurity<[...TPath, "{docId}"], TCollectionSchema>,
+				],
+				TCollection | [
+					CollectionDefinitionWithSecurity<TPath, TCollectionSchema>,
+				]
+			>;
+			securityDocument: DocumentDefinitionSecurity<
+				[...TPath, "{docId}"],
+				TDecoration,
+				TEvent,
+				TDocument | [
+					DocumentDefinitionWithSecurity<[...TPath, "{docId}"], TCollectionSchema>,
+				],
+				TCollection | [
+					CollectionDefinitionWithSecurity<TPath, TCollectionSchema>,
+				]
+			>;
 		},
 	): ApplicationBuilder<
 		TDecoration,

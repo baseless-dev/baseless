@@ -45,7 +45,7 @@ async function main(): Promise<void> {
 		return console.error(`Path "${path}" does not exist.`);
 	}
 
-	const module = await import(absolutePath);
+	const module = await import(import.meta.resolve(absolutePath));
 	const appBuilder = module[args.defaultExport ? "default" : args.namedExport];
 
 	if (!appBuilder) {
@@ -130,7 +130,7 @@ async function main(): Promise<void> {
 >;`;
 
 	if (args.react) {
-		gen += `declare module '@baseless/react' {
+		gen += `\n\ndeclare module '@baseless/react' {
 	interface TClient {
 		rpcs: [\n\t\t${rpcs.join(`,\n\t\t`)}\n\t];
 		events: [\n\t\t${events.join(`,\n\t\t`)}\n\t];

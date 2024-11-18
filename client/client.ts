@@ -383,12 +383,6 @@ class ClientInternal implements AsyncDisposable {
 		(key: string[]) => new DocumentClient(this, key),
 		{
 			atomic: () => new DocumentAtomicClient(this),
-			getMany: (keys: string[][]) => {
-				return this.enqueueCommand({
-					kind: "document-get-many",
-					paths: keys,
-				}, false) as never;
-			},
 		},
 	);
 
@@ -475,6 +469,12 @@ export class CollectionClient implements ICollectionClient {
 			limit: options?.limit,
 		}, false);
 		yield* (entries as any);
+	}
+	getMany(keys: string[]): Promise<Document<unknown>[]> {
+		return this.#internal.enqueueCommand({
+			kind: "document-get-many",
+			paths: keys.map((key) => [...this.#key, key]),
+		}, false) as never;
 	}
 	async *watch(
 		options?: Omit<CommandCollectionWatch, "kind" | "key">,

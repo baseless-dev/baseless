@@ -196,13 +196,22 @@ Deno.test("Client", async (t) => {
 			.set(["users", "2"], "Two")
 			.commit();
 
-		const config = await client.documents(["config"]).get();
-		assertEquals(config.data, "a");
+		{
+			const config = await client.documents(["config"]).get();
+			assertEquals(config.data, "a");
+		}
 
-		const users = await Array.fromAsync(client.collections(["users"]).list());
-		assert(users.length === 2);
-		assertEquals(users[0].document.data, "One");
-		assertEquals(users[1].document.data, "Two");
+		{
+			const users = await Array.fromAsync(client.collections(["users"]).list());
+			assert(users.length === 2);
+			assertEquals(users[0].document.data, "One");
+			assertEquals(users[1].document.data, "Two");
+		}
+		{
+			const [userA, userB] = await client.collections(["users"]).getMany(["1", "2"]);
+			assertEquals(userA.data, "One");
+			assertEquals(userB.data, "Two");
+		}
 
 		{
 			const iter = client.documents(["config"]).watch();

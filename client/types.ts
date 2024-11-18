@@ -35,6 +35,7 @@ export interface ICollectionsClient {
 
 export interface ICollectionClient<TData = unknown> {
 	list: (options?: Omit<DocumentListOptions, "prefix">) => AsyncIterableIterator<DocumentListEntry<TData>>;
+	getMany: (keys: string[]) => Promise<Document<TData>[]>;
 	watch: (
 		options?: Omit<CommandCollectionWatch, "kind" | "key">,
 		abortSignal?: AbortSignal,
@@ -44,7 +45,6 @@ export interface ICollectionClient<TData = unknown> {
 export interface IDocumentsClient {
 	(key: string[]): IDocumentClient;
 	atomic: () => DocumentAtomic;
-	getMany: (keys: string[][]) => Promise<Document[]>;
 }
 
 export interface IDocumentClient<TData = unknown> {
@@ -81,9 +81,6 @@ export interface TypedDocumentsClient<TDocument extends Array<DocumentDefinition
 		const TDocumentDefinition extends PickAtPath<TDocument, TDocumentPath>,
 	>(key: TDocumentPath): IDocumentClient<Static<TDocumentDefinition["schema"]>>;
 	atomic: () => TypedDocumentAtomic<TDocument>;
-	getMany: <
-		const TDocumentPath extends TDocument[number]["matcher"],
-	>(keys: TDocumentPath) => Promise<Document[]>;
 }
 
 export interface TypedEventsClient<TEvent extends Array<EventDefinition<any, any>> = []> {

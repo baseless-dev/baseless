@@ -86,8 +86,7 @@ export const AuthenticationCeremony: TRecursive<
 			kind: Type.Literal("choice"),
 			components: Type.Array(self),
 		}, { $id: "AuthenticationCeremonyChoice" }),
-	], { $id: "AuthenticationCeremony" })
-);
+	]), { $id: "AuthenticationCeremony" });
 
 export const AuthenticationCeremonySequence: TObject<{
 	kind: TLiteral<"sequence">;

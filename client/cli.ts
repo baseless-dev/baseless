@@ -62,6 +62,7 @@ async function main(): Promise<void> {
 
 	const { rpc, event, document, collection } = appBuilder.inspect();
 
+	const namedExports = new Map<string, string>();
 	const rpcs: string[] = [];
 	const events: string[] = [];
 	const documents: string[] = [];
@@ -70,29 +71,29 @@ async function main(): Promise<void> {
 	for (const def of rpc) {
 		if ("security" in def) {
 			const path = def.path.map((s: string) => `"${s}"`);
-			const input = visit(def.input, types);
-			const output = visit(def.output, types);
+			const input = visit(def.input, types, namedExports);
+			const output = visit(def.output, types, namedExports);
 			rpcs.push(`RpcDefinitionWithSecurity<[${path}], ${input}, ${output}>`);
 		}
 	}
 	for (const def of event) {
 		if ("security" in def) {
 			const path = def.path.map((s: string) => `"${s}"`);
-			const payload = visit(def.payload, types);
+			const payload = visit(def.payload, types, namedExports);
 			events.push(`EventDefinitionWithSecurity<[${path}], ${payload}>`);
 		}
 	}
 	for (const def of document) {
 		if ("security" in def) {
 			const path = def.path.map((s: string) => `"${s}"`);
-			const schema = visit(def.schema, types);
+			const schema = visit(def.schema, types, namedExports);
 			documents.push(`DocumentDefinitionWithSecurity<[${path}], ${schema}>`);
 		}
 	}
 	for (const def of collection) {
 		if ("security" in def) {
 			const path = def.path.map((s: string) => `"${s}"`);
-			const schema = visit(def.schema, types);
+			const schema = visit(def.schema, types, namedExports);
 			collections.push(`CollectionDefinitionWithSecurity<[${path}], ${schema}>`);
 			documents.push(`DocumentDefinitionWithSecurity<[${path}, "{docId}"], ${schema}>`);
 		}
@@ -104,6 +105,7 @@ async function main(): Promise<void> {
 		}
 		return [[...typeboxTypes, type], baselessCore];
 	}, [[], []] as [string[], string[]]);
+	typeboxTypes.push("Static");
 
 	let gen = `/// This file is auto-generated with jsr:@baseless/client@${denoConfig.version}/bls command line\n\n`;
 
@@ -117,8 +119,14 @@ async function main(): Promise<void> {
 		gen += `import type { ${baselessCore.join(", ")} } from "@baseless/core/id";\n`;
 	}
 	gen +=
-		`import type { ApplicationBuilder, RpcDefinitionWithSecurity, EventDefinitionWithSecurity, DocumentDefinitionWithSecurity, CollectionDefinitionWithSecurity } from "@baseless/server";\n`;
-	gen += `\nexport type GeneratedApplicationBuilder = ApplicationBuilder<
+		`import type { ApplicationBuilder, RpcDefinitionWithSecurity, EventDefinitionWithSecurity, DocumentDefinitionWithSecurity, CollectionDefinitionWithSecurity } from "@baseless/server";\n\n`;
+
+	for (const [name, schema] of namedExports) {
+		gen += `export type ${name}Schema = ${schema};\n`;
+		gen += `export type ${name} = Static<${name}Schema>;\n`;
+	}
+
+	gen += `export type GeneratedApplicationBuilder = ApplicationBuilder<
 	{},
 	{},
 	[\n\t\t${rpcs.join(`,\n\t\t`)}\n\t],
@@ -127,10 +135,10 @@ async function main(): Promise<void> {
 	[\n\t\t${collections.join(`,\n\t\t`)}\n\t],
 	[],
 	[]
->;`;
+>;\n`;
 
 	if (args.react) {
-		gen += `\n\ndeclare module '@baseless/react' {
+		gen += `declare module '@baseless/react' {
 	interface TClient {
 		rpcs: [\n\t\t${rpcs.join(`,\n\t\t`)}\n\t];
 		events: [\n\t\t${events.join(`,\n\t\t`)}\n\t];
@@ -163,119 +171,93 @@ function printUsage(): void {
 	-V, --version             Print version information`);
 }
 
-function visit(schema: TSchema, types = new Set<string>()): string {
+function visit(schema: TSchema, types = new Set<string>(), named = new Map<string, string>()): string {
 	function _add(type: string): string {
 		types.add(type);
 		return type;
 	}
 	function _visit(schema: TSchema, skip?: string): string {
+		let ret: string | undefined;
 		if (TypeGuard.IsOptional(schema) && skip !== "TOptional") {
 			_add("TOptional");
-			return `TOptional<${_visit(schema, "TOptional")}>`;
-		}
-		if (TypeGuard.IsReadonly(schema) && skip !== "TReadonly") {
+			ret = `TOptional<${_visit(schema, "TOptional")}>`;
+		} else if (TypeGuard.IsReadonly(schema) && skip !== "TReadonly") {
 			_add("TReadonly");
-			return `TReadonly<${_visit(schema, "TReadonly")}>`;
-		}
-		if (TypeGuard.IsRecursive(schema) && skip !== "TRecursive") {
+			ret = `TReadonly<${_visit(schema, "TReadonly")}>`;
+		} else if (TypeGuard.IsRecursive(schema) && skip !== "TRecursive") {
 			_add("TRecursive");
-			return `TRecursive<${_visit(schema, "TRecursive")}>`;
-		}
-		if (TypeGuard.IsTransform(schema) && skip !== "TTransform") {
+			ret = `TRecursive<${_visit(schema, "TRecursive")}>`;
+		} else if (TypeGuard.IsTransform(schema) && skip !== "TTransform") {
 			_add("TTransform");
-			return `TTransform<${_visit(schema, "TTransform")}>`;
-		}
-		if (TypeGuard.IsAny(schema)) {
-			return _add("TAny");
-		}
-		if (TypeGuard.IsArray(schema)) {
+			ret = `TTransform<${_visit(schema, "TTransform")}>`;
+		} else if (TypeGuard.IsAny(schema)) {
+			ret = _add("TAny");
+		} else if (TypeGuard.IsArray(schema)) {
 			_add("TArray");
-			return `TArray<${_visit(schema.items)}>`;
-		}
-		if (TypeGuard.IsAsyncIterator(schema)) {
+			ret = `TArray<${_visit(schema.items)}>`;
+		} else if (TypeGuard.IsAsyncIterator(schema)) {
 			_add("TAsyncIterator");
-			return `TAsyncIterator<${_visit(schema.items)}>`;
-		}
-		if (TypeGuard.IsBigInt(schema)) {
-			return _add("TBigInt");
-		}
-		if (TypeGuard.IsBoolean(schema)) {
-			return _add("TBoolean");
-		}
-		if (TypeGuard.IsConstructor(schema)) {
+			ret = `TAsyncIterator<${_visit(schema.items)}>`;
+		} else if (TypeGuard.IsBigInt(schema)) {
+			ret = _add("TBigInt");
+		} else if (TypeGuard.IsBoolean(schema)) {
+			ret = _add("TBoolean");
+		} else if (TypeGuard.IsConstructor(schema)) {
 			_add("TConstructor");
-			return `TConstructor<[${schema.parameters.map((t) => _visit(t)).join(", ")}], ${_visit(schema.returns)}>`;
-		}
-		if (TypeGuard.IsDate(schema)) {
-			return _add("TDate");
-		}
-		if (TypeGuard.IsFunction(schema)) {
+			ret = `TConstructor<[${schema.parameters.map((t) => _visit(t)).join(", ")}], ${_visit(schema.returns)}>`;
+		} else if (TypeGuard.IsDate(schema)) {
+			ret = _add("TDate");
+		} else if (TypeGuard.IsFunction(schema)) {
 			_add("TFunction");
-			return `TFunction<[${schema.parameters.map((t) => _visit(t)).join(", ")}], ${_visit(schema.returns)}>`;
-		}
-		if (TypeGuard.IsInteger(schema)) {
-			return _add("TInteger");
-		}
-		if (TypeGuard.IsIntersect(schema)) {
+			ret = `TFunction<[${schema.parameters.map((t) => _visit(t)).join(", ")}], ${_visit(schema.returns)}>`;
+		} else if (TypeGuard.IsInteger(schema)) {
+			ret = _add("TInteger");
+		} else if (TypeGuard.IsIntersect(schema)) {
 			_add("TIntersect");
-			return `TIntersect<[${schema.allOf.map((t) => _visit(t)).join(", ")}]>`;
-		}
-		if (TypeGuard.IsIterator(schema)) {
+			ret = `TIntersect<[${schema.allOf.map((t) => _visit(t)).join(", ")}]>`;
+		} else if (TypeGuard.IsIterator(schema)) {
 			_add("TIterator");
-			return `TIterator<${_visit(schema.items)}>`;
-		}
-		if (TypeGuard.IsLiteral(schema)) {
+			ret = `TIterator<${_visit(schema.items)}>`;
+		} else if (TypeGuard.IsLiteral(schema)) {
 			_add("TLiteral");
-			return `TLiteral<${JSON.stringify(schema.const)}>`;
-		}
-		if (TypeGuard.IsNever(schema)) {
-			return _add("TNever");
-		}
-		if (TypeGuard.IsNot(schema)) {
+			ret = `TLiteral<${JSON.stringify(schema.const)}>`;
+		} else if (TypeGuard.IsNever(schema)) {
+			ret = _add("TNever");
+		} else if (TypeGuard.IsNot(schema)) {
 			_add("TNot");
-			return `TNot<${_visit(schema.not)}>`;
-		}
-		if (TypeGuard.IsNull(schema)) {
-			return _add("TNull");
+			ret = `TNot<${_visit(schema.not)}>`;
+		} else if (TypeGuard.IsNull(schema)) {
+			ret = _add("TNull");
 		}
 		if (TypeGuard.IsNumber(schema)) {
-			return _add("TNumber");
-		}
-		if (TypeGuard.IsObject(schema)) {
+			ret = _add("TNumber");
+		} else if (TypeGuard.IsObject(schema)) {
 			_add("TObject");
-			return `TObject<{${Object.entries(schema.properties).map(([key, value]) => `${key}: ${_visit(value)}`).join("; ")}}>`;
-		}
-		if (TypeGuard.IsPromise(schema)) {
+			ret = `TObject<{${Object.entries(schema.properties).map(([key, value]) => `${key}: ${_visit(value)}`).join("; ")}}>`;
+		} else if (TypeGuard.IsPromise(schema)) {
 			_add("TPromise");
-			return `TPromise<${_visit(schema.item)}>`;
-		}
-		if (TypeGuard.IsRecord(schema)) {
+			ret = `TPromise<${_visit(schema.item)}>`;
+		} else if (TypeGuard.IsRecord(schema)) {
 			_add("TRecord");
 			for (const [key, value] of globalThis.Object.entries(schema.patternProperties)) {
 				const typeValue = _visit(value);
 				const typeKey = _add(key === `^(0|[1-9][0-9]*)$` ? "TNumber" : "TString");
-				return `TRecord<${typeKey}, ${typeValue}>`;
+				ret = `TRecord<${typeKey}, ${typeValue}>`;
 			}
-			throw "UnsupportedType";
-		}
-		if (TypeGuard.IsRef(schema)) {
-			// if (!reference_map.has(schema.$ref!)) return UnsupportedType(schema) // throw new ModelToZodNonReferentialType(schema.$ref!)
-			// return schema.$ref
+		} else if (TypeGuard.IsRef(schema)) {
+			// if (!reference_map.has(schema.$ref!)) ret = UnsupportedType(schema) // throw new ModelToZodNonReferentialType(schema.$ref!)
+			// ret = schema.$ref
 			throw "TODO2";
-		}
-		if (TypeGuard.IsRegExp(schema)) {
-			return _add("TRegExp");
-		}
-		// if (TypeGuard.IsSchema(schema)) {
-		// 	return _add("TSchema");
+		} else if (TypeGuard.IsRegExp(schema)) {
+			ret = _add("TRegExp");
+		} // else if (TypeGuard.IsSchema(schema)) {
+		// 	ret = _add("TSchema");
 		// }
-		if (TypeGuard.IsString(schema)) {
-			return _add("TString");
-		}
-		if (TypeGuard.IsSymbol(schema)) {
-			return _add("TSymbol");
-		}
-		if (TypeGuard.IsTemplateLiteral(schema)) {
+		else if (TypeGuard.IsString(schema)) {
+			ret = _add("TString");
+		} else if (TypeGuard.IsSymbol(schema)) {
+			ret = _add("TSymbol");
+		} else if (TypeGuard.IsTemplateLiteral(schema)) {
 			_add("TTemplateLiteral");
 			const parts: string[] = [];
 			let prevOffset = 0;
@@ -300,34 +282,33 @@ function visit(schema: TSchema, types = new Set<string>()): string {
 				_add("TLiteral");
 				parts.push(`TLiteral<"${pattern.substring(prevOffset).replace(/\\([\\\^\$\.\|\?\*\+\(\)\[\]\{\}])/g, "$1")}">`);
 			}
-			return `TTemplateLiteral<[${parts.join(", ")}]>`;
-		}
-		if (TypeGuard.IsThis(schema)) {
-			return _add("TThis");
-		}
-		if (TypeGuard.IsTuple(schema)) {
+			ret = `TTemplateLiteral<[${parts.join(", ")}]>`;
+		} else if (TypeGuard.IsThis(schema)) {
+			ret = _add("TThis");
+		} else if (TypeGuard.IsTuple(schema)) {
 			_add("TTuple");
-			return `TTuple<[${schema.items?.map((t) => _visit(t)).join(", ")}]>`;
-		}
-		if (TypeGuard.IsUint8Array(schema)) {
-			return _add("TUint8Array");
-		}
-		if (TypeGuard.IsUndefined(schema)) {
-			return _add("TUndefined");
-		}
-		if (TypeGuard.IsUnion(schema)) {
+			ret = `TTuple<[${schema.items?.map((t) => _visit(t)).join(", ")}]>`;
+		} else if (TypeGuard.IsUint8Array(schema)) {
+			ret = _add("TUint8Array");
+		} else if (TypeGuard.IsUndefined(schema)) {
+			ret = _add("TUndefined");
+		} else if (TypeGuard.IsUnion(schema)) {
 			_add("TUnion");
-			return `TUnion<[${schema.anyOf.map((t) => _visit(t)).join(", ")}]>`;
-		}
-		if (TypeGuard.IsUnknown(schema)) {
-			return _add("TUnknown");
-		}
-		if (TypeGuard.IsVoid(schema)) {
-			return _add("TVoid");
-		}
-		if (schema[Kind] === "ID") {
+			ret = `TUnion<[${schema.anyOf.map((t) => _visit(t)).join(", ")}]>`;
+		} else if (TypeGuard.IsUnknown(schema)) {
+			ret = _add("TUnknown");
+		} else if (TypeGuard.IsVoid(schema)) {
+			ret = _add("TVoid");
+		} else if (schema[Kind] === "ID") {
 			_add("TID");
-			return `TID<"${schema.prefix}">`;
+			ret = `TID<"${schema.prefix}">`;
+		}
+		if (ret) {
+			if (schema.$id) {
+				named.set(schema.$id, ret);
+				return `${schema.$id}Schema`;
+			}
+			return ret;
 		}
 		throw `Unsupported type ${schema[Kind]}.`;
 	}

@@ -81,7 +81,7 @@ Deno.test("Server", async (t) => {
 	});
 	await t.step("handle websocket", async () => {
 		using _d = deadline(1000);
-		using httpServer = await setupHttpServer({ port: 8080 });
+		using httpServer = await setupHttpServer();
 		const { server: baselessServer } = setupBaselessServer();
 
 		const wsSocketUrl = new URL(httpServer.url);

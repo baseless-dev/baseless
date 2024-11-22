@@ -189,16 +189,18 @@ export type DocumentDefinitionSecurity<
 	TEvent extends Array<EventDefinition<any, any>>,
 	TDocument extends Array<DocumentDefinition<any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any>>,
+	TData extends TSchema,
 > = (options: {
 	context: TypedContext<TDecoration, TEvent, TDocument, TCollection>;
 	params: PathAsType<TPath>;
+	data?: Static<TData>;
 }) => Promise<Permission>;
 
 export interface DocumentDefinitionWithSecurity<
 	TPath extends string[],
 	TDocumentSchema extends TSchema,
 > extends DocumentDefinitionWithoutSecurity<TPath, TDocumentSchema> {
-	security: DocumentDefinitionSecurity<TPath, any, [], [], []>;
+	security: DocumentDefinitionSecurity<TPath, any, [], [], [], TDocumentSchema>;
 }
 
 export type DocumentDefinition<
@@ -229,17 +231,19 @@ export type CollectionDefinitionSecurity<
 	TEvent extends Array<EventDefinition<any, any>>,
 	TDocument extends Array<DocumentDefinition<any, any>>,
 	TCollection extends Array<CollectionDefinition<any, any>>,
+	TData extends TSchema,
 > = (options: {
 	context: TypedContext<TDecoration, TEvent, TDocument, TCollection>;
 	params: PathAsType<TPath>;
+	data?: Static<TData>;
 }) => Promise<Permission>;
 
 export interface CollectionDefinitionWithSecurity<
 	TPath extends string[],
 	TCollectionSchema extends TSchema,
 > extends CollectionDefinitionWithoutSecurity<TPath, TCollectionSchema> {
-	security: CollectionDefinitionSecurity<TPath, any, [], [], []>;
-	securityDocument: DocumentDefinitionSecurity<[...TPath, "{docId}"], any, [], [], []>;
+	security: CollectionDefinitionSecurity<TPath, any, [], [], [], TCollectionSchema>;
+	securityDocument: DocumentDefinitionSecurity<[...TPath, "{docId}"], any, [], [], [], TCollectionSchema>;
 }
 
 export type CollectionDefinition<

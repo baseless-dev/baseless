@@ -313,7 +313,8 @@ export class ApplicationBuilder<
 				TDecoration,
 				TEvent,
 				TDocument | [DocumentDefinitionWithSecurity<TPath, TDocumentSchema>],
-				TCollection
+				TCollection,
+				TDocumentSchema
 			>;
 		},
 	): ApplicationBuilder<
@@ -376,7 +377,8 @@ export class ApplicationBuilder<
 				],
 				TCollection | [
 					CollectionDefinitionWithSecurity<TPath, TCollectionSchema>,
-				]
+				],
+				TCollectionSchema
 			>;
 			securityDocument: DocumentDefinitionSecurity<
 				[...TPath, "{docId}"],
@@ -387,7 +389,8 @@ export class ApplicationBuilder<
 				],
 				TCollection | [
 					CollectionDefinitionWithSecurity<TPath, TCollectionSchema>,
-				]
+				],
+				TCollectionSchema
 			>;
 		},
 	): ApplicationBuilder<

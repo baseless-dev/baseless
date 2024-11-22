@@ -245,6 +245,7 @@ export class Application<TDependencies extends {} = {}> {
 			const options = {
 				context,
 				params: PathAsType(definition.path, op.key),
+				document: op.type === "set" ? op.data : undefined,
 			};
 			if (
 				bypassSecurity !== true &&

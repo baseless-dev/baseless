@@ -176,48 +176,52 @@ function visit(schema: TSchema, types = new Set<string>(), named = new Map<strin
 		types.add(type);
 		return type;
 	}
-	function _visit(schema: TSchema, skip?: string): string {
+	function _visit(schema: TSchema, skip: string | undefined, inRecursive: boolean | undefined): string {
 		let ret: string | undefined;
 		if (TypeGuard.IsOptional(schema) && skip !== "TOptional") {
 			_add("TOptional");
-			ret = `TOptional<${_visit(schema, "TOptional")}>`;
+			ret = `TOptional<${_visit(schema, "TOptional", inRecursive)}>`;
 		} else if (TypeGuard.IsReadonly(schema) && skip !== "TReadonly") {
 			_add("TReadonly");
-			ret = `TReadonly<${_visit(schema, "TReadonly")}>`;
+			ret = `TReadonly<${_visit(schema, "TReadonly", inRecursive)}>`;
 		} else if (TypeGuard.IsRecursive(schema) && skip !== "TRecursive") {
 			_add("TRecursive");
-			ret = `TRecursive<${_visit(schema, "TRecursive")}>`;
+			ret = `TRecursive<${_visit(schema, "TRecursive", true)}>`;
 		} else if (TypeGuard.IsTransform(schema) && skip !== "TTransform") {
 			_add("TTransform");
-			ret = `TTransform<${_visit(schema, "TTransform")}>`;
+			ret = `TTransform<${_visit(schema, "TTransform", inRecursive)}>`;
 		} else if (TypeGuard.IsAny(schema)) {
 			ret = _add("TAny");
 		} else if (TypeGuard.IsArray(schema)) {
 			_add("TArray");
-			ret = `TArray<${_visit(schema.items)}>`;
+			ret = `TArray<${_visit(schema.items, undefined, inRecursive)}>`;
 		} else if (TypeGuard.IsAsyncIterator(schema)) {
 			_add("TAsyncIterator");
-			ret = `TAsyncIterator<${_visit(schema.items)}>`;
+			ret = `TAsyncIterator<${_visit(schema.items, undefined, inRecursive)}>`;
 		} else if (TypeGuard.IsBigInt(schema)) {
 			ret = _add("TBigInt");
 		} else if (TypeGuard.IsBoolean(schema)) {
 			ret = _add("TBoolean");
 		} else if (TypeGuard.IsConstructor(schema)) {
 			_add("TConstructor");
-			ret = `TConstructor<[${schema.parameters.map((t) => _visit(t)).join(", ")}], ${_visit(schema.returns)}>`;
+			ret = `TConstructor<[${schema.parameters.map((t) => _visit(t, undefined, inRecursive)).join(", ")}], ${
+				_visit(schema.returns, undefined, inRecursive)
+			}>`;
 		} else if (TypeGuard.IsDate(schema)) {
 			ret = _add("TDate");
 		} else if (TypeGuard.IsFunction(schema)) {
 			_add("TFunction");
-			ret = `TFunction<[${schema.parameters.map((t) => _visit(t)).join(", ")}], ${_visit(schema.returns)}>`;
+			ret = `TFunction<[${schema.parameters.map((t) => _visit(t, undefined, inRecursive)).join(", ")}], ${
+				_visit(schema.returns, undefined, inRecursive)
+			}>`;
 		} else if (TypeGuard.IsInteger(schema)) {
 			ret = _add("TInteger");
 		} else if (TypeGuard.IsIntersect(schema)) {
 			_add("TIntersect");
-			ret = `TIntersect<[${schema.allOf.map((t) => _visit(t)).join(", ")}]>`;
+			ret = `TIntersect<[${schema.allOf.map((t) => _visit(t, undefined, inRecursive)).join(", ")}]>`;
 		} else if (TypeGuard.IsIterator(schema)) {
 			_add("TIterator");
-			ret = `TIterator<${_visit(schema.items)}>`;
+			ret = `TIterator<${_visit(schema.items, undefined, inRecursive)}>`;
 		} else if (TypeGuard.IsLiteral(schema)) {
 			_add("TLiteral");
 			ret = `TLiteral<${JSON.stringify(schema.const)}>`;
@@ -225,22 +229,23 @@ function visit(schema: TSchema, types = new Set<string>(), named = new Map<strin
 			ret = _add("TNever");
 		} else if (TypeGuard.IsNot(schema)) {
 			_add("TNot");
-			ret = `TNot<${_visit(schema.not)}>`;
+			ret = `TNot<${_visit(schema.not, undefined, inRecursive)}>`;
 		} else if (TypeGuard.IsNull(schema)) {
 			ret = _add("TNull");
-		}
-		if (TypeGuard.IsNumber(schema)) {
+		} else if (TypeGuard.IsNumber(schema)) {
 			ret = _add("TNumber");
 		} else if (TypeGuard.IsObject(schema)) {
 			_add("TObject");
-			ret = `TObject<{${Object.entries(schema.properties).map(([key, value]) => `${key}: ${_visit(value)}`).join("; ")}}>`;
+			ret = `TObject<{${
+				Object.entries(schema.properties).map(([key, value]) => `${key}: ${_visit(value, undefined, inRecursive)}`).join("; ")
+			}}>`;
 		} else if (TypeGuard.IsPromise(schema)) {
 			_add("TPromise");
-			ret = `TPromise<${_visit(schema.item)}>`;
+			ret = `TPromise<${_visit(schema.item, undefined, inRecursive)}>`;
 		} else if (TypeGuard.IsRecord(schema)) {
 			_add("TRecord");
 			for (const [key, value] of globalThis.Object.entries(schema.patternProperties)) {
-				const typeValue = _visit(value);
+				const typeValue = _visit(value, undefined, inRecursive);
 				const typeKey = _add(key === `^(0|[1-9][0-9]*)$` ? "TNumber" : "TString");
 				ret = `TRecord<${typeKey}, ${typeValue}>`;
 			}
@@ -287,14 +292,14 @@ function visit(schema: TSchema, types = new Set<string>(), named = new Map<strin
 			ret = _add("TThis");
 		} else if (TypeGuard.IsTuple(schema)) {
 			_add("TTuple");
-			ret = `TTuple<[${schema.items?.map((t) => _visit(t)).join(", ")}]>`;
+			ret = `TTuple<[${schema.items?.map((t) => _visit(t, undefined, inRecursive)).join(", ")}]>`;
 		} else if (TypeGuard.IsUint8Array(schema)) {
 			ret = _add("TUint8Array");
 		} else if (TypeGuard.IsUndefined(schema)) {
 			ret = _add("TUndefined");
 		} else if (TypeGuard.IsUnion(schema)) {
 			_add("TUnion");
-			ret = `TUnion<[${schema.anyOf.map((t) => _visit(t)).join(", ")}]>`;
+			ret = `TUnion<[${schema.anyOf.map((t) => _visit(t, undefined, inRecursive)).join(", ")}]>`;
 		} else if (TypeGuard.IsUnknown(schema)) {
 			ret = _add("TUnknown");
 		} else if (TypeGuard.IsVoid(schema)) {
@@ -304,7 +309,7 @@ function visit(schema: TSchema, types = new Set<string>(), named = new Map<strin
 			ret = `TID<"${schema.prefix}">`;
 		}
 		if (ret) {
-			if (schema.$id) {
+			if (inRecursive !== true && schema.$id) {
 				named.set(schema.$id, ret);
 				return `${schema.$id}Schema`;
 			}
@@ -313,5 +318,5 @@ function visit(schema: TSchema, types = new Set<string>(), named = new Map<strin
 		throw `Unsupported type ${schema[Kind]}.`;
 	}
 
-	return _visit(schema);
+	return _visit(schema, undefined, undefined);
 }

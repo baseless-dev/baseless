@@ -1,6 +1,6 @@
 {
 	"name": "@baseless/react",
-	"version": "0.3.0-rc.15",
+	"version": "0.3.0-rc.16",
 	"exports": {
 		".": "./mod.ts",
 		"./Authentication": "./Authentication.ts",

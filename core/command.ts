@@ -2,6 +2,7 @@ import {
 	type TArray,
 	type TBoolean,
 	type TLiteral,
+	type TNull,
 	type TNumber,
 	type TObject,
 	type TOptional,
@@ -110,11 +111,11 @@ export type CommandDocumentAtomicCheck = {
 export const CommandDocumentAtomicCheck: TObject<{
 	type: TLiteral<"check">;
 	key: TArray<TString>;
-	versionstamp: TOptional<TString>;
+	versionstamp: TUnion<[TString, TNull]>;
 }> = Type.Object({
 	type: Type.Literal("check"),
 	key: Type.Array(Type.String()),
-	versionstamp: Type.Optional(Type.String()),
+	versionstamp: Type.Union([Type.String(), Type.Null()]),
 }, { $id: "CommandDocumentAtomicCheck" });
 
 export function isCommandDocumentAtomicCheck(value?: unknown): value is CommandDocumentAtomicCheck {
@@ -122,7 +123,7 @@ export function isCommandDocumentAtomicCheck(value?: unknown): value is CommandD
 		value.type === "check" &&
 		"key" in value && Array.isArray(value.key) &&
 		value.key.every((v) => typeof v === "string") &&
-		("versionstamp" in value ? typeof value.versionstamp === "string" : true);
+		"versionstamp" in value && (typeof value.versionstamp === "string" || value.versionstamp === null);
 }
 
 export type CommandDocumentAtomicOp =

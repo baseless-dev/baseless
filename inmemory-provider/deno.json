@@ -1,6 +1,6 @@
 {
 	"name": "@baseless/inmemory-provider",
-	"version": "0.3.0-rc.14",
+	"version": "0.3.0-rc.15",
 	"exports": {
 		".": "./mod.ts",
 		"./document": "./document.ts",

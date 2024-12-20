@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { isResults, isResultSingle, Results } from "@baseless/core/result";
+import { isResultError, isResults, isResultSingle, ResultError, Results, ResultUnknownError } from "@baseless/core/result";
 import MemoryStorage from "@baseless/core/memory-storage";
 import { stableStringify } from "@baseless/core/stable-stringify";
 import { assertIdentity, type Identity } from "@baseless/core/identity";
@@ -285,7 +285,7 @@ class ClientInternal implements AsyncDisposable {
 						}
 					}
 				} else {
-					commands[index].reject(value.error);
+					commands[index].reject(new ServerSideError(value));
 				}
 			}
 		} catch (error) {
@@ -555,5 +555,13 @@ export class EventClient {
 		});
 		abortSignal?.addEventListener("abort", () => abortController.abort());
 		yield* eventStream.values();
+	}
+}
+
+export class ServerSideError extends Error {
+	result: ResultError | ResultUnknownError;
+	constructor(result: ResultError | ResultUnknownError) {
+		super();
+		this.result = result;
 	}
 }

@@ -31,14 +31,25 @@ Deno.test("Server", async (t) => {
 
 	await t.step("handle command", async () => {
 		const { server } = setupBaselessServer();
-		const [result, promises] = await server.handleCommand({
-			kind: "rpc",
-			rpc: ["hello"],
-			input: "world",
-		});
-		assert(isResultSingle(result));
-		assertEquals(result.value, "world");
-		assertEquals(promises.length, 0);
+		{
+			const [result, promises] = await server.handleCommand({
+				kind: "rpc",
+				rpc: ["hello"],
+				input: "world",
+			});
+			assertEquals(promises.length, 0);
+			assert(isResultSingle(result));
+			assertEquals(result.value, "world");
+		}
+		{
+			const [result, promises] = await server.handleCommand({
+				kind: "rpc",
+				rpc: ["hello"],
+				input: 42,
+			});
+			assertEquals(promises.length, 0);
+			assert(isResultError(result));
+		}
 	});
 	await t.step("handle request", async () => {
 		const { server } = setupBaselessServer();
@@ -58,7 +69,7 @@ Deno.test("Server", async (t) => {
 			assertEquals(promises.length, 0);
 			const result = await response.json();
 			assert(isResultError(result));
-			assertEquals(result.error, "UnknownRpcError");
+			assertEquals(result.name, "UnknownRpcError");
 		}
 		{
 			const [response, promises] = await server.handleRequest(

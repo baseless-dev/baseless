@@ -410,3 +410,12 @@ export function isCommands(value?: unknown): value is Commands {
 		"commands" in value && Array.isArray(value.commands) &&
 		value.commands.every(isCommand);
 }
+
+export class UnknownCommandError extends Error {
+	constructor(public readonly command: unknown) {
+		super("Unknown command");
+	}
+	toJSON(): unknown {
+		return { command: this.command };
+	}
+}

@@ -4,6 +4,7 @@ import { ApplicationBuilder } from "./application_builder.ts";
 import { Type } from "@sinclair/typebox";
 import { MemoryDocumentProvider } from "@baseless/inmemory-provider";
 import { Permission } from "./types.ts";
+import { InvalidSchemaError } from "./application.ts";
 
 Deno.test("Application", async (t) => {
 	const context: any = {};
@@ -19,7 +20,8 @@ Deno.test("Application", async (t) => {
 			})
 			.build();
 
-		assertRejects(() => app.invokeRpc({ context, rpc: ["users"], input: 0 }));
+		await assertRejects(() => app.invokeRpc({ context, rpc: ["users"], input: 0 }));
+		await assertRejects(() => app.invokeRpc({ context, rpc: ["users", "123", "kick"], input: "invalid" }), InvalidSchemaError);
 		assertEquals(
 			await app.invokeRpc({
 				context,
@@ -49,6 +51,15 @@ Deno.test("Application", async (t) => {
 				{ type: "set", key: ["users", "2"], data: "bar" },
 			],
 		});
+
+		await assertRejects(() =>
+			app.commitDocumentAtomic({
+				context,
+				documentProvider,
+				eventProvider,
+				checks: [],
+				operations: [{ type: "set", key: ["users", "invalid"], data: 42 }],
+			}), InvalidSchemaError);
 	});
 	await t.step("app.getDocumentAtomic().delete", async () => {
 		const app = new ApplicationBuilder()

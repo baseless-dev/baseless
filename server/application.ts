@@ -16,7 +16,7 @@ import {
 	Permission,
 	type RpcDefinition,
 } from "./types.ts";
-import { Value } from "@sinclair/typebox/value";
+import { Value, ValueError } from "@sinclair/typebox/value";
 import { Document } from "@baseless/core/document";
 import {
 	DocumentAtomicCheck,
@@ -97,7 +97,7 @@ export class Application<TDependencies extends {} = {}> {
 		}
 		const definition = firstResult.value;
 		if (!Value.Check(definition.input, input)) {
-			throw new InvalidInputError();
+			throw new InvalidSchemaError([...Value.Errors(definition.input, input)]);
 		}
 		const definitionOptions = {
 			context,
@@ -115,7 +115,7 @@ export class Application<TDependencies extends {} = {}> {
 		}
 		const output = await definition.handler(definitionOptions);
 		if (!Value.Check(definition.output, output)) {
-			throw new InvalidOutputError();
+			throw new InvalidSchemaError([...Value.Errors(definition.output, output)]);
 		}
 		return output;
 	}
@@ -265,6 +265,9 @@ export class Application<TDependencies extends {} = {}> {
 					await event.handler({ context, params, atomic });
 				}
 			} else {
+				if (!Value.Check(definition.schema, op.data)) {
+					throw new InvalidSchemaError([...Value.Errors(definition.schema, op.data)]);
+				}
 				const document = { key: op.key, data: op.data, versionstamp: "" };
 				for (const event of this.#documentSavingListenersMatcher(op.key)) {
 					const params = PathAsType(event.path, op.key);
@@ -335,7 +338,7 @@ export class Application<TDependencies extends {} = {}> {
 		}
 		const definition = firstResult.value;
 		if (!Value.Check(definition.payload, payload)) {
-			throw new InvalidPayloadError();
+			throw new InvalidSchemaError([...Value.Errors(definition.payload, payload)]);
 		}
 		const definitionOptions = {
 			context,
@@ -431,5 +434,11 @@ export class UnknownCollectionError extends Error {}
 export class InvalidInputError extends Error {}
 export class InvalidOutputError extends Error {}
 export class InvalidPayloadError extends Error {}
-export class InvalidSchemaError extends Error {}
+export class InvalidSchemaError extends Error {
+	errors: ReadonlyArray<ValueError>;
+	constructor(errors: ValueError[]) {
+		super();
+		this.errors = errors;
+	}
+}
 export class ForbiddenError extends Error {}

@@ -2,8 +2,8 @@ import { Application } from "./application.ts";
 import { DocumentProvider } from "./document_provider.ts";
 import { KVProvider } from "./kv_provider.ts";
 import { decodeBase64Url } from "@std/encoding/base64url";
-import { type Command, Commands, isCommand, isCommands } from "@baseless/core/command";
-import { Result, ResultError, ResultSingle } from "@baseless/core/result";
+import { type Command, Commands, isCommand, isCommands, UnknownCommandError } from "@baseless/core/command";
+import { Result, ResultError, ResultSingle, ResultUnknownError } from "@baseless/core/result";
 import { ApplicationDocumentProviderFacade } from "./application_document_facade.ts";
 import { Context } from "./types.ts";
 import { HubProvider } from "./hub_provider.ts";
@@ -136,7 +136,7 @@ export class Server<TDependencies extends {} = {}> {
 
 			const bulk = isCommands(command);
 			const commands = bulk ? command.commands : [command];
-			const results: Array<ResultSingle | ResultError> = [];
+			const results: Array<ResultSingle | ResultError | ResultUnknownError> = [];
 
 			for (const command of commands) {
 				try {
@@ -183,12 +183,15 @@ export class Server<TDependencies extends {} = {}> {
 							provider: this.#eventProvider,
 						});
 					} else {
-						throw "UnknownCommand";
+						throw new UnknownCommandError(command.kind);
 					}
 					results.push({ kind: "result", value: result });
 				} catch (error) {
-					const result = error instanceof Error ? error.constructor.name : error;
-					results.push({ kind: "error", error: result });
+					if (error instanceof Error) {
+						results.push({ kind: "error", name: error.constructor.name, detail: error });
+					} else {
+						results.push({ kind: "unknown-error", error });
+					}
 				}
 			}
 
@@ -196,7 +199,11 @@ export class Server<TDependencies extends {} = {}> {
 
 			return [result, waitUntilPromises];
 		} catch (error) {
-			return [{ kind: "error", error: error instanceof Error ? error.constructor.name : error }, []];
+			if (error instanceof Error) {
+				return [{ kind: "error", name: error.constructor.name, detail: error }, []];
+			} else {
+				return [{ kind: "unknown-error", error }, []];
+			}
 		}
 	}
 }

@@ -218,7 +218,7 @@ export class Application<TDependencies extends {} = {}> {
 		documentProvider: DocumentProvider;
 		eventProvider: EventProvider;
 	}): Promise<void> {
-		if (bypassSecurity !== true) {
+		if (bypassSecurity !== true && checks.length > 0) {
 			await this.getManyDocument({
 				paths: checks.map((c) => c.key),
 				context,

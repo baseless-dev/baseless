@@ -1,6 +1,6 @@
 {
 	"name": "@baseless/core",
-	"version": "0.3.0-rc.18",
+	"version": "0.3.0-rc.19",
 	"exports": {
 		".": "./mod.ts",
 		"./authentication-ceremony": "./authentication_ceremony.ts",

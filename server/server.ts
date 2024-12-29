@@ -17,6 +17,7 @@ export class Server<TDependencies extends {} = {}> {
 	#eventProvider: EventProvider;
 	#hubProvider?: HubProvider;
 	#kvProvider: KVProvider;
+	#callRpcWithPathPrefix?: string;
 	#dependencies: TDependencies;
 
 	constructor(
@@ -26,6 +27,7 @@ export class Server<TDependencies extends {} = {}> {
 			event: EventProvider;
 			hub?: HubProvider;
 			kv: KVProvider;
+			callRpcWithPathPrefix?: string;
 		},
 		dependencies: TDependencies,
 	) {
@@ -34,6 +36,7 @@ export class Server<TDependencies extends {} = {}> {
 		this.#eventProvider = options.event;
 		this.#hubProvider = options.hub;
 		this.#kvProvider = options.kv;
+		this.#callRpcWithPathPrefix = `/${options.callRpcWithPathPrefix?.replace(/(^\/|\/$)/g, "")}/`;
 		this.#dependencies = dependencies;
 	}
 
@@ -73,14 +76,44 @@ export class Server<TDependencies extends {} = {}> {
 				];
 			}
 		}
-		if (
-			request.method !== "POST" ||
-			request.headers.get("Content-Type")?.includes("application/json") !== true
-		) {
+		if (request.method !== "POST") {
 			return [new Response(null, { status: 400 }), []];
 		}
 
-		const command = await request.json().catch(() => undefined);
+		const contentType = request.headers.get("Content-Type")?.toLowerCase();
+		const url = new URL(request.url);
+		let body: unknown;
+		if (contentType?.startsWith("application/json")) {
+			body = await request.json();
+		} else if (
+			contentType === "application/x-www-form-urlencoded"
+		) {
+			body = Object.fromEntries(
+				new URLSearchParams(await request.text()),
+			);
+		} else if (
+			contentType?.startsWith("multipart/form-data")
+		) {
+			const form = await request.formData();
+			body = Array.from(form.keys()).reduce(
+				(body, key) => {
+					const values = form.getAll(key);
+					body[key] = values.length === 1 ? values[0] : values;
+					return body;
+				},
+				{} as Record<string, unknown>,
+			);
+		} else {
+			body = await request.text();
+		}
+
+		let command: unknown;
+		if (this.#callRpcWithPathPrefix && url.pathname.startsWith(this.#callRpcWithPathPrefix)) {
+			command = { kind: "rpc", rpc: url.pathname.slice(this.#callRpcWithPathPrefix.length).split("/"), input: body };
+		} else {
+			command = body;
+		}
+
 		if (!(isCommand(command) || isCommands(command))) {
 			return [new Response(null, { status: 422 }), []];
 		}

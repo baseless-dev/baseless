@@ -18,6 +18,12 @@ Deno.test("Server", async (t) => {
 				handler: async ({ input }) => input,
 				security: async () => Permission.All,
 			})
+			.rpc(["foo", "bar"], {
+				input: Type.String(),
+				output: Type.String(),
+				handler: async ({ input }) => `FooBar: ${input}`,
+				security: async () => Permission.All,
+			})
 			.build();
 		const hubProvider = new DenoHubProvider();
 		const server = new Server(app, {
@@ -25,6 +31,7 @@ Deno.test("Server", async (t) => {
 			event: new MemoryEventProvider(hubProvider),
 			hub: hubProvider,
 			kv: new MemoryKVProvider(),
+			callRpcWithPathPrefix: "_rpc",
 		}, {});
 		return { app, server };
 	};
@@ -88,6 +95,21 @@ Deno.test("Server", async (t) => {
 			const result = await response.json();
 			assert(isResultSingle(result));
 			assertEquals(result.value, "world");
+		}
+		{
+			const [response, promises] = await server.handleRequest(
+				new Request("https://local/_rpc/foo/bar", {
+					method: "POST",
+					// body: "world",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify("world"),
+				}),
+			);
+			assertEquals(response.status, 200);
+			assertEquals(promises.length, 0);
+			const result = await response.json();
+			assert(isResultSingle(result));
+			assertEquals(result.value, "FooBar: world");
 		}
 	});
 	await t.step("handle websocket", async () => {

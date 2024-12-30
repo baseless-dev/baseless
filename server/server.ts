@@ -17,7 +17,7 @@ export class Server<TDependencies extends {} = {}> {
 	#eventProvider: EventProvider;
 	#hubProvider?: HubProvider;
 	#kvProvider: KVProvider;
-	#callRpcWithPathPrefix?: string;
+	#invokeRpcFromHttpPathname?: string;
 	#dependencies: TDependencies;
 
 	constructor(
@@ -27,7 +27,7 @@ export class Server<TDependencies extends {} = {}> {
 			event: EventProvider;
 			hub?: HubProvider;
 			kv: KVProvider;
-			callRpcWithPathPrefix?: string;
+			invokeRpcFromHttpPathname?: string;
 		},
 		dependencies: TDependencies,
 	) {
@@ -36,7 +36,7 @@ export class Server<TDependencies extends {} = {}> {
 		this.#eventProvider = options.event;
 		this.#hubProvider = options.hub;
 		this.#kvProvider = options.kv;
-		this.#callRpcWithPathPrefix = `/${options.callRpcWithPathPrefix?.replace(/(^\/|\/$)/g, "")}/`;
+		this.#invokeRpcFromHttpPathname = `/${options.invokeRpcFromHttpPathname?.replace(/(^\/|\/$)/g, "")}/`.replace(/\/+$/, "/");
 		this.#dependencies = dependencies;
 	}
 
@@ -108,8 +108,11 @@ export class Server<TDependencies extends {} = {}> {
 		}
 
 		let command: unknown;
-		if (this.#callRpcWithPathPrefix && url.pathname.startsWith(this.#callRpcWithPathPrefix)) {
-			command = { kind: "rpc", rpc: url.pathname.slice(this.#callRpcWithPathPrefix.length).split("/"), input: body };
+		if (
+			this.#invokeRpcFromHttpPathname && url.pathname.startsWith(this.#invokeRpcFromHttpPathname) &&
+			url.pathname.length > this.#invokeRpcFromHttpPathname.length
+		) {
+			command = { kind: "rpc", rpc: url.pathname.slice(this.#invokeRpcFromHttpPathname.length).split("/"), input: body };
 		} else {
 			command = body;
 		}

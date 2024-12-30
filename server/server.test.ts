@@ -31,7 +31,7 @@ Deno.test("Server", async (t) => {
 			event: new MemoryEventProvider(hubProvider),
 			hub: hubProvider,
 			kv: new MemoryKVProvider(),
-			callRpcWithPathPrefix: "_rpc",
+			invokeRpcFromHttpPathname: "_rpc",
 		}, {});
 		return { app, server };
 	};

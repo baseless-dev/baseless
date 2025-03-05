@@ -1,4 +1,4 @@
-import * as Type from "@baseless/core/schema";
+import * as Type from "./schema.ts";
 
 export interface AuthenticationCeremonyComponent {
 	kind: "component";

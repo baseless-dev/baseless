@@ -1,16 +1,13 @@
 // deno-fmt-ignore-file
 // deno-lint-ignore-file
-import {
-	type TCollection,
-	type TDecoration,
+import type {
+	TCollection,
+	TDecoration,
 	TDefinition,
-	type TDocument,
-	type TOnDocumentDeleting,
-	type TOnDocumentSetting,
-	type TOnRequest,
-	type TOnTopicMessage,
-	type TRequirement,
-	type TTopic,
+	TDocument,
+	TOnRequest,
+	TRequirement,
+	TTopic,
 } from "@baseless/server";
 import * as Type from "@baseless/core/schema";
 import { convertPathToParams, convertPathToTemplate } from "@baseless/core/path";

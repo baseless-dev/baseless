@@ -1,5 +1,5 @@
 // deno-lint-ignore-file ban-types
-import { Prettify } from "./schema.ts";
+import type { Prettify } from "./schema.ts";
 import { Trie } from "./trie.ts";
 
 // deno-fmt-ignore

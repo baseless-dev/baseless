@@ -1,13 +1,13 @@
 import {
-	KVGetOptions,
-	KVKey,
+	type KVGetOptions,
+	type KVKey,
 	KVKeyNotFoundError,
-	KVListKey,
-	KVListOptions,
-	KVListResult,
+	type KVListKey,
+	type KVListOptions,
+	type KVListResult,
 	KVProvider,
 	KVPutError,
-	KVPutOptions,
+	type KVPutOptions,
 } from "@baseless/server";
 import { fromKvKey, toKvKey } from "./utils.ts";
 

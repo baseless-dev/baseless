@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { onRequest, Permission, TCollection, TDefinition, TDocument, topic } from "../app.ts";
+import { onRequest, Permission, type TCollection, type TDefinition, type TDocument, topic } from "../app.ts";
 import { Document, DocumentAtomic, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
 import * as Type from "@baseless/core/schema";
 import type { Matcher } from "@baseless/core/path";

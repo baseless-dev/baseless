@@ -1,8 +1,8 @@
-import { Register } from "./app.ts";
-import { Document, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
-import { KVProvider } from "./provider.ts";
-import { Identity, IdentityChannel } from "@baseless/core/identity";
-import { Notification } from "@baseless/core/notification";
+import type { Register } from "./app.ts";
+import type { Document, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
+import type { KVProvider } from "./provider.ts";
+import type { Identity, IdentityChannel } from "@baseless/core/identity";
+import type { Notification } from "@baseless/core/notification";
 
 export interface ServiceCollection {
 	document: RegisteredDocumentService;

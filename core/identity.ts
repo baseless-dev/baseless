@@ -1,5 +1,5 @@
 import * as Type from "./schema.ts";
-import { ID } from "./id.ts";
+import type { ID } from "./id.ts";
 
 /**
  * An Identity.

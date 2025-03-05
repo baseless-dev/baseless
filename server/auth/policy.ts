@@ -1,5 +1,5 @@
 import * as Type from "@baseless/core/schema";
-import {
+import type {
 	AuthenticationComponentPrompt,
 	Identity,
 	IdentityChannel,

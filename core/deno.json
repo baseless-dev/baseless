@@ -9,7 +9,6 @@
 		"./authentication-step": "./authentication_step.ts",
 		"./authentication-tokens": "./authentication_tokens.ts",
 		"./document": "./document.ts",
-		"./event": "./event.ts",
 		"./id": "./id.ts",
 		"./identity": "./identity.ts",
 		"./iter": "./iter.ts",
@@ -20,7 +19,8 @@
 		"./path": "./path.ts",
 		"./queue": "./queue.ts",
 		"./schema": "./schema.ts",
-		"./session": "./session.ts"
+		"./session": "./session.ts",
+		"./topic": "./topic.ts"
 	},
 	"publish": {
 		"include": [

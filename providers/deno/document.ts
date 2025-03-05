@@ -2,9 +2,9 @@ import {
 	type Document,
 	DocumentAtomic,
 	DocumentAtomicCommitError,
-	DocumentGetOptions,
-	DocumentListEntry,
-	DocumentListOptions,
+	type DocumentGetOptions,
+	type DocumentListEntry,
+	type DocumentListOptions,
 	DocumentNotFoundError,
 	DocumentProvider,
 } from "@baseless/server";

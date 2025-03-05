@@ -1,4 +1,4 @@
-import { Auth, HubProvider, HubProviderTransferOptions, type ID } from "@baseless/server";
+import { type Auth, HubProvider, type HubProviderTransferOptions, type ID } from "@baseless/server";
 
 export class DenoHubProvider extends HubProvider {
 	#idleTimeout?: number;

@@ -1,4 +1,4 @@
-import { jwtVerify, KeyLike, SignJWT } from "jose";
+import { jwtVerify, type KeyLike, SignJWT } from "jose";
 import {
 	collection,
 	document,
@@ -7,24 +7,24 @@ import {
 	onRequest,
 	Permission,
 	RegisteredContext,
-	TDefinition,
+	type TDefinition,
 } from "../app.ts";
 import { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/identity";
-import { Session } from "@baseless/core/session";
+import type { Session } from "@baseless/core/session";
 import * as Type from "@baseless/core/schema";
-import { assertID, ID, id, isID } from "@baseless/core/id";
+import { assertID, type ID, id, isID } from "@baseless/core/id";
 import {
-	AuthenticationCeremony,
-	AuthenticationCeremonyChoiceShallow,
-	AuthenticationCeremonyComponent,
+	type AuthenticationCeremony,
+	type AuthenticationCeremonyChoiceShallow,
+	type AuthenticationCeremonyComponent,
 	getAuthenticationCeremonyComponentAtPath,
 	simplifyAuthenticationCeremony,
 } from "@baseless/core/authentication-ceremony";
 import { AuthenticationTokens } from "@baseless/core/authentication-tokens";
 import { AuthenticationResponse } from "@baseless/core/authentication-response";
-import { ServiceCollection } from "../service.ts";
-import { IdentityComponentProvider } from "../provider.ts";
-import { AuthenticationComponent } from "@baseless/core/authentication-component";
+import type { ServiceCollection } from "../service.ts";
+import type { IdentityComponentProvider } from "../provider.ts";
+import type { AuthenticationComponent } from "@baseless/core/authentication-component";
 
 export type AuthenticationCeremonyResolver = (
 	options: {

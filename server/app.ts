@@ -1,8 +1,8 @@
 // deno-lint-ignore-file ban-types no-explicit-any no-empty-interface
-import { type Static, type TSchema, TString } from "@baseless/core/schema";
-import { type PathToParams } from "@baseless/core/path";
-import { AnyDocumentAtomicService, ServiceCollection } from "./service.ts";
-import { ID } from "../core/id.ts";
+import type { Static, TSchema, TString } from "@baseless/core/schema";
+import type { PathToParams } from "@baseless/core/path";
+import type { AnyDocumentAtomicService, ServiceCollection } from "./service.ts";
+import type { ID } from "@baseless/core/id";
 
 export interface Register {}
 

@@ -26,7 +26,7 @@ jobs:
         run: deno fmt --check
 
       - name: Test
-        run: deno run test
+        run: deno task test
 
       - name: Prepublish check
         run: deno publish --dry-run

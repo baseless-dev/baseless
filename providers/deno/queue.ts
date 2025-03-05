@@ -1,4 +1,4 @@
-import { QueueItem, QueueProvider } from "@baseless/server";
+import { type QueueItem, QueueProvider } from "@baseless/server";
 
 export class DenoQueueProvider extends QueueProvider {
 	#storage: Deno.Kv;

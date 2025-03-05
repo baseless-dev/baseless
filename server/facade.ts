@@ -1,16 +1,22 @@
 // deno-lint-ignore-file no-explicit-any
 import type { Matcher } from "@baseless/core/path";
-import { EventNotFoundError } from "@baseless/core/event";
-import { Auth, RegisteredContext, TCollection, TDocument, TOnDocumentDeleting, TOnDocumentSetting, TTopic } from "./app.ts";
+import { TopicNotFoundError } from "@baseless/core/topic";
+import type { Auth, RegisteredContext, TCollection, TDocument, TOnDocumentDeleting, TOnDocumentSetting, TTopic } from "./app.ts";
 import { assert } from "@baseless/core/schema";
 import { DocumentAtomic, DocumentProvider, KVProvider, QueueProvider } from "./provider.ts";
-import { KVGetOptions, KVKey, KVListOptions, KVListResult, KVPutOptions } from "@baseless/core/kv";
-import { Document, DocumentGetOptions, DocumentListEntry, DocumentListOptions, DocumentNotFoundError } from "@baseless/core/document";
-import { AnyDocumentService, NotificationService, ServiceCollection } from "./service.ts";
+import type { KVGetOptions, KVKey, KVListOptions, KVListResult, KVPutOptions } from "@baseless/core/kv";
+import {
+	type Document,
+	type DocumentGetOptions,
+	type DocumentListEntry,
+	type DocumentListOptions,
+	DocumentNotFoundError,
+} from "@baseless/core/document";
+import type { AnyDocumentService, NotificationService, ServiceCollection } from "./service.ts";
 import { first } from "@baseless/core/iter";
-import { AnyPubSubService, NotificationChannelProvider } from "./prelude.ts";
-import { Identity, IdentityChannel } from "@baseless/core/identity";
-import { Notification, NotificationChannelNotFoundError } from "@baseless/core/notification";
+import type { AnyPubSubService, NotificationChannelProvider } from "./prelude.ts";
+import type { Identity, IdentityChannel } from "@baseless/core/identity";
+import { type Notification, NotificationChannelNotFoundError } from "@baseless/core/notification";
 
 export class KVFacade {
 	#provider: KVProvider;
@@ -283,7 +289,7 @@ export class PubSubFacade implements AnyPubSubService {
 			// deno-lint-ignore no-var no-inner-declarations
 			var [_, definition] = first(this.#topicMatcher(key));
 		} catch (cause) {
-			throw new EventNotFoundError(undefined, { cause });
+			throw new TopicNotFoundError(undefined, { cause });
 		}
 		assert(definition.message, payload);
 

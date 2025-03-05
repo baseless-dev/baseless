@@ -5,7 +5,7 @@ import type { AuthenticationComponent, AuthenticationComponentPrompt } from "@ba
 import type { AuthenticationStep } from "@baseless/core/authentication-step";
 import type { AuthenticationResponse } from "@baseless/core/authentication-response";
 import { useClient } from "./prelude.ts";
-import { Client } from "@baseless/client";
+import type { Client } from "@baseless/client";
 import useKeyedPromise from "./useKeyedPromise.ts";
 import { id } from "@baseless/core/id";
 

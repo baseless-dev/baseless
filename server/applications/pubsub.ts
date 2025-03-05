@@ -1,4 +1,4 @@
-import { onRequest, Permission, TDefinition, TTopic } from "../app.ts";
+import { onRequest, Permission, type TDefinition, type TTopic } from "../app.ts";
 import * as Type from "@baseless/core/schema";
 import type { Matcher } from "@baseless/core/path";
 import { first } from "@baseless/core/iter";

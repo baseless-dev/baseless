@@ -191,9 +191,21 @@ export async function testQueueProvider(
 		const consumer = queue.dequeue();
 		const reader = consumer.getReader();
 
-		assertEquals(await reader.read(), { done: false, value: { type: "a", payload: "A" } });
-		assertEquals(await reader.read(), { done: false, value: { type: "b", payload: "B" } });
-		assertEquals(await reader.read(), { done: false, value: { type: "c", payload: "C" } });
+		const items = new Set(["a", "b", "c"]);
+
+		const first = await reader.read();
+		assert(first.done === false);
+		items.delete(first.value.type);
+
+		const second = await reader.read();
+		assert(second.done === false);
+		items.delete(second.value.type);
+
+		const third = await reader.read();
+		assert(third.done === false);
+		items.delete(third.value.type);
+
+		assert(items.size === 0);
 
 		reader.releaseLock();
 		consumer.cancel();

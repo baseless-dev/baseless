@@ -395,7 +395,7 @@ export type AuthenticationDependencies = {
 		privateKey: KeyLike;
 		publicKey: KeyLike;
 	};
-	identityComponentProviders: Record<string, IdentityComponentProvider>;
+	identityComponentProviders: Record<string, IdentityComponentProvider | undefined>;
 	channelProviders: Record<string, NotificationChannelProvider>;
 };
 

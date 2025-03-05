@@ -8,7 +8,9 @@ import {
 	AuthenticationCeremony,
 	AuthenticationCeremonyChoiceShallow,
 	AuthenticationCeremonyComponent,
+	component,
 	getAuthenticationCeremonyComponentAtPath,
+	sequence,
 	simplifyAuthenticationCeremony,
 } from "@baseless/core/authentication-ceremony";
 import { AuthenticationComponent, AuthenticationComponentPrompt } from "@baseless/core/authentication-component";
@@ -521,6 +523,131 @@ export function configureAuthentication(
 					return createSessionAndTokens(context, { scope: [], identityId, choices: [] });
 				}
 				return nextComponent;
+			},
+		})
+		.rpc(["identity", "component", "begin"], {
+			input: Type.String(),
+			output: RegistrationResponse,
+			security: async ({ context }) => context.currentSession ? Permission.Execute : Permission.None,
+			handler: async ({ context, input }) => {
+				const componentId = input;
+				const identityId = context.currentSession!.identityId;
+
+				const provider = context.identityComponentProviders[componentId];
+				if (!provider) {
+					throw new UnknownIdentityComponentError();
+				}
+
+				const identityComponent = await context.document.get([
+					"identities",
+					identityId,
+					"components",
+					componentId,
+				]).then((doc) => doc.data).catch((_) => undefined);
+
+				if (!identityComponent || identityComponent.confirmed === false) {
+					throw new AuthenticationSubmitPromptError();
+				}
+
+				identityComponent.confirmed = provider.getValidationPrompt === undefined;
+
+				const state = await encryptState<RegistrationState>(context, {
+					components: [identityComponent],
+					identityId,
+				});
+				const ceremony = sequence(component(componentId), component(`new_${componentId}`));
+				const validating = provider.getValidationPrompt !== undefined;
+				const authenticationComponent = provider.getValidationPrompt
+					? await provider.getValidationPrompt({ componentId, context })
+					: await provider.getSetupPrompt({ componentId, context });
+
+				return { ceremony, current: authenticationComponent, state, validating };
+			},
+		})
+		.rpc(["identity", "component", "sendValidationCode"], {
+			input: Type.Object({
+				id: Type.String(),
+				locale: Type.String(),
+				state: Type.String(),
+			}),
+			output: Type.Boolean(),
+			security: async ({ context }) => context.currentSession ? Permission.Execute : Permission.None,
+			handler: async ({ input, context }) => {
+				const state = await decryptState<RegistrationState>(context, input.state);
+				const identityComponent = state.components.at(-1);
+				const componentId = state.components.at(0)?.componentId;
+				if (!identityComponent || !componentId || componentId !== input.id) {
+					throw new RegistrationSubmitPromptError();
+				}
+
+				if (identityComponent.confirmed) {
+					throw new RegistrationSubmitPromptError();
+				}
+
+				const provider = context.identityComponentProviders[componentId];
+				if (!provider || !provider.sendValidationPrompt) {
+					throw new UnknownIdentityComponentError();
+				}
+
+				return provider.sendValidationPrompt({
+					componentId,
+					context,
+					identityComponent,
+					locale: input.locale,
+				});
+			},
+		})
+		.rpc(["identity", "component", "submitValidationCode"], {
+			input: Type.Object({
+				id: Type.String(),
+				value: Type.Unknown(),
+				state: Type.String(),
+			}),
+			output: RegistrationResponse,
+			security: async ({ context }) => context.currentSession ? Permission.Execute : Permission.None,
+			handler: async ({ input, context }) => {
+				const state = await decryptState<RegistrationState>(context, input.state);
+				const identityComponent = state.components.at(-1);
+				const componentId = state.components.at(0)?.componentId;
+
+				if (!identityComponent || !componentId || componentId !== input.id) {
+					throw new RegistrationSubmitPromptError();
+				}
+
+				if (identityComponent.confirmed) {
+					throw new RegistrationSubmitPromptError();
+				}
+
+				const provider = context.identityComponentProviders[componentId];
+				if (!provider || !provider.verifyValidationPrompt) {
+					throw new UnknownIdentityComponentError();
+				}
+
+				const result = await provider.verifyValidationPrompt({
+					componentId,
+					context,
+					value: input.value,
+					identityComponent,
+				});
+
+				if (!result) {
+					throw new RegistrationSubmitPromptError();
+				}
+
+				if (state.components.length === 2) {
+					debugger;
+				}
+
+				identityComponent.confirmed = true;
+				const newEncryptedState = await encryptState<RegistrationState>(context, state);
+
+				const ceremony = sequence(component(componentId), component(`new_${componentId}`));
+				const validating = provider.getValidationPrompt !== undefined;
+				const authenticationComponent = provider.getValidationPrompt
+					? await provider.getValidationPrompt({ componentId, context })
+					: await provider.getSetupPrompt({ componentId, context });
+
+				return { ceremony, current: authenticationComponent, state: newEncryptedState, validating };
 			},
 		});
 

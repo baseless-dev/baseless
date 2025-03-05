@@ -100,7 +100,7 @@ Deno.test("AuthenticationApplication", async (t) => {
 			.set(["identities", identity.identityId, "channels", "email"], otpChannel)
 			.commit();
 
-		return { app, context, identity, notificationProvider };
+		return { app, context, identity, notificationProvider, server };
 	};
 
 	await t.step("authentication.begin", async () => {
@@ -325,6 +325,110 @@ Deno.test("AuthenticationApplication", async (t) => {
 				assert(result && typeof result === "object");
 				assert("access_token" in result && typeof result.access_token === "string");
 			}
+		}
+	});
+	await t.step("identity.configuration.begin", async () => {
+		const { app, context, server, notificationProvider } = await setupServer();
+		let access_token: string | undefined;
+		// Sign-in with email + password and accept policies
+		{
+			let state: string | undefined;
+			{
+				const result = await app.invokeRpc({
+					rpc: ["authentication", "begin"],
+					input: [],
+					context,
+				});
+				assert(result && typeof result === "object");
+				assert("state" in result && typeof result.state === "string");
+				state = result.state;
+			}
+			{
+				const result = await app.invokeRpc({
+					rpc: ["authentication", "submitPrompt"],
+					input: { id: "email", value: "foo@test.local", state },
+					context,
+				});
+				assert(result && typeof result === "object");
+				assert("state" in result && typeof result.state === "string");
+				state = result.state;
+			}
+			{
+				const result = await app.invokeRpc({
+					rpc: ["authentication", "submitPrompt"],
+					input: { id: "password", value: "password", state },
+					context,
+				});
+				assert(result && typeof result === "object");
+				assert("state" in result && typeof result.state === "string");
+				state = result.state;
+			}
+			{
+				const result = await app.invokeRpc({
+					rpc: ["authentication", "submitPrompt"],
+					input: { id: "policy", value: { tos: "1", privacy: "2" }, state },
+					context,
+				});
+				assert(result && typeof result === "object");
+				assert("access_token" in result && typeof result.access_token === "string");
+				access_token = result.access_token;
+			}
+		}
+		const [authenticatedContext] = await server.makeContext(
+			new Request("http://localhost", { headers: { "Authorization": `Bearer ${access_token}` } }),
+		);
+
+		// 1. Begin updating email
+		// 2. Confirm current email (skip if no provider.getValidationPrompt)
+		// 3. Setup new email via provider.getSetupPrompt
+		// 4. Confirm new email (skip if no provider.getValidationPrompt)
+		// 5. Update email
+
+		// 1. identity/component/begin-update				Begin updating email
+		// 2. if validating == true							User needs to confirm current email
+		// 2.1. identity/component/send-validation-code		Send validation code
+		// 2.2. identity/component/submit-validation-code	Submit validation code
+		// 3. identity/component/submit-prompt				Setup new email
+		// 4. if validating == true							User needs to confirm new email
+		// 4.1. identity/component/send-validation-code		Send validation code
+		// 4.2. identity/component/submit-validation-code	Submit validation code
+		// 5. success										Email updated
+
+		// Similar to registration with a ceremony of sequence(email, new-email)
+		// where first component is already submited and needs confirmation depending
+		// on provider.getValidationPrompt
+
+		let state: string | undefined;
+		{
+			const result = await app.invokeRpc({
+				rpc: ["identity", "component", "begin"],
+				input: "email",
+				context: authenticatedContext,
+			});
+			assert(result && typeof result === "object");
+			assert("state" in result && typeof result.state === "string");
+			state = result.state;
+		}
+		let code: string | undefined;
+		{
+			const result = await app.invokeRpc({
+				rpc: ["identity", "component", "sendValidationCode"],
+				input: { id: "email", locale: "en", state },
+				context: authenticatedContext,
+			});
+			assert(result === true);
+			code = notificationProvider.notifications.at(-1)!.content["text/x-code"];
+			assert(code && code.length > 0);
+		}
+		{
+			const result = await app.invokeRpc({
+				rpc: ["identity", "component", "submitValidationCode"],
+				input: { id: "email", value: code, state },
+				context: authenticatedContext,
+			});
+			assert(result && typeof result === "object");
+			assert("state" in result && typeof result.state === "string");
+			state = result.state;
 		}
 	});
 });

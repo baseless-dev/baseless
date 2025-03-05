@@ -1,4 +1,4 @@
-import { type TArray, type TLiteral, type TObject, type TRecursive, type TString, type TThis, type TUnion, Type } from "@sinclair/typebox";
+import * as Type from "@baseless/core/schema";
 
 export interface AuthenticationCeremonyComponent {
 	kind: "component";
@@ -55,70 +55,103 @@ export function component(component: string): AuthenticationCeremonyComponent {
 	return { kind: "component", component };
 }
 
-export const AuthenticationCeremonyComponent: TObject<{
-	kind: TLiteral<"component">;
-	component: TString;
-}> = Type.Object({
-	kind: Type.Literal("component"),
-	component: Type.String(),
-}, { $id: "AuthenticationCeremonyComponent" });
+export const AuthenticationCeremonyComponent: Type.TObject<{
+	kind: Type.TLiteral<"component">;
+	component: Type.TString;
+}, ["kind", "component"]> = Type.Object(
+	{
+		kind: Type.Literal("component"),
+		component: Type.String(),
+	},
+	["kind", "component"],
+	{ $id: "AuthenticationCeremonyComponent" },
+);
 
-export const AuthenticationCeremony: TRecursive<
-	TUnion<[
+export const AuthenticationCeremony: Type.TRecursive<
+	Type.TUnion<[
 		typeof AuthenticationCeremonyComponent,
-		TObject<{
-			kind: TLiteral<"sequence">;
-			components: TArray<TThis>;
-		}>,
-		TObject<{
-			kind: TLiteral<"choice">;
-			components: TArray<TThis>;
-		}>,
-	]>
-> = Type.Recursive((self) =>
-	Type.Union([
-		AuthenticationCeremonyComponent,
-		Type.Object({
-			kind: Type.Literal("sequence"),
-			components: Type.Array(self),
-		}, { $id: "AuthenticationCeremonySequence" }),
-		Type.Object({
-			kind: Type.Literal("choice"),
-			components: Type.Array(self),
-		}, { $id: "AuthenticationCeremonyChoice" }),
-	]), { $id: "AuthenticationCeremony" });
+		Type.TObject<{
+			kind: Type.TLiteral<"sequence">;
+			components: Type.TArray<Type.TSelf<"AuthenticationCeremony">>;
+		}, ["kind", "components"]>,
+		Type.TObject<{
+			kind: Type.TLiteral<"choice">;
+			components: Type.TArray<Type.TSelf<"AuthenticationCeremony">>;
+		}, ["kind", "components"]>,
+	]>,
+	"AuthenticationCeremony"
+> = Type.Recursive(
+	(self) =>
+		Type.Union([
+			AuthenticationCeremonyComponent,
+			Type.Object(
+				{
+					kind: Type.Literal("sequence"),
+					components: Type.Array(self),
+				},
+				["kind", "components"],
+				{ $id: "AuthenticationCeremonySequence" },
+			),
+			Type.Object(
+				{
+					kind: Type.Literal("choice"),
+					components: Type.Array(self),
+				},
+				["kind", "components"],
+				{ $id: "AuthenticationCeremonyChoice" },
+			),
+		]),
+	"AuthenticationCeremony",
+	{ $id: "AuthenticationCeremony" },
+);
 
-export const AuthenticationCeremonySequence: TObject<{
-	kind: TLiteral<"sequence">;
-	components: TArray<typeof AuthenticationCeremony>;
-}> = Type.Object({
-	kind: Type.Literal("sequence"),
-	components: Type.Array(AuthenticationCeremony),
-}, { $id: "AuthenticationCeremonySequence" });
+export const AuthenticationCeremonySequence: Type.TObject<{
+	kind: Type.TLiteral<"sequence">;
+	components: Type.TArray<typeof AuthenticationCeremony>;
+}, ["kind", "components"]> = Type.Object(
+	{
+		kind: Type.Literal("sequence"),
+		components: Type.Array(AuthenticationCeremony),
+	},
+	["kind", "components"],
+	{ $id: "AuthenticationCeremonySequence" },
+);
 
-export const AuthenticationCeremonyChoice: TObject<{
-	kind: TLiteral<"choice">;
-	components: TArray<typeof AuthenticationCeremony>;
-}> = Type.Object({
-	kind: Type.Literal("choice"),
-	components: Type.Array(AuthenticationCeremony),
-}, { $id: "AuthenticationCeremonyChoice" });
+export const AuthenticationCeremonyChoice: Type.TObject<{
+	kind: Type.TLiteral<"choice">;
+	components: Type.TArray<typeof AuthenticationCeremony>;
+}, ["kind", "components"]> = Type.Object(
+	{
+		kind: Type.Literal("choice"),
+		components: Type.Array(AuthenticationCeremony),
+	},
+	["kind", "components"],
+	{ $id: "AuthenticationCeremonyChoice" },
+);
 
-export const AuthenticationCeremonySequenceShallow: TObject<{
-	kind: TLiteral<"sequence">;
-	components: TArray<typeof AuthenticationCeremonyComponent>;
-}> = Type.Object({
-	kind: Type.Literal("sequence"),
-	components: Type.Array(AuthenticationCeremonyComponent),
-}, { $id: "AuthenticationCeremonySequenceShallow" });
+export const AuthenticationCeremonySequenceShallow: Type.TObject<{
+	kind: Type.TLiteral<"sequence">;
+	components: Type.TArray<typeof AuthenticationCeremonyComponent>;
+}, ["kind", "components"]> = Type.Object(
+	{
+		kind: Type.Literal("sequence"),
+		components: Type.Array(AuthenticationCeremonyComponent),
+	},
+	["kind", "components"],
+	{ $id: "AuthenticationCeremonySequenceShallow" },
+);
 
-export const AuthenticationCeremonyChoiceShallow: TObject<{
-	kind: TLiteral<"choice">;
-	components: TArray<typeof AuthenticationCeremonyComponent>;
-}> = Type.Object({
-	kind: Type.Literal("choice"),
-	components: Type.Array(AuthenticationCeremonyComponent),
-}, { $id: "AuthenticationCeremonyChoiceShallow" });
+export const AuthenticationCeremonyChoiceShallow: Type.TObject<{
+	kind: Type.TLiteral<"choice">;
+	components: Type.TArray<typeof AuthenticationCeremonyComponent>;
+}, ["kind", "components"]> = Type.Object(
+	{
+		kind: Type.Literal("choice"),
+		components: Type.Array(AuthenticationCeremonyComponent),
+	},
+	["kind", "components"],
+	{ $id: "AuthenticationCeremonyChoiceShallow" },
+);
 
 /**
  * Check if the value is an {@link AuthenticationCeremonyComponent}

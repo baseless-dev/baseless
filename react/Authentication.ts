@@ -1,24 +1,17 @@
-// @deno-types="npm:@types/react@18"
+// @deno-types="npm:@types/react@19"
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { jsx } from "react/jsx-runtime";
-import { useClient } from "./useClient.ts";
-import type { IClient, TypedClientFromApplicationBuilder } from "@baseless/client";
-import type {
-	ApplicationBuilder,
-	AuthenticationCollections,
-	AuthenticationDecoration,
-	AuthenticationDocuments,
-	AuthenticationRpcs,
-} from "@baseless/server";
 import type { AuthenticationComponent, AuthenticationComponentPrompt } from "@baseless/core/authentication-component";
 import type { AuthenticationStep } from "@baseless/core/authentication-step";
+import type { AuthenticationResponse } from "@baseless/core/authentication-response";
+import { useClient } from "./prelude.ts";
+import { Client } from "@baseless/client";
 import useKeyedPromise from "./useKeyedPromise.ts";
 import { id } from "@baseless/core/id";
-import type { AuthenticationDependencies } from "@baseless/server/types";
 
 export interface AuthenticationController {
 	key: string;
-	currentComponent: AuthenticationComponent;
+	component: AuthenticationComponent;
 	reset: () => void;
 	back: () => void;
 	select: (current: AuthenticationComponent) => void;
@@ -39,22 +32,19 @@ export function useAuthenticationController(): AuthenticationController {
 export function Authentication({
 	children,
 	client = useClient(),
+	flow = "authentication",
+	scopes = [],
 }: {
 	children: ReactNode | ((controller: AuthenticationController) => ReactNode);
-	client: IClient;
+	client?: Client;
+	flow?: "authentication" | "registration";
+	scopes?: string[];
 }): ReactNode {
-	const authClient = client as never as TypedClientFromApplicationBuilder<
-		ApplicationBuilder<
-			AuthenticationDecoration,
-			AuthenticationDependencies,
-			AuthenticationRpcs,
-			[],
-			AuthenticationDocuments,
-			AuthenticationCollections
-		>
-	>;
-
-	const initialState = useKeyedPromise(client, () => authClient.rpc(["authentication", "begin"], []), 1000 * 60 * 5);
+	const initialState = useKeyedPromise(
+		`${client.clientId}/${flow}/${scopes}`,
+		() => client.fetch(`auth/begin`, { kind: flow, scopes }),
+		1000 * 60 * 5,
+	);
 	const [steps, setSteps] = useState<AuthenticationStep[]>(() => {
 		try {
 			const saved = localStorage.getItem("baseless_authentication");
@@ -76,60 +66,68 @@ export function Authentication({
 		}
 	}, [setSteps]);
 
-	const controller = useMemo(() => ({
-		key: id(),
-		currentComponent: currentStep.current,
-		reset: () => (setSteps([]), saveSteps(undefined)),
-		back: () => (setSteps(steps.slice(0, -1)), saveSteps(undefined)),
-		select: (current: AuthenticationComponent) => (setSteps([...steps, { ...currentStep, current }]), saveSteps(undefined)),
-		send: (locale: string) =>
-			authClient.rpc(["authentication", "sendPrompt"], {
-				state: currentStep.state,
-				id: currentStep.current.kind === "component" ? currentStep.current.id : "",
-				locale,
-			}),
-		submit: async (value: unknown) => {
-			if (currentStep.current.kind === "component" && currentStep.current.prompt === "oauth2") {
-				window.location.href = currentStep.current.options.authorizationUrl as string;
-				saveSteps([...steps]);
-				return;
-			}
-			const result = await authClient.rpc(["authentication", "submitPrompt"], {
-				state: currentStep.state,
-				id: currentStep.current.kind === "component" ? currentStep.current.id : "",
-				value,
-			});
-			if ("access_token" in result) {
-				setSteps([]);
-				saveSteps(undefined);
-			} else {
-				setSteps([...steps, result]);
-				saveSteps(undefined);
-			}
-		},
-	} satisfies AuthenticationController), [
-		authClient,
+	const controller = useMemo(() => {
+		return {
+			key: id(),
+			component: currentStep.step,
+			reset: () => (setSteps([]), saveSteps(undefined)),
+			back: () => (setSteps(steps.slice(0, -1)), saveSteps(undefined)),
+			select: (step: AuthenticationComponent) => (setSteps([...steps, { ...currentStep, step }]), saveSteps(undefined)),
+			send: (locale: string) =>
+				client.fetch(flow === "authentication" ? `auth/send-prompt` : `auth/send-validation-code`, {
+					state: currentStep.state,
+					id: currentStep.step.kind === "component" ? currentStep.step.id : "",
+					locale,
+				}) as Promise<boolean>,
+			submit: async (value: unknown) => {
+				if (currentStep.step.kind === "component" && currentStep.step.prompt === "oauth2") {
+					globalThis.location.href = currentStep.step.options.authorizationUrl as string;
+					saveSteps([...steps]);
+					return;
+				}
+				const result = currentStep.validating
+					? await client.fetch(`auth/submit-validation-code`, {
+						state: currentStep.state,
+						id: currentStep.step.kind === "component" ? currentStep.step.id : "",
+						code: value,
+					}) as AuthenticationResponse
+					: await client.fetch(`auth/submit-prompt`, {
+						state: currentStep.state,
+						id: currentStep.step.kind === "component" ? currentStep.step.id : "",
+						value,
+					}) as AuthenticationResponse;
+				if ("accessToken" in result) {
+					setSteps([]);
+					saveSteps(undefined);
+				} else {
+					setSteps([...steps, result]);
+					saveSteps(undefined);
+				}
+			},
+		} satisfies AuthenticationController;
+	}, [
+		client,
 		currentStep,
 		steps,
 		saveSteps,
 	]);
 
 	useEffect(() => {
-		if (currentStep.current.kind === "component" && currentStep.current.prompt === "oauth2") {
-			const url = new URL(window.location.toString());
+		if (currentStep.step.kind === "component" && currentStep.step.prompt === "oauth2") {
+			const url = new URL(globalThis.location.toString());
 			const { code, state, scope } = Object.fromEntries(url.searchParams);
 			if (code) {
 				url.searchParams.delete("state");
 				url.searchParams.delete("code");
 				url.searchParams.delete("scope");
 				(globalThis as any).history.replaceState(null, "", url.toString());
-				authClient.rpc(["authentication", "submitPrompt"], {
+				(client.fetch(`auth/submit-prompt`, {
 					state: currentStep.state,
-					id: currentStep.current.id,
+					id: currentStep.step.id,
 					value: { code, state, scope },
-				})
+				}) as Promise<AuthenticationResponse>)
 					.then((result) => {
-						if ("access_token" in result) {
+						if ("accessToken" in result) {
 							setSteps([]);
 							saveSteps(undefined);
 						} else {
@@ -139,7 +137,7 @@ export function Authentication({
 					});
 			}
 		}
-	}, [authClient, currentStep, steps, setSteps, saveSteps]);
+	}, [client, currentStep, steps, setSteps, saveSteps]);
 
 	const node = useMemo(() => (typeof children === "function" ? children(controller) : children), [children, controller]);
 
@@ -152,15 +150,14 @@ export function AuthenticationPrompt({ choice, prompts }: {
 }): ReactNode {
 	const controller = useAuthenticationController();
 	const prompt = useMemo(() => {
-		return controller.currentComponent.kind === "choice"
-			? choice(controller, controller.currentComponent.prompts)
-			: controller.currentComponent.prompt in prompts
-			? prompts[controller.currentComponent.prompt](controller, controller.currentComponent)
+		// deno-fmt-ignore
+		return controller.component.kind === "choice" ? choice(controller, controller.component.prompts)
+			: controller.component.prompt in prompts ? prompts[controller.component.prompt](controller, controller.component)
 			: undefined;
-	}, [controller.currentComponent, prompts, controller]);
+	}, [controller.component, prompts, controller]);
 
 	if (!prompt) {
-		throw new Error(`No prompt for ${controller.currentComponent.kind === "choice" ? "choice" : controller.currentComponent.prompt}`);
+		throw new Error(`No prompt for ${controller.component.kind === "choice" ? "choice" : controller.component.prompt}`);
 	}
 	return prompt;
 }

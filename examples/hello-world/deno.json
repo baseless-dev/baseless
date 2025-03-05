@@ -1,0 +1,6 @@
+{
+	"tasks": {
+		"generate": "deno run -A ../../cli/main.ts ./app.ts ./server.gen.ts --server && deno run -A ../../cli/main.ts ./app.ts ./client.gen.ts",
+		"start": "deno run --allow-net --allow-env --allow-read --allow-write --unstable-kv ./main.ts"
+	}
+}

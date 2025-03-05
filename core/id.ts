@@ -1,5 +1,3 @@
-import { Kind, type TSchema, TypeRegistry } from "@sinclair/typebox";
-
 declare const PREFIX: unique symbol;
 
 /**
@@ -165,38 +163,6 @@ export function rksuid(
 			(typeof counter === "number" ? counter : Date.now());
 	}
 	return ksuid(prefix, counter) as ID;
-}
-
-TypeRegistry.Delete("ID");
-TypeRegistry.Set("ID", (schema, value) => {
-	const prefix = schema &&
-			typeof schema === "object" &&
-			"prefix" in schema &&
-			typeof schema.prefix === "string"
-		? schema.prefix
-		: "";
-	return isID(prefix, value);
-});
-
-/**
- * The ID schema.
- */
-export interface TID<Prefix extends string = ""> extends TSchema {
-	[Kind]: "ID";
-	static: ID<Prefix>;
-	type: "id";
-	prefix: Prefix;
-}
-
-/**
- * Create a type schema for an ID.
- * @param options The options for the ID schema.
- * @returns The ID schema.
- */
-export function ID(): TID;
-export function ID<const Prefix extends string>(prefix: Prefix): TID<Prefix>;
-export function ID(prefix?: string): TID {
-	return { prefix, [Kind]: "ID", type: "id" } as never;
 }
 
 /**

@@ -1,11 +1,11 @@
 {
 	"name": "@baseless/client",
-	"version": "0.3.0-rc.20",
+	"version": "0.4.0-rc.1",
 	"exports": {
-		".": "./mod.ts",
-		"./bls": "./cli.ts",
-		"./client": "./client.ts",
-		"./types": "./types.ts"
+		".": "./prelude.ts",
+		"./event-emitter": "./event_emitter.ts",
+		"./memory-storage": "./memory_storage.ts",
+		"./stable-stringify": "./stable_stringify.ts"
 	},
 	"publish": {
 		"include": [
@@ -13,7 +13,8 @@
 			"*.ts"
 		],
 		"exclude": [
-			"*.test.ts"
+			"*.test.ts",
+			"*.bench.ts"
 		]
 	}
 }

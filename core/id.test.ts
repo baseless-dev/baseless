@@ -1,6 +1,5 @@
 import { assert, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
-import { assertID, ID, id, isID, ksuid, rksuid } from "./id.ts";
-import { Value } from "@sinclair/typebox/value";
+import { assertID, id, isID, ksuid, rksuid } from "./id.ts";
 
 Deno.test("ID", async (t) => {
 	await t.step("id", () => {
@@ -35,10 +34,5 @@ Deno.test("ID", async (t) => {
 		assertNotEquals(rksuid(0), rksuid(0));
 		assertID(rksuid(0));
 		assert(rksuid(0) > rksuid(1));
-	});
-	await t.step("typebox schema", () => {
-		const usrIDSchema = ID("usr_");
-		assert(Value.Check(usrIDSchema, id("usr_")));
-		assert(!Value.Check(usrIDSchema, id("foo_")));
 	});
 });

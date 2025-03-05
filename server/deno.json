@@ -1,32 +1,19 @@
 {
 	"name": "@baseless/server",
-	"version": "0.3.0-rc.20",
+	"version": "0.4.0-rc.1",
 	"exports": {
-		".": "./mod.ts",
-		"./application": "./application.ts",
-		"./application-builder": "./application_builder.ts",
-		"./application-document-facade": "./application_document_facade.ts",
-		"./configure-authentication-application": "./configure_authentication_application.ts",
-		"./event-provider": "./event_provider.ts",
-		"./document-provider": "./document_provider.ts",
-		"./hub-provider": "./hub_provider.ts",
-		"./identity-component-provider": "./identity_component_provider.ts",
-		"./kv-provider": "./kv_provider.ts",
-		"./notification-channel-provider": "./notification_channel_provider.ts",
-		"./notification-provider": "./notification_provider.ts",
-		"./providers/email": "./providers/email.ts",
-		"./providers/password": "./providers/password.ts",
-		"./providers/policy": "./providers/policy.ts",
-		"./server": "./server.ts",
-		"./types": "./types.ts"
+		".": "./prelude.ts",
+		"./adapter/elysia": "./adapter/elysia.ts",
+		"./adapter/hono": "./adapter/hono.ts"
 	},
 	"publish": {
 		"include": [
 			"LICENSE",
-			"**/*.ts"
+			"*.ts"
 		],
 		"exclude": [
-			"**/*.test.ts"
+			"*.test.ts",
+			"*.bench.ts"
 		]
 	}
 }

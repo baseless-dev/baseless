@@ -26,9 +26,12 @@ const workspaceSummaries: Array<PackageSummary> = [];
 
 for (const workspace of workspaces) {
 	const config = JSON.parse(await Deno.readTextFile(join(cwd, workspace, "deno.json"))) as PackageSummary;
-	workspaceSummaries.push({ ...config, location: workspace });
 
-	if (!Deno.args.includes("--only") || Deno.args.includes(config.name)) {
+	if (config.name && !Deno.args.includes("--only") || Deno.args.includes(config.name)) {
+		console.log(colors.dim(`• Processing ${config.name}...`));
+
+		workspaceSummaries.push({ ...config, location: workspace });
+
 		const rootDir = join(cwd, "_npm", config.name);
 		await mkdir(rootDir);
 		await clearDir(rootDir);

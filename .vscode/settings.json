@@ -9,8 +9,8 @@
 	"explorer.fileNesting.expand": false,
 	"explorer.fileNesting.patterns": {
 		"deno.json": "deno.lock",
-		"*.ts": "${capture}.js, ${capture}.d.ts, ${capture}.test.ts, ${capture}.bench.ts",
-		"*.tsx": "${capture}.js, ${capture}.d.ts, ${capture}.test.tsx"
+		"*.ts": "${capture}.js, ${capture}.d.ts, ${capture}.test.*, ${capture}.bench.*",
+		"*.tsx": "${capture}.js, ${capture}.d.ts, ${capture}.test.*, ${capture}.bench.*"
 	},
 	"editor.formatOnSave": true,
 	"editor.insertSpaces": false,

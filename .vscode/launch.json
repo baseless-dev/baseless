@@ -13,10 +13,10 @@
 			"env": {},
 			"runtimeExecutable": "/home/grenierdev/.deno/bin/deno",
 			"runtimeArgs": [
-				"serve",
+				"run",
 				"--unstable-kv",
-				"--inspect-brk",
-				"--allow-all"
+				"--allow-all",
+				"--inspect-brk"
 			],
 			"attachSimplePort": 9229
 		}

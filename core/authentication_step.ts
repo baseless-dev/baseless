@@ -1,19 +1,18 @@
-import { type TObject, type TString, Type } from "@sinclair/typebox";
-import { AuthenticationCeremony } from "./authentication_ceremony.ts";
 import { AuthenticationComponent } from "./authentication_component.ts";
+import * as Type from "./schema.ts";
 
 export interface AuthenticationStep {
+	step: AuthenticationComponent;
 	state: string;
-	ceremony: AuthenticationCeremony;
-	current: AuthenticationComponent;
+	validating: boolean;
 }
 
-export const AuthenticationStep: TObject<{
-	state: TString;
-	ceremony: typeof AuthenticationCeremony;
-	current: typeof AuthenticationComponent;
-}> = Type.Object({
+export const AuthenticationStep: Type.TObject<{
+	step: typeof AuthenticationComponent;
+	state: Type.TString;
+	validating: Type.TBoolean;
+}, ["step", "state", "validating"]> = Type.Object({
+	step: AuthenticationComponent,
 	state: Type.String(),
-	ceremony: AuthenticationCeremony,
-	current: AuthenticationComponent,
-}, { $id: "AuthenticationCeremonyStep" });
+	validating: Type.Boolean(),
+}, ["step", "state", "validating"]);

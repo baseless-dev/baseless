@@ -1,101 +1,119 @@
-import { TArray, TLiteral, TObject, TSchema, TString, TUnion, TUnknown, Type } from "@sinclair/typebox";
-import { Value } from "@sinclair/typebox/value";
+import * as Type from "./schema.ts";
 
 export interface Document<TData = unknown> {
-	key: string[];
+	key: string;
 	data: TData;
 	versionstamp: string;
 }
 
-export type TDocument<TData extends TSchema = TUnknown> = TObject<{
-	key: TArray<TString>;
-	data: TData;
-	versionstamp: TString;
-}>;
+export const Document: Type.TObject<{
+	key: Type.TString;
+	data: Type.TAny;
+	versionstamp: Type.TString;
+}, ["key", "data", "versionstamp"]> = Type.Object({
+	key: Type.String(),
+	data: Type.Any(),
+	versionstamp: Type.String(),
+}, ["key", "data", "versionstamp"]);
 
-export function Document<TData extends TSchema = TUnknown>(data?: TData): TDocument<TData> {
-	return Type.Object({
-		key: Type.Array(Type.String()),
-		data: data ?? Type.Unknown(),
-		versionstamp: Type.String(),
-	}, { $id: "Document" }) as never;
+export interface DocumentGetOptions {
+	readonly consistency: "strong" | "eventual";
 }
 
-export function isDocument<TData extends TSchema>(
-	data: TData,
-	value: unknown,
-): value is Document<TData> {
-	return !!value && typeof value === "object" && "key" in value && Array.isArray(value.key) &&
-		value.key.every((s) => typeof s === "string") && "data" in value &&
-		"versionstamp" in value && typeof value.versionstamp === "string" &&
-		Value.Check(data, value.data);
+export const DocumentGetOptions: Type.TObject<{
+	consistency: Type.TUnion<[Type.TLiteral<"strong">, Type.TLiteral<"eventual">]>;
+}, ["consistency"]> = Type.Object({
+	consistency: Type.Union([Type.Literal("strong"), Type.Literal("eventual")]),
+}, ["consistency"]);
+
+export interface DocumentListOptions<TPrefix = string> {
+	readonly prefix: TPrefix;
+	readonly cursor?: string;
+	readonly limit?: number;
 }
 
-export interface DocumentChangeSet<TData = unknown> {
-	type: "set";
-	key: string[];
-	data: TData;
-}
+export const DocumentListOptions: Type.TObject<{
+	prefix: Type.TString;
+	cursor: Type.TString;
+	limit: Type.TNumber;
+}, ["prefix"]> = Type.Object({
+	prefix: Type.String(),
+	cursor: Type.String(),
+	limit: Type.Number(),
+}, ["prefix"]);
 
-export type TDocumentChangeSet<TData extends TSchema = TUnknown> = TObject<{
-	type: TLiteral<"set">;
-	key: TArray<TString>;
-	data: TData;
-}>;
+export type DocumentListEntry<TData = unknown> = {
+	cursor: string;
+	document: Document<TData>;
+};
 
-export function DocumentChangeSet<TData extends TSchema = TUnknown>(data?: TData): TDocumentChangeSet<TData> {
-	return Type.Object({
+export const DocumentListEntry: Type.TObject<{
+	cursor: Type.TString;
+	document: typeof Document;
+}, ["cursor", "document"]> = Type.Object({
+	cursor: Type.String(),
+	document: Document,
+}, ["cursor", "document"]);
+
+export type DocumentAtomicCheck = {
+	type: "check";
+	readonly key: string;
+	readonly versionstamp: string | null;
+};
+
+export const DocumentAtomicCheck: Type.TObject<{
+	type: Type.TLiteral<"check">;
+	key: Type.TString;
+	versionstamp: Type.TUnion<[Type.TString, Type.TNull]>;
+}, ["type", "key"]> = Type.Object({
+	type: Type.Literal("check"),
+	key: Type.String(),
+	versionstamp: Type.Union([Type.String(), Type.Null()]),
+}, ["type", "key"]);
+
+export type DocumentAtomicOperation =
+	| { type: "delete"; readonly key: string }
+	| {
+		type: "set";
+		readonly key: string;
+		readonly data: unknown;
+	};
+
+export const DocumentAtomicOperation: Type.TUnion<[
+	Type.TObject<{
+		type: Type.TLiteral<"delete">;
+		key: Type.TString;
+	}, ["type", "key"]>,
+	Type.TObject<{
+		type: Type.TLiteral<"set">;
+		key: Type.TString;
+		data: Type.TAny;
+	}, ["type", "key", "data"]>,
+]> = Type.Union([
+	Type.Object({
+		type: Type.Literal("delete"),
+		key: Type.String(),
+	}, ["type", "key"]),
+	Type.Object({
 		type: Type.Literal("set"),
-		key: Type.Array(Type.String()),
-		data: data ?? Type.Unknown(),
-	}, { $id: "DocumentChangeSet" }) as never;
+		key: Type.String(),
+		data: Type.Any(),
+	}, ["type", "key", "data"]),
+]);
+
+export interface DocumentAtomic {
+	checks: DocumentAtomicCheck[];
+	operations: DocumentAtomicOperation[];
 }
 
-export function isDocumentChangeSet<TData extends TSchema>(
-	data: TData,
-	value: unknown,
-): value is Document<TData> {
-	return !!value && typeof value === "object" && "type" in value && value.type === "set" &&
-		"key" in value && Array.isArray(value.key) && value.key.every((s) => typeof s === "string") && "data" in value &&
-		Value.Check(data, value.data);
-}
+export const DocumentAtomic: Type.TObject<{
+	checks: Type.TArray<typeof DocumentAtomicCheck>;
+	operations: Type.TArray<typeof DocumentAtomicOperation>;
+}, ["checks", "operations"]> = Type.Object({
+	checks: Type.Array(DocumentAtomicCheck),
+	operations: Type.Array(DocumentAtomicOperation),
+}, ["checks", "operations"]);
 
-export interface DocumentChangeDelete {
-	type: "delete";
-	key: string[];
-}
+export class DocumentNotFoundError extends Error {}
 
-export type TDocumentChangeDelete = TObject<{
-	type: TLiteral<"delete">;
-	key: TArray<TString>;
-}>;
-
-export const DocumentChangeDelete: TDocumentChangeDelete = Type.Object({
-	type: Type.Literal("delete"),
-	key: Type.Array(Type.String()),
-}, { $id: "DocumentChangeDelete" });
-
-export function isDocumentChangeDelete(
-	value: unknown,
-): value is DocumentChangeDelete {
-	return !!value && typeof value === "object" && "type" in value && value.type === "delete" &&
-		"key" in value && Array.isArray(value.key) && value.key.every((s) => typeof s === "string");
-}
-
-export type DocumentChange<TData = unknown> = DocumentChangeSet<TData> | DocumentChangeDelete;
-
-export type TDocumentChange<TData extends TSchema = TUnknown> = TUnion<[TDocumentChangeSet<TData>, TDocumentChangeDelete]>;
-
-export function DocumentChange<TData extends TSchema = TUnknown>(data?: TData): TDocumentChange<TData> {
-	return Type.Union([
-		DocumentChangeSet(data),
-		DocumentChangeDelete,
-	]);
-}
-
-export function isDocumentChange<TData extends TSchema>(
-	data: TData,
-	value: unknown,
-): value is DocumentChange<TData> {
-	return isDocumentChangeSet(data, value) || isDocumentChangeDelete(value);
-}
+export class DocumentAtomicCommitError extends Error {}

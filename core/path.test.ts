@@ -1,91 +1,43 @@
 import { assertEquals } from "@std/assert";
-import { createPathMatcher, mergeTreeNodes, pathToTreeNode } from "./path.ts";
+import { comparePaths, convertPathToParams, convertPathToTemplate, matchPath } from "./path.ts";
 
-Deno.test("Path", async (t) => {
-	await t.step("pathToTreeNode", () => {
-		assertEquals(pathToTreeNode(["foo", "bar"]), {
-			kind: "const",
-			value: "foo",
-			children: [{
-				kind: "const",
-				value: "bar",
-				children: [{ kind: "leaf", values: [undefined] }],
-			}],
-		});
-		assertEquals(pathToTreeNode(["hello", "{world}"]), {
-			kind: "const",
-			value: "hello",
-			children: [{
-				kind: "variable",
-				name: "world",
-				children: [{ kind: "leaf", values: [undefined] }],
-			}],
-		});
+Deno.test("path", async (ctx) => {
+	await ctx.step("convertPathToParams", () => {
+		assertEquals(convertPathToParams("foo"), "{}");
+		assertEquals(convertPathToParams("foo/bar"), "{}");
+		assertEquals(convertPathToParams("foo/:bar"), "{ bar: string }");
+		assertEquals(convertPathToParams("foo/:bar/moo"), "{ bar: string }");
+		assertEquals(convertPathToParams("foo/:bar/moo/:joo"), "{ bar: string; joo: string }");
+		assertEquals(convertPathToParams(":a/:b/:c/:d"), "{ a: string; b: string; c: string; d: string }");
 	});
-	await t.step("mergeTreeNodes", () => {
-		assertEquals(
-			mergeTreeNodes([
-				pathToTreeNode(["users"], 1),
-				pathToTreeNode(["users", "{id}"], 2),
-				pathToTreeNode(["users", "{userId}", "edit"], 3),
-				pathToTreeNode(["users", "{userid}", "delete"], 4),
-				pathToTreeNode(["users", "{user_id}"], 5),
-			]),
-			[
-				{
-					kind: "const",
-					value: "users",
-					children: [
-						{
-							kind: "variable",
-							name: "id",
-							children: [
-								{
-									kind: "const",
-									value: "delete",
-									children: [{ kind: "leaf", values: [4] }],
-								},
-								{
-									kind: "const",
-									value: "edit",
-									children: [{ kind: "leaf", values: [3] }],
-								},
-								{ kind: "leaf", values: [2, 5] },
-							],
-						},
-						{ kind: "leaf", values: [1] },
-					],
-				},
-			],
-		);
+	await ctx.step("convertPathToTemplate", () => {
+		assertEquals(convertPathToTemplate("foo"), "foo");
+		assertEquals(convertPathToTemplate("foo/bar"), "foo/bar");
+		assertEquals(convertPathToTemplate("foo/:bar"), "foo/${string}");
+		assertEquals(convertPathToTemplate("foo/:bar/moo"), "foo/${string}/moo");
+		assertEquals(convertPathToTemplate("foo/:bar/moo/:joo"), "foo/${string}/moo/${string}");
+		assertEquals(convertPathToTemplate(":a/:b/:c/:d"), "${string}/${string}/${string}/${string}");
 	});
-	await t.step("createPathMatcher", () => {
-		const matcher = createPathMatcher([
-			{ path: ["users"], id: 1 },
-			{ path: ["users", "{id}"], id: 2 },
-			{ path: ["users", "{userId}", "delete"], id: 3 },
-			{ path: ["users", "{user_id}", "edit"], id: 4 },
-			{ path: ["users", "{user_id}"], id: 5 },
+	await ctx.step("comparePaths", () => {
+		assertEquals(comparePaths({ path: "a" }, { path: "a" }), 0);
+		assertEquals(comparePaths({ path: "a" }, { path: "b" }), -1);
+		assertEquals(comparePaths({ path: "b" }, { path: "a" }), 1);
+		assertEquals(comparePaths({ path: ":a" }, { path: ":b" }), 0);
+		assertEquals(comparePaths({ path: "a/:b" }, { path: "a/:b" }), 0);
+		assertEquals(comparePaths({ path: "a/:b" }, { path: "b/:c" }), -1);
+		assertEquals(comparePaths({ path: "b/:c" }, { path: "a/:b" }), 1);
+	});
+	await ctx.step("matchPath", () => {
+		const matcher = matchPath([
+			{ path: ":a/:b/:c/:d" },
+			{ path: "foo" },
+			{ path: "foo/:bar" },
+			{ path: "bar" },
 		]);
-		assertEquals(
-			Array.from(matcher(["users"])),
-			[{ path: ["users"], id: 1 }],
-		);
-		assertEquals(
-			Array.from(matcher(["users", "123"])),
-			[{ path: ["users", "{id}"], id: 2 }, { path: ["users", "{user_id}"], id: 5 }],
-		);
-		assertEquals(
-			Array.from(matcher(["users", "123", "delete"])),
-			[{ path: ["users", "{userId}", "delete"], id: 3 }],
-		);
-		assertEquals(
-			Array.from(matcher(["users", "123", "foo"])),
-			[],
-		);
-		assertEquals(
-			Array.from(matcher(["not", "found"])),
-			[],
-		);
+		assertEquals(matcher("foo").next().value, [{}, { path: "foo" }]);
+		assertEquals(matcher("bar").next().value, [{}, { path: "bar" }]);
+		assertEquals(matcher("foo/1").next().value, [{ bar: "1" }, { path: "foo/:bar" }]);
+		assertEquals(matcher("1/2/3/4").next().value, [{ a: "1", b: "2", c: "3", d: "4" }, { path: ":a/:b/:c/:d" }]);
+		assertEquals(matcher("unknown").next().done, true);
 	});
 });

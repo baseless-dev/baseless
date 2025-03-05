@@ -1,194 +1,112 @@
-// deno-lint-ignore-file require-await
-import { assert, assertEquals } from "@std/assert";
-import { Server } from "./server.ts";
-import { Type } from "@sinclair/typebox";
-import { isResultError, isResultSingle } from "@baseless/core/result";
-import { MemoryDocumentProvider, MemoryEventProvider, MemoryKVProvider } from "@baseless/inmemory-provider";
-import { ApplicationBuilder } from "./application_builder.ts";
-import { Permission } from "./types.ts";
-import { DenoHubProvider } from "@baseless/deno-provider/hub";
+import type { TDefinition } from "./app.ts";
+import { Server, ServerOptions } from "./server.ts";
+import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider, MemoryQueueProvider } from "@baseless/inmemory-provider";
+import { DenoHubProvider } from "@baseless/deno-provider";
+import * as Type from "@baseless/core/schema";
+import { ServiceCollection } from "./prelude.ts";
 
-Deno.test("Server", async (t) => {
-	const setupBaselessServer = () => {
-		const app = new ApplicationBuilder()
-			.event(["foo"], { payload: Type.String(), security: async () => Permission.All })
-			.rpc(["hello"], {
-				input: Type.String(),
-				output: Type.String(),
-				handler: async ({ input }) => input,
-				security: async () => Permission.All,
-			})
-			.rpc(["foo", "bar"], {
-				input: Type.String(),
-				output: Type.String(),
-				handler: async ({ input }) => `FooBar: ${input}`,
-				security: async () => Permission.All,
-			})
-			.build();
-		const hubProvider = new DenoHubProvider();
-		const server = new Server(app, {
-			document: new MemoryDocumentProvider(),
-			event: new MemoryEventProvider(hubProvider),
-			hub: hubProvider,
-			kv: new MemoryKVProvider(),
-			invokeRpcFromHttpPathname: "_rpc",
-		}, {});
-		return { app, server };
-	};
-
-	await t.step("handle command", async () => {
-		const { server } = setupBaselessServer();
-		{
-			const [result, promises] = await server.handleCommand({
-				kind: "rpc",
-				rpc: ["hello"],
-				input: "world",
-			});
-			assertEquals(promises.length, 0);
-			assert(isResultSingle(result));
-			assertEquals(result.value, "world");
-		}
-		{
-			const [result, promises] = await server.handleCommand({
-				kind: "rpc",
-				rpc: ["hello"],
-				input: 42,
-			});
-			assertEquals(promises.length, 0);
-			assert(isResultError(result));
-		}
-	});
-	await t.step("handle request", async () => {
-		const { server } = setupBaselessServer();
-		{
-			const [response, promises] = await server.handleRequest(
-				new Request("https://local", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						kind: "rpc",
-						rpc: ["not found"],
-						input: "silence is golden",
-					}),
-				}),
-			);
-			assertEquals(response.status, 200);
-			assertEquals(promises.length, 0);
-			const result = await response.json();
-			assert(isResultError(result));
-			assertEquals(result.name, "UnknownRpcError");
-		}
-		{
-			const [response, promises] = await server.handleRequest(
-				new Request("https://local", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						kind: "rpc",
-						rpc: ["hello"],
-						input: "world",
-					}),
-				}),
-			);
-			assertEquals(response.status, 200);
-			assertEquals(promises.length, 0);
-			const result = await response.json();
-			assert(isResultSingle(result));
-			assertEquals(result.value, "world");
-		}
-		{
-			const [response, promises] = await server.handleRequest(
-				new Request("https://local/_rpc/foo/bar", {
-					method: "POST",
-					// body: "world",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify("world"),
-				}),
-			);
-			assertEquals(response.status, 200);
-			assertEquals(promises.length, 0);
-			const result = await response.json();
-			assert(isResultSingle(result));
-			assertEquals(result.value, "FooBar: world");
-		}
-	});
-	await t.step("handle websocket", async () => {
-		using _d = deadline(1000);
-		using httpServer = await setupHttpServer();
-		const { server: baselessServer } = setupBaselessServer();
-
-		const wsSocketUrl = new URL(httpServer.url);
-		wsSocketUrl.protocol = "ws";
-		// // const wsSocket = new WebSocket(wsSocketUrl.toString(), ["base64url.bearer.authorization.baseless.dev.blep"]);
-		using ws = setupWebSocket(wsSocketUrl, []);
-
-		await handleOneRequest(httpServer, baselessServer);
-
-		assertEquals(await ws.nextReadyState(), WebSocket.OPEN);
-
-		// Subscribe to foo event
-		ws.send(JSON.stringify({ kind: "event-subscribe", event: ["foo"] }));
-
-		const request1 = fetch(httpServer.url, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				kind: "event-publish",
-				event: ["foo"],
-				payload: "foofoo",
-			}),
-		});
-
-		await handleOneRequest(httpServer, baselessServer);
-
-		const response1 = await request1;
-		response1.body?.cancel();
-
-		const message1 = await ws.nextMessage();
-		assertEquals(message1.data, JSON.stringify({ kind: "event", event: ["foo"], payload: "foofoo" }));
-
-		ws.close();
-
-		assertEquals(await ws.nextReadyState(), WebSocket.CLOSED);
-	});
-});
-
-type RequestHandlerHandoff = { request: Request; respondWith: (response: Response) => void };
-async function setupHttpServer(options?: { hostname?: string; port?: number }): Promise<
+export default async function createMemoryServer(
+	app: Record<string, TDefinition> = {},
+	authenticationOptions?: ServerOptions["authentication"],
+): Promise<
 	{
-		nextRequest: () => Promise<RequestHandlerHandoff>;
-		url: URL;
+		provider: {
+			document: MemoryDocumentProvider;
+			hub: DenoHubProvider;
+			kv: MemoryKVProvider;
+			notification: MemoryNotificationProvider;
+			queue: MemoryQueueProvider;
+		};
+		post: <T extends Type.TSchema = Type.TUnknown>(
+			endpoint: string,
+			options: { data: unknown; headers?: Record<string, string>; schema?: T },
+		) => Promise<Type.Static<T>>;
+		server: Server;
+		service: ServiceCollection;
 	} & Disposable
 > {
-	const hostname = options?.hostname ?? "localhost";
-	const port = options?.port ?? 0;
-	const ready = Promise.withResolvers<URL>();
-	const abortController = new AbortController();
-	const serverAsStream = new ReadableStream<{ request: Request; respondWith: (response: Response) => void }>({
-		start(controller): void {
-			Deno.serve(
-				{
-					hostname,
-					port,
-					signal: abortController.signal,
-					onListen(netAddr): void {
-						ready.resolve(new URL(`http://${netAddr.hostname === "::1" ? "[::1]" : netAddr.hostname}:${netAddr.port}`));
-					},
-				},
-				async (request) => {
-					const gate = Promise.withResolvers<Response>();
-					controller.enqueue({ request, respondWith: (response) => gate.resolve(response) });
-					const response = await gate.promise;
-					return response;
-				},
-			);
-			abortController.signal.addEventListener("abort", () => controller.close());
-		},
-		cancel(): void {
-			// abortController.abort();
+	const kv = new MemoryKVProvider();
+	const document = new MemoryDocumentProvider();
+	const queue = new MemoryQueueProvider();
+	const hub = new DenoHubProvider();
+	const notification = new MemoryNotificationProvider();
+
+	const server = new Server({
+		authentication: authenticationOptions,
+		definitions: app,
+		providers: {
+			channels: { email: notification },
+			document,
+			hub,
+			kv,
+			queue,
 		},
 	});
-	const requestIterator = serverAsStream.values();
+
+	async function post<T extends Type.TSchema = Type.TUnknown>(
+		endpoint: string,
+		options: { data: unknown; headers?: Record<string, string>; schema?: T },
+	): Promise<Type.Static<T>> {
+		const [response, promises] = await server.handleRequest(
+			new Request(`http://test${endpoint}`, {
+				method: "POST",
+				headers: {
+					...options.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(options.data),
+			}),
+		);
+		await Promise.allSettled(promises);
+		const json = await response.json().catch((_) => undefined);
+		Type.assert(options.schema ?? Type.Unknown(), json);
+		return json as Type.Static<T>;
+	}
+
+	const [, service] = await server.createContext(new Request("http://test"), undefined, new AbortController().signal, () => {});
+
+	return {
+		provider: {
+			document,
+			hub,
+			kv,
+			notification,
+			queue,
+		},
+		post,
+		server,
+		service,
+		[Symbol.dispose]: () => {
+			kv[Symbol.dispose]();
+			document[Symbol.dispose]();
+			queue[Symbol.dispose]();
+			hub[Symbol.dispose]();
+		},
+	};
+}
+
+export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const deadline = (ms: number): Disposable => {
+	const id = setTimeout(() => {
+		throw new Error("Deadline reached.");
+	}, ms);
+	return { [Symbol.dispose]: () => clearTimeout(id) };
+};
+export const serve = async (server: Server): Promise<{ url: URL } & Disposable> => {
+	const ready = Promise.withResolvers<URL>();
+	const abortController = new AbortController();
+	Deno.serve({
+		hostname: "localhost",
+		port: 0,
+		signal: abortController.signal,
+		onListen: (localAddr) => {
+			ready.resolve(new URL(`http://${localAddr.hostname === "::1" ? "[::1]" : localAddr.hostname}:${localAddr.port}`));
+		},
+	}, async (request) => {
+		const [response, promises] = await server.handleRequest(request);
+		await Promise.allSettled(promises);
+		return response;
+	});
 
 	const listeningUrl = await ready.promise;
 
@@ -196,23 +114,15 @@ async function setupHttpServer(options?: { hostname?: string; port?: number }): 
 		get url() {
 			return new URL(listeningUrl);
 		},
-		async nextRequest(): Promise<RequestHandlerHandoff> {
-			const result = await requestIterator.next();
-			if (!result.done) {
-				return result.value;
-			}
-			throw new Error("Server closed");
-		},
 		[Symbol.dispose]: () => abortController.abort(),
 	};
-}
-
-function setupWebSocket(url: URL, protocols?: string | string[]): {
+};
+export const connect = (url: URL, protocols?: string | string[]): {
 	close(): void;
-	nextMessage(): Promise<MessageEvent>;
-	nextReadyState(): Promise<WebSocket["readyState"]>;
+	message(): Promise<MessageEvent>;
+	readyState(): Promise<WebSocket["readyState"]>;
 	send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void;
-} & Disposable {
+} & Disposable => {
 	const ws = new WebSocket(url, protocols);
 	const abortController = new AbortController();
 	const readyStateAsStream = new ReadableStream<WebSocket["readyState"]>({
@@ -221,7 +131,6 @@ function setupWebSocket(url: URL, protocols?: string | string[]): {
 			ws.addEventListener("close", () => controller.enqueue(ws.readyState), { signal: abortController.signal });
 		},
 		cancel(): void {
-			console.log("readyStateAsStream.cancel");
 			abortController.abort();
 		},
 	});
@@ -232,7 +141,6 @@ function setupWebSocket(url: URL, protocols?: string | string[]): {
 			ws.addEventListener("message", (event) => controller.enqueue(event), { signal: abortController.signal });
 		},
 		cancel(): void {
-			console.log("messageAsStream.cancel");
 			abortController.abort();
 		},
 	});
@@ -242,17 +150,18 @@ function setupWebSocket(url: URL, protocols?: string | string[]): {
 		close(): void {
 			ws.close();
 		},
-		send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
+		async send(data: string | ArrayBufferLike | Blob | ArrayBufferView): Promise<void> {
 			ws.send(data);
+			await sleep(50);
 		},
-		async nextMessage(): Promise<MessageEvent> {
+		async message(): Promise<MessageEvent> {
 			const result = await messageIterator.next();
 			if (!result.done) {
 				return result.value;
 			}
 			throw new Error("Server closed");
 		},
-		async nextReadyState(): Promise<WebSocket["readyState"]> {
+		async readyState(): Promise<WebSocket["readyState"]> {
 			const result = await readyStateIterator.next();
 			if (!result.done) {
 				return result.value;
@@ -261,17 +170,24 @@ function setupWebSocket(url: URL, protocols?: string | string[]): {
 		},
 		[Symbol.dispose]: () => ws.close(),
 	};
-}
+};
 
-async function handleOneRequest(httpServer: Awaited<ReturnType<typeof setupHttpServer>>, baselessServer: Server): Promise<void> {
-	const { request, respondWith } = await httpServer.nextRequest();
-	const [response, _promises] = await baselessServer.handleRequest(request);
-	respondWith(response);
-}
-
-function deadline(ms: number): Disposable {
-	const id = setTimeout(() => {
-		throw new Error("Deadline reached.");
-	}, ms);
-	return { [Symbol.dispose]: () => clearTimeout(id) };
-}
+export const pubsub = (mock: Awaited<ReturnType<typeof createMemoryServer>>): { next: () => Promise<void> } & Disposable => {
+	const abortController = new AbortController();
+	const stream = mock.provider.queue.dequeue(abortController.signal);
+	const reader = stream.getReader();
+	return {
+		async next(): Promise<void> {
+			const result = await reader.read();
+			if (!result.done) {
+				const promises = await mock.server.handleQueueItem(result.value);
+				await Promise.allSettled(promises);
+			}
+		},
+		[Symbol.dispose]: () => {
+			reader.releaseLock();
+			stream.cancel();
+			abortController.abort();
+		},
+	};
+};

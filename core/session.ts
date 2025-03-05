@@ -1,24 +1,18 @@
-import { type ID, isID } from "./id.ts";
+import * as Type from "./schema.ts";
+import { Identity } from "./identity.ts";
 
 export interface Session {
-	sessionId?: ID<"sid_">;
-	identityId: ID<"id_">;
+	identityId: Identity["id"];
+	issuedAt: number;
 	scope: string[];
-	aat: number;
 }
 
-export function isSession(value: unknown): value is Session {
-	return !!value && typeof value === "object" &&
-		(!("sessionId" in value) || ("sessionId" in value && isID("sid_", value.sessionId))) &&
-		"identityId" in value && isID("id_", value.identityId) && "scope" in value &&
-		Array.isArray(value.scope) && value.scope.every((s) => typeof s === "string") &&
-		"aat" in value && typeof value.aat === "number";
-}
-
-export function assertSession(value: unknown): asserts value is Session {
-	if (!isSession(value)) {
-		throw new InvalidSessionError();
-	}
-}
-
-export class InvalidSessionError extends Error {}
+export const Session: Type.TObject<{
+	identityId: Type.TID<"id_">;
+	issuedAt: Type.TNumber;
+	scope: Type.TArray<Type.TString>;
+}, ["identityId", "issuedAt", "scope"]> = Type.Object({
+	identityId: Type.Index(Identity, "id"),
+	issuedAt: Type.Number(),
+	scope: Type.Array(Type.String()),
+}, ["identityId", "issuedAt", "scope"]);

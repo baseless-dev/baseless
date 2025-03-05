@@ -1,12 +1,8 @@
 {
 	"name": "@baseless/react",
-	"version": "0.3.0-rc.20",
+	"version": "0.4.0-rc.1",
 	"exports": {
-		".": "./mod.ts",
-		"./Authentication": "./Authentication.ts",
-		"./Registration": "./Registration.ts",
-		"./useClient": "./useClient.ts",
-		"./useIdentity": "./useIdentity.ts",
+		".": "./prelude.ts",
 		"./useKeyedPromise": "./useKeyedPromise.ts"
 	},
 	"publish": {
@@ -16,7 +12,8 @@
 			"*.tsx"
 		],
 		"exclude": [
-			"*.test.ts"
+			"*.test.ts",
+			"*.test.tsx"
 		]
 	}
 }

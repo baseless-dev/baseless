@@ -1,4 +1,4 @@
-import { type TArray, type TLiteral, type TObject, type TRecord, type TString, type TUnion, type TUnknown, Type } from "@sinclair/typebox";
+import * as Type from "./schema.ts";
 
 export interface AuthenticationComponentPrompt {
 	kind: "component";
@@ -16,32 +16,40 @@ export type AuthenticationComponent =
 	| AuthenticationComponentPrompt
 	| AuthenticationComponentChoice;
 
-export const AuthenticationComponentPrompt: TObject<{
-	kind: TLiteral<"component">;
-	id: TString;
-	prompt: TString;
-	options: TRecord<TString, TUnknown>;
-}> = Type.Object({
-	kind: Type.Literal("component"),
-	id: Type.String(),
-	prompt: Type.String(),
-	options: Type.Record(Type.String(), Type.Unknown()),
-}, { $id: "AuthenticationComponentPrompt" });
+export const AuthenticationComponentPrompt: Type.TObject<{
+	kind: Type.TLiteral<"component">;
+	id: Type.TString;
+	prompt: Type.TString;
+	options: Type.TRecord<Type.TUnknown>;
+}, ["kind", "id", "prompt", "options"]> = Type.Object(
+	{
+		kind: Type.Literal("component"),
+		id: Type.String(),
+		prompt: Type.String(),
+		options: Type.Record(Type.Unknown()),
+	},
+	["kind", "id", "prompt", "options"],
+	{ $id: "AuthenticationComponentPrompt" },
+);
 
-export const AuthenticationComponentChoice: TObject<{
-	kind: TLiteral<"choice">;
-	prompts: TArray<typeof AuthenticationComponentPrompt>;
-}> = Type.Object({
-	kind: Type.Literal("choice"),
-	prompts: Type.Array(AuthenticationComponentPrompt),
-}, { $id: "AuthenticationComponentChoice" });
+export const AuthenticationComponentChoice: Type.TObject<{
+	kind: Type.TLiteral<"choice">;
+	prompts: Type.TArray<typeof AuthenticationComponentPrompt>;
+}, ["kind", "prompts"]> = Type.Object(
+	{
+		kind: Type.Literal("choice"),
+		prompts: Type.Array(AuthenticationComponentPrompt),
+	},
+	["kind", "prompts"],
+	{ $id: "AuthenticationComponentChoice" },
+);
 
-export const AuthenticationComponent: TUnion<[
+export const AuthenticationComponent: Type.TUnion<[
 	typeof AuthenticationComponentPrompt,
-	TObject<{
-		kind: TLiteral<"choice">;
-		prompts: TArray<typeof AuthenticationComponentPrompt>;
-	}>,
+	Type.TObject<{
+		kind: Type.TLiteral<"choice">;
+		prompts: Type.TArray<typeof AuthenticationComponentPrompt>;
+	}, ["kind", "prompts"]>,
 ]> = Type.Union([
 	AuthenticationComponentPrompt,
 	AuthenticationComponentChoice,

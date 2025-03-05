@@ -1,20 +1,15 @@
-type PromiseState<T> = { promise: Promise<unknown>; value?: T; expiration?: number };
-const map = new Map<any, PromiseState<unknown>>();
-let timer: number | undefined;
+type PromiseState = { promise: Promise<unknown>; value?: unknown; expiration?: number };
+const map = new Map<unknown, PromiseState>();
 
-function cleanExpiredKeys(): void {
+export function cleanExpiredKeys(): void {
 	const now = Date.now();
-	let hasExpiringKeys = false;
 	for (const [key, item] of map) {
 		if (item.expiration) {
 			if (item.expiration < now) {
 				map.delete(key);
-			} else {
-				hasExpiringKeys = true;
 			}
 		}
 	}
-	timer = hasExpiringKeys ? setTimeout(cleanExpiredKeys, 10000) : undefined;
 }
 
 export function useKeyedPromise<T extends unknown>(
@@ -31,16 +26,6 @@ export function useKeyedPromise<T extends unknown>(
 					return expiration(value);
 				}
 				return expiration;
-			})
-			.then((expiration) => {
-				item!.expiration = expiration instanceof Date
-					? expiration.getTime()
-					: typeof expiration === "number"
-					? expiration + Date.now()
-					: undefined;
-				if (item!.expiration && timer === undefined) {
-					timer = setTimeout(cleanExpiredKeys, 10000);
-				}
 			});
 		item = { promise };
 		map.set(key, item);

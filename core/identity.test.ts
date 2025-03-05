@@ -1,22 +1,12 @@
 import { assert, assertThrows } from "@std/assert";
 import { id } from "./id.ts";
-import { assertIdentity, Identity, isIdentity } from "./identity.ts";
-import { Value } from "@sinclair/typebox/value";
+import { Identity } from "./identity.ts";
+import * as Type from "./schema.ts";
 
 Deno.test("Identity", async (t) => {
-	await t.step("isIdentity", () => {
-		assert(isIdentity({ identityId: id("id_"), data: {} }));
-		assert(isIdentity({ identityId: id("id_") }));
-		assert(!isIdentity("foo"));
-	});
-	await t.step("assertIdentity", () => {
-		assertIdentity({ identityId: id("id_"), data: {} });
-		assertIdentity({ identityId: id("id_") });
-		assertThrows(() => assertIdentity("foo"));
-	});
-	await t.step("typebox schema", () => {
-		assert(Value.Check(Identity, { identityId: id("id_"), data: {} }));
-		assert(Value.Check(Identity, { identityId: id("id_") }));
-		assert(!Value.Check(Identity, "foo"));
+	await t.step("specification", () => {
+		assert(Type.validate(Identity, { id: id("id_"), data: {} }));
+		assert(!Type.validate(Identity, { id: id("id_") }));
+		assert(!Type.validate(Identity, "foo"));
 	});
 });

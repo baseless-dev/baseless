@@ -1,0 +1,21 @@
+{
+	"name": "@baseless/inmemory-provider",
+	"version": "0.4.0-rc.1",
+	"exports": {
+		".": "./prelude.ts",
+		"./document": "./document.ts",
+		"./kv": "./kv.ts",
+		"./notification": "./notification.ts",
+		"./queue": "./queue.ts"
+	},
+	"publish": {
+		"include": [
+			"LICENSE",
+			"*.ts"
+		],
+		"exclude": [
+			"*.test.ts",
+			"*.bench.ts"
+		]
+	}
+}

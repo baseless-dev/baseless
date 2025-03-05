@@ -1,20 +1,20 @@
-import { type TObject, type TRecord, type TString, Type } from "@sinclair/typebox";
+import * as t from "./schema.ts";
 
 export interface Notification {
 	subject: string;
 	content: Record<string, string>;
 }
 
-export const Notification: TObject<{
-	subject: TString;
-	content: TRecord<TString, TString>;
-}> = Type.Object({
-	subject: Type.String(),
-	content: Type.Record(Type.String(), Type.String(), { minProperties: 1 }),
-}, { $id: "Notification" });
+export const TNotification: t.TObject<{
+	subject: t.TString;
+	content: t.TRecord<t.TString>;
+}, ["subject", "content"]> = t.Object(
+	{
+		subject: t.String(),
+		content: t.Record(t.String(), { minProperties: 1 }),
+	},
+	["subject", "content"],
+	{ $id: "Notification" },
+);
 
-export function isNotification(value: unknown): value is Notification {
-	return !!value && typeof value === "object" && "subject" in value &&
-		typeof value.subject === "string" && "content" in value &&
-		typeof value.content === "object";
-}
+export class NotificationChannelNotFoundError extends Error {}

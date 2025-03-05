@@ -1,8 +1,8 @@
 import type { Identity } from "@baseless/core/identity";
 import type { AuthenticationTokens } from "@baseless/core/authentication-tokens";
 import { type ClientInitialization, ClientInternal } from "./internal.ts";
-import { AnyDocumentAtomic, RegisteredDocument, RegisteredFetch, RegisteredPubSub } from "./service.ts";
-import type { DocumentAtomic, DocumentAtomicCheck, DocumentAtomicOperation } from "@baseless/core/document";
+import type { AnyDocumentAtomic, RegisteredDocument, RegisteredFetch, RegisteredPubSub } from "./service.ts";
+import type { DocumentAtomicCheck, DocumentAtomicOperation } from "@baseless/core/document";
 
 export class Client implements AsyncDisposable {
 	#internal: ClientInternal;

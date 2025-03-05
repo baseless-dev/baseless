@@ -1,5 +1,6 @@
 import type { Document, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
 
+// deno-lint-ignore no-empty-interface
 export interface Register {}
 
 // deno-fmt-ignore

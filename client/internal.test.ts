@@ -1,18 +1,12 @@
 import {
-	collection,
 	component,
 	EmailIdentityComponentProvider,
 	Identity,
 	IdentityComponent,
 	Notification,
-	onRequest,
-	onTopicMessage,
 	PasswordIdentityComponentProvider,
-	Permission,
 	sequence,
 	TDefinition,
-	topic,
-	Type,
 } from "@baseless/server";
 import createMemoryServer, { serve } from "../server/server.test.ts";
 import { generateKeyPair } from "jose";

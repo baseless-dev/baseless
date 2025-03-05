@@ -4,7 +4,7 @@ import type { Matcher } from "@baseless/core/path";
 import { first } from "@baseless/core/iter";
 
 export default function createPubSubApplication(
-	topicMatcher: Matcher<TTopic<any, Type.TSchema>>,
+	topicMatcher: Matcher<TTopic<string, Type.TSchema>>,
 ): TDefinition[] {
 	return [
 		onRequest(

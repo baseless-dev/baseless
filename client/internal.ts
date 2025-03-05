@@ -135,6 +135,7 @@ export class ClientInternal implements AsyncDisposable {
 				const identity = { id, data: claims };
 				Type.assert(Identity, identity);
 				return identity;
+				// deno-lint-ignore no-empty
 			} catch (_error) {}
 		}
 		return undefined;
@@ -276,7 +277,7 @@ export class ClientInternal implements AsyncDisposable {
 		return this.#socket;
 	}
 
-	pubsubSubscribe(path: string, abortSignal?: AbortSignal): ReadableStream<unknown> {
+	pubsubSubscribe(path: string, _abortSignal?: AbortSignal): ReadableStream<unknown> {
 		let listener: Disposable;
 		let socket: WebSocket;
 		return new ReadableStream<unknown>({

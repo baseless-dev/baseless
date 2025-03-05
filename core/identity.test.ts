@@ -1,4 +1,4 @@
-import { assert, assertThrows } from "@std/assert";
+import { assert } from "@std/assert";
 import { id } from "./id.ts";
 import { Identity } from "./identity.ts";
 import * as Type from "./schema.ts";

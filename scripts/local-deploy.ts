@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 // import { transpile } from "jsr:@deno/emit";
 import ts from "npm:typescript";
 import { walk } from "jsr:@std/fs";

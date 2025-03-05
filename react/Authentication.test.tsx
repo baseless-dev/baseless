@@ -5,6 +5,7 @@
 /** @jsxImportSourceTypes npm:@types/react@19 */
 
 import "npm:global-jsdom/register";
+// deno-lint-ignore no-explicit-any
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 import React from "react";

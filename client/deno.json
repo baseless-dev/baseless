@@ -10,7 +10,7 @@
 	"publish": {
 		"include": [
 			"LICENSE",
-			"*.ts"
+			"**/*.ts"
 		],
 		"exclude": [
 			"*.test.ts",

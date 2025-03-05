@@ -5,6 +5,7 @@ import createMemoryServer, { pubsub } from "../server.test.ts";
 import { Document, DocumentListEntry } from "@baseless/core/document";
 
 Deno.test("Document application", async (t) => {
+	// deno-lint-ignore no-explicit-any
 	const documentEvents: any[] = [];
 	using mock = await createMemoryServer({
 		collectionPost: App.collection("post", Type.String(), Type.String(), () => App.Permission.All),

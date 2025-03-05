@@ -120,6 +120,7 @@ export function Authentication({
 				url.searchParams.delete("state");
 				url.searchParams.delete("code");
 				url.searchParams.delete("scope");
+				// deno-lint-ignore no-explicit-any
 				(globalThis as any).history.replaceState(null, "", url.toString());
 				(client.fetch(`auth/submit-prompt`, {
 					state: currentStep.state,

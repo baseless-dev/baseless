@@ -2,14 +2,12 @@
 	"name": "@baseless/server",
 	"version": "0.4.0-rc.1",
 	"exports": {
-		".": "./prelude.ts",
-		"./adapter/elysia": "./adapter/elysia.ts",
-		"./adapter/hono": "./adapter/hono.ts"
+		".": "./prelude.ts"
 	},
 	"publish": {
 		"include": [
 			"LICENSE",
-			"*.ts"
+			"**/*.ts"
 		],
 		"exclude": [
 			"*.test.ts",

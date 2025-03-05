@@ -126,7 +126,6 @@ export class DocumentFacade implements AnyDocumentService {
 
 	atomic(): DocumentAtomic {
 		return new DocumentFacadeAtomic(
-			this.#auth,
 			this.#documentProvider,
 			this.#service,
 			this.#context,
@@ -149,7 +148,6 @@ export class DocumentFacadeAtomic extends DocumentAtomic {
 	#onDocumentDeletingMatcher: Matcher<TOnDocumentDeleting>;
 
 	constructor(
-		auth: Auth,
 		provider: DocumentProvider,
 		service: ServiceCollection,
 		context: RegisteredContext,

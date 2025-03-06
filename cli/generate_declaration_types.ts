@@ -198,7 +198,7 @@ export function generateDeclarationTypes(
 	return [
 		header,
 		...namedTypes.entries().map(([key, value]) => `export type ${key} = ${value};`),
-		...namedSchemas.entries().map(([key, value]) => `export const ${key} = Type.fromJSON(\`${JSON.stringify(value.schema)}\`) as ${value.type};`),
+		...namedSchemas.entries().map(([key, value]) => `export const ${key} = Type.fromObject(${JSON.stringify(value.schema)}) as ${value.type};`),
 		output,
 	].join(`\n`);
 }

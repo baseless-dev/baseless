@@ -222,14 +222,14 @@ type _Static<T, M extends Record<string, any>> =
 			& { [K in keyof TProperties as NotInArray<K, TRequired>]?: _Static<TProperties[K], M> }
 		> :
 	// Cap recursion to 8 levels
-	T extends TRecursive<infer TValue, infer TIdentifier> ? _Static<TValue, M & { [K in TIdentifier]: [[1,2,3,4,5,6,7,8], TValue] }> :
+	T extends TRecursive<infer TValue, infer TIdentifier> ? _Static<TValue, M & { [K in TIdentifier]: [[], TValue] }> :
 	T extends TSelf<infer TIdentifier extends string> ?
 		TIdentifier extends keyof M ?
-			M[TIdentifier][0] extends [infer Head, ...infer Tail] ?
-				_Static<M[TIdentifier][1], Omit<M, TIdentifier> & { [K in TIdentifier]: [Tail, M[TIdentifier][1]] }> :
+			M[TIdentifier][0]["length"] extends 8 ?
 				any :
+				_Static<M[TIdentifier][1], Omit<M, TIdentifier> & { [K in TIdentifier]: [[1, ...M[TIdentifier][0]], M[TIdentifier][1]] }> :
 			any :
-	"wtf";
+	never;
 
 // deno-lint-ignore ban-types
 export type Static<T> = _Static<T, {}>;
@@ -309,31 +309,105 @@ export function assert<TValue extends TSchema>(
 	}
 }
 
-export function toJSON(schema: TSchema): string {
-	return JSON.stringify(schema, (_, v: unknown) => {
-		if (
-			v && typeof v === "object" && "type" in v && v.type === "recursive" && "identifier" in v && typeof v.identifier === "string" &&
-			"value" in v && typeof v.value === "function"
-		) {
-			return {
-				...v,
-				value: v.value({ type: "self", identifier: v.identifier }),
-			};
+export function toObject(schema: TSchema): Record<string, unknown> {
+	function _toObject(schema: TPrimitive): Record<string, unknown> {
+		if ("type" in schema === false) {
+			return {};
 		}
-		return v;
-	});
+		switch (schema.type) {
+			case "id":
+				return { type: "id", prefix: schema.prefix };
+			case "string":
+				return { type: "string" };
+			case "number":
+				return { type: "number" };
+			case "boolean":
+				return { type: "boolean" };
+			case "null":
+				return { type: "null" };
+			case "any":
+				return { type: "any" };
+			case "unknown":
+				return { type: "unknown" };
+			case "void":
+				return { type: "void" };
+			case "literal":
+				return { type: "literal", value: schema.value };
+			case "array":
+				return { type: "array", items: _toObject(schema.items) };
+			case "union":
+				return { type: "union", types: schema.types.map((t) => _toObject(t)) };
+			case "record":
+				return { type: "record", value: _toObject(schema.value) };
+			case "object":
+				return {
+					type: "object",
+					properties: globalThis.Object.fromEntries(
+						globalThis.Object.entries(schema.properties).map(([key, value]) => [key, _toObject(value)]),
+					),
+					required: schema.required,
+				};
+			case "recursive":
+				return {
+					type: "recursive",
+					identifier: schema.identifier,
+					value: _toObject(schema.value({ type: "self", identifier: schema.identifier })),
+				};
+			case "self":
+				return { type: "self", identifier: schema.identifier };
+			default:
+				return {};
+		}
+	}
+	return _toObject(schema as TPrimitive);
 }
 
-export function fromJSON(schema: string): TSchema {
-	return JSON.parse(schema, (_, v: unknown) => {
-		if (
-			v && typeof v === "object" && "type" in v && v.type === "recursive" && "identifier" in v && typeof v.identifier === "string" &&
-			"value" in v
-		) {
-			return Recursive((_self) => v.value as TPrimitive, v.identifier);
+export function fromObject(schema: any): TSchema {
+	function _fromObject(schema: any): TPrimitive {
+		if (!schema || typeof schema !== "object" || "type" in schema === false) {
+			throw new Error("Invalid schema");
 		}
-		return v;
-	});
+		switch (schema.type) {
+			case "id":
+				return ID(schema.prefix);
+			case "string":
+				return String();
+			case "number":
+				return Number();
+			case "boolean":
+				return Boolean();
+			case "null":
+				return Null();
+			case "any":
+				return Any();
+			case "unknown":
+				return Unknown();
+			case "void":
+				return Void();
+			case "literal":
+				return Literal(schema.value);
+			case "array":
+				return Array(_fromObject(schema.items));
+			case "union":
+				return Union(schema.types.map((t: any) => _fromObject(t)));
+			case "record":
+				return Record(_fromObject(schema.value));
+			case "object":
+				return Object(
+					globalThis.Object.fromEntries(
+						globalThis.Object.entries(schema.properties).map(([key, value]: [string, any]) => [key, _fromObject(value)]),
+					),
+					schema.required,
+				);
+			case "recursive":
+				return Recursive((_self) => _fromObject(schema.value), schema.identifier);
+			case "self":
+				return { type: "self", identifier: schema.identifier };
+			default:
+				throw new Error("Invalid schema");
+		}
+	}
+	return _fromObject(schema);
 }
 
 // deno-fmt-ignore

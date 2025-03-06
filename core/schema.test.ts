@@ -77,22 +77,45 @@ Deno.test("schema", async (ctx) => {
 		);
 	});
 
-	await ctx.step("toJSON", () => {
-		assertEquals(t.toJSON(t.String()), `{"type":"string"}`);
+	await ctx.step("toObject", () => {
+		assertEquals(t.toObject(t.String()), { "type": "string" });
 		assertEquals(
-			t.toJSON(t.Recursive((self) => t.Union([t.String(), t.Number(), t.Boolean(), t.Null(), t.Array(self), t.Record(self)]), "JSONValue")),
-			`{"type":"recursive","identifier":"JSONValue","value":{"type":"union","types":[{"type":"string"},{"type":"number"},{"type":"boolean"},{"type":"null"},{"type":"array","items":{"type":"self","identifier":"JSONValue"}},{"type":"record","value":{"type":"self","identifier":"JSONValue"}}]}}`,
+			t.toObject(
+				t.Recursive((self) => t.Union([t.String(), t.Number(), t.Boolean(), t.Null(), t.Array(self), t.Record(self)]), "JSONValue"),
+			),
+			{
+				"type": "recursive",
+				"identifier": "JSONValue",
+				"value": {
+					"type": "union",
+					"types": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }, { "type": "null" }, {
+						"type": "array",
+						"items": { "type": "self", "identifier": "JSONValue" },
+					}, { "type": "record", "value": { "type": "self", "identifier": "JSONValue" } }],
+				},
+			},
 		);
 	});
 
-	await ctx.step("fromJSON", () => {
-		assertEquals(t.fromJSON(`{"type":"string"}`), t.String());
-		assert(t.validate(t.fromJSON(`{"type":"string"}`), ""));
+	await ctx.step("fromObject", () => {
+		assertEquals(t.fromObject({ "type": "string" }), t.String());
 		assertEquals(
-			t.toJSON(t.fromJSON(
-				`{"type":"recursive","identifier":"JSONValue","value":{"type":"union","types":[{"type":"string"},{"type":"number"},{"type":"boolean"},{"type":"null"},{"type":"array","items":{"type":"self","identifier":"JSONValue"}},{"type":"record","value":{"type":"self","identifier":"JSONValue"}}]}}`,
+			t.toObject(t.fromObject(
+				{
+					"type": "recursive",
+					"identifier": "JSONValue",
+					"value": {
+						"type": "union",
+						"types": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }, { "type": "null" }, {
+							"type": "array",
+							"items": { "type": "self", "identifier": "JSONValue" },
+						}, { "type": "record", "value": { "type": "self", "identifier": "JSONValue" } }],
+					},
+				},
 			)),
-			t.toJSON(t.Recursive((self) => t.Union([t.String(), t.Number(), t.Boolean(), t.Null(), t.Array(self), t.Record(self)]), "JSONValue")),
+			t.toObject(
+				t.Recursive((self) => t.Union([t.String(), t.Number(), t.Boolean(), t.Null(), t.Array(self), t.Record(self)]), "JSONValue"),
+			),
 		);
 	});
 });

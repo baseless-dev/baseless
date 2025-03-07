@@ -37,7 +37,7 @@ export interface TUnknown extends TSchema {
 export interface TVoid extends TSchema {
 	type: "void";
 }
-export interface TLiteral<TValue extends string | number | boolean> extends TSchema {
+export interface TLiteral<TValue extends null | string | number | boolean> extends TSchema {
 	type: "literal";
 	value: TValue;
 }

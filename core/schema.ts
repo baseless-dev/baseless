@@ -60,6 +60,7 @@ export interface TObject<
 	type: "object";
 	properties: TProperties;
 	required: TRequired;
+	additionalProperties: boolean;
 }
 export interface TRecursive<TValue extends TSchema, TIdentifier extends string> extends TSchema {
 	type: "recursive";
@@ -136,7 +137,7 @@ export function Record<TValue extends TSchema>(
 
 export function Object<TProperties extends { [key: string]: TSchema }>(
 	properties: TProperties,
-	options?: Omit<TSchema, "type">,
+	options?: Omit<TSchema, "type"> & { additionalProperties?: boolean },
 ): TObject<TProperties, []>;
 export function Object<
 	TProperties extends { [key: string]: TSchema },
@@ -144,12 +145,12 @@ export function Object<
 >(
 	properties: TProperties,
 	required?: TRequired,
-	options?: Omit<TSchema, "type">,
+	options?: Omit<TSchema, "type"> & { additionalProperties?: boolean },
 ): TObject<TProperties, TRequired>;
 export function Object(
 	properties: any,
 	requiredOrOptions: any,
-	options?: Omit<TSchema, "type">,
+	options?: Omit<TSchema, "type"> & { additionalProperties?: boolean },
 ): TObject<any, any> {
 	return globalThis.Array.isArray(requiredOrOptions)
 		? {
@@ -280,7 +281,16 @@ export function validate<TValue extends TSchema>(
 						p in value &&
 						_validate(schema.properties[p], (value as any)[p], recursiveSchema)
 					) &&
-					globalThis.Object.entries(value).every(([key, value]) => _validate(schema.properties[key], value, recursiveSchema));
+					(
+						(!schema.additionalProperties &&
+							globalThis.Object.entries(value).every(([key, value]) =>
+								schema.properties[key] && _validate(schema.properties[key], value, recursiveSchema)
+							)) ||
+						(schema.additionalProperties &&
+							globalThis.Object.entries(schema.properties).every(([key, schema]) =>
+								!(key in (value as any)) || _validate(schema, (value as any)[key], recursiveSchema)
+							))
+					);
 			case "recursive":
 				return _validate(schema.value({ type: "self", identifier: schema.identifier }), value, {
 					...recursiveSchema,

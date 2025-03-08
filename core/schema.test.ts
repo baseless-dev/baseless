@@ -61,6 +61,10 @@ Deno.test("schema", async (ctx) => {
 		assert(t.validate(t.Array(t.String()), [""]));
 		assert(t.validate(t.Union([t.String(), t.Number()]), ""));
 		assert(t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"]), { foo: "" }));
+		assert(t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"], { additionalProperties: true }), { foo: "", absent: 0 }));
+		assertFalse(
+			t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"], { additionalProperties: false }), { foo: "", absent: 0 }),
+		);
 		assertFalse(t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"]), { bar: 42 }));
 		assert(t.validate(t.Record(t.Number()), { foo: 42 }));
 		assert(

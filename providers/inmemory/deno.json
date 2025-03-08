@@ -1,6 +1,6 @@
 {
 	"name": "@baseless/inmemory-provider",
-	"version": "0.4.0-rc.3",
+	"version": "0.4.0-rc.4",
 	"exports": {
 		".": "./prelude.ts",
 		"./document": "./document.ts",

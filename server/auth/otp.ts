@@ -81,7 +81,9 @@ export class OtpComponentProvider implements IdentityComponentProvider {
 			kind: "component",
 			id: componentId,
 			prompt: "otp",
-			options: {},
+			options: {
+				digits: this.#options.otp.digits,
+			},
 		});
 	}
 

@@ -6,6 +6,8 @@ import {
 	Identity,
 	IdentityChannel,
 	IdentityComponent,
+	onRequest,
+	Permission,
 	type TCollection,
 	type TDecoration,
 	type TDefinition,
@@ -16,6 +18,8 @@ import {
 } from "@baseless/server";
 import * as Type from "@baseless/core/schema";
 import { convertPathToParams, convertPathToTemplate } from "@baseless/core/path";
+import { AuthenticationTokens } from "@baseless/core/authentication-tokens";
+import { AuthenticationResponse } from "../core/authentication_response.ts";
 
 export function generateDeclarationTypes(
 	options: { exports: unknown; relativeImport: string; generateServer: boolean },
@@ -43,10 +47,66 @@ export function generateDeclarationTypes(
 	const topics = Object.entries(exports).filter(([, value]) => value.type === "topic") as [string, TTopic<any, any>][];
 	const requests = Object.entries(exports).filter(([, value]) => value.type === "on_request") as [string, TOnRequest<any, any, any>][];
 
+	// TODO lol...
 	collections.push(['authIdentityCollection', collection("auth/identity", Type.Index(Identity, "id"), Identity)]);
 	collections.push(['authIdentityComponentCollection', collection("auth/identity/:id/component", Type.String(), IdentityComponent)]);
 	collections.push(['authIdentityChannelCollection', collection("auth/identity/:id/channel", Type.String(), IdentityChannel)]);
 	documents.push(['authIdentityByIdentification', document("auth/identity-by-identification/:component/:identification", Type.Index(Identity, "id"))]);
+	requests.push(['authSignOut', onRequest("auth/sign-out", Type.Void(), Type.Boolean(), {} as never)]);
+	requests.push(['authRefreshToken', onRequest("auth/refresh-token", Type.String({ $id: "RefreshToken" }), AuthenticationTokens, {} as never)]);
+	requests.push(['authRefreshToken', onRequest("auth/refresh-token", Type.String({ $id: "RefreshToken" }), AuthenticationTokens, {} as never)]);
+	requests.push(['authRefreshToken', onRequest("auth/refresh-token", Type.String({ $id: "RefreshToken" }), AuthenticationTokens, {} as never)]);
+	requests.push(['authBegin', onRequest(
+		"auth/begin",
+		Type.Union([
+			Type.Object({
+				kind: Type.Literal("authentication"),
+				scopes: Type.Array(Type.String()),
+			}, ["kind", "scopes"]),
+			Type.Object({
+				kind: Type.Literal("registration"),
+				scopes: Type.Array(Type.String()),
+			}, ["kind"]),
+		]),
+		AuthenticationResponse,
+		{} as never,
+		() => Permission.Fetch
+	)]);
+	requests.push(['authSubmitPrompt', onRequest(
+		"auth/submit-prompt",
+		Type.Object({
+			id: Type.String(),
+			value: Type.String(),
+			state: Type.String(),
+		}, ["id", "value", "state"]),
+		AuthenticationResponse,
+		{} as never,
+		() => Permission.Fetch
+	)]);
+	requests.push(['authSendPrompt', onRequest(
+		"auth/send-prompt",
+		Type.Object({
+			id: Type.String(),
+			locale: Type.String(),
+			state: Type.String(),
+		}, ["id", "locale", "state"]),
+		Type.Boolean(),
+		{} as never,
+		() => Permission.Fetch
+	)]);
+	requests.push(['authSendValidationCode', onRequest(
+		"auth/send-validation-code",
+		Type.Object({
+			id: Type.String(),
+			locale: Type.String(),
+			state: Type.String(),
+		}, ["id", "locale", "state"]),
+		Type.Boolean(),
+		{} as never,
+		() => Permission.Fetch
+	)]);
+
+		
 
 	collections.sort((a, b) => convertPathToTemplate(b[1].path).length - convertPathToTemplate(a[1].path).length);
 	documents.sort((a, b) => convertPathToTemplate(b[1].path).length - convertPathToTemplate(a[1].path).length);

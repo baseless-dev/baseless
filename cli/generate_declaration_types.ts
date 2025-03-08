@@ -1,13 +1,18 @@
 // deno-fmt-ignore-file
 // deno-lint-ignore-file
-import type {
-	TCollection,
-	TDecoration,
-	TDefinition,
-	TDocument,
-	TOnRequest,
-	TRequirement,
-	TTopic,
+import {
+	collection,
+	document,
+	Identity,
+	IdentityChannel,
+	IdentityComponent,
+	type TCollection,
+	type TDecoration,
+	type TDefinition,
+	type TDocument,
+	type TOnRequest,
+	type TRequirement,
+	type TTopic,
 } from "@baseless/server";
 import * as Type from "@baseless/core/schema";
 import { convertPathToParams, convertPathToTemplate } from "@baseless/core/path";
@@ -37,6 +42,11 @@ export function generateDeclarationTypes(
 	const documents = Object.entries(exports).filter(([, value]) => value.type === "document") as [string, TDocument<any, any>][];
 	const topics = Object.entries(exports).filter(([, value]) => value.type === "topic") as [string, TTopic<any, any>][];
 	const requests = Object.entries(exports).filter(([, value]) => value.type === "on_request") as [string, TOnRequest<any, any, any>][];
+
+	collections.push(['authIdentityCollection', collection("auth/identity", Type.Index(Identity, "id"), Identity)]);
+	collections.push(['authIdentityComponentCollection', collection("auth/identity/:id/component", Type.String(), IdentityComponent)]);
+	collections.push(['authIdentityChannelCollection', collection("auth/identity/:id/channel", Type.String(), IdentityChannel)]);
+	documents.push(['authIdentityByIdentification', document("auth/identity-by-identification/:component/:identification", Type.Index(Identity, "id"))]);
 
 	let output = `\n`;
 	let header = `/// This file is auto-generated with Baseless\n`;

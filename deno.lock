@@ -2,11 +2,14 @@
   "version": "4",
   "specifiers": {
     "jsr:@std/assert@1.0.11": "1.0.11",
+    "jsr:@std/cli@1.0.11": "1.0.11",
     "jsr:@std/encoding@1.0.6": "1.0.6",
     "jsr:@std/fmt@*": "1.0.3",
     "jsr:@std/fs@*": "1.0.4",
+    "jsr:@std/fs@1.0.10": "1.0.10",
     "jsr:@std/internal@^1.0.5": "1.0.5",
     "jsr:@std/path@*": "1.0.8",
+    "jsr:@std/path@1.0.8": "1.0.8",
     "jsr:@std/path@^1.0.6": "1.0.8",
     "npm:@elysiajs/swagger@1.2.0": "1.2.0_elysia@1.2.11__@sinclair+typebox@0.34.28__typescript@5.8.2__openapi-types@12.1.3_openapi-types@12.1.3_typescript@5.8.2",
     "npm:@testing-library/react@16.2.0": "16.2.0_@testing-library+dom@10.4.0_@types+react@19.0.8_react@19.0.0_react-dom@19.0.0__react@19.0.0",
@@ -28,6 +31,9 @@
         "jsr:@std/internal"
       ]
     },
+    "@std/cli@1.0.11": {
+      "integrity": "ec219619fdcd31bcf0d8e53bee1e2706ec9a02f70255365a094f69755dadd340"
+    },
     "@std/encoding@1.0.6": {
       "integrity": "ca87122c196e8831737d9547acf001766618e78cd8c33920776c7f5885546069"
     },
@@ -39,6 +45,9 @@
       "dependencies": [
         "jsr:@std/path@^1.0.6"
       ]
+    },
+    "@std/fs@1.0.10": {
+      "integrity": "bf041f9d7a0a460817f0421be8946d0e06011b3433e6c83a215628de5e3c7c2c"
     },
     "@std/internal@1.0.5": {
       "integrity": "54a546004f769c1ac9e025abd15a76b6671ddc9687e2313b67376125650dc7ba"

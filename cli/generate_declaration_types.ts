@@ -48,6 +48,11 @@ export function generateDeclarationTypes(
 	collections.push(['authIdentityChannelCollection', collection("auth/identity/:id/channel", Type.String(), IdentityChannel)]);
 	documents.push(['authIdentityByIdentification', document("auth/identity-by-identification/:component/:identification", Type.Index(Identity, "id"))]);
 
+	collections.sort((a, b) => convertPathToTemplate(b[1].path).length - convertPathToTemplate(a[1].path).length);
+	documents.sort((a, b) => convertPathToTemplate(b[1].path).length - convertPathToTemplate(a[1].path).length);
+	topics.sort((a, b) => convertPathToTemplate(b[1].path).length - convertPathToTemplate(a[1].path).length);
+	requests.sort((a, b) => convertPathToTemplate(b[1].path).length - convertPathToTemplate(a[1].path).length);
+
 	let output = `\n`;
 	let header = `/// This file is auto-generated with Baseless\n`;
 	header += `// deno-fmt-ignore-file\n// deno-lint-ignore-file\n\n`;

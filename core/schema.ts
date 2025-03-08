@@ -31,6 +31,9 @@ export interface TNull extends TSchema {
 export interface TAny extends TSchema {
 	type: "any";
 }
+export interface TUndefined extends TSchema {
+	type: "undefined";
+}
 export interface TUnknown extends TSchema {
 	type: "unknown";
 }
@@ -97,6 +100,10 @@ export function Null(options?: Omit<TSchema, "type">): TNull {
 
 export function Any(options?: Omit<TSchema, "type">): TAny {
 	return { ...options, type: "any" };
+}
+
+export function Undefined(options?: Omit<TSchema, "type">): TUndefined {
+	return { ...options, type: "undefined" };
 }
 
 export function Unknown(options?: Omit<TSchema, "type">): TUnknown {
@@ -190,6 +197,7 @@ export type TPrimitive =
 	| TNull
 	| TUnknown
 	| TAny
+	| TUndefined
 	| TVoid
 	| TLiteral<string | number | boolean>
 	| TArray<any>
@@ -212,6 +220,7 @@ type _Static<T, M extends Record<string, any>> =
 	T extends TBoolean ? boolean :
 	T extends TNull ? null :
 	T extends TAny ? any :
+	T extends TUndefined ? undefined :
 	T extends TVoid ? void :
 	T extends TUnknown ? unknown :
 	T extends TLiteral<infer TConst> ? TConst :
@@ -260,6 +269,8 @@ export function validate<TValue extends TSchema>(
 				return value === null;
 			case "any":
 				return true;
+			case "undefined":
+				return value === undefined;
 			case "unknown":
 				return true;
 			case "void":
@@ -281,15 +292,14 @@ export function validate<TValue extends TSchema>(
 						p in value &&
 						_validate(schema.properties[p], (value as any)[p], recursiveSchema)
 					) &&
-					(
-						(!schema.additionalProperties &&
-							globalThis.Object.entries(value).every(([key, value]) =>
-								schema.properties[key] && _validate(schema.properties[key], value, recursiveSchema)
+					globalThis.Object.entries(value).every(([key, value]) =>
+						(key in schema.properties &&
+							_validate(
+								schema.required.includes(key) ? schema.properties[key] : Union([Any(), schema.properties[key]]),
+								value,
+								recursiveSchema,
 							)) ||
-						(schema.additionalProperties &&
-							globalThis.Object.entries(schema.properties).every(([key, schema]) =>
-								!(key in (value as any)) || _validate(schema, (value as any)[key], recursiveSchema)
-							))
+						(!(key in schema.properties) && schema.additionalProperties === true)
 					);
 			case "recursive":
 				return _validate(schema.value({ type: "self", identifier: schema.identifier }), value, {
@@ -337,6 +347,8 @@ export function toObject(schema: TSchema): Record<string, unknown> {
 				return { type: "null" };
 			case "any":
 				return { type: "any" };
+			case "undefined":
+				return { type: "undefined" };
 			case "unknown":
 				return { type: "unknown" };
 			case "void":
@@ -390,6 +402,8 @@ export function fromObject(schema: any): TSchema {
 				return Null();
 			case "any":
 				return Any();
+			case "undefined":
+				return Undefined();
 			case "unknown":
 				return Unknown();
 			case "void":
@@ -437,6 +451,8 @@ export function generateTypescriptFromSchema(schema: TSchema): [named: Map<strin
 				return "null";
 			case "any":
 				return "any";
+			case "undefined":
+				return "undefined";
 			case "unknown":
 				return "unknown";
 			case "void":
@@ -482,6 +498,8 @@ export function generateSchemaFromSchema(schema: TSchema, ns = "Type"): string {
 			return `${ns}.TNull`;
 		case "any":
 			return `${ns}.TAny`;
+		case "undefined":
+			return `${ns}.TUndefined`;
 		case "unknown":
 			return `${ns}.TUnknown`;
 		case "void":

@@ -19,7 +19,7 @@ import {
 import * as Type from "@baseless/core/schema";
 import { convertPathToParams, convertPathToTemplate } from "@baseless/core/path";
 import { AuthenticationTokens } from "@baseless/core/authentication-tokens";
-import { AuthenticationResponse } from "../core/authentication_response.ts";
+import { AuthenticationResponse } from "@baseless/core/authentication-response";
 
 export function generateDeclarationTypes(
 	options: { exports: unknown; relativeImport: string; generateServer: boolean },

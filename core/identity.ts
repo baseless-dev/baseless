@@ -6,7 +6,7 @@ import type { ID } from "./id.ts";
  */
 export interface Identity {
 	id: ID<"id_">;
-	data?: Record<string, unknown>;
+	data: Record<string, unknown>;
 }
 
 /**

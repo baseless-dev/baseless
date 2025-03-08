@@ -43,6 +43,7 @@ export type RequestHandler<TParams extends {}, TInput, TOutput> = (options: {
 }) => TOutput | Promise<TOutput>;
 
 export type RequestSecurityHandler<TParams extends {}, TInput> = (options: {
+	auth: Auth;
 	context: RegisteredContext;
 	input: TInput;
 	params: TParams;

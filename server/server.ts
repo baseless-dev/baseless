@@ -417,6 +417,7 @@ export class Server {
 		const [context, service] = await this.createContext(request, auth, request.signal, waitUntil);
 		if (security) {
 			const permission = await security({
+				auth,
 				context,
 				params,
 				input,

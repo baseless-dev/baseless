@@ -211,7 +211,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 					}
 					const step = await mapCeremonyToComponent(component, stateObj, context, service);
 					const state = await encryptState(stateObj);
-					return { step, state, validating: !!identityComponentProvider.sendSignInPrompt };
+					return { step, state, validating: false };
 				} else {
 					const [identityComponent, ...identityComponentsOrChannels] = await identityComponentProvider.setupIdentityComponent({
 						componentId: currentComponent.component,

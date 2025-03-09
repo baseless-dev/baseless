@@ -289,6 +289,7 @@ Deno.test("Two factor authentication", async (t) => {
 			schema: AuthenticationResponse,
 		});
 		assert("state" in otp);
+		assert(!otp.validating);
 		assert(otp.step.kind === "component");
 		assert(otp.step.id === "policy");
 		const policy = await mock.post("/auth/submit-prompt", {

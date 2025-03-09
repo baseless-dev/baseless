@@ -2,6 +2,7 @@ export * from "./app.ts";
 export * from "./auth/email.ts";
 export * from "./auth/otp.ts";
 export * from "./auth/password.ts";
+export * from "./auth/policy.ts";
 export * from "./provider.ts";
 export * from "./server.ts";
 export * from "./service.ts";

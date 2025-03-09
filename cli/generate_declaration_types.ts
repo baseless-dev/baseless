@@ -54,8 +54,6 @@ export function generateDeclarationTypes(
 	documents.push(['authIdentityByIdentification', document("auth/identity-by-identification/:component/:identification", Type.Index(Identity, "id"))]);
 	requests.push(['authSignOut', onRequest("auth/sign-out", Type.Void(), Type.Boolean(), {} as never)]);
 	requests.push(['authRefreshToken', onRequest("auth/refresh-token", Type.String({ $id: "RefreshToken" }), AuthenticationTokens, {} as never)]);
-	requests.push(['authRefreshToken', onRequest("auth/refresh-token", Type.String({ $id: "RefreshToken" }), AuthenticationTokens, {} as never)]);
-	requests.push(['authRefreshToken', onRequest("auth/refresh-token", Type.String({ $id: "RefreshToken" }), AuthenticationTokens, {} as never)]);
 	requests.push(['authBegin', onRequest(
 		"auth/begin",
 		Type.Union([
@@ -76,7 +74,7 @@ export function generateDeclarationTypes(
 		"auth/submit-prompt",
 		Type.Object({
 			id: Type.String(),
-			value: Type.String(),
+			value: Type.Unknown(),
 			state: Type.String(),
 		}, ["id", "value", "state"]),
 		AuthenticationResponse,
@@ -102,6 +100,17 @@ export function generateDeclarationTypes(
 			state: Type.String(),
 		}, ["id", "locale", "state"]),
 		Type.Boolean(),
+		{} as never,
+		() => Permission.Fetch
+	)]);
+	requests.push(['authSubmitValidationCode', onRequest(
+		"auth/submit-validation-code",
+		Type.Object({
+			id: Type.String(),
+			code: Type.Unknown(),
+			state: Type.String(),
+		}, ["id", "code", "state"]),
+		AuthenticationResponse,
 		{} as never,
 		() => Permission.Fetch
 	)]);

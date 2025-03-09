@@ -49,7 +49,7 @@ export class PolicyIdentityComponentProvider implements IdentityComponentProvide
 				},
 			};
 			await options.service.document.atomic()
-				.set(`identity/${options.identityComponent!.identityId}/components/${options.componentId}`, identityComponent)
+				.set(`auth/identity/${options.identityComponent!.identityId}/component/${options.componentId}`, identityComponent)
 				.commit();
 			return true;
 		}

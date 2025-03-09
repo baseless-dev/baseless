@@ -10,6 +10,7 @@ import { PasswordIdentityComponentProvider } from "../auth/password.ts";
 import { component, sequence } from "@baseless/core/authentication-ceremony";
 import { OtpComponentProvider } from "../auth/otp.ts";
 import { Notification } from "@baseless/core/notification";
+import { PolicyIdentityComponentProvider } from "../auth/policy.ts";
 
 Deno.test("Simple authentication", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
@@ -182,6 +183,7 @@ Deno.test("Two factor authentication", async (t) => {
 			};
 		},
 	});
+	const password = new PasswordIdentityComponentProvider("dummy salt");
 	const otp = new OtpComponentProvider({
 		otp: { digits: 6 },
 		signInNotification({ code }): Notification {
@@ -193,16 +195,18 @@ Deno.test("Two factor authentication", async (t) => {
 			};
 		},
 	});
-	const password = new PasswordIdentityComponentProvider("dummy salt");
+	const policy = new PolicyIdentityComponentProvider([
+		{ identifier: "terms", version: "1.0", required: true, name: { en: "Terms of service" }, content: { en: "..." } },
+	]);
 	using mock = await createMemoryServer({}, {
 		algo: "PS512",
 		privateKey: keyPair.privateKey,
 		publicKey: keyPair.publicKey,
 		ceremony: ({ flow }) =>
 			flow === "authentication"
-				? sequence(component("email"), component("password"), component("otp"))
-				: sequence(component("email"), component("password")),
-		components: { email, otp, password },
+				? sequence(component("email"), component("password"), component("otp"), component("policy"))
+				: sequence(component("policy"), component("email"), component("password")),
+		components: { email, otp, password, policy },
 		accessTokenTTL: 1000,
 		refreshTokenTTL: 10_000,
 	});
@@ -218,6 +222,14 @@ Deno.test("Two factor authentication", async (t) => {
 		confirmed: true,
 		data: {},
 	} satisfies IdentityComponent;
+	const identityComponentPassword = {
+		identityId: identity.id,
+		componentId: "password",
+		confirmed: true,
+		data: {
+			hash: await password.hashPassword("lepassword"),
+		},
+	} satisfies IdentityComponent;
 	const identityComponentOtp = {
 		identityId: identity.id,
 		componentId: "otp",
@@ -226,13 +238,11 @@ Deno.test("Two factor authentication", async (t) => {
 			channelId: "email",
 		},
 	} satisfies IdentityComponent;
-	const identityComponentPassword = {
+	const identityComponentPolicy = {
 		identityId: identity.id,
-		componentId: "password",
+		componentId: "policy",
 		confirmed: true,
-		data: {
-			hash: await password.hashPassword("lepassword"),
-		},
+		data: {},
 	} satisfies IdentityComponent;
 	const identityChannelEmail = {
 		identityId: identity.id,
@@ -244,10 +254,10 @@ Deno.test("Two factor authentication", async (t) => {
 	await mock.service.document.atomic()
 		.set(`auth/identity/${identity.id}`, identity)
 		.set(`auth/identity/${identity.id}/component/${identityComponentEmail.componentId}`, identityComponentEmail)
-		.set(`auth/identity/${identity.id}/component/${identityComponentOtp.componentId}`, identityComponentOtp)
 		.set(`auth/identity/${identity.id}/component/${identityComponentPassword.componentId}`, identityComponentPassword)
+		.set(`auth/identity/${identity.id}/component/${identityComponentOtp.componentId}`, identityComponentOtp)
+		.set(`auth/identity/${identity.id}/component/${identityComponentPolicy.componentId}`, identityComponentPolicy)
 		.set(`auth/identity/${identity.id}/channel/${identityChannelEmail.channelId}`, identityChannelEmail)
-		// .set(`auth/identity-by-identification/email/${identityComponentEmail.identification}`, identityComponentEmail.identityId)
 		.commit();
 
 	await t.step("login", async () => {
@@ -278,6 +288,26 @@ Deno.test("Two factor authentication", async (t) => {
 			data: { id: "otp", value: code, state: password.state },
 			schema: AuthenticationResponse,
 		});
-		assert("accessToken" in otp);
+		assert("state" in otp);
+		assert(otp.step.kind === "component");
+		assert(otp.step.id === "policy");
+		const policy = await mock.post("/auth/submit-prompt", {
+			data: { id: "policy", value: { terms: "1.0" }, state: otp.state },
+			schema: AuthenticationResponse,
+		});
+		assert("accessToken" in policy);
+
+		const sendPrompt2 = await mock.post("/auth/send-prompt", {
+			data: { id: "otp", locale: "en", state: password.state },
+			schema: Type.Boolean(),
+		});
+		assert(sendPrompt2);
+		const code2 = mock.provider.notification.notifications[1].content["text/x-code"];
+		assert(code2);
+		const otp2 = await mock.post("/auth/submit-prompt", {
+			data: { id: "otp", value: code2, state: password.state },
+			schema: AuthenticationResponse,
+		});
+		assert("accessToken" in otp2);
 	});
 });

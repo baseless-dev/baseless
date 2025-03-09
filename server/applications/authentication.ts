@@ -147,9 +147,12 @@ export default function createAuthenticationApplication(options: AuthenticationO
 						scopes: input.scopes ?? [],
 					};
 				const ceremony = await getCeremonyFromFlow({ context, flow: input.kind, service });
-				const component = getAuthenticationCeremonyComponentAtPath(ceremony, []);
+				const { path, component } = await getAuthenticationCeremonyComponent({ ceremony, context, path: [], service, state: stateObj });
 				if (!component || component === true) {
 					throw new InvalidAuthenticationStateError();
+				}
+				if (stateObj.kind === "authentication") {
+					stateObj.path = path;
 				}
 				const step = await mapCeremonyToComponent(component, stateObj, context, service);
 				const state = await encryptState(stateObj);
@@ -160,7 +163,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			"auth/submit-prompt",
 			Type.Object({
 				id: Type.String(),
-				value: Type.String(),
+				value: Type.Unknown(),
 				state: Type.String(),
 			}, ["id", "value", "state"]),
 			AuthenticationResponse,
@@ -189,13 +192,22 @@ export default function createAuthenticationApplication(options: AuthenticationO
 					}
 					stateObj.path.push(currentComponent.component);
 					const ceremony = await getCeremonyFromFlow({ context, flow: "authentication", service });
-					const component = getAuthenticationCeremonyComponentAtPath(ceremony, stateObj.path);
+					const { path: skipPath, component } = await getAuthenticationCeremonyComponent({
+						ceremony,
+						context,
+						path: stateObj.path,
+						service,
+						state: stateObj,
+					});
 					if (component === true) {
 						const identity = await service.document.get(`auth/identity/${stateObj.id}`).then((d) => d.data as Identity);
 						return createSessionAndTokens(service, identity, stateObj.scopes);
 					}
 					if (!component) {
 						throw new InvalidAuthenticationStateError();
+					}
+					if (stateObj.kind === "authentication") {
+						stateObj.path = skipPath;
 					}
 					const step = await mapCeremonyToComponent(component, stateObj, context, service);
 					const state = await encryptState(stateObj);
@@ -223,7 +235,13 @@ export default function createAuthenticationApplication(options: AuthenticationO
 						}
 					}
 					const ceremony = await getCeremonyFromFlow({ context, flow: "registration", service });
-					const component = getAuthenticationCeremonyComponentAtPath(ceremony, path);
+					const { component } = await getAuthenticationCeremonyComponent({
+						ceremony,
+						context,
+						path,
+						service,
+						state: stateObj,
+					});
 					if (component === true) {
 						const identityId = await createIdentity(service, stateObj.id, stateObj.components, stateObj.channels);
 						return createSessionAndTokens(service, { id: identityId, data: {} }, stateObj.scopes);
@@ -307,7 +325,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			"auth/submit-validation-code",
 			Type.Object({
 				id: Type.String(),
-				code: Type.String(),
+				code: Type.Unknown(),
 				state: Type.String(),
 			}, ["id", "code", "state"]),
 			AuthenticationResponse,
@@ -346,13 +364,22 @@ export default function createAuthenticationApplication(options: AuthenticationO
 				}
 
 				const ceremony = await getCeremonyFromFlow({ context, flow: stateObj.kind, service });
-				const component = getAuthenticationCeremonyComponentAtPath(ceremony, path);
+				const { path: skipPath, component } = await getAuthenticationCeremonyComponent({
+					ceremony,
+					context,
+					path,
+					service,
+					state: stateObj,
+				});
 				if (component === true) {
 					const identity = await service.document.get(`auth/identity/${stateObj.id}`).then((d) => d.data as Identity);
 					return createSessionAndTokens(service, identity, stateObj.scopes);
 				}
 				if (!component) {
 					throw new InvalidAuthenticationStateError();
+				}
+				if (stateObj.kind === "authentication") {
+					stateObj.path = skipPath;
 				}
 				const step = await mapCeremonyToComponent(component, stateObj, context, service);
 				const state = await encryptState(stateObj);
@@ -384,9 +411,13 @@ export default function createAuthenticationApplication(options: AuthenticationO
 		const path = stateObj.kind === "authentication"
 			? stateObj.path
 			: stateObj.components.filter((c) => c.confirmed).map((c) => c.componentId);
-		const component = getAuthenticationCeremonyComponentAtPath(ceremony, path);
+		// const component = getAuthenticationCeremonyComponentAtPath(ceremony, path);
+		const { path: skipPath, component } = await getAuthenticationCeremonyComponent({ ceremony, context, path, service, state: stateObj });
 		if (!component || component === true) {
 			throw new InvalidAuthenticationStateError();
+		}
+		if (stateObj.kind === "authentication") {
+			stateObj.path = skipPath;
 		}
 		const currentComponent = component.kind === "choice" ? component.components.find((c) => c.component === input.id) : component;
 		if (!currentComponent) {
@@ -476,6 +507,61 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			return simplifyAuthenticationCeremony(ceremony);
 		}
 		return simplifyAuthenticationCeremony(options.ceremony);
+	}
+
+	async function getAuthenticationCeremonyComponent(
+		{ ceremony, context, path, service, state }: {
+			ceremony: AuthenticationCeremony;
+			context: RegisteredContext;
+			path: string[];
+			service: ServiceCollection;
+			state: AuthenticationState;
+		},
+	): Promise<{ path: string[]; component: Exclude<ReturnType<typeof getAuthenticationCeremonyComponentAtPath>, undefined> }> {
+		while (true) {
+			const component = getAuthenticationCeremonyComponentAtPath(ceremony, path);
+			if (component === undefined) {
+				throw new InvalidAuthenticationStateError();
+			} else if (component === true) {
+				return { path, component };
+			} else if (state.kind === "registration") {
+				return { path, component };
+			} else {
+				const components = component.kind === "choice" ? component.components : [component];
+				const unskippableComponents: AuthenticationCeremonyComponent[] = [];
+				for (const component of components) {
+					if (component.kind === "component") {
+						const provider = options.components[component.component];
+						if (!provider) {
+							throw new UnknownIdentityComponentError();
+						}
+						const identityComponent = await service.document
+							.get(`auth/identity/${state.id}/component/${component.component}`)
+							.then((d) => d.data as IdentityComponent)
+							.catch((_) => undefined);
+						if (identityComponent && identityComponent.confirmed === false) {
+							throw new InvalidAuthenticationStateError();
+						}
+						const skipSignInPrompt = await provider.skipSignInPrompt?.({
+							componentId: component.component,
+							context,
+							identityComponent,
+							service,
+						});
+						if (skipSignInPrompt) {
+							path.push(component.component);
+							continue;
+						}
+					}
+					unskippableComponents.push(component);
+				}
+				if (unskippableComponents.length <= 1) {
+					return { path, component: unskippableComponents[0] ?? true };
+				} else {
+					return { path, component: { kind: "choice", components: unskippableComponents } };
+				}
+			}
+		}
 	}
 
 	async function createTokens(

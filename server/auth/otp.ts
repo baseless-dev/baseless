@@ -48,11 +48,8 @@ export class OtpComponentProvider implements IdentityComponentProvider {
 			return false;
 		}
 		const code = otp(this.#options.otp);
-		await options.service.kv.put(
-			`auth-otp-sign-in-code/${options.componentId}/${options.identityComponent.identityId}`,
-			code,
-			{ expiration: 1000 * 60 * 5 },
-		);
+		const key = `auth-otp-sign-in-code/${options.componentId}/${options.identityComponent.identityId}`;
+		await options.service.kv.put(key, code, { expiration: 1000 * 60 * 5 });
 		const notification = await this.#options.signInNotification({
 			code,
 			context: options.context,
@@ -72,8 +69,13 @@ export class OtpComponentProvider implements IdentityComponentProvider {
 		if (!options.identityComponent) {
 			return false;
 		}
-		const code = await options.service.kv.get(`auth-otp-sign-in-code/${options.componentId}/${options.identityComponent.identityId}`);
-		return code.value === `${options.value}`;
+		const key = `auth-otp-sign-in-code/${options.componentId}/${options.identityComponent.identityId}`;
+		const code = await options.service.kv.get(key).catch((_) => undefined);
+		if (code?.value === `${options.value}`) {
+			await options.service.kv.delete(key);
+			return true;
+		}
+		return false;
 	}
 
 	getSetupPrompt({ componentId }: IdentityComponentProviderGetSetupPromptOptions): Promise<AuthenticationComponentPrompt> {

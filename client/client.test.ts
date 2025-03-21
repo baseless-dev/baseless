@@ -6,6 +6,8 @@ import { assert } from "@std/assert/assert";
 import { AuthenticationTokens } from "@baseless/core/authentication-tokens";
 import { assertRejects } from "@std/assert/rejects";
 import createMemoryClientServer from "./internal.test.ts";
+import MemoryStorage from "./memory_storage.ts";
+import { Client } from "./client.ts";
 
 Deno.test("Client", async (ctx) => {
 	const pings: string[] = [];
@@ -34,23 +36,42 @@ Deno.test("Client", async (ctx) => {
 		const changes: Array<Identity | undefined> = [];
 		await using mock = await createMemoryClientServer(app);
 		const { client, identity } = mock;
-		client.onAuthenticationStateChange((identity) => {
-			changes.push(identity);
-		});
-		const begin = await client.fetch("auth/begin", { kind: "authentication", scopes: ["firstName"] });
-		Type.assert(AuthenticationResponse, begin);
-		assert("state" in begin);
-		const email = await client.fetch("auth/submit-prompt", { id: "email", value: "foo@test.local", state: begin.state });
-		Type.assert(AuthenticationResponse, email);
-		assert("state" in email);
-		const password = await client.fetch("auth/submit-prompt", { id: "password", value: "lepassword", state: email.state });
-		Type.assert(AuthenticationTokens, password);
-		assert(client.identity);
-		assertEquals(client.identity, { id: identity.id, data: { firstName: identity.data!.firstName } });
-		assertEquals(changes.length, 1);
-		assertEquals(changes[0], { id: identity.id, data: { firstName: identity.data!.firstName } });
-		const result = await client.fetch("hello", "World");
-		assertEquals(result, `Hello World (from ${identity.id})`);
+		const storage = new MemoryStorage();
+		{
+			client.setStorage(storage);
+			client.onAuthenticationStateChange((identity) => {
+				changes.push(identity);
+			});
+			const begin = await client.fetch("auth/begin", { kind: "authentication", scopes: ["firstName"] });
+			Type.assert(AuthenticationResponse, begin);
+			assert("state" in begin);
+			const email = await client.fetch("auth/submit-prompt", { id: "email", value: "foo@test.local", state: begin.state });
+			Type.assert(AuthenticationResponse, email);
+			assert("state" in email);
+			const password = await client.fetch("auth/submit-prompt", { id: "password", value: "lepassword", state: email.state });
+			Type.assert(AuthenticationTokens, password);
+			assert(client.identity);
+			assertEquals(client.identity, { id: identity.id, data: { firstName: identity.data!.firstName } });
+			assertEquals(changes.length, 1);
+			assertEquals(changes[0], { id: identity.id, data: { firstName: identity.data!.firstName } });
+			const result = await client.fetch("hello", "World");
+			assertEquals(result, `Hello World (from ${identity.id})`);
+		}
+		// Simulate a page refresh where the client is reloaded
+		{
+			await using client2 = new Client({
+				apiEndpoint: "http://local",
+				clientId: "test",
+				fetch: async (input, init): Promise<Response> => {
+					const [response, promises] = await mock.server.handleRequest(new Request(input, init));
+					await Promise.allSettled(promises);
+					return response;
+				},
+				storage,
+				tokenIndex: 0,
+			});
+			assertEquals(client2.identity?.id, client.identity?.id);
+		}
 	});
 
 	await ctx.step("get document", async () => {

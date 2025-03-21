@@ -1,7 +1,7 @@
 import type { Identity } from "@baseless/core/identity";
 import type { AuthenticationTokens } from "@baseless/core/authentication-tokens";
 import { type ClientInitialization, ClientInternal } from "./internal.ts";
-import type { AnyDocumentAtomic, RegisteredDocument, RegisteredFetch, RegisteredPubSub } from "./service.ts";
+import { AnyDocumentAtomic, RegisteredDocument, RegisteredFetch, RegisteredPubSub } from "./service.ts";
 import type { DocumentAtomicCheck, DocumentAtomicOperation } from "@baseless/core/document";
 
 export class Client implements AsyncDisposable {
@@ -31,11 +31,19 @@ export class Client implements AsyncDisposable {
 	}
 
 	get token(): AuthenticationTokens | undefined {
-		return this.#internal.getCurrentToken();
+		return this.#internal.getCurrentTokensMetadata()?.tokens;
 	}
 
 	get identity(): Identity | undefined {
-		return this.#internal.getCurrentIdentity();
+		return this.#internal.getCurrentTokensMetadata()?.identity;
+	}
+
+	identities(): IterableIterator<Identity> {
+		return Array.from(this.#internal.identities()).map((m) => m.identity).values();
+	}
+
+	removeIdentity(identityId: Identity["id"]): void {
+		this.#internal.removeIdentity(identityId);
 	}
 
 	setStorage(storage: Storage): void {

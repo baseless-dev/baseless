@@ -12,10 +12,12 @@ import type {
 	DocumentListOptions,
 } from "@baseless/core/document";
 import { encodeBase64Url } from "@std/encoding/base64url";
+import { TokensManager, TokensMetadata } from "./tokens_manager.ts";
 
 export interface ClientInitialization {
 	clientId: string;
 	apiEndpoint: string;
+	tokenIndex?: number;
 	fetch?: typeof globalThis.fetch;
 	batchSize?: number;
 	storage?: Storage;
@@ -27,8 +29,8 @@ export class ClientInternal implements AsyncDisposable {
 	#fetch: typeof globalThis.fetch;
 	batchSize: number;
 	#storage!: Storage;
-	#tokens: AuthenticationTokens[];
-	#currentTokenIndex: number;
+	#tokensManager: TokensManager;
+	#currentIdentity: Identity["id"] | undefined;
 	#expirationTimer?: number;
 	#accessTokenExpiration?: number;
 	authEvents: EventEmitter<{ onAuthenticationStateChange: Identity | undefined }>;
@@ -40,13 +42,15 @@ export class ClientInternal implements AsyncDisposable {
 		this.apiEndpoint = new URL(initialization.apiEndpoint).toString();
 		this.#fetch = initialization.fetch ?? globalThis.fetch.bind(globalThis);
 		this.batchSize = initialization.batchSize ?? 10;
-		this.#tokens = [];
-		this.#currentTokenIndex = -1;
+		this.#tokensManager = new TokensManager();
 		this.authEvents = new EventEmitter();
 		this.pubsubMessages = new EventEmitter();
 		this.setStorage(initialization.storage ?? new MemoryStorage());
 		this.#readData();
-		this.#setupTimer();
+		const tokenIndex = initialization.tokenIndex ?? 0;
+		const current = this.#tokensManager.getByIndex(tokenIndex);
+		this.#currentIdentity = current ? current.identity.id : undefined;
+		this.#triggerUpdate();
 	}
 
 	async [Symbol.asyncDispose](): Promise<void> {
@@ -63,41 +67,44 @@ export class ClientInternal implements AsyncDisposable {
 	setStorage(storage: Storage): void {
 		this.#storage = storage;
 		this.#readData();
-		this.#setupTimer();
+		this.#triggerUpdate();
+	}
+
+	identities(): IterableIterator<TokensMetadata> {
+		return Array.from(this.#tokensManager).values();
+	}
+
+	removeIdentity(identityId: Identity["id"]): void {
+		this.#tokensManager.remove(identityId);
+		if (this.#currentIdentity === identityId) {
+			this.setCurrentTokensMetadata(undefined);
+		}
+		this.#writeData();
+		this.#triggerUpdate();
 	}
 
 	#readData(): void {
-		const tokens = JSON.parse(this.#storage.getItem(`baseless:${this.clientId}:tokens`) ?? "{}");
-		this.#tokens = Array.isArray(tokens) && tokens.every((t) => Type.validate(AuthenticationTokens, t)) ? tokens : [];
+		const rawTokens = JSON.parse(this.#storage.getItem(`baseless:${this.clientId}:tokens`) ?? "{}");
+		const tokens = Array.isArray(rawTokens) && rawTokens.every((t) => Type.validate(AuthenticationTokens, t)) ? rawTokens : [];
+		this.#tokensManager = new TokensManager(tokens);
 	}
 
 	#writeData(): void {
-		this.#storage.setItem(`baseless:${this.clientId}:tokens`, JSON.stringify(this.#tokens));
+		const tokens = Array.from(this.#tokensManager).map((m) => m.tokens);
+		this.#storage.setItem(`baseless:${this.clientId}:tokens`, JSON.stringify(tokens));
 	}
 
-	#setupTimer(): void {
-		const currentToken = this.getCurrentToken();
-		if (currentToken) {
-			const { exp: accessTokenExp = Number.MAX_VALUE } = JSON.parse(
-				atob(currentToken.accessToken.split(".").at(1)!),
-			);
-			const { exp: refreshTokenExp = Number.MAX_VALUE } = currentToken.refreshToken
-				? JSON.parse(atob(currentToken.refreshToken.split(".").at(1)!))
-				: {};
-			const { sub: id, claims = {} } = JSON.parse(
-				atob(currentToken.idToken.split(".").at(1)!),
-			);
-			const identity = { id, data: claims };
-			Type.assert(Identity, identity);
-			const expiration = parseInt(refreshTokenExp ?? accessTokenExp, 10);
-			this.#accessTokenExpiration = parseInt(accessTokenExp, 10);
+	#triggerUpdate(): void {
+		const currentMeta = this.getCurrentTokensMetadata();
+		if (currentMeta) {
+			this.#accessTokenExpiration = currentMeta.accessTokenExpiration;
 			this.#expirationTimer = setTimeout(
 				() => {
-					this.setCurrentToken(undefined);
+					this.setCurrentTokensMetadata(undefined);
 				},
-				expiration * 1000 - Date.now(),
+				(currentMeta.refreshTokenExpiration ?? currentMeta.accessTokenExpiration) * 1000 - Date.now(),
 			);
-			this.authEvents.emit("onAuthenticationStateChange", identity);
+			this.authEvents.emit("onAuthenticationStateChange", currentMeta.identity);
 		} else {
 			this.#expirationTimer && clearTimeout(this.#expirationTimer);
 			this.#expirationTimer = undefined;
@@ -105,77 +112,51 @@ export class ClientInternal implements AsyncDisposable {
 		}
 	}
 
-	setTokens(value: AuthenticationTokens[]): void {
-		// TODO dedup idToken.sub
-		this.#tokens = value;
-		this.#writeData();
-		if (this.#currentTokenIndex >= this.#tokens.length) {
-			this.#currentTokenIndex = -1;
+	getCurrentTokensMetadata(): TokensMetadata | undefined {
+		return this.#currentIdentity ? this.#tokensManager.getByIdentityId(this.#currentIdentity) : undefined;
+	}
+
+	setCurrentTokensMetadata(value: Identity["id"] | undefined): void {
+		if (!value || this.#tokensManager.getByIdentityId(value)) {
+			this.#currentIdentity = value;
+			this.#triggerUpdate();
 		}
-	}
-
-	getCurrentToken(): AuthenticationTokens | undefined {
-		return this.#tokens[this.#currentTokenIndex];
-	}
-
-	setCurrentToken(value: AuthenticationTokens | undefined): void {
-		const index = !value ? -1 : this.#tokens.indexOf(value);
-		this.#currentTokenIndex = index;
-		this.#writeData();
-		this.#setupTimer();
-	}
-
-	getCurrentIdentity(): Identity | undefined {
-		const currentToken = this.getCurrentToken();
-		if (currentToken) {
-			try {
-				const { sub: id, claims = {} } = JSON.parse(
-					atob(currentToken.idToken.split(".").at(1)!),
-				);
-				const identity = { id, data: claims };
-				Type.assert(Identity, identity);
-				return identity;
-				// deno-lint-ignore no-empty
-			} catch (_error) {}
-		}
-		return undefined;
 	}
 
 	async reauthenticateIfNeeded(signal?: AbortSignal): Promise<void> {
 		const now = Date.now() / 1000 >> 0;
-		const currentToken = this.getCurrentToken();
+		const current = this.getCurrentTokensMetadata();
 		// Reauthenticate if token is expired
 		if (
-			currentToken?.accessToken && currentToken.refreshToken &&
+			current?.tokens.accessToken && current.tokens.refreshToken &&
 			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
 		) {
 			const response = await this.#fetch(`${this.apiEndpoint}/auth/refresh-token`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(currentToken.refreshToken),
+				body: JSON.stringify(current.tokens.refreshToken),
 				signal,
 			});
 			const result = await response.json();
 			if (Type.validate(AuthenticationTokens, result)) {
-				this.setTokens([
-					...this.#tokens.filter((_, i) => i !== this.#currentTokenIndex),
-					result,
-				]);
-				this.setCurrentToken(result);
+				this.#tokensManager.add(result);
+				this.#writeData();
+				this.#triggerUpdate();
 			} else {
-				this.setCurrentToken(undefined);
+				this.setCurrentTokensMetadata(undefined);
 			}
 		}
 	}
 
 	async fetch(endpoint: string, body: unknown, signal?: AbortSignal): Promise<unknown> {
 		await this.reauthenticateIfNeeded(signal);
+		const currentMeta = this.getCurrentTokensMetadata();
 		const response = await this.#fetch(
 			new Request(`${this.apiEndpoint}${endpoint}`, {
 				method: body ? "POST" : "GET",
 				headers: {
 					"Content-Type": "application/json",
-					...(this.getCurrentToken()?.accessToken ? { Authorization: `Bearer ${this.getCurrentToken()?.accessToken}` } : {}),
+					...(currentMeta?.tokens.accessToken ? { Authorization: `Bearer ${currentMeta?.tokens.accessToken}` } : {}),
 				},
 				body: JSON.stringify(body),
 				signal,
@@ -191,10 +172,12 @@ export class ClientInternal implements AsyncDisposable {
 			) &&
 			Type.validate(AuthenticationTokens, result)
 		) {
-			this.setTokens([...this.#tokens, result]);
-			this.setCurrentToken(result);
+			const meta = this.#tokensManager.add(result);
+			this.#currentIdentity = meta.identity.id;
+			this.#writeData();
+			this.#triggerUpdate();
 		} else if (endpoint === "auth/sign-out" && result) {
-			this.setCurrentToken(undefined);
+			this.setCurrentTokensMetadata(undefined);
 		}
 		return result;
 	}
@@ -238,10 +221,10 @@ export class ClientInternal implements AsyncDisposable {
 				.then(() => {
 					const url = new URL(this.apiEndpoint);
 					url.protocol = url.protocol === "http:" ? "ws:" : "wss:";
-					const currentToken = this.getCurrentToken();
+					const currentMeta = this.getCurrentTokensMetadata();
 					const protocols: string[] = ["bls"];
-					if (currentToken?.accessToken) {
-						protocols.push(`base64url.bearer.authorization.baseless.dev.${encodeBase64Url(currentToken.accessToken)}`);
+					if (currentMeta?.tokens.accessToken) {
+						protocols.push(`base64url.bearer.authorization.baseless.dev.${encodeBase64Url(currentMeta.tokens.accessToken)}`);
 					}
 					const ready = Promise.withResolvers<WebSocket>();
 					const readyAbortController = new AbortController();

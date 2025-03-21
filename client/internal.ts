@@ -131,7 +131,7 @@ export class ClientInternal implements AsyncDisposable {
 			current?.tokens.accessToken && current.tokens.refreshToken &&
 			this.#accessTokenExpiration && this.#accessTokenExpiration <= now
 		) {
-			const response = await this.#fetch(`${this.apiEndpoint}/auth/refresh-token`, {
+			const response = await this.#fetch(`${this.apiEndpoint}auth/refresh-token`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(current.tokens.refreshToken),

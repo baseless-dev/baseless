@@ -32,7 +32,12 @@ export class TokensManager {
 			const identity = { id, data: claims };
 			Type.assert(Identity, identity);
 			const meta = { identity, accessTokenExpiration, refreshTokenExpiration, tokens };
-			this.#identities.push(meta);
+			const idx = this.#identities.findIndex((i) => i.identity.id === identity.id);
+			if (idx > -1) {
+				this.#identities.splice(idx, 1, meta);
+			} else {
+				this.#identities.push(meta);
+			}
 			return meta;
 		} catch (cause) {
 			throw new InvalidAuthenticationTokens(undefined, { cause });

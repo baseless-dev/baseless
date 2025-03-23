@@ -239,6 +239,17 @@ export abstract class IdentityComponentProvider {
 	verifyValidationPrompt?: (options: IdentityComponentProviderVerifyValidationPromptOptions) => Promise<boolean>;
 }
 
-export interface NotificationChannelProvider {
-	send(identityChannel: IdentityChannel, notification: Notification, signal?: AbortSignal): Promise<boolean>;
+export abstract class NotificationChannelProvider {
+	abstract send(identityChannel: IdentityChannel, notification: Notification, signal?: AbortSignal): Promise<boolean>;
+}
+
+export interface RateLimiterProviderLimitOptions {
+	key: string;
+	limit: number;
+	period: number;
+	signal?: AbortSignal;
+}
+
+export abstract class RateLimiterProvider {
+	abstract limit(options: RateLimiterProviderLimitOptions): Promise<boolean>;
 }

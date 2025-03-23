@@ -1,7 +1,7 @@
-import type { IdentityChannel, Notification, NotificationChannelProvider } from "@baseless/server";
+import { type IdentityChannel, type Notification, NotificationChannelProvider } from "@baseless/server";
 import { createLogger, LogLevel, LogLevelMethod } from "@baseless/core/logger";
 
-export class MemoryNotificationProvider implements NotificationChannelProvider {
+export class MemoryNotificationProvider extends NotificationChannelProvider {
 	notifications: Notification[] = [];
 
 	send(_identityChannel: IdentityChannel, notification: Notification): Promise<boolean> {
@@ -10,11 +10,12 @@ export class MemoryNotificationProvider implements NotificationChannelProvider {
 	}
 }
 
-export class ConsoleNotificationProvider implements NotificationChannelProvider {
+export class ConsoleNotificationProvider extends NotificationChannelProvider {
 	#logger = createLogger("ConsoleNotificationProvider");
 	#level: LogLevel;
 
 	constructor(level = LogLevel.DEBUG) {
+		super();
 		this.#level = level;
 	}
 

@@ -1,14 +1,15 @@
 import type { Register } from "./app.ts";
 import type { Document, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
-import type { KVProvider } from "./provider.ts";
+import type { KVProvider, RateLimiterProvider } from "./provider.ts";
 import type { Identity, IdentityChannel } from "@baseless/core/identity";
 import type { Notification } from "@baseless/core/notification";
 
 export interface ServiceCollection {
 	document: RegisteredDocumentService;
+	kv: KVService;
 	notification: NotificationService;
 	pubsub: RegisteredPubSubService;
-	kv: KVService;
+	rateLimiter: RateLimiterService;
 }
 
 export interface KVService extends KVProvider {}
@@ -51,3 +52,5 @@ export interface AnyDocumentAtomicService {
 export interface AnyPubSubService {
 	publish(key: string, payload: unknown, signal?: AbortSignal): Promise<void>;
 }
+
+export interface RateLimiterService extends RateLimiterProvider {}

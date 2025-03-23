@@ -6,7 +6,8 @@
 		"./document": "./document.ts",
 		"./kv": "./kv.ts",
 		"./notification": "./notification.ts",
-		"./queue": "./queue.ts"
+		"./queue": "./queue.ts",
+		"./rate-limiter": "./rate_limiter.ts"
 	},
 	"publish": {
 		"include": [

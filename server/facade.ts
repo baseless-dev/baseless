@@ -3,7 +3,15 @@ import type { Matcher } from "@baseless/core/path";
 import { TopicNotFoundError } from "@baseless/core/topic";
 import type { Auth, RegisteredContext, TCollection, TDocument, TOnDocumentDeleting, TOnDocumentSetting, TTopic } from "./app.ts";
 import { assert } from "@baseless/core/schema";
-import { DocumentAtomic, DocumentProvider, KVProvider, QueueProvider } from "./provider.ts";
+import {
+	DocumentAtomic,
+	DocumentProvider,
+	KVProvider,
+	NotificationChannelProvider,
+	QueueProvider,
+	RateLimiterProvider,
+	RateLimiterProviderLimitOptions,
+} from "./provider.ts";
 import type { KVGetOptions, KVKey, KVListOptions, KVListResult, KVPutOptions } from "@baseless/core/kv";
 import {
 	type Document,
@@ -14,7 +22,7 @@ import {
 } from "@baseless/core/document";
 import type { AnyDocumentService, NotificationService, ServiceCollection } from "./service.ts";
 import { first } from "@baseless/core/iter";
-import type { AnyPubSubService, NotificationChannelProvider } from "./prelude.ts";
+import type { AnyPubSubService } from "./service.ts";
 import type { Identity, IdentityChannel } from "@baseless/core/identity";
 import { type Notification, NotificationChannelNotFoundError } from "@baseless/core/notification";
 
@@ -342,5 +350,17 @@ export class NotificationFacade implements NotificationService {
 			return channel?.send(identityChannel, notification, signal) ?? true;
 		}
 		return Promise.resolve(false);
+	}
+}
+
+export class RateLimiterFacade {
+	#provider: RateLimiterProvider;
+
+	constructor(provider: RateLimiterProvider) {
+		this.#provider = provider;
+	}
+
+	limit(options: RateLimiterProviderLimitOptions): Promise<boolean> {
+		return this.#provider.limit(options);
 	}
 }

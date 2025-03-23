@@ -1,6 +1,12 @@
 import type { TDefinition } from "./app.ts";
 import { Server, ServerOptions } from "./server.ts";
-import { MemoryDocumentProvider, MemoryKVProvider, MemoryNotificationProvider, MemoryQueueProvider } from "@baseless/inmemory-provider";
+import {
+	MemoryDocumentProvider,
+	MemoryKVProvider,
+	MemoryNotificationProvider,
+	MemoryQueueProvider,
+	MemoryRateLimiterProvider,
+} from "@baseless/inmemory-provider";
 import { DenoHubProvider } from "@baseless/deno-provider";
 import * as Type from "@baseless/core/schema";
 import { ServiceCollection } from "./prelude.ts";
@@ -30,6 +36,7 @@ export default async function createMemoryServer(
 	const queue = new MemoryQueueProvider();
 	const hub = new DenoHubProvider();
 	const notification = new MemoryNotificationProvider();
+	const rateLimiter = new MemoryRateLimiterProvider();
 
 	const server = new Server({
 		authentication: authenticationOptions,
@@ -40,6 +47,7 @@ export default async function createMemoryServer(
 			hub,
 			kv,
 			queue,
+			rateLimiter,
 		},
 	});
 

@@ -16,12 +16,20 @@ import {
 	type TopicMessage,
 	type TTopic,
 } from "./app.ts";
-import { type Auth, DocumentProvider, HubProvider, KVProvider, NotificationChannelProvider, QueueProvider } from "./provider.ts";
+import {
+	type Auth,
+	DocumentProvider,
+	HubProvider,
+	KVProvider,
+	NotificationChannelProvider,
+	QueueProvider,
+	RateLimiterProvider,
+} from "./provider.ts";
 import type { ServiceCollection } from "./service.ts";
 import { type Matcher, matchPath } from "@baseless/core/path";
 import createDocumentApplication from "./applications/document.ts";
 import createPubSubApplication from "./applications/pubsub.ts";
-import { DocumentFacade, KVFacade, NotificationFacade, PubSubFacade } from "./facade.ts";
+import { DocumentFacade, KVFacade, NotificationFacade, PubSubFacade, RateLimiterFacade } from "./facade.ts";
 import { first } from "@baseless/core/iter";
 import { decodeBase64Url } from "@std/encoding/base64url";
 import { type ID, id, isID } from "@baseless/core/id";
@@ -36,10 +44,11 @@ export interface ServerOptions {
 	definitions: Record<string, TDefinition>;
 	providers: {
 		document: DocumentProvider;
-		kv: KVProvider;
 		channels: Record<string, NotificationChannelProvider>;
-		queue: QueueProvider;
 		hub: HubProvider;
+		kv: KVProvider;
+		queue: QueueProvider;
+		rateLimiter: RateLimiterProvider;
 	};
 	requirements?: RegisteredRequirements;
 }
@@ -51,6 +60,7 @@ export class Server {
 	#notificationChannelProvider: Record<string, NotificationChannelProvider>;
 	#queueProvider: QueueProvider;
 	#hubProvider: HubProvider;
+	#rateLimiterProvider: RateLimiterProvider;
 	#requirements: RegisteredRequirements;
 	#decorations: TDecoration<any>[];
 	#documents: TDocument<any, any>[];
@@ -72,6 +82,7 @@ export class Server {
 		this.#notificationChannelProvider = options.providers.channels;
 		this.#queueProvider = options.providers.queue;
 		this.#hubProvider = options.providers.hub;
+		this.#rateLimiterProvider = options.providers.rateLimiter;
 		this.#requirements = { ...options.requirements };
 
 		const definitions = Object.values(options.definitions);
@@ -145,10 +156,11 @@ export class Server {
 	): Promise<[RegisteredContext, ServiceCollection]> {
 		const context: RegisteredContext = { ...this.#requirements };
 		const service: ServiceCollection = {
+			document: {} as never,
 			kv: new KVFacade(this.#kvProvider),
 			notification: {} as never,
-			document: {} as never,
 			pubsub: {} as never,
+			rateLimiter: new RateLimiterFacade(this.#rateLimiterProvider),
 		};
 		service.document = new DocumentFacade(
 			auth,

@@ -2,7 +2,8 @@ import { assertEquals } from "@std/assert/equals";
 import { assertRejects } from "@std/assert/rejects";
 import { assertExists } from "@std/assert/exists";
 import { assert } from "@std/assert/assert";
-import { DocumentProvider, KVProvider, QueueProvider } from "./provider.ts";
+import { assertFalse } from "@std/assert/false";
+import { DocumentProvider, KVProvider, QueueProvider, RateLimiterProvider } from "./provider.ts";
 
 export async function testDocumentProvider(
 	provider: DocumentProvider,
@@ -209,5 +210,19 @@ export async function testQueueProvider(
 
 		reader.releaseLock();
 		consumer.cancel();
+	});
+}
+
+export async function testRateLimiterProvider(
+	provider: RateLimiterProvider,
+	t: Deno.TestContext,
+): Promise<void> {
+	await t.step("limit", async () => {
+		assert(await provider.limit({ key: "a", limit: 2, period: 500 }));
+		assert(await provider.limit({ key: "a", limit: 2, period: 500 }));
+		assert(await provider.limit({ key: "b", limit: 2, period: 500 }));
+		assertFalse(await provider.limit({ key: "a", limit: 2, period: 500 }));
+		await new Promise((r) => setTimeout(r, 1000));
+		assert(await provider.limit({ key: "a", limit: 2, period: 500 }));
 	});
 }

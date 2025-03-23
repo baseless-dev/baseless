@@ -1,6 +1,6 @@
 {
 	"name": "@baseless/client",
-	"version": "0.4.0-rc.12",
+	"version": "0.4.0-rc.13",
 	"exports": {
 		".": "./prelude.ts",
 		"./event-emitter": "./event_emitter.ts",

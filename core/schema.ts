@@ -271,6 +271,7 @@ export function validate<TValue extends TSchema>(
 	value: unknown,
 	errors: Array<SchemaValidationError> = [],
 ): value is Static<TValue> {
+	errors.splice(0, errors.length);
 	function _appendErrorIfFalse(condition: boolean, errorCtor: () => SchemaValidationError): boolean {
 		if (condition === false) {
 			errors.push(errorCtor());

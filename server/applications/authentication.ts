@@ -44,12 +44,14 @@ export interface AuthenticationOptions {
 	accessTokenTTL?: number;
 	refreshTokenTTL?: number;
 	authenticationTTL?: number;
+	rateLimit?: { limit: number; period: number };
 }
 
 export default function createAuthenticationApplication(options: AuthenticationOptions): TDefinition[] {
 	const authenticationTTL = options.authenticationTTL ?? 1000 * 60 * 5;
 	const accessTokenTTL = options.accessTokenTTL ?? 1000 * 60 * 5;
 	const refreshTokenTTL = options.refreshTokenTTL;
+	const rateLimit = options.rateLimit ?? { limit: 5, period: 1000 * 60 * 5 };
 	return [
 		collection("auth/identity", Type.Index(Identity, "id"), Identity),
 		collection("auth/identity/:id/component", Type.String(), IdentityComponent),
@@ -169,6 +171,9 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			AuthenticationResponse,
 			async ({ context, input, service }) => {
 				const { currentComponent, identityComponentProvider, path, stateObj } = await unrollState(input, context, service);
+				if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/submit-prompt/${stateObj.id}` })) {
+					throw new AuthenticationSubmitPromptError();
+				}
 				if (stateObj.kind === "authentication") {
 					const identityComponent: IdentityComponent | undefined = await service.document
 						.get(`auth/identity/${stateObj.id}/component/${currentComponent.component}`)
@@ -278,6 +283,10 @@ export default function createAuthenticationApplication(options: AuthenticationO
 					throw new UnknownIdentityComponentError();
 				}
 
+				if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/send-prompt/${stateObj.id}` })) {
+					throw new AuthenticationSubmitPromptError();
+				}
+
 				return identityComponentProvider.sendSignInPrompt({
 					componentId: currentComponent.component,
 					context,
@@ -311,6 +320,10 @@ export default function createAuthenticationApplication(options: AuthenticationO
 					throw new UnknownIdentityComponentError();
 				}
 
+				if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/send-validation-code/${stateObj.id}` })) {
+					throw new AuthenticationSubmitPromptError();
+				}
+
 				return identityComponentProvider.sendValidationPrompt({
 					componentId: currentComponent.component,
 					context,
@@ -331,6 +344,11 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			AuthenticationResponse,
 			async ({ context, input, service }) => {
 				const { path, currentComponent, identityComponentProvider, stateObj } = await unrollState(input, context, service);
+
+				if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/submit-validation-code/${stateObj.id}` })) {
+					throw new AuthenticationSubmitPromptError();
+				}
+
 				if (!identityComponentProvider.verifyValidationPrompt) {
 					throw new UnknownIdentityComponentError();
 				}

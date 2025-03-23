@@ -244,28 +244,6 @@ type _Static<T, M extends Record<string, any>> =
 // deno-lint-ignore ban-types
 export type Static<T> = _Static<T, {}>;
 
-export class SchemaValidationError extends Error {
-	path: string[];
-	type: TSchema;
-	constructor(message: string, options: { path: string[]; type: TSchema; cause: unknown }) {
-		super(message, { cause: options.cause });
-		this.path = [...options.path];
-		this.type = options.type;
-	}
-}
-
-export class MissingRequiredPropertyError extends SchemaValidationError {
-	constructor(path: string[], type: TSchema, cause?: unknown) {
-		super("Missing required property", { path, type, cause });
-	}
-}
-
-export class InvalidAdditionalPropertyError extends SchemaValidationError {
-	constructor(path: string[], type: TSchema, cause?: unknown) {
-		super("Invalid additional property", { path, type, cause });
-	}
-}
-
 export function validate<TValue extends TSchema>(
 	schema: TValue,
 	value: unknown,
@@ -372,8 +350,9 @@ export function assert<TValue extends TSchema>(
 	schema: TValue,
 	value: unknown,
 ): asserts value is Static<TValue> {
-	if (!validate(schema, value)) {
-		throw new InvalidSchemaError();
+	const errors: SchemaValidationError[] = [];
+	if (!validate(schema, value, errors)) {
+		throw new SchemaAssertionError(errors);
 	}
 }
 
@@ -572,4 +551,32 @@ export function generateSchemaFromSchema(schema: TSchema, ns = "Type"): string {
 	}
 }
 
-export class InvalidSchemaError extends Error {}
+export class SchemaValidationError extends Error {
+	path: string[];
+	type: TSchema;
+	constructor(message: string, options: { path: string[]; type: TSchema; cause: unknown }) {
+		super(message, { cause: options.cause });
+		this.path = [...options.path];
+		this.type = options.type;
+	}
+}
+
+export class MissingRequiredPropertyError extends SchemaValidationError {
+	constructor(path: string[], type: TSchema, cause?: unknown) {
+		super("Missing required property", { path, type, cause });
+	}
+}
+
+export class InvalidAdditionalPropertyError extends SchemaValidationError {
+	constructor(path: string[], type: TSchema, cause?: unknown) {
+		super("Invalid additional property", { path, type, cause });
+	}
+}
+
+export class SchemaAssertionError extends Error {
+	errors: SchemaValidationError[];
+	constructor(errors: SchemaValidationError[], cause?: unknown) {
+		super(`Schema assertion error`, { cause });
+		this.errors = [...errors];
+	}
+}

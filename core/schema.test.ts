@@ -1,5 +1,6 @@
 import { assert, assertEquals, assertFalse } from "@std/assert";
 import * as t from "./schema.ts";
+import { SchemaValidationError } from "./schema.ts";
 
 Deno.test("schema", async (ctx) => {
 	await ctx.step("generate Typescript from schema", () => {
@@ -51,6 +52,7 @@ Deno.test("schema", async (ctx) => {
 	});
 
 	await ctx.step("validate", () => {
+		const errors: SchemaValidationError[] = [];
 		assert(t.validate(t.String(), ""));
 		assert(t.validate(t.Number(), 42));
 		assert(t.validate(t.Boolean(), false));
@@ -62,10 +64,14 @@ Deno.test("schema", async (ctx) => {
 		assert(t.validate(t.Union([t.String(), t.Number()]), ""));
 		assert(t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"]), { foo: "" }));
 		assert(t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"], { additionalProperties: true }), { foo: "", absent: 0 }));
+		errors.splice(0, errors.length);
 		assertFalse(
-			t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"], { additionalProperties: false }), { foo: "", absent: 0 }),
+			t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"], { additionalProperties: false }), { foo: "", absent: 0 }, errors),
 		);
-		assertFalse(t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"]), { bar: 42 }));
+		assertEquals(errors.length, 2);
+		errors.splice(0, errors.length);
+		assertFalse(t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"]), { bar: 42 }, errors));
+		assertEquals(errors.length, 2);
 		assert(t.validate(t.Record(t.Number()), { foo: 42 }));
 		assert(
 			t.validate(

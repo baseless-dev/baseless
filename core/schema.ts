@@ -244,65 +244,112 @@ type _Static<T, M extends Record<string, any>> =
 // deno-lint-ignore ban-types
 export type Static<T> = _Static<T, {}>;
 
+export class SchemaValidationError extends Error {
+	path: string[];
+	type: TSchema;
+	constructor(message: string, options: { path: string[]; type: TSchema; cause: unknown }) {
+		super(message, { cause: options.cause });
+		this.path = [...options.path];
+		this.type = options.type;
+	}
+}
+
+export class MissingRequiredPropertyError extends SchemaValidationError {
+	constructor(path: string[], type: TSchema, cause?: unknown) {
+		super("Missing required property", { path, type, cause });
+	}
+}
+
+export class InvalidAdditionalPropertyError extends SchemaValidationError {
+	constructor(path: string[], type: TSchema, cause?: unknown) {
+		super("Invalid additional property", { path, type, cause });
+	}
+}
+
 export function validate<TValue extends TSchema>(
 	schema: TValue,
 	value: unknown,
+	errors: Array<SchemaValidationError> = [],
 ): value is Static<TValue> {
+	function _appendErrorIfFalse(condition: boolean, errorCtor: () => SchemaValidationError): boolean {
+		if (condition === false) {
+			errors.push(errorCtor());
+		}
+		return condition;
+	}
+	function _appendInvalidSchemaError(condition: boolean, path: string[], type: TSchema): boolean {
+		if (condition === false) {
+			errors.push(new SchemaValidationError("Invalid schema", { path, type, cause: undefined }));
+		}
+		return condition;
+	}
 	function _validate<TValue extends TSchema>(
 		schema: TPrimitive,
 		value: unknown,
+		path: string[],
 		recursiveSchema: Record<string, TSchema | undefined> = {},
 	): value is Static<TValue> {
 		if ("type" in schema === false) {
-			return false;
+			return _appendInvalidSchemaError(false, path, schema);
 		}
 		switch (schema.type) {
 			case "id":
-				return isID(schema.prefix, value);
+				return _appendInvalidSchemaError(isID(schema.prefix, value), path, schema);
 			case "string":
-				return typeof value === "string";
+				return _appendInvalidSchemaError(typeof value === "string", path, schema);
 			case "number":
-				return typeof value === "number";
+				return _appendInvalidSchemaError(typeof value === "number", path, schema);
 			case "boolean":
-				return typeof value === "boolean";
+				return _appendInvalidSchemaError(typeof value === "boolean", path, schema);
 			case "null":
-				return value === null;
+				return _appendInvalidSchemaError(value === null, path, schema);
 			case "any":
-				return true;
+				return _appendInvalidSchemaError(true, path, schema);
 			case "undefined":
-				return value === undefined;
+				return _appendInvalidSchemaError(value === undefined, path, schema);
 			case "unknown":
-				return true;
+				return _appendInvalidSchemaError(true, path, schema);
 			case "void":
-				return value === undefined;
+				return _appendInvalidSchemaError(value === undefined, path, schema);
 			case "literal":
-				return "value" in schema && value === schema.value;
+				return _appendInvalidSchemaError("value" in schema && value === schema.value, path, schema);
 			case "array":
-				return globalThis.Array.isArray(value) === true &&
-					"items" in schema &&
-					value.every((item) => _validate(schema.items, item, recursiveSchema));
+				return _appendInvalidSchemaError(
+					globalThis.Array.isArray(value) === true &&
+						"items" in schema &&
+						value.every((item, idx) => _validate(schema.items, item, [...path, idx.toString()], recursiveSchema)),
+					path,
+					schema,
+				);
 			case "union":
-				return schema.types.some((type) => _validate(type, value, recursiveSchema));
+				return _appendInvalidSchemaError(schema.types.some((type) => _validate(type, value, path, recursiveSchema)), path, schema);
 			case "record":
-				return !!value && typeof value === "object" &&
-					globalThis.Object.values(value).every((value) => _validate(schema.value, value, recursiveSchema));
+				return _appendInvalidSchemaError(
+					!!value && typeof value === "object" &&
+						globalThis.Object.entries(value).every(([key, value]) => _validate(schema.value, value, [...path, key], recursiveSchema)),
+					path,
+					schema,
+				);
 			case "object":
-				return !!value && typeof value === "object" &&
-					schema.required.every((p) =>
-						p in value &&
-						_validate(schema.properties[p], (value as any)[p], recursiveSchema)
-					) &&
-					globalThis.Object.entries(value).every(([key, value]) =>
-						(key in schema.properties &&
-							_validate(
-								schema.required.includes(key) ? schema.properties[key] : Union([Any(), schema.properties[key]]),
-								value,
-								recursiveSchema,
-							)) ||
-						(!(key in schema.properties) && schema.additionalProperties === true)
-					);
+				return _appendInvalidSchemaError(
+					!!value && typeof value === "object" &&
+						schema.required.every((p) => _appendErrorIfFalse(p in value, () => new MissingRequiredPropertyError([...path, p], schema))) &&
+						globalThis.Object.entries(value).every(([key, value]) =>
+							(key in schema.properties &&
+								_validate(
+									schema.required.includes(key) ? schema.properties[key] : Union([Any(), schema.properties[key]]),
+									value,
+									[...path, key],
+									recursiveSchema,
+								)) ||
+							_appendErrorIfFalse(!(key in schema.properties) && schema.additionalProperties === true, () =>
+								new InvalidAdditionalPropertyError([...path, key], schema))
+						),
+					path,
+					schema,
+				);
 			case "recursive":
-				return _validate(schema.value({ type: "self", identifier: schema.identifier }), value, {
+				return _validate(schema.value({ type: "self", identifier: schema.identifier }), value, path, {
 					...recursiveSchema,
 					[schema.identifier]: schema,
 				});
@@ -312,12 +359,12 @@ export function validate<TValue extends TSchema>(
 				if (!targetSchema) {
 					return false;
 				}
-				return _validate(targetSchema as TPrimitive, value);
+				return _validate(targetSchema as TPrimitive, value, path);
 			default:
 				return false;
 		}
 	}
-	return _validate(schema as TPrimitive, value);
+	return _validate(schema as TPrimitive, value, ["$"]);
 }
 
 export function assert<TValue extends TSchema>(

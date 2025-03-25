@@ -1,6 +1,7 @@
 import { Identity } from "@baseless/core/identity";
 import * as Type from "@baseless/core/schema";
-import { AuthenticationTokens, InvalidAuthenticationTokens } from "@baseless/core/authentication-tokens";
+import { AuthenticationTokens } from "@baseless/core/authentication-tokens";
+import { InvalidAuthenticationTokens } from "@baseless/core/errors";
 
 export interface TokensMetadata {
 	identity: Identity;

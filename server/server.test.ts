@@ -10,6 +10,7 @@ import {
 import { DenoHubProvider } from "@baseless/deno-provider";
 import * as Type from "@baseless/core/schema";
 import { ServiceCollection } from "./prelude.ts";
+import { fromServerErrorData, ServerErrorData } from "@baseless/core/errors";
 
 export default async function createMemoryServer(
 	app: Record<string, TDefinition> = {},
@@ -67,6 +68,9 @@ export default async function createMemoryServer(
 		);
 		await Promise.allSettled(promises);
 		const json = await response.json().catch((_) => undefined);
+		if (response.status !== 200 && Type.validate(ServerErrorData, json)) {
+			throw fromServerErrorData(json);
+		}
 		Type.assert(options.schema ?? Type.Unknown(), json);
 		return json as Type.Static<T>;
 	}

@@ -2,6 +2,7 @@ import { onRequest, Permission, type TDefinition, type TTopic } from "../app.ts"
 import * as Type from "@baseless/core/schema";
 import type { Matcher } from "@baseless/core/path";
 import { first } from "@baseless/core/iter";
+import { ForbiddenError, TopicNotFoundError } from "@baseless/core/errors";
 
 export default function createPubSubApplication(
 	topicMatcher: Matcher<TTopic<string, Type.TSchema>>,
@@ -18,8 +19,8 @@ export default function createPubSubApplication(
 				try {
 					// deno-lint-ignore no-var no-inner-declarations
 					var [params, definition] = first(topicMatcher(input.key));
-				} catch (_error) {
-					throw "NOT_FOUND";
+				} catch (cause) {
+					throw new TopicNotFoundError(undefined, { cause });
 				}
 
 				if (definition.security) {
@@ -32,7 +33,7 @@ export default function createPubSubApplication(
 						waitUntil,
 					});
 					if ((permission & Permission.Publish) == 0) {
-						throw "FORBIDDEN";
+						throw ForbiddenError;
 					}
 				}
 

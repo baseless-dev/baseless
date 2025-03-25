@@ -25,8 +25,6 @@ export const Identity: Type.TObject<{
 	{ $id: "Identity" },
 );
 
-export class InvalidIdentityError extends Error {}
-
 export interface IdentityComponent {
 	identityId: ID<"id_">;
 	componentId: string;

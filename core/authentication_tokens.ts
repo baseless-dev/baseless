@@ -15,5 +15,3 @@ export const AuthenticationTokens: Type.TObject<{
 	idToken: Type.String(),
 	refreshToken: Type.String(),
 }, ["accessToken", "idToken"]);
-
-export class InvalidAuthenticationTokens extends Error {}

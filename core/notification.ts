@@ -16,5 +16,3 @@ export const TNotification: Type.TObject<{
 	["subject", "content"],
 	{ $id: "Notification" },
 );
-
-export class NotificationChannelNotFoundError extends Error {}

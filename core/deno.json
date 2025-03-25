@@ -9,6 +9,7 @@
 		"./authentication-step": "./authentication_step.ts",
 		"./authentication-tokens": "./authentication_tokens.ts",
 		"./document": "./document.ts",
+		"./errors": "./errors.ts",
 		"./id": "./id.ts",
 		"./identity": "./identity.ts",
 		"./iter": "./iter.ts",

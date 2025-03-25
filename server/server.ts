@@ -38,6 +38,7 @@ import type { QueueItem } from "@baseless/core/queue";
 import type { AuthenticationOptions } from "./applications/authentication.ts";
 import createAuthenticationApplication from "./applications/authentication.ts";
 import { jwtVerify } from "jose";
+import { PublicError, RequestNotFoundError } from "@baseless/core/errors";
 
 export interface ServerOptions {
 	authentication?: AuthenticationOptions;
@@ -218,82 +219,94 @@ export class Server {
 		const promises: Array<PromiseLike<unknown>> = [];
 		const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
 		const url = new URL(request.url);
-		const upgrade = request.headers.get("Upgrade")?.toLowerCase();
-		if (upgrade === "websocket") {
-			// Request in a websocket upgrade might be special like in Deno, do not alter it
-			const protocols = request.headers.get("Sec-WebSocket-Protocol")?.split(",") ?? [];
-			// Same method used in Kubernetes
-			// https://github.com/kubernetes/kubernetes/commit/714f97d7baf4975ad3aa47735a868a81a984d1f0
-			const encodedBearer = protocols.find((protocol) => protocol.startsWith("base64url.bearer.authorization.baseless.dev."));
-			let authorization: string | undefined;
-			if (encodedBearer) {
-				const base64Decoded = decodeBase64Url(encodedBearer.slice(44));
-				authorization = `Bearer ${new TextDecoder().decode(base64Decoded)}`;
-			} else {
-				authorization = request.headers.get("Authorization") ?? undefined;
-			}
+		try {
+			const upgrade = request.headers.get("Upgrade")?.toLowerCase();
+			if (upgrade === "websocket") {
+				// Request in a websocket upgrade might be special like in Deno, do not alter it
+				const protocols = request.headers.get("Sec-WebSocket-Protocol")?.split(",") ?? [];
+				// Same method used in Kubernetes
+				// https://github.com/kubernetes/kubernetes/commit/714f97d7baf4975ad3aa47735a868a81a984d1f0
+				const encodedBearer = protocols.find((protocol) => protocol.startsWith("base64url.bearer.authorization.baseless.dev."));
+				let authorization: string | undefined;
+				if (encodedBearer) {
+					const base64Decoded = decodeBase64Url(encodedBearer.slice(44));
+					authorization = `Bearer ${new TextDecoder().decode(base64Decoded)}`;
+				} else {
+					authorization = request.headers.get("Authorization") ?? undefined;
+				}
 
-			const auth = authorization ? await this.#parseAuthorization(authorization) : undefined;
+				const auth = authorization ? await this.#parseAuthorization(authorization) : undefined;
 
-			try {
 				// TODO onHubConnect
 				const [context, _service] = await this.createContext(request, auth, request.signal, waitUntil);
 				const hubId = id("hub_");
 				const response = await this.#hubProvider.transfer({ auth, context, hubId, request, server: this, signal: request.signal });
 				return [response, promises];
-			} catch (_error) {
-				return [
-					new Response(undefined, { status: 500 }),
-					promises,
-				];
 			}
+
+			try {
+				// deno-lint-ignore no-var no-inner-declarations
+				var [params, definition] = first(this.#onRequestMatcher(url.pathname.slice(1)));
+			} catch (cause) {
+				throw new RequestNotFoundError(undefined, { cause });
+			}
+
+			const contentType = request.headers.get("Content-Type")?.toLowerCase() ?? "";
+			let input: unknown;
+			if (contentType.startsWith("application/json")) {
+				input = await request.json().catch((_) => undefined);
+			} else if (contentType === "application/x-www-form-urlencoded") {
+				input = Object.fromEntries(new URLSearchParams(await request.text()));
+			} else if (contentType.startsWith("multipart/form-data")) {
+				const form = await request.formData();
+				input = Array.from(form.keys()).reduce(
+					(body, key) => {
+						const values = form.getAll(key);
+						body[key] = values.length === 1 ? values[0] : values;
+						return body;
+					},
+					{} as Record<string, unknown>,
+				);
+			} else {
+				input = undefined;
+			}
+
+			Type.assert(definition.input, input);
+
+			const output = await this.unsafe_handleRequest({
+				handler: definition.handler,
+				input,
+				params,
+				request,
+				security: definition.security,
+				waitUntil,
+			});
+
+			Type.assert(definition.output, output);
+
+			return [output !== undefined ? Response.json(output) : new Response(), promises];
+		} catch (cause) {
+			let status = 500;
+			let statusText = "Internal Server Error";
+			let error = "Error";
+			let details: unknown = undefined;
+			if (cause instanceof Type.SchemaAssertionError) {
+				status = 400;
+				statusText = "Bad Request";
+				error = cause.message;
+			} else if (cause instanceof PublicError) {
+				error = cause.constructor.name;
+				status = cause.status;
+				statusText = cause.statusText;
+				details = cause.details;
+			} else if (cause instanceof Error) {
+				error = cause.constructor.name;
+			}
+			return [
+				Response.json({ error, details }, { status, statusText }),
+				promises,
+			];
 		}
-
-		try {
-			// deno-lint-ignore no-var no-inner-declarations
-			var [params, definition] = first(this.#onRequestMatcher(url.pathname.slice(1)));
-		} catch (_error) {
-			return [new Response(null, { status: 404 }), promises];
-		}
-
-		const contentType = request.headers.get("Content-Type")?.toLowerCase() ?? "";
-		let input: unknown;
-		if (contentType.startsWith("application/json")) {
-			input = await request.json().catch((_) => undefined);
-		} else if (contentType === "application/x-www-form-urlencoded") {
-			input = Object.fromEntries(new URLSearchParams(await request.text()));
-		} else if (contentType.startsWith("multipart/form-data")) {
-			const form = await request.formData();
-			input = Array.from(form.keys()).reduce(
-				(body, key) => {
-					const values = form.getAll(key);
-					body[key] = values.length === 1 ? values[0] : values;
-					return body;
-				},
-				{} as Record<string, unknown>,
-			);
-		} else {
-			input = undefined;
-		}
-
-		if (!Type.validate(definition.input, input)) {
-			return [new Response(null, { status: 400 }), promises];
-		}
-
-		const output = await this.unsafe_handleRequest({
-			handler: definition.handler,
-			input,
-			params,
-			request,
-			security: definition.security,
-			waitUntil,
-		});
-
-		if (!Type.validate(definition.output, output)) {
-			return [new Response(null, { status: 500 }), promises];
-		}
-
-		return [output !== undefined ? Response.json(output) : new Response(), promises];
 	}
 
 	async handleHubMessage(hubId: ID<"hub_">, auth: Auth, message: unknown): Promise<Array<PromiseLike<unknown>>> {

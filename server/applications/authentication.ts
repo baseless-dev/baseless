@@ -25,6 +25,16 @@ import { AuthenticationResponse } from "@baseless/core/authentication-response";
 import type { ServiceCollection } from "../service.ts";
 import type { IdentityComponentProvider } from "../provider.ts";
 import type { AuthenticationComponent } from "@baseless/core/authentication-component";
+import {
+	AuthenticationRefreshTokenError,
+	AuthenticationSendPromptError,
+	AuthenticationSubmitPromptError,
+	AuthenticationSubmitValidationCodeError,
+	ForbiddenError,
+	InvalidAuthenticationStateError,
+	RateLimitedError,
+	UnknownIdentityComponentError,
+} from "@baseless/core/errors";
 
 export type AuthenticationCeremonyResolver = (
 	options: {
@@ -90,7 +100,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 						return true;
 					}
 				} catch (cause) {
-					throw new Error("INVALID_ACCESS_TOKEN", { cause });
+					throw new ForbiddenError(undefined, { cause });
 				}
 			}
 			return false;
@@ -116,7 +126,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 						session.scope,
 					);
 				} catch (cause) {
-					throw new Error("INVALID_REFRESH_TOKEN", { cause });
+					throw new AuthenticationRefreshTokenError(undefined, { cause });
 				}
 			},
 			() => Permission.Fetch,
@@ -172,7 +182,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			async ({ context, input, service }) => {
 				const { currentComponent, identityComponentProvider, path, stateObj } = await unrollState(input, context, service);
 				if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/submit-prompt/${stateObj.id}` })) {
-					throw new AuthenticationSubmitPromptError();
+					throw new RateLimitedError();
 				}
 				if (stateObj.kind === "authentication") {
 					const identityComponent: IdentityComponent | undefined = await service.document
@@ -272,7 +282,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			async ({ context, input, service }) => {
 				const { currentComponent, identityComponentProvider, stateObj } = await unrollState(input, context, service);
 				if (!identityComponentProvider.sendSignInPrompt) {
-					throw new UnknownIdentityComponentError();
+					throw new AuthenticationSendPromptError();
 				}
 
 				const identityComponent = stateObj.kind === "authentication"
@@ -280,11 +290,11 @@ export default function createAuthenticationApplication(options: AuthenticationO
 						.then((d) => d.data as IdentityComponent)
 					: stateObj.components.find((c) => c.componentId === currentComponent.component);
 				if (!identityComponent) {
-					throw new UnknownIdentityComponentError();
+					throw new AuthenticationSendPromptError();
 				}
 
 				if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/send-prompt/${stateObj.id}` })) {
-					throw new AuthenticationSubmitPromptError();
+					throw new RateLimitedError();
 				}
 
 				return identityComponentProvider.sendSignInPrompt({
@@ -308,7 +318,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			async ({ context, input, service }) => {
 				const { currentComponent, identityComponentProvider, stateObj } = await unrollState(input, context, service);
 				if (!identityComponentProvider.sendValidationPrompt) {
-					throw new UnknownIdentityComponentError();
+					throw new AuthenticationSendPromptError();
 				}
 
 				const identityComponent = stateObj.kind === "authentication"
@@ -317,11 +327,11 @@ export default function createAuthenticationApplication(options: AuthenticationO
 					)
 					: stateObj.components.find((c) => c.componentId === currentComponent.component);
 				if (!identityComponent) {
-					throw new UnknownIdentityComponentError();
+					throw new AuthenticationSendPromptError();
 				}
 
 				if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/send-validation-code/${stateObj.id}` })) {
-					throw new AuthenticationSubmitPromptError();
+					throw new RateLimitedError();
 				}
 
 				return identityComponentProvider.sendValidationPrompt({
@@ -346,11 +356,11 @@ export default function createAuthenticationApplication(options: AuthenticationO
 				const { path, currentComponent, identityComponentProvider, stateObj } = await unrollState(input, context, service);
 
 				if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/submit-validation-code/${stateObj.id}` })) {
-					throw new AuthenticationSubmitPromptError();
+					throw new RateLimitedError();
 				}
 
 				if (!identityComponentProvider.verifyValidationPrompt) {
-					throw new UnknownIdentityComponentError();
+					throw new AuthenticationSubmitValidationCodeError();
 				}
 
 				const identityComponent = stateObj.kind === "authentication"
@@ -359,7 +369,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 						.then((d) => d.data as IdentityComponent)
 					: stateObj.components.find((c) => c.componentId === currentComponent.component);
 				if (!identityComponent) {
-					throw new UnknownIdentityComponentError();
+					throw new AuthenticationSubmitValidationCodeError();
 				}
 
 				const result = await identityComponentProvider.verifyValidationPrompt({
@@ -687,8 +697,3 @@ export const AuthenticationState: Type.TUnion<[
 		scopes: Type.Array(Type.String()),
 	}, ["kind", "id", "channels", "components", "scopes"]),
 ]);
-
-export class InvalidAuthenticationStateError extends Error {}
-export class UnknownIdentityComponentError extends Error {}
-export class AuthenticationSubmitPromptError extends Error {}
-export class AuthenticationSubmitValidationCodeError extends Error {}

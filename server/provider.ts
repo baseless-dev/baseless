@@ -22,27 +22,17 @@ export { AuthenticationComponentPrompt } from "@baseless/core/authentication-com
 export {
 	Document,
 	DocumentAtomicCheck,
-	DocumentAtomicCommitError,
 	DocumentAtomicOperation,
 	type DocumentGetOptions,
 	DocumentListEntry,
 	DocumentListOptions,
-	DocumentNotFoundError,
 } from "@baseless/core/document";
 export { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/identity";
-export {
-	type KVGetOptions,
-	type KVKey,
-	KVKeyNotFoundError,
-	type KVListKey,
-	type KVListOptions,
-	type KVListResult,
-	KVPutError,
-	type KVPutOptions,
-} from "@baseless/core/kv";
+export { type KVGetOptions, type KVKey, type KVListKey, type KVListOptions, type KVListResult, type KVPutOptions } from "@baseless/core/kv";
 export type { QueueItem } from "@baseless/core/queue";
 export type { ServiceCollection } from "./service.ts";
 export type { Notification } from "@baseless/core/notification";
+export * from "@baseless/core/errors";
 
 export abstract class DocumentAtomic {
 	checks: Array<DocumentAtomicCheck> = [];

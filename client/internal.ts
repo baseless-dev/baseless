@@ -13,6 +13,7 @@ import type {
 } from "@baseless/core/document";
 import { encodeBase64Url } from "@std/encoding/base64url";
 import { TokensManager, TokensMetadata } from "./tokens_manager.ts";
+import { fromServerErrorData, ServerErrorData } from "@baseless/core/errors";
 
 export interface ClientInitialization {
 	clientId: string;
@@ -137,8 +138,10 @@ export class ClientInternal implements AsyncDisposable {
 				body: JSON.stringify(current.tokens.refreshToken),
 				signal,
 			});
-			const result = await response.json();
-			if (Type.validate(AuthenticationTokens, result)) {
+			const result = await response.json().catch((_) => undefined);
+			if (response.status !== 200 && Type.validate(ServerErrorData, result)) {
+				throw fromServerErrorData(result);
+			} else if (Type.validate(AuthenticationTokens, result)) {
 				this.#tokensManager.add(result);
 				this.#writeData();
 				this.#triggerUpdate();
@@ -163,7 +166,9 @@ export class ClientInternal implements AsyncDisposable {
 			}),
 		);
 		const result = await response.json().catch((_) => undefined);
-		if (
+		if (response.status !== 200 && Type.validate(ServerErrorData, result)) {
+			throw fromServerErrorData(result);
+		} else if (
 			(
 				endpoint === "auth/begin" ||
 				endpoint === "auth/submit-prompt" ||

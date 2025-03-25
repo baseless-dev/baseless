@@ -1,6 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
 import type { Matcher } from "@baseless/core/path";
-import { TopicNotFoundError } from "@baseless/core/topic";
 import type { Auth, RegisteredContext, TCollection, TDocument, TOnDocumentDeleting, TOnDocumentSetting, TTopic } from "./app.ts";
 import { assert } from "@baseless/core/schema";
 import {
@@ -13,18 +12,14 @@ import {
 	RateLimiterProviderLimitOptions,
 } from "./provider.ts";
 import type { KVGetOptions, KVKey, KVListOptions, KVListResult, KVPutOptions } from "@baseless/core/kv";
-import {
-	type Document,
-	type DocumentGetOptions,
-	type DocumentListEntry,
-	type DocumentListOptions,
-	DocumentNotFoundError,
-} from "@baseless/core/document";
+import { type Document, type DocumentGetOptions, type DocumentListEntry, type DocumentListOptions } from "@baseless/core/document";
 import type { AnyDocumentService, NotificationService, ServiceCollection } from "./service.ts";
 import { first } from "@baseless/core/iter";
 import type { AnyPubSubService } from "./service.ts";
 import type { Identity, IdentityChannel } from "@baseless/core/identity";
-import { type Notification, NotificationChannelNotFoundError } from "@baseless/core/notification";
+import { type Notification } from "@baseless/core/notification";
+import { DocumentNotFoundError, NotificationChannelNotFoundError, TopicNotFoundError } from "@baseless/core/errors";
+import {} from "@baseless/core/errors";
 
 export class KVFacade {
 	#provider: KVProvider;

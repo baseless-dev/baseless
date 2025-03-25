@@ -86,5 +86,3 @@ export function matchPathTrie<TMatchables extends { path: string }>(
 		}
 	};
 }
-
-export class PathNotFound extends Error {}

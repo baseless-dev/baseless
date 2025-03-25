@@ -113,7 +113,3 @@ export const DocumentAtomic: Type.TObject<{
 	checks: Type.Array(DocumentAtomicCheck),
 	operations: Type.Array(DocumentAtomicOperation),
 }, ["checks", "operations"]);
-
-export class DocumentNotFoundError extends Error {}
-
-export class DocumentAtomicCommitError extends Error {}

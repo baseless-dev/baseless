@@ -11,6 +11,7 @@ import { component, sequence } from "@baseless/core/authentication-ceremony";
 import { OtpComponentProvider } from "../auth/otp.ts";
 import { Notification } from "@baseless/core/notification";
 import { PolicyIdentityComponentProvider } from "../auth/policy.ts";
+import { assertRejects } from "@std/assert/rejects";
 
 Deno.test("Simple authentication", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
@@ -74,6 +75,12 @@ Deno.test("Simple authentication", async (t) => {
 		assert(begin.step.kind === "component");
 		assert(begin.step.id === "email");
 		assert(begin.step.prompt === "email");
+		await assertRejects(() =>
+			mock.post("/auth/submit-prompt", {
+				data: { id: "email", value: "bar@test.local", state: begin.state },
+				schema: AuthenticationResponse,
+			})
+		);
 		const email = await mock.post("/auth/submit-prompt", {
 			data: { id: "email", value: "foo@test.local", state: begin.state },
 			schema: AuthenticationResponse,
@@ -104,6 +111,7 @@ Deno.test("Simple authentication", async (t) => {
 			schema: AuthenticationResponse,
 		});
 		assert("refreshToken" in password);
+		await assertRejects(() => mock.post("/auth/refresh-token", { data: "foobar", schema: AuthenticationResponse }));
 		const tokens = await mock.post("/auth/refresh-token", { data: password.refreshToken, schema: AuthenticationResponse });
 		assert("accessToken" in tokens);
 		assert(password.accessToken !== tokens.accessToken);

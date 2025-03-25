@@ -31,7 +31,3 @@ export interface KVListResult {
 	readonly done: boolean;
 	readonly next?: string;
 }
-
-export class KVKeyNotFoundError extends Error {}
-
-export class KVPutError extends Error {}

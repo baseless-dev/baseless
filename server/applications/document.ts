@@ -4,6 +4,7 @@ import { Document, DocumentAtomic, DocumentGetOptions, DocumentListEntry, Docume
 import * as Type from "@baseless/core/schema";
 import type { Matcher } from "@baseless/core/path";
 import { first } from "@baseless/core/iter";
+import { CollectionNotFoundError, DocumentAtomicCommitError, DocumentNotFoundError, ForbiddenError } from "@baseless/core/errors";
 
 export default function createDocumentApplication(
 	documentMatcher: Matcher<TDocument<any, any>>,
@@ -29,8 +30,8 @@ export default function createDocumentApplication(
 				try {
 					// deno-lint-ignore no-var no-inner-declarations
 					var [params, definition] = first(documentMatcher(input.path));
-				} catch (_error) {
-					throw "NOT_FOUND";
+				} catch (cause) {
+					throw new DocumentNotFoundError(undefined, { cause });
 				}
 
 				if (definition.security) {
@@ -43,7 +44,7 @@ export default function createDocumentApplication(
 						waitUntil,
 					});
 					if ((permission & Permission.Get) == 0) {
-						throw "FORBIDDEN";
+						throw new ForbiddenError();
 					}
 				}
 
@@ -64,8 +65,8 @@ export default function createDocumentApplication(
 					try {
 						// deno-lint-ignore no-var no-inner-declarations
 						var [params, definition] = first(documentMatcher(key));
-					} catch (_error) {
-						throw "NOT_FOUND";
+					} catch (cause) {
+						throw new DocumentNotFoundError(undefined, { cause });
 					}
 
 					if (definition.security) {
@@ -78,7 +79,7 @@ export default function createDocumentApplication(
 							waitUntil,
 						});
 						if ((permission & Permission.Get) == 0) {
-							throw "FORBIDDEN";
+							throw new ForbiddenError();
 						}
 					}
 				}
@@ -107,11 +108,11 @@ export default function createDocumentApplication(
 								waitUntil,
 							});
 							if ((permission & Permission.Get) == 0) {
-								throw "FORBIDDEN";
+								throw new ForbiddenError();
 							}
 						}
-					} catch (_error) {
-						throw "NOT_FOUND";
+					} catch (cause) {
+						throw new DocumentAtomicCommitError(undefined, { cause });
 					}
 					atomic.check(check.key, check.versionstamp ?? null);
 				}
@@ -128,11 +129,11 @@ export default function createDocumentApplication(
 								waitUntil,
 							});
 							if ((op.type === "set" && (permission & Permission.Set) == 0) || (permission & Permission.Delete) == 0) {
-								throw "FORBIDDEN";
+								throw new ForbiddenError();
 							}
 						}
-					} catch (_error) {
-						throw "NOT_FOUND";
+					} catch (cause) {
+						throw new DocumentAtomicCommitError(undefined, { cause });
 					}
 					if (op.type === "set") {
 						atomic.set(op.key, op.data);
@@ -153,8 +154,8 @@ export default function createDocumentApplication(
 				try {
 					// deno-lint-ignore no-var no-inner-declarations
 					var [params, definition] = first(collectionMatcher(prefix));
-				} catch (_error) {
-					throw "NOT_FOUND";
+				} catch (cause) {
+					throw new CollectionNotFoundError(undefined, { cause });
 				}
 
 				if (definition.security) {
@@ -167,7 +168,7 @@ export default function createDocumentApplication(
 						waitUntil,
 					});
 					if ((permission & Permission.List) == 0) {
-						throw "FORBIDDEN";
+						throw new ForbiddenError();
 					}
 				}
 

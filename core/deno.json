@@ -1,6 +1,6 @@
 {
 	"name": "@baseless/core",
-	"version": "0.4.0-rc.14",
+	"version": "0.4.0-rc.15",
 	"exports": {
 		".": "./prelude.ts",
 		"./authentication-ceremony": "./authentication_ceremony.ts",

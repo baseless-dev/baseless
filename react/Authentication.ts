@@ -11,6 +11,8 @@ import { id } from "@baseless/core/id";
 
 export interface AuthenticationController {
 	key: string;
+	error: Error | undefined;
+	clearError: () => void;
 	component: AuthenticationComponent;
 	reset: () => void;
 	back: () => void;
@@ -55,6 +57,7 @@ export function Authentication({
 		} catch (_error) {}
 		return [];
 	});
+	const [error, setError] = useState<Error | undefined>();
 
 	const currentStep = steps[steps.length - 1] ?? initialState;
 
@@ -69,44 +72,70 @@ export function Authentication({
 	const controller = useMemo(() => {
 		return {
 			key: id(),
+			error,
+			clearError: () => setError(undefined),
 			component: currentStep.step,
-			reset: () => (setSteps([]), saveSteps(undefined)),
-			back: () => (setSteps(steps.slice(0, -1)), saveSteps(undefined)),
-			select: (step: AuthenticationComponent) => (setSteps([...steps, { ...currentStep, step }]), saveSteps(undefined)),
-			send: (locale: string) =>
-				client.fetch(flow === "authentication" ? `auth/send-prompt` : `auth/send-validation-code`, {
-					state: currentStep.state,
-					id: currentStep.step.kind === "component" ? currentStep.step.id : "",
-					locale,
-				}) as Promise<boolean>,
+			reset: () => (setError(undefined), setSteps([]), saveSteps(undefined)),
+			back: () => (setError(undefined), setSteps(steps.slice(0, -1)), saveSteps(undefined)),
+			select: (
+				step: AuthenticationComponent,
+			) => (setError(undefined), setSteps([...steps, { ...currentStep, step }]), saveSteps(undefined)),
+			send: (locale: string) => {
+				setError(undefined);
+				try {
+					return client.fetch(flow === "authentication" ? `auth/send-prompt` : `auth/send-validation-code`, {
+						state: currentStep.state,
+						id: currentStep.step.kind === "component" ? currentStep.step.id : "",
+						locale,
+					}) as Promise<boolean>;
+				} catch (cause) {
+					if (cause instanceof Error) {
+						setError(cause);
+					} else {
+						setError(new Error(`${cause}`));
+					}
+					return Promise.resolve(false);
+				}
+			},
 			submit: async (value: unknown) => {
+				setError(undefined);
 				if (currentStep.step.kind === "component" && currentStep.step.prompt === "oauth2") {
 					globalThis.location.href = currentStep.step.options.authorizationUrl as string;
 					saveSteps([...steps]);
 					return;
 				}
-				const result = currentStep.validating
-					? await client.fetch(`auth/submit-validation-code`, {
-						state: currentStep.state,
-						id: currentStep.step.kind === "component" ? currentStep.step.id : "",
-						code: value,
-					}) as AuthenticationResponse
-					: await client.fetch(`auth/submit-prompt`, {
-						state: currentStep.state,
-						id: currentStep.step.kind === "component" ? currentStep.step.id : "",
-						value,
-					}) as AuthenticationResponse;
-				if ("accessToken" in result) {
-					setSteps([]);
-					saveSteps(undefined);
-				} else {
-					setSteps([...steps, result]);
-					saveSteps(undefined);
+				try {
+					const result = currentStep.validating
+						? await client.fetch(`auth/submit-validation-code`, {
+							state: currentStep.state,
+							id: currentStep.step.kind === "component" ? currentStep.step.id : "",
+							code: value,
+						}) as AuthenticationResponse
+						: await client.fetch(`auth/submit-prompt`, {
+							state: currentStep.state,
+							id: currentStep.step.kind === "component" ? currentStep.step.id : "",
+							value,
+						}) as AuthenticationResponse;
+					if ("accessToken" in result) {
+						setSteps([]);
+						saveSteps(undefined);
+					} else {
+						setSteps([...steps, result]);
+						saveSteps(undefined);
+					}
+				} catch (cause) {
+					if (cause instanceof Error) {
+						setError(cause);
+					} else {
+						setError(new Error(`${cause}`));
+					}
 				}
 			},
 		} satisfies AuthenticationController;
 	}, [
 		client,
+		error,
+		setError,
 		currentStep,
 		steps,
 		saveSteps,

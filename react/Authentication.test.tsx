@@ -39,8 +39,13 @@ Deno.test("Authentication", async (ctx) => {
 		await using mock = await createMemoryClientServer(app);
 		using screen = render(<LoginPage client={mock.client} />);
 
-		const email = await screen.findByLabelText("Email");
-		await fireEvent.change(email, { target: { value: "foo@test.local" } });
+		const email1 = await screen.findByLabelText("Email");
+		await fireEvent.change(email1, { target: { value: "bar@test.local" } });
+
+		await screen.findByText("Clear error");
+
+		const email2 = await screen.findByLabelText("Email");
+		await fireEvent.change(email2, { target: { value: "foo@test.local" } });
 
 		const password = await screen.findByLabelText("Password");
 		await fireEvent.change(password, { target: { value: "lepassword" } });
@@ -114,6 +119,12 @@ function AuthSection(props: { flow: "authentication" | "registration" }): React.
 			{(controller) => (
 				<>
 					<main>
+						{controller.error && (
+							<div>
+								<button type="button" onClick={(e) => (e.preventDefault(), controller.clearError())}>Clear error</button>
+								<p>{controller.error.message}</p>
+							</div>
+						)}
 						<AuthenticationPrompt
 							choice={(controller, components) => (
 								<ul>

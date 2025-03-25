@@ -1,6 +1,6 @@
 {
 	"name": "@baseless/react",
-	"version": "0.4.0-rc.15",
+	"version": "0.4.0-rc.16",
 	"exports": {
 		".": "./prelude.ts",
 		"./useKeyedPromise": "./useKeyedPromise.ts"

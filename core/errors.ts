@@ -24,6 +24,11 @@ export class AuthenticationSendPromptError extends PublicError {
 	statusText = "Bad Request";
 	details = null;
 }
+export class AuthenticationSendValidationCodeError extends PublicError {
+	status = 400;
+	statusText = "Bad Request";
+	details = null;
+}
 export class AuthenticationSubmitPromptError extends PublicError {
 	status = 400;
 	statusText = "Bad Request";

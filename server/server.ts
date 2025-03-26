@@ -38,7 +38,7 @@ import type { QueueItem } from "@baseless/core/queue";
 import type { AuthenticationOptions } from "./applications/authentication.ts";
 import createAuthenticationApplication from "./applications/authentication.ts";
 import { jwtVerify } from "jose";
-import { PublicError, RequestNotFoundError } from "@baseless/core/errors";
+import { ForbiddenError, PublicError, RequestNotFoundError } from "@baseless/core/errors";
 
 export interface ServerOptions {
 	authentication?: AuthenticationOptions;
@@ -338,7 +338,7 @@ export class Server {
 					waitUntil,
 				});
 				if ((permission & Permission.Subscribe) == 0) {
-					throw "FORBIDDEN";
+					throw new ForbiddenError();
 				}
 			}
 
@@ -371,7 +371,7 @@ export class Server {
 					waitUntil,
 				});
 				if ((permission & Permission.Publish) == 0) {
-					throw "FORBIDDEN";
+					throw new ForbiddenError();
 				}
 			}
 
@@ -452,7 +452,7 @@ export class Server {
 				waitUntil,
 			});
 			if ((permission & Permission.Fetch) == 0) {
-				throw "FORBIDDEN";
+				throw new ForbiddenError();
 			}
 		}
 		const output = await handler({

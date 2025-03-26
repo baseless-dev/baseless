@@ -28,6 +28,7 @@ import type { AuthenticationComponent } from "@baseless/core/authentication-comp
 import {
 	AuthenticationRefreshTokenError,
 	AuthenticationSendPromptError,
+	AuthenticationSendValidationCodeError,
 	AuthenticationSubmitPromptError,
 	AuthenticationSubmitValidationCodeError,
 	ForbiddenError,
@@ -297,13 +298,17 @@ export default function createAuthenticationApplication(options: AuthenticationO
 					throw new RateLimitedError();
 				}
 
-				return identityComponentProvider.sendSignInPrompt({
-					componentId: currentComponent.component,
-					context,
-					identityComponent,
-					locale: input.locale,
-					service,
-				});
+				try {
+					return identityComponentProvider.sendSignInPrompt({
+						componentId: currentComponent.component,
+						context,
+						identityComponent,
+						locale: input.locale,
+						service,
+					});
+				} catch (cause) {
+					throw new AuthenticationSendPromptError(undefined, { cause });
+				}
 			},
 			() => Permission.Fetch,
 		),
@@ -318,7 +323,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			async ({ context, input, service }) => {
 				const { currentComponent, identityComponentProvider, stateObj } = await unrollState(input, context, service);
 				if (!identityComponentProvider.sendValidationPrompt) {
-					throw new AuthenticationSendPromptError();
+					throw new AuthenticationSendValidationCodeError();
 				}
 
 				const identityComponent = stateObj.kind === "authentication"
@@ -327,20 +332,24 @@ export default function createAuthenticationApplication(options: AuthenticationO
 					)
 					: stateObj.components.find((c) => c.componentId === currentComponent.component);
 				if (!identityComponent) {
-					throw new AuthenticationSendPromptError();
+					throw new AuthenticationSendValidationCodeError();
 				}
 
 				if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/send-validation-code/${stateObj.id}` })) {
 					throw new RateLimitedError();
 				}
 
-				return identityComponentProvider.sendValidationPrompt({
-					componentId: currentComponent.component,
-					context,
-					identityComponent,
-					locale: input.locale,
-					service,
-				});
+				try {
+					return identityComponentProvider.sendValidationPrompt({
+						componentId: currentComponent.component,
+						context,
+						identityComponent,
+						locale: input.locale,
+						service,
+					});
+				} catch (cause) {
+					throw new AuthenticationSendValidationCodeError(undefined, { cause });
+				}
 			},
 			() => Permission.Fetch,
 		),

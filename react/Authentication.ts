@@ -80,14 +80,14 @@ export function Authentication({
 			select: (
 				step: AuthenticationComponent,
 			) => (setError(undefined), setSteps([...steps, { ...currentStep, step }]), saveSteps(undefined)),
-			send: (locale: string) => {
+			send: async (locale: string) => {
 				setError(undefined);
 				try {
-					return client.fetch(flow === "authentication" ? `auth/send-prompt` : `auth/send-validation-code`, {
+					return await client.fetch(flow === "authentication" ? `auth/send-prompt` : `auth/send-validation-code`, {
 						state: currentStep.state,
 						id: currentStep.step.kind === "component" ? currentStep.step.id : "",
 						locale,
-					}) as Promise<boolean>;
+					}) as boolean;
 				} catch (cause) {
 					if (cause instanceof Error) {
 						setError(cause);

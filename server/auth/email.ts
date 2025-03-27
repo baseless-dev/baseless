@@ -56,6 +56,7 @@ export class EmailIdentityComponentProvider implements IdentityComponentProvider
 			id: componentId,
 			prompt: "email",
 			options: {},
+			sendable: false,
 		});
 	}
 
@@ -92,6 +93,7 @@ export class EmailIdentityComponentProvider implements IdentityComponentProvider
 			options: {
 				digits: 8,
 			},
+			sendable: true,
 		});
 	}
 

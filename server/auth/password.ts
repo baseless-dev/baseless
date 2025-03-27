@@ -43,6 +43,7 @@ export class PasswordIdentityComponentProvider implements IdentityComponentProvi
 			id: options.componentId,
 			prompt: "password",
 			options: {},
+			sendable: false,
 		});
 	}
 

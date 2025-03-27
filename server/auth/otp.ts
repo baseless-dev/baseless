@@ -86,6 +86,7 @@ export class OtpComponentProvider implements IdentityComponentProvider {
 			options: {
 				digits: this.#options.otp.digits,
 			},
+			sendable: true,
 		});
 	}
 

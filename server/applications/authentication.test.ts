@@ -75,6 +75,7 @@ Deno.test("Simple authentication", async (t) => {
 		assert(begin.step.kind === "component");
 		assert(begin.step.id === "email");
 		assert(begin.step.prompt === "email");
+		assert(!begin.step.sendable);
 		await assertRejects(() =>
 			mock.post("/auth/submit-prompt", {
 				data: { id: "email", value: "bar@test.local", state: begin.state },
@@ -90,6 +91,7 @@ Deno.test("Simple authentication", async (t) => {
 		assert(email.step.kind === "component");
 		assert(email.step.id === "password");
 		assert(email.step.prompt === "password");
+		assert(!email.step.sendable);
 		const password = await mock.post("/auth/submit-prompt", {
 			data: { id: "password", value: "lepassword", state: email.state },
 			schema: AuthenticationResponse,
@@ -273,6 +275,7 @@ Deno.test("Two factor authentication", async (t) => {
 		assert("state" in begin);
 		assert(begin.step.kind === "component");
 		assert(begin.step.id === "email");
+		assert(!begin.step.sendable);
 		const email = await mock.post("/auth/submit-prompt", {
 			data: { id: "email", value: "foo@test.local", state: begin.state },
 			schema: AuthenticationResponse,
@@ -280,11 +283,15 @@ Deno.test("Two factor authentication", async (t) => {
 		assert("state" in email);
 		assert(email.step.kind === "component");
 		assert(email.step.id === "password");
+		assert(!email.step.sendable);
 		const password = await mock.post("/auth/submit-prompt", {
 			data: { id: "password", value: "lepassword", state: email.state },
 			schema: AuthenticationResponse,
 		});
 		assert("state" in password);
+		assert(password.step.kind === "component");
+		assert(password.step.id === "otp");
+		assert(password.step.sendable);
 		const sendPrompt = await mock.post("/auth/send-prompt", {
 			data: { id: "otp", locale: "en", state: password.state },
 			schema: Type.Boolean(),
@@ -300,6 +307,7 @@ Deno.test("Two factor authentication", async (t) => {
 		assert(!otp.validating);
 		assert(otp.step.kind === "component");
 		assert(otp.step.id === "policy");
+		assert(!otp.step.sendable);
 		const policy = await mock.post("/auth/submit-prompt", {
 			data: { id: "policy", value: { terms: "1.0" }, state: otp.state },
 			schema: AuthenticationResponse,

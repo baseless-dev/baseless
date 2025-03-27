@@ -60,8 +60,8 @@ Deno.test("Authentication", async (ctx) => {
 		const email = await screen.findByLabelText("Email");
 		await fireEvent.change(email, { target: { value: "foo@test.local" } });
 
-		const send = await screen.findByRole("send");
-		await fireEvent.click(send);
+		// const send = await screen.findByRole("send");
+		// await fireEvent.click(send);
 
 		const code = await waitFor(() => {
 			const code = mock.provider.notification.notifications[0].content["text/x-code"];
@@ -115,7 +115,7 @@ function RegistrationPage({ client }: { client: Client }): React.ReactNode {
 
 function AuthSection(props: { flow: "authentication" | "registration" }): React.ReactNode {
 	return (
-		<Authentication flow={props.flow}>
+		<Authentication flow={props.flow} locale="en">
 			{(controller) => (
 				<>
 					<main>
@@ -154,7 +154,7 @@ function AuthSection(props: { flow: "authentication" | "registration" }): React.
 								),
 								otp: (controller) => (
 									<form>
-										<a role="send" onClick={(e) => (e.preventDefault(), controller.send("en"))}>Send</a>
+										<a role="send" onClick={(e) => (e.preventDefault(), controller.send())}>Send</a>
 										<label>
 											OTP
 											<input type="text" onChange={(e) => controller.submit(e.target.value)} />

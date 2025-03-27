@@ -64,6 +64,7 @@ export class PolicyIdentityComponentProvider implements IdentityComponentProvide
 			options: {
 				policies: this.#policies,
 			},
+			sendable: false,
 		});
 	}
 

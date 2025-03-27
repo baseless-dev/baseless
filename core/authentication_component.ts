@@ -5,6 +5,7 @@ export interface AuthenticationComponentPrompt {
 	id: string;
 	prompt: string;
 	options: Record<string, unknown>;
+	sendable: boolean;
 }
 
 export interface AuthenticationComponentChoice {
@@ -21,14 +22,16 @@ export const AuthenticationComponentPrompt: Type.TObject<{
 	id: Type.TString;
 	prompt: Type.TString;
 	options: Type.TRecord<Type.TUnknown>;
-}, ["kind", "id", "prompt", "options"]> = Type.Object(
+	sendable: Type.TBoolean;
+}, ["kind", "id", "prompt", "options", "sendable"]> = Type.Object(
 	{
 		kind: Type.Literal("component"),
 		id: Type.String(),
 		prompt: Type.String(),
 		options: Type.Record(Type.Unknown()),
+		sendable: Type.Boolean(),
 	},
-	["kind", "id", "prompt", "options"],
+	["kind", "id", "prompt", "options", "sendable"],
 	{ $id: "AuthenticationComponentPrompt" },
 );
 

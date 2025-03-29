@@ -49,9 +49,10 @@ export function Authentication({
 		() => client.fetch(`auth/begin`, { kind: flow, scopes }) as Promise<AuthenticationStep>,
 		1000 * 60 * 5,
 	);
-	const [steps, setSteps] = useState<AuthenticationStep[]>(() => {
+	const [error, setError] = useState<Error | undefined>();
+	const [steps, _setSteps] = useState<AuthenticationStep[]>(() => {
 		try {
-			const saved = localStorage.getItem("baseless_authentication");
+			const saved = localStorage.getItem(`baseless:${client.clientId}:authentication`);
 			if (saved) {
 				return JSON.parse(saved);
 			}
@@ -59,113 +60,129 @@ export function Authentication({
 		} catch (_error) {}
 		return [];
 	});
-	const [error, setError] = useState<Error | undefined>();
-
-	const currentStep = steps[steps.length - 1] ?? initialState;
-
+	let currentStep = steps[steps.length - 1] ?? initialState;
+	const key = useMemo(() => id(), [currentStep]);
 	const saveSteps = useCallback((newSteps: typeof steps | undefined) => {
 		if (newSteps) {
-			localStorage.setItem("baseless_authentication", JSON.stringify(newSteps));
+			localStorage.setItem(`baseless:${client.clientId}:authentication`, JSON.stringify(newSteps));
 		} else {
-			localStorage.removeItem("baseless_authentication");
+			localStorage.removeItem(`baseless:${client.clientId}:authentication`);
 		}
-	}, [setSteps]);
-
-	const key = useMemo(() => id(), [currentStep]);
-
+	}, []);
+	const send = useCallback(async () => {
+		setError(undefined);
+		try {
+			return await client.fetch(flow === "authentication" ? `auth/send-prompt` : `auth/send-validation-code`, {
+				state: currentStep.state,
+				id: currentStep.step.kind === "component" ? currentStep.step.id : "",
+				locale,
+			}) as boolean;
+		} catch (cause) {
+			if (cause instanceof Error) {
+				setError(cause);
+			} else {
+				setError(new Error(`${cause}`));
+			}
+			return Promise.resolve(false);
+		}
+	}, [setError, client, flow, currentStep, locale]);
+	const setSteps = useCallback((steps: AuthenticationStep[]) => {
+		_setSteps(steps);
+		currentStep = steps[steps.length - 1] ?? initialState;
+		if (currentStep.step.kind === "component") {
+			if (currentStep.step.sendable) {
+				send();
+			} else if (currentStep.step.prompt === "oauth2") {
+				saveSteps([...steps]);
+				globalThis.location.href = currentStep.step.options.authorizationUrl as string;
+				return;
+			}
+		}
+	}, [initialState, _setSteps, send]);
+	const select = useCallback((step: AuthenticationComponent) => {
+		setError(undefined);
+		saveSteps(undefined);
+		setSteps([...steps, { ...currentStep, step }]);
+	}, [steps, currentStep, setError, setSteps, saveSteps]);
+	const submit = useCallback(async (value: unknown) => {
+		setError(undefined);
+		try {
+			const result = currentStep.validating
+				? await client.fetch(`auth/submit-validation-code`, {
+					state: currentStep.state,
+					id: currentStep.step.kind === "component" ? currentStep.step.id : "",
+					code: value,
+				}) as AuthenticationResponse
+				: await client.fetch(`auth/submit-prompt`, {
+					state: currentStep.state,
+					id: currentStep.step.kind === "component" ? currentStep.step.id : "",
+					value,
+				}) as AuthenticationResponse;
+			if ("accessToken" in result) {
+				saveSteps(undefined);
+				setSteps([]);
+			} else {
+				saveSteps(undefined);
+				setSteps([...steps, result]);
+			}
+		} catch (cause) {
+			if (cause instanceof Error) {
+				setError(cause);
+			} else {
+				setError(new Error(`${cause}`));
+			}
+		}
+	}, [setError, client, currentStep, steps, setSteps, saveSteps]);
+	const clearError = useCallback(() => setError(undefined), [setError]);
+	const reset = useCallback(() => {
+		setError(undefined);
+		saveSteps(undefined);
+		setSteps([]);
+	}, [setError, setSteps, saveSteps]);
+	const back = useCallback(() => {
+		setError(undefined);
+		saveSteps(undefined);
+		setSteps(steps.slice(0, -1));
+	}, [setError, setSteps, steps, saveSteps]);
 	const controller = {
 		key,
 		error,
-		clearError: () => setError(undefined),
+		clearError,
 		component: currentStep.step,
-		reset: () => (setError(undefined), setSteps([]), saveSteps(undefined)),
-		back: () => (setError(undefined), setSteps(steps.slice(0, -1)), saveSteps(undefined)),
-		select: (
-			step: AuthenticationComponent,
-		) => (setError(undefined), setSteps([...steps, { ...currentStep, step }]), saveSteps(undefined)),
-		send: async () => {
-			setError(undefined);
-			try {
-				return await client.fetch(flow === "authentication" ? `auth/send-prompt` : `auth/send-validation-code`, {
-					state: currentStep.state,
-					id: currentStep.step.kind === "component" ? currentStep.step.id : "",
-					locale,
-				}) as boolean;
-			} catch (cause) {
-				if (cause instanceof Error) {
-					setError(cause);
-				} else {
-					setError(new Error(`${cause}`));
-				}
-				return Promise.resolve(false);
-			}
-		},
-		submit: async (value: unknown) => {
-			if (error !== undefined) {
-				setError(undefined);
-			}
-			try {
-				const result = currentStep.validating
-					? await client.fetch(`auth/submit-validation-code`, {
-						state: currentStep.state,
-						id: currentStep.step.kind === "component" ? currentStep.step.id : "",
-						code: value,
-					}) as AuthenticationResponse
-					: await client.fetch(`auth/submit-prompt`, {
-						state: currentStep.state,
-						id: currentStep.step.kind === "component" ? currentStep.step.id : "",
-						value,
-					}) as AuthenticationResponse;
-				if ("accessToken" in result) {
-					setSteps([]);
-					saveSteps(undefined);
-				} else {
-					setSteps([...steps, result]);
-					saveSteps(undefined);
-				}
-			} catch (cause) {
-				if (cause instanceof Error) {
-					setError(cause);
-				} else {
-					setError(new Error(`${cause}`));
-				}
-			}
-		},
+		reset,
+		back,
+		select,
+		send,
+		submit,
 	} satisfies AuthenticationController;
 
-	// When the currentStep changes
 	useEffect(() => {
-		if (currentStep.step.kind === "component") {
-			if (currentStep.step.prompt === "oauth2") {
-				const url = new URL(globalThis.location.toString());
-				const { code, state, scope } = Object.fromEntries(url.searchParams);
-				if (code) {
-					url.search = "";
-					// deno-lint-ignore no-explicit-any
-					(globalThis as any).history.replaceState(null, "", url.toString());
-					(client.fetch(`auth/submit-prompt`, {
-						state: currentStep.state,
-						id: currentStep.step.id,
-						value: { code, state, scope },
-					}) as Promise<AuthenticationResponse>)
-						.then((result) => {
-							if ("accessToken" in result) {
-								setSteps([]);
-								saveSteps(undefined);
-							} else {
-								setSteps([...steps, result]);
-								saveSteps(undefined);
-							}
-						});
-				} else {
-					saveSteps([...steps]);
-					globalThis.location.href = currentStep.step.options.authorizationUrl as string;
-				}
-			} else if (currentStep.step.sendable) {
-				controller.send();
+		if (currentStep.step.kind === "component" && currentStep.step.prompt === "oauth2") {
+			const url = new URL(globalThis.location.toString());
+			const { code, state, scope } = Object.fromEntries(url.searchParams);
+			if (code) {
+				url.searchParams.delete("state");
+				url.searchParams.delete("code");
+				url.searchParams.delete("scope");
+				// deno-lint-ignore no-explicit-any
+				(globalThis as any).history.replaceState(null, "", url.toString());
+				(client.fetch(`auth/submit-prompt`, {
+					state: currentStep.state,
+					id: currentStep.step.id,
+					value: { code, state, scope },
+				}) as Promise<AuthenticationResponse>)
+					.then((result) => {
+						if ("accessToken" in result) {
+							setSteps([]);
+							saveSteps(undefined);
+						} else {
+							setSteps([...steps, result]);
+							saveSteps(undefined);
+						}
+					});
 			}
 		}
-	}, [key]);
+	}, [client, currentStep, steps, setSteps, saveSteps]);
 
 	const node = useMemo(() => (typeof children === "function" ? children(controller) : children), [children, controller]);
 

@@ -8,7 +8,7 @@ import type {
 } from "@baseless/core/document";
 import type { ID } from "@baseless/core/id";
 import type { KVGetOptions, KVKey, KVListOptions, KVListResult, KVPutOptions } from "@baseless/core/kv";
-import type { Server } from "./server.ts";
+import type { BaselessServer } from "./server.ts";
 import type { QueueItem } from "@baseless/core/queue";
 import type { Auth, RegisteredContext } from "./app.ts";
 import type { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/identity";
@@ -83,7 +83,7 @@ export type HubProviderTransferOptions = {
 	context: RegisteredContext;
 	hubId: ID<"hub_">;
 	request: Request;
-	server: Server;
+	server: BaselessServer;
 	signal?: AbortSignal;
 };
 

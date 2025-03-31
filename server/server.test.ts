@@ -1,5 +1,5 @@
 import type { TDefinition } from "./app.ts";
-import { Server, ServerOptions } from "./server.ts";
+import { BaselessServer, BaselessServerOptions } from "./server.ts";
 import {
 	MemoryDocumentProvider,
 	MemoryKVProvider,
@@ -14,7 +14,7 @@ import { fromServerErrorData, ServerErrorData } from "@baseless/core/errors";
 
 export default async function createMemoryServer(
 	app: Record<string, TDefinition> = {},
-	authenticationOptions?: ServerOptions["authentication"],
+	authenticationOptions?: BaselessServerOptions["authentication"],
 ): Promise<
 	{
 		provider: {
@@ -28,7 +28,7 @@ export default async function createMemoryServer(
 			endpoint: string,
 			options: { data: unknown; headers?: Record<string, string>; schema?: T },
 		) => Promise<Type.Static<T>>;
-		server: Server;
+		server: BaselessServer;
 		service: ServiceCollection;
 	} & Disposable
 > {
@@ -39,7 +39,7 @@ export default async function createMemoryServer(
 	const notification = new MemoryNotificationProvider();
 	const rateLimiter = new MemoryRateLimiterProvider();
 
-	const server = new Server({
+	const server = new BaselessServer({
 		authentication: authenticationOptions,
 		definitions: app,
 		providers: {
@@ -104,7 +104,7 @@ export const deadline = (ms: number): Disposable => {
 	}, ms);
 	return { [Symbol.dispose]: () => clearTimeout(id) };
 };
-export const serve = async (server: Server): Promise<{ url: URL } & Disposable> => {
+export const serve = async (server: BaselessServer): Promise<{ url: URL } & Disposable> => {
 	const ready = Promise.withResolvers<URL>();
 	const abortController = new AbortController();
 	Deno.serve({

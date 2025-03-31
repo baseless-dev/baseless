@@ -40,7 +40,7 @@ import createAuthenticationApplication from "./applications/authentication.ts";
 import { jwtVerify } from "jose";
 import { ForbiddenError, PublicError, RequestNotFoundError } from "@baseless/core/errors";
 
-export interface ServerOptions {
+export interface BaselessServerOptions {
 	authentication?: AuthenticationOptions;
 	definitions: Record<string, TDefinition>;
 	providers: {
@@ -54,7 +54,7 @@ export interface ServerOptions {
 	requirements?: RegisteredRequirements;
 }
 
-export class Server {
+export class BaselessServer {
 	#authenticationOptions: AuthenticationOptions | undefined;
 	#documentProvider: DocumentProvider;
 	#kvProvider: KVProvider;
@@ -76,7 +76,7 @@ export class Server {
 	#topicMatcher: Matcher<TTopic<any, any>>;
 	#onTopicMessageMatcher: Matcher<TOnTopicMessage>;
 
-	constructor(options: ServerOptions) {
+	constructor(options: BaselessServerOptions) {
 		this.#authenticationOptions = options.authentication;
 		this.#documentProvider = options.providers.document;
 		this.#kvProvider = options.providers.kv;
@@ -89,7 +89,7 @@ export class Server {
 		const definitions = Object.values(options.definitions);
 
 		if (this.#authenticationOptions) {
-			definitions.push(...createAuthenticationApplication(this.#authenticationOptions));
+			definitions.push(...Object.values(createAuthenticationApplication(this.#authenticationOptions)));
 		}
 
 		if (definitions.some((definition) => definition.type === "topic" && definition.security)) {

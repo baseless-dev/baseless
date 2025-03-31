@@ -58,17 +58,17 @@ export interface AuthenticationOptions {
 	rateLimit?: { limit: number; period: number };
 }
 
-export default function createAuthenticationApplication(options: AuthenticationOptions): TDefinition[] {
+export default function createAuthenticationApplication(options: AuthenticationOptions): Record<string, TDefinition> {
 	const authenticationTTL = options.authenticationTTL ?? 1000 * 60 * 5;
 	const accessTokenTTL = options.accessTokenTTL ?? 1000 * 60 * 5;
 	const refreshTokenTTL = options.refreshTokenTTL;
 	const rateLimit = options.rateLimit ?? { limit: 5, period: 1000 * 60 * 5 };
-	return [
-		collection("auth/identity", Type.Index(Identity, "id"), Identity),
-		collection("auth/identity/:id/component", Type.String(), IdentityComponent),
-		collection("auth/identity/:id/channel", Type.String(), IdentityChannel),
-		document("auth/identity-by-identification/:component/:identification", Type.Index(Identity, "id")),
-		onDocumentSetting("auth/identity/:id/component/:component", async ({ atomic, document, service }) => {
+	return {
+		Identity: collection("auth/identity", Type.Index(Identity, "id"), Identity),
+		IdentityComponent: collection("auth/identity/:id/component", Type.String(), IdentityComponent),
+		IdentityChannel: collection("auth/identity/:id/channel", Type.String(), IdentityChannel),
+		IdentityByIdentification: document("auth/identity-by-identification/:component/:identification", Type.Index(Identity, "id")),
+		indexIdentityByIdentification: onDocumentSetting("auth/identity/:id/component/:component", async ({ atomic, document, service }) => {
 			// If component is confirmed and is identification
 			if ("identification" in document.data && document.data.confirmed) {
 				const identification = await service.document
@@ -83,14 +83,14 @@ export default function createAuthenticationApplication(options: AuthenticationO
 				}
 			}
 		}),
-		onDocumentDeleting("auth/identity/:id/component/:component", async ({ atomic, params, service }) => {
+		unindexIdentityByIdentification: onDocumentDeleting("auth/identity/:id/component/:component", async ({ atomic, params, service }) => {
 			const component = await service.document.get(`auth/identity/${params.id}/component/${params.component}`);
 			Type.assert(IdentityComponent, component.data);
 			if ("identification" in component.data && component.data.confirmed) {
 				atomic.delete(`auth/identity-by-identification/${component.data.componentId}/${component.data.identification}`);
 			}
 		}),
-		onRequest("auth/sign-out", Type.Void(), Type.Boolean(), async ({ service, request }) => {
+		authSignOut: onRequest("auth/sign-out", Type.Void(), Type.Boolean(), async ({ service, request }) => {
 			const authorization = request.headers.get("authorization");
 			if (authorization && authorization.startsWith("Bearer ")) {
 				try {
@@ -106,7 +106,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			}
 			return false;
 		}, () => Permission.Fetch),
-		onRequest(
+		authRefreshToken: onRequest(
 			"auth/refresh-token",
 			Type.String({ $id: "RefreshToken" }),
 			AuthenticationTokens,
@@ -132,7 +132,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			},
 			() => Permission.Fetch,
 		),
-		onRequest(
+		authBegin: onRequest(
 			"auth/begin",
 			Type.Union([
 				Type.Object({
@@ -172,7 +172,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 				return { step, state, validating: false };
 			},
 		),
-		onRequest(
+		authSubmitPrompt: onRequest(
 			"auth/submit-prompt",
 			Type.Object({
 				id: Type.String(),
@@ -272,7 +272,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			},
 			() => Permission.Fetch,
 		),
-		onRequest(
+		authSendPrompt: onRequest(
 			"auth/send-prompt",
 			Type.Object({
 				id: Type.String(),
@@ -312,7 +312,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			},
 			() => Permission.Fetch,
 		),
-		onRequest(
+		authSendValidationCode: onRequest(
 			"auth/send-validation-code",
 			Type.Object({
 				id: Type.String(),
@@ -353,7 +353,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			},
 			() => Permission.Fetch,
 		),
-		onRequest(
+		authSubmitValidationCode: onRequest(
 			"auth/submit-validation-code",
 			Type.Object({
 				id: Type.String(),
@@ -424,7 +424,7 @@ export default function createAuthenticationApplication(options: AuthenticationO
 			},
 			() => Permission.Fetch,
 		),
-	];
+	};
 
 	async function unrollState(input: { state: string; id: string }, context: RegisteredContext, service: ServiceCollection): Promise<{
 		stateObj: AuthenticationState;

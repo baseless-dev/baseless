@@ -12,6 +12,8 @@ export interface TSchema {
 	deprecated?: boolean;
 }
 
+export interface TTypedSchema<T> extends TSchema {}
+
 export interface TID<TPrefix extends string> extends TSchema {
 	type: "id";
 	prefix: TPrefix;
@@ -239,6 +241,7 @@ type _Static<T, M extends Record<string, any>> =
 				any :
 				_Static<M[TIdentifier][1], Omit<M, TIdentifier> & { [K in TIdentifier]: [[1, ...M[TIdentifier][0]], M[TIdentifier][1]] }> :
 			any :
+	T extends TTypedSchema<infer U> ? U :
 	never;
 
 // deno-lint-ignore ban-types

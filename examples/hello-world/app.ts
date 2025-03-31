@@ -9,6 +9,6 @@ export const onHelloWorld = onRequest(
 	() => Permission.Fetch,
 );
 
-export const fooCollection = collection("foo", Type.String(), Type.Object({ name: Type.String() }), () => Permission.All);
-export const barDocument = document("bar", Type.Object({ name: Type.String() }), () => Permission.All);
-export const pingTopic = topic("ping", Type.String(), () => Permission.All);
+export const Foo = collection("foo", Type.String(), Type.Object({ name: Type.String() }), () => Permission.All);
+export const Bar = document("bar", Type.Object({ name: Type.String() }), () => Permission.All);
+export const Ping = topic("ping", Type.String(), () => Permission.All);

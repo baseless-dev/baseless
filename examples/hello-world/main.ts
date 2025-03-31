@@ -1,7 +1,7 @@
 import * as app from "./app.ts";
-import { Server } from "@baseless/server";
+import { BaselessServer } from "@baseless/server";
 import { DenoHubProvider, DenoKVDocumentProvider, DenoKVProvider, DenoQueueProvider } from "@baseless/deno-provider";
-import { ConsoleNotificationProvider } from "@baseless/inmemory-provider";
+import { ConsoleNotificationProvider, MemoryRateLimiterProvider } from "@baseless/inmemory-provider";
 
 const bd1 = await Deno.openKv("./db/kv");
 const bd2 = await Deno.openKv("./db/doc");
@@ -11,8 +11,9 @@ const queue = new DenoQueueProvider(bd1);
 const hub = new DenoHubProvider();
 const kv = new DenoKVProvider(bd1);
 const notification = new ConsoleNotificationProvider();
+const rateLimiter = new MemoryRateLimiterProvider();
 
-const baseless = new Server({
+const baseless = new BaselessServer({
 	definitions: app,
 	providers: {
 		channels: { email: notification },
@@ -20,6 +21,7 @@ const baseless = new Server({
 		queue,
 		hub,
 		kv,
+		rateLimiter,
 	},
 	requirements: {
 		world: "world",

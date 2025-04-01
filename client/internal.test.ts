@@ -36,6 +36,7 @@ export default async function createMemoryClientServer(app: Record<string, TDefi
 		algo: "PS512",
 		privateKey: keyPair.privateKey,
 		publicKey: keyPair.publicKey,
+		secretKey: new TextEncoder().encode("2kkAiCQTWisiQOe0SdrppLTW9B8Uxe3n74Ij2BkN4tNrItFRelNt7QWe3kI2NiBs"),
 		ceremony: sequence(component("email"), component("password")),
 		components: { email, password },
 		accessTokenTTL: 1000,

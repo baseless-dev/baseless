@@ -1,4 +1,4 @@
-import { jwtVerify, type KeyLike, SignJWT } from "jose";
+import { EncryptJWT, jwtVerify, type KeyLike, SignJWT } from "jose";
 import {
 	collection,
 	document,
@@ -36,6 +36,7 @@ import {
 	RateLimitedError,
 	UnknownIdentityComponentError,
 } from "@baseless/core/errors";
+import { jwtDecrypt } from "jose/jwt/decrypt";
 
 export type AuthenticationCeremonyResolver = (
 	options: {
@@ -50,6 +51,7 @@ export interface AuthenticationOptions {
 	algo: string;
 	privateKey: KeyLike;
 	publicKey: KeyLike;
+	secretKey: Uint8Array;
 	ceremony: AuthenticationCeremony | AuthenticationCeremonyResolver;
 	components: Record<string, IdentityComponentProvider>;
 	accessTokenTTL?: number;
@@ -470,17 +472,17 @@ export default function createAuthenticationApplication(options: AuthenticationO
 
 	function encryptState(state: AuthenticationState): Promise<string> {
 		const now = Date.now();
-		return new SignJWT({ state })
-			.setProtectedHeader({ alg: options.algo })
+		return new EncryptJWT({ state })
+			.setProtectedHeader({ alg: "dir", enc: "A256CBC-HS512" })
 			.setIssuedAt()
 			.setExpirationTime((now + authenticationTTL) / 1000 >> 0)
-			.sign(options.privateKey);
+			.encrypt(options.secretKey);
 	}
 
 	async function decryptState(encryptedState: string | undefined): Promise<AuthenticationState> {
-		const { payload } = await jwtVerify(
+		const { payload } = await jwtDecrypt(
 			encryptedState ?? "",
-			options.publicKey,
+			options.secretKey,
 		);
 		Type.assert(AuthenticationState, payload.state);
 		return payload.state;

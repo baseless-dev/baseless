@@ -36,31 +36,31 @@ export class DenoHubProvider extends HubProvider {
 		return Promise.resolve(response);
 	}
 
-	override subscribe(key: string, hubId: ID<"hub_">, _signal?: AbortSignal): Promise<void> {
-		const subscriptions = this.#subscriptions.get(key) ?? new Set();
+	override subscribe(path: string, hubId: ID<"hub_">, _signal?: AbortSignal): Promise<void> {
+		const subscriptions = this.#subscriptions.get(path) ?? new Set();
 		subscriptions.add(hubId);
-		this.#subscriptions.set(key, subscriptions);
+		this.#subscriptions.set(path, subscriptions);
 		return Promise.resolve();
 	}
 
-	override unsubscribe(key: string, hubId: ID<"hub_">, _signal?: AbortSignal): Promise<void> {
-		const subscriptions = this.#subscriptions.get(key);
+	override unsubscribe(path: string, hubId: ID<"hub_">, _signal?: AbortSignal): Promise<void> {
+		const subscriptions = this.#subscriptions.get(path);
 		if (subscriptions) {
 			subscriptions.delete(hubId);
 			if (subscriptions.size === 0) {
-				this.#subscriptions.delete(key);
+				this.#subscriptions.delete(path);
 			}
 		}
 		return Promise.resolve();
 	}
 
-	override publish(key: string, payload: unknown, _signal?: AbortSignal): Promise<void> {
-		const subscriptions = this.#subscriptions.get(key);
+	override publish(path: string, payload: unknown, _signal?: AbortSignal): Promise<void> {
+		const subscriptions = this.#subscriptions.get(path);
 		if (subscriptions) {
 			for (const hubId of subscriptions) {
 				const item = this.#websockets.get(hubId);
 				if (item) {
-					item.socket.send(JSON.stringify({ key, payload }));
+					item.socket.send(JSON.stringify({ key: path, payload }));
 				}
 			}
 		}

@@ -1,4 +1,4 @@
-import { decodeBase32, encodeBase32 } from "@std/encoding/base32";
+import { decodeBase32 } from "@std/encoding/base32";
 
 export type OTPAlgorithm = "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
 
@@ -89,7 +89,7 @@ export class InvalidOTPOptionsError extends Error {}
  * @param {number} counter - The counter value to convert.
  * @returns {Uint8Array} - A Uint8Array representing the counter value padded to 128 bits.
  */
-function padCounter(counter: number): Uint8Array {
+function padCounter(counter: number): Uint8Array<ArrayBuffer> {
 	const pairs = counter.toString(16).padStart(16, "0").match(/..?/g)!;
 	const array = pairs.map((v) => parseInt(v, 16));
 	return Uint8Array.from(array);
@@ -126,10 +126,13 @@ export async function hotp(
 	let cryptoKey: CryptoKey;
 	if (key instanceof CryptoKey) {
 		if (key.algorithm.name !== "HMAC") {
-			throw new Error(`Expected \`key.name\` to be equal to "HMAC".`);
+			throw new Error(`Expected \`key.algorithm.name\` to be equal to "HMAC".`);
 		}
 		cryptoKey = key;
 	} else if (typeof key === "string") {
+		if (key.length % 8 !== 0) {
+			throw new RangeError("Expected key length to be a multiple of 8.");
+		}
 		cryptoKey = await crypto.subtle.importKey(
 			"raw",
 			Uint8Array.from(decodeBase32(key)),
@@ -185,10 +188,14 @@ export function otp({ digits = 6 }: { digits?: number } = {}): string {
  * @param {number} [length=16] - The length of the key to generate, in bytes. Defaults to 16.
  * @returns {string} - The generated random key encoded as a base32 string.
  */
-export function generateKey(length = 16): string {
+export function generateKey(length = 16, alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"): string {
 	const buffer = new Uint8Array(length);
 	crypto.getRandomValues(buffer);
-	return encodeBase32(buffer).slice(0, length);
+	let key = "";
+	for (let i = 0; i < buffer.length; i++) {
+		key += alphabet[buffer[i] % alphabet.length];
+	}
+	return key;
 }
 
 export type OTPAuthURIOptions =

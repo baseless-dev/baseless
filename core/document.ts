@@ -1,4 +1,4 @@
-import * as Type from "./schema.ts";
+import * as z from "./schema.ts";
 
 export interface Document<TData = unknown> {
 	key: string;
@@ -6,25 +6,35 @@ export interface Document<TData = unknown> {
 	versionstamp: string;
 }
 
-export const Document: Type.TObject<{
-	key: Type.TString;
-	data: Type.TAny;
-	versionstamp: Type.TString;
-}, ["key", "data", "versionstamp"]> = Type.Object({
-	key: Type.String(),
-	data: Type.Any(),
-	versionstamp: Type.String(),
-}, ["key", "data", "versionstamp"]);
+export function Document<TData extends z.ZodType>(data: TData): z.ZodObject<{
+	key: z.ZodString;
+	data: TData;
+	versionstamp: z.ZodString;
+}>;
+export function Document(): z.ZodObject<{
+	key: z.ZodString;
+	data: z.ZodAny;
+	versionstamp: z.ZodString;
+}>;
+export function Document(data?: z.ZodType): z.ZodObject<{
+	key: z.ZodString;
+	data: z.ZodType;
+	versionstamp: z.ZodString;
+}> {
+	return z.strictObject({
+		key: z.string(),
+		data: data ?? z.any(),
+		versionstamp: z.string(),
+	});
+}
 
 export interface DocumentGetOptions {
 	readonly consistency: "strong" | "eventual";
 }
 
-export const DocumentGetOptions: Type.TObject<{
-	consistency: Type.TUnion<[Type.TLiteral<"strong">, Type.TLiteral<"eventual">]>;
-}, ["consistency"]> = Type.Object({
-	consistency: Type.Union([Type.Literal("strong"), Type.Literal("eventual")]),
-}, ["consistency"]);
+export const DocumentGetOptions = z.strictObject({
+	consistency: z.union([z.literal("strong"), z.literal("eventual")]),
+});
 
 export interface DocumentListOptions<TPrefix = string> {
 	readonly prefix: TPrefix;
@@ -32,28 +42,34 @@ export interface DocumentListOptions<TPrefix = string> {
 	readonly limit?: number;
 }
 
-export const DocumentListOptions: Type.TObject<{
-	prefix: Type.TString;
-	cursor: Type.TString;
-	limit: Type.TNumber;
-}, ["prefix"]> = Type.Object({
-	prefix: Type.String(),
-	cursor: Type.String(),
-	limit: Type.Number(),
-}, ["prefix"]);
+export const DocumentListOptions = z.strictObject({
+	prefix: z.string(),
+	cursor: z.optional(z.string()),
+	limit: z.optional(z.number()),
+});
 
 export type DocumentListEntry<TData = unknown> = {
 	cursor: string;
 	document: Document<TData>;
 };
 
-export const DocumentListEntry: Type.TObject<{
-	cursor: Type.TString;
-	document: typeof Document;
-}, ["cursor", "document"]> = Type.Object({
-	cursor: Type.String(),
-	document: Document,
-}, ["cursor", "document"]);
+export function DocumentListEntry<TData extends z.ZodType>(data: TData): z.ZodObject<{
+	cursor: z.ZodString;
+	document: ReturnType<typeof Document<TData>>;
+}>;
+export function DocumentListEntry(): z.ZodObject<{
+	cursor: z.ZodString;
+	document: z.ZodAny;
+}>;
+export function DocumentListEntry(data?: z.ZodType): z.ZodObject<{
+	cursor: z.ZodString;
+	document: z.ZodType;
+}> {
+	return z.strictObject({
+		cursor: z.string(),
+		document: data ? Document(data) : Document(),
+	});
+}
 
 export type DocumentAtomicCheck = {
 	type: "check";
@@ -61,15 +77,11 @@ export type DocumentAtomicCheck = {
 	readonly versionstamp: string | null;
 };
 
-export const DocumentAtomicCheck: Type.TObject<{
-	type: Type.TLiteral<"check">;
-	key: Type.TString;
-	versionstamp: Type.TUnion<[Type.TString, Type.TNull]>;
-}, ["type", "key"]> = Type.Object({
-	type: Type.Literal("check"),
-	key: Type.String(),
-	versionstamp: Type.Union([Type.String(), Type.Null()]),
-}, ["type", "key"]);
+export const DocumentAtomicCheck = z.strictObject({
+	type: z.literal("check"),
+	key: z.string(),
+	versionstamp: z.optional(z.union([z.string(), z.null()])),
+});
 
 export type DocumentAtomicOperation =
 	| { type: "delete"; readonly key: string }
@@ -79,26 +91,16 @@ export type DocumentAtomicOperation =
 		readonly data: unknown;
 	};
 
-export const DocumentAtomicOperation: Type.TUnion<[
-	Type.TObject<{
-		type: Type.TLiteral<"delete">;
-		key: Type.TString;
-	}, ["type", "key"]>,
-	Type.TObject<{
-		type: Type.TLiteral<"set">;
-		key: Type.TString;
-		data: Type.TAny;
-	}, ["type", "key", "data"]>,
-]> = Type.Union([
-	Type.Object({
-		type: Type.Literal("delete"),
-		key: Type.String(),
-	}, ["type", "key"]),
-	Type.Object({
-		type: Type.Literal("set"),
-		key: Type.String(),
-		data: Type.Any(),
-	}, ["type", "key", "data"]),
+export const DocumentAtomicOperation = z.union([
+	z.strictObject({
+		type: z.literal("delete"),
+		key: z.string(),
+	}),
+	z.strictObject({
+		type: z.literal("set"),
+		key: z.string(),
+		data: z.any(),
+	}),
 ]);
 
 export interface DocumentAtomic {
@@ -106,10 +108,7 @@ export interface DocumentAtomic {
 	operations: DocumentAtomicOperation[];
 }
 
-export const DocumentAtomic: Type.TObject<{
-	checks: Type.TArray<typeof DocumentAtomicCheck>;
-	operations: Type.TArray<typeof DocumentAtomicOperation>;
-}, ["checks", "operations"]> = Type.Object({
-	checks: Type.Array(DocumentAtomicCheck),
-	operations: Type.Array(DocumentAtomicOperation),
-}, ["checks", "operations"]);
+export const DocumentAtomic = z.strictObject({
+	checks: z.array(DocumentAtomicCheck),
+	operations: z.array(DocumentAtomicOperation),
+});

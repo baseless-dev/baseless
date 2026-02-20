@@ -1,4 +1,4 @@
-import * as Type from "./schema.ts";
+import * as z from "./schema.ts";
 
 export abstract class PublicError extends Error {
 	abstract status: number;
@@ -13,6 +13,21 @@ export class ServerError extends Error {
 		this.error = error;
 		this.details = details;
 	}
+}
+export class BadRequestError extends PublicError {
+	status = 400;
+	statusText = "Bad Request";
+	details = null;
+}
+export class InternalServerError extends PublicError {
+	status = 500;
+	statusText = "Internal Server Error";
+	details = null;
+}
+export class BadGatewayError extends PublicError {
+	status = 502;
+	statusText = "Bad Gateway";
+	details = null;
 }
 export class AuthenticationRefreshTokenError extends PublicError {
 	status = 401;
@@ -94,17 +109,10 @@ export interface ServerErrorData {
 	error: string;
 	details?: unknown;
 }
-export const ServerErrorData: Type.TObject<{
-	error: Type.TString;
-	details: Type.TUnknown;
-}, ["error"]> = Type.Object(
-	{
-		error: Type.String(),
-		details: Type.Unknown(),
-	},
-	["error"],
-	{ additionalProperties: false },
-);
+export const ServerErrorData = z.strictObject({
+	error: z.string(),
+	details: z.optional(z.unknown()),
+}).meta({ id: "ServerErrorData" });
 
 export function fromServerErrorData(data: ServerErrorData): PublicError | ServerError {
 	switch (data.error) {
@@ -116,6 +124,12 @@ export function fromServerErrorData(data: ServerErrorData): PublicError | Server
 			return new AuthenticationSubmitPromptError();
 		case AuthenticationSubmitValidationCodeError.name:
 			return new AuthenticationSubmitValidationCodeError();
+		case BadRequestError.name:
+			return new BadRequestError();
+		case InternalServerError.name:
+			return new InternalServerError();
+		case BadGatewayError.name:
+			return new BadGatewayError();
 		case CollectionNotFoundError.name:
 			return new CollectionNotFoundError();
 		case DocumentAtomicCommitError.name:

@@ -1,16 +1,10 @@
-// @deno-types="npm:@types/react@19"
-import { useEffect, useState } from "react";
 import { useClient } from "./useClient.ts";
+import { useTokens } from "./useTokens.ts";
 import type { Identity } from "@baseless/core/identity";
 import type { Client } from "@baseless/client";
 
 export function useIdentity(client: Client = useClient()): Identity | undefined {
-	const [identity, setIdentity] = useState<Identity | undefined>(client.identity);
+	const tokens = useTokens(client);
 
-	useEffect(() => {
-		const listener = client.onAuthenticationStateChange((identity) => setIdentity(identity));
-		return () => listener[Symbol.dispose]();
-	}, [client, setIdentity]);
-
-	return identity;
+	return tokens?.identity;
 }

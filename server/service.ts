@@ -1,15 +1,63 @@
-import type { Register } from "./app.ts";
-import type { Document, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
+import type { AppRegistry } from "./app.ts";
+import type { Document, DocumentAtomic, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
 import type { KVProvider, RateLimiterProvider } from "./provider.ts";
 import type { Identity, IdentityChannel } from "@baseless/core/identity";
 import type { Notification } from "@baseless/core/notification";
+import { ref, type Reference } from "@baseless/core/ref";
 
-export interface ServiceCollection {
-	document: RegisteredDocumentService;
+export type ServiceCollection<TRegistry extends AppRegistry = AppRegistry> = {
+	document: DocumentService<TRegistry["documents"], TRegistry["collections"]>;
 	kv: KVService;
 	notification: NotificationService;
-	pubsub: RegisteredPubSubService;
+	pubsub: PubSubService<TRegistry["topics"]>;
 	rateLimiter: RateLimiterService;
+} & TRegistry["services"];
+
+export interface DocumentServiceListOptions<TPrefix = string> {
+	readonly prefix: Reference<TPrefix>;
+	readonly cursor?: string;
+	readonly limit?: number;
+}
+
+export interface DocumentService<TDocuments, TCollections> {
+	get<TPath extends keyof TDocuments>(
+		ref: Reference<TPath>,
+		options?: DocumentGetOptions,
+		signal?: AbortSignal,
+	): Promise<Document<TDocuments[TPath]>>;
+	getMany<TPath extends keyof TDocuments>(
+		refs: Array<Reference<TPath>>,
+		options?: DocumentGetOptions,
+		signal?: AbortSignal,
+	): Promise<Array<Document<TDocuments[TPath]>>>;
+	list<TPath extends keyof TCollections>(
+		options: DocumentServiceListOptions<TPath>,
+		signal?: AbortSignal,
+	): ReadableStream<DocumentListEntry<TCollections[TPath]>>;
+	atomic(): DocumentServiceAtomic<TDocuments>;
+}
+
+export type DocumentServiceAtomicCheck = {
+	type: "check";
+	readonly ref: Reference<string>;
+	readonly versionstamp: string | null;
+};
+
+export type DocumentServiceAtomicOperation =
+	| { type: "delete"; readonly ref: Reference<string> }
+	| {
+		type: "set";
+		readonly ref: Reference<string>;
+		readonly data: unknown;
+	};
+
+export interface DocumentServiceAtomic<TDocuments> {
+	checks: DocumentServiceAtomicCheck[];
+	operations: DocumentServiceAtomicOperation[];
+	check<TPath extends keyof TDocuments>(ref: Reference<TPath>, versionstamp: string | null): DocumentServiceAtomic<TDocuments>;
+	set<TPath extends keyof TDocuments>(ref: Reference<TPath>, value: TDocuments[TPath]): DocumentServiceAtomic<TDocuments>;
+	delete<TPath extends keyof TDocuments>(ref: Reference<TPath>): DocumentServiceAtomic<TDocuments>;
+	commit(signal?: AbortSignal): Promise<void>;
 }
 
 export interface KVService extends KVProvider {}
@@ -20,37 +68,12 @@ export interface NotificationService {
 	unsafeNotifyChannel(identityChannel: IdentityChannel, notification: Notification, signal?: AbortSignal): Promise<boolean>;
 }
 
-// deno-fmt-ignore
-export type RegisteredDocumentService = Register extends { documentGet: infer TGet; documentGetMany: infer TGetMany, documentList: infer TList }
-	? { get: TGet; getMany: TGetMany; list: TList, atomic: () => RegisteredDocumentServiceAtomic }
-	: AnyDocumentService;
-
-export type RegisteredDocumentServiceAtomic = Register extends
-	{ documentAtomicCheck: infer TCheck; documentAtomicSet: infer TSet; documentAtomicDelete: infer TDelete }
-	? { check: TCheck; set: TSet; delete: TDelete; commit: AnyDocumentAtomicService["commit"] }
-	: AnyDocumentAtomicService;
-
-// deno-fmt-ignore
-export type RegisteredPubSubService = Register extends { pubSubPublish: infer TPublish, pubSubSubscribe: infer TSubscribe }
-	? { publish: TPublish; subscribe: TSubscribe }
-	: AnyPubSubService;
-
-export interface AnyDocumentService {
-	get(key: string, options?: DocumentGetOptions, signal?: AbortSignal): Promise<Document>;
-	getMany(keys: Array<string>, options?: DocumentGetOptions, signal?: AbortSignal): Promise<Array<Document>>;
-	list(options: DocumentListOptions, signal?: AbortSignal): ReadableStream<DocumentListEntry>;
-	atomic(): AnyDocumentAtomicService;
-}
-
-export interface AnyDocumentAtomicService {
-	check(key: string, versionstamp: string | null): AnyDocumentAtomicService;
-	set(key: string, data: unknown): AnyDocumentAtomicService;
-	delete(key: string): AnyDocumentAtomicService;
-	commit(signal?: AbortSignal): Promise<void>;
-}
-
-export interface AnyPubSubService {
-	publish(key: string, payload: unknown, signal?: AbortSignal): Promise<void>;
+export interface PubSubService<TTopics> {
+	publish<TTopic extends keyof TTopics>(
+		ref: Reference<TTopic>,
+		payload: TTopics[TTopic],
+		signal?: AbortSignal,
+	): Promise<void>;
 }
 
 export interface RateLimiterService extends RateLimiterProvider {}

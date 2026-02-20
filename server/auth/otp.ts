@@ -1,3 +1,4 @@
+import type { AppRegistry } from "../app.ts";
 import type {
 	AuthenticationComponentPrompt,
 	ID,
@@ -11,7 +12,6 @@ import type {
 	IdentityComponentProviderVerifySignInPromptOptions,
 	IdentityComponentSendSignInPromptOptions,
 	Notification,
-	RegisteredContext,
 	ServiceCollection,
 } from "../provider.ts";
 import { otp, OTPOptions } from "@baseless/core/otp";
@@ -21,7 +21,7 @@ export interface OtpComponentProviderOptions {
 	signInNotification: (options: {
 		identityId?: ID<"id_">;
 		code: string;
-		context: RegisteredContext;
+		context: AppRegistry["context"];
 		identityComponent?: IdentityComponent;
 		locale: string;
 		service: ServiceCollection;

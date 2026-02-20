@@ -1,9 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
-import type { Matcher } from "@baseless/core/path";
-import type { Auth, RegisteredContext, TCollection, TDocument, TOnDocumentDeleting, TOnDocumentSetting, TTopic } from "./app.ts";
+import type { App, AppRegistry, Auth } from "./app.ts";
 import { assert } from "@baseless/core/schema";
 import {
-	DocumentAtomic,
 	DocumentProvider,
 	KVProvider,
 	NotificationChannelProvider,
@@ -12,16 +10,25 @@ import {
 	RateLimiterProviderLimitOptions,
 } from "./provider.ts";
 import type { KVGetOptions, KVKey, KVListOptions, KVListResult, KVPutOptions } from "@baseless/core/kv";
-import { type Document, type DocumentGetOptions, type DocumentListEntry, type DocumentListOptions } from "@baseless/core/document";
-import type { AnyDocumentService, NotificationService, ServiceCollection } from "./service.ts";
+import { type Document, type DocumentGetOptions, type DocumentListEntry } from "@baseless/core/document";
+import type {
+	DocumentService,
+	DocumentServiceAtomic,
+	DocumentServiceAtomicCheck,
+	DocumentServiceAtomicOperation,
+	DocumentServiceListOptions,
+	KVService,
+	NotificationService,
+	PubSubService,
+	ServiceCollection,
+} from "./service.ts";
 import { first } from "@baseless/core/iter";
-import type { AnyPubSubService } from "./service.ts";
 import type { Identity, IdentityChannel } from "@baseless/core/identity";
 import { type Notification } from "@baseless/core/notification";
 import { DocumentNotFoundError, NotificationChannelNotFoundError, TopicNotFoundError } from "@baseless/core/errors";
-import {} from "@baseless/core/errors";
+import { ref, Reference } from "@baseless/core/ref";
 
-export class KVFacade {
+export class KVFacade implements KVService {
 	#provider: KVProvider;
 
 	constructor(provider: KVProvider) {
@@ -54,270 +61,237 @@ export class KVFacade {
 	}
 }
 
-export class DocumentFacade implements AnyDocumentService {
-	#auth: Auth;
-	#documentProvider: DocumentProvider;
-	#service: ServiceCollection;
-	#context: RegisteredContext;
-	#waitUntil: (promise: PromiseLike<unknown>) => void;
-	#collectionMatcher: Matcher<TCollection<any, any, any>>;
-	#documentMatcher: Matcher<TDocument<any, any>>;
-	#onDocumentSettingMatcher: Matcher<TOnDocumentSetting>;
-	#onDocumentDeletingMatcher: Matcher<TOnDocumentDeleting>;
+export interface DocumentFacadeOptions {
+	app: App;
+	auth: Auth;
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
+	provider: DocumentProvider;
+	service: ServiceCollection;
+	waitUntil: (promise: PromiseLike<unknown>) => void;
+}
 
-	constructor(
-		auth: Auth,
-		provider: DocumentProvider,
-		service: ServiceCollection,
-		context: RegisteredContext,
-		waitUntil: (promise: PromiseLike<unknown>) => void,
-		collectionMatcher: Matcher<TCollection<any, any, any>>,
-		documentMatcher: Matcher<TDocument<any, any>>,
-		onDocumentSettingMatcher: Matcher<TOnDocumentSetting>,
-		onDocumentDeletingMatcher: Matcher<TOnDocumentDeleting>,
-	) {
-		this.#auth = auth;
-		this.#documentProvider = provider;
-		this.#service = service;
-		this.#context = context;
-		this.#waitUntil = waitUntil;
-		this.#collectionMatcher = collectionMatcher;
-		this.#documentMatcher = documentMatcher;
-		this.#onDocumentSettingMatcher = onDocumentSettingMatcher;
-		this.#onDocumentDeletingMatcher = onDocumentDeletingMatcher;
+export class DocumentFacade implements DocumentService<any, any> {
+	#options: DocumentFacadeOptions;
+
+	constructor(options: DocumentFacadeOptions) {
+		this.#options = options;
 	}
 
-	get(
-		key: string,
+	get<TPath extends keyof any>(
+		ref: Reference<TPath>,
 		options?: DocumentGetOptions,
 		signal?: AbortSignal,
-	): Promise<Document> {
+	): Promise<Document<any>> {
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#documentMatcher(key));
+			var _ = first(this.#options.app.match("document", ref));
 		} catch (cause) {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
 
-		return this.#documentProvider.get(key, options, signal);
+		return this.#options.provider.get(ref, options, signal);
 	}
 
-	getMany(
-		keys: Array<string>,
+	getMany<TPath extends keyof any>(
+		refs: Array<Reference<TPath>>,
 		options?: DocumentGetOptions,
 		signal?: AbortSignal,
-	): Promise<Array<Document>> {
+	): Promise<Array<Document<any>>> {
 		try {
-			for (const key of keys) {
+			for (const ref of refs) {
 				// deno-lint-ignore no-var no-inner-declarations
-				var _ = first(this.#documentMatcher(key));
+				var _ = first(this.#options.app.match("document", ref));
 			}
 		} catch (cause) {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
 
-		return this.#documentProvider.getMany(keys, options, signal);
+		return this.#options.provider.getMany(refs, options, signal);
 	}
 
-	list(
-		options: DocumentListOptions,
+	list<TPath extends keyof any>(
+		options: DocumentServiceListOptions<TPath>,
 		signal?: AbortSignal,
-	): ReadableStream<DocumentListEntry> {
+	): ReadableStream<DocumentListEntry<any>> {
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#collectionMatcher(options.prefix));
+			var _ = first(this.#options.app.match("collection", options.prefix));
 		} catch (cause) {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
 
-		return this.#documentProvider.list(options, signal);
+		return this.#options.provider.list({
+			prefix: options.prefix,
+			cursor: options.cursor,
+			limit: options.limit,
+		}, signal);
 	}
 
-	atomic(): DocumentAtomic {
-		return new DocumentFacadeAtomic(
-			this.#documentProvider,
-			this.#service,
-			this.#context,
-			this.#waitUntil,
-			this.#documentMatcher,
-			this.#onDocumentSettingMatcher,
-			this.#onDocumentDeletingMatcher,
-		);
+	atomic(): DocumentServiceAtomic<any> {
+		return new DocumentFacadeAtomic(this.#options);
 	}
 }
 
-export class DocumentFacadeAtomic extends DocumentAtomic {
-	#auth: Auth;
-	#documentProvider: DocumentProvider;
-	#service: ServiceCollection;
-	#context: RegisteredContext;
-	#waitUntil: (promise: PromiseLike<unknown>) => void;
-	#matcher: Matcher<TDocument<any, any>>;
-	#onDocumentSettingMatcher: Matcher<TOnDocumentSetting>;
-	#onDocumentDeletingMatcher: Matcher<TOnDocumentDeleting>;
+export class DocumentFacadeAtomic implements DocumentServiceAtomic<any> {
+	#options: DocumentFacadeOptions;
+	checks: DocumentServiceAtomicCheck[] = [];
+	operations: DocumentServiceAtomicOperation[] = [];
 
-	constructor(
-		provider: DocumentProvider,
-		service: ServiceCollection,
-		context: RegisteredContext,
-		waitUntil: (promise: PromiseLike<unknown>) => void,
-		matcher: Matcher<TDocument<any, any>>,
-		onDocumentSetting: Matcher<TOnDocumentSetting>,
-		onDocumentDeleting: Matcher<TOnDocumentDeleting>,
-	) {
-		super();
-		this.#documentProvider = provider;
-		this.#service = service;
-		this.#context = context;
-		this.#waitUntil = waitUntil;
-		this.#matcher = matcher;
-		this.#onDocumentSettingMatcher = onDocumentSetting;
-		this.#onDocumentDeletingMatcher = onDocumentDeleting;
+	constructor(options: DocumentFacadeOptions) {
+		this.#options = options;
 	}
 
-	override check(key: string, versionstamp: string | null): DocumentAtomic {
+	check<TPath extends keyof any>(ref: Reference<TPath>, versionstamp: string | null): DocumentServiceAtomic<any> {
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#matcher(key));
+			var _ = first(this.#options.app.match("document", ref));
 		} catch (cause) {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
-		this.checks.push({ type: "check", key, versionstamp });
+		this.checks.push({ type: "check", ref: ref as any, versionstamp });
 		return this;
 	}
 
-	override set(key: string, data: unknown): DocumentAtomic {
+	set<TPath extends keyof any>(ref: Reference<TPath>, value: any): DocumentServiceAtomic<any> {
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
-			var [_, definition] = first(this.#matcher(key));
+			var [_, definition] = first(this.#options.app.match("document", ref));
 		} catch (cause) {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
-		assert(definition.data, data);
-		this.operations.push({ type: "set", key, data });
+		assert(definition.schema, value);
+		this.operations.push({ type: "set", ref: ref as any, data: value });
 		return this;
 	}
 
-	override delete(key: string): DocumentAtomic {
+	delete<TPath extends keyof any>(ref: Reference<TPath>): DocumentServiceAtomic<any> {
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#matcher(key));
+			var _ = first(this.#options.app.match("document", ref));
 		} catch (cause) {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
-		this.operations.push({ type: "delete", key });
+		this.operations.push({ type: "delete", ref: ref as any });
 		return this;
 	}
 
 	async commit(signal?: AbortSignal): Promise<void> {
-		const atomic = this.#documentProvider.atomic();
+		const atomic = this.#options.provider.atomic();
+		const messages = [] as Array<{ key: Reference<never>; payload: never }>;
 		for (const check of this.checks) {
-			atomic.check(check.key, check.versionstamp);
+			atomic.check(check.ref, check.versionstamp);
 		}
 		for (const op of this.operations) {
 			if (op.type === "set") {
-				atomic.set(op.key, op.data);
-				// Trigger onDocumentSetting hooks
-				const document = {
-					key: op.key,
-					data: op.data,
-					versionstamp: "",
-				};
+				atomic.set(op.ref, op.data);
+				const document = { key: op.ref, data: op.data, versionstamp: "" };
+				messages.push({ key: op.ref as never, payload: { type: "set", document } as never });
+				try {
+					const collectionRef = op.ref.split("/").slice(0, -1).join("/");
+					const [_, definition] = first(this.#options.app.match("collection", collectionRef));
+					messages.push({
+						key: collectionRef as never,
+						payload: { type: "set", document } as never,
+					});
+				} catch (_cause) {}
 				for (
-					const [params, definition] of this.#onDocumentSettingMatcher(
-						op.key,
-					)
+					const [params, definition] of this.#options.app.match("onDocumentSetting", op.ref)
 				) {
 					await definition.handler({
-						auth: this.#auth,
+						app: this.#options.app,
 						atomic: this,
-						context: this.#context,
-						document,
-						params,
+						auth: this.#options.auth,
+						configuration: this.#options.configuration,
+						context: this.#options.context,
+						document: document as never,
+						params: params as never,
 						signal: signal ?? new AbortController().signal,
-						service: this.#service,
-						waitUntil: this.#waitUntil,
+						service: this.#options.service,
+						waitUntil: this.#options.waitUntil,
 					});
 				}
 			} else {
-				atomic.delete(op.key);
-				// Trigger onDocumentDeleting hooks
+				atomic.delete(op.ref);
+				messages.push({ key: op.ref as never, payload: { type: "deleted" } as never });
 				for (
-					const [params, definition] of this.#onDocumentDeletingMatcher(
-						op.key,
-					)
+					const [params, definition] of this.#options.app.match("onDocumentDeleting", op.ref)
 				) {
 					await definition.handler({
-						auth: this.#auth,
+						app: this.#options.app,
 						atomic: this,
-						context: this.#context,
-						params,
+						auth: this.#options.auth,
+						configuration: this.#options.configuration,
+						context: this.#options.context,
+						params: params as never,
 						signal: signal ?? new AbortController().signal,
-						service: this.#service,
-						waitUntil: this.#waitUntil,
+						service: this.#options.service,
+						waitUntil: this.#options.waitUntil,
 					});
 				}
 			}
 		}
 		await atomic.commit(signal);
 
-		for (const op of this.operations) {
-			if (op.type === "set") {
-				this.#waitUntil(this.#service.pubsub.publish(op.key, { type: "set", document: op.data }, signal));
-			} else {
-				this.#waitUntil(this.#service.pubsub.publish(op.key, { type: "delete" }, signal));
-			}
+		for (const { key, payload } of messages) {
+			this.#options.waitUntil(this.#options.service.pubsub.publish(key, payload, signal));
 		}
 	}
 }
 
-export class PubSubFacade implements AnyPubSubService {
-	#queueProvider: QueueProvider;
-	#topicMatcher: Matcher<TTopic<any, any>>;
+export interface PubSubFacadeOptions {
+	app: App;
+	provider: QueueProvider;
+}
 
-	constructor(
-		provider: QueueProvider,
-		topicMatcher: Matcher<TTopic<any, any>>,
-	) {
-		this.#queueProvider = provider;
-		this.#topicMatcher = topicMatcher;
+export class PubSubFacade implements PubSubService<any> {
+	#options: PubSubFacadeOptions;
+
+	constructor(options: PubSubFacadeOptions) {
+		this.#options = options;
 	}
 
-	async publish(
-		key: string,
-		payload: unknown,
+	async publish<TTopic extends keyof any>(
+		ref: Reference<TTopic>,
+		payload: any,
 		signal?: AbortSignal,
 	): Promise<void> {
+		const key = ref;
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
-			var [_, definition] = first(this.#topicMatcher(key));
+			var [_, definition] = first(this.#options.app.match("topic", key));
 		} catch (cause) {
 			throw new TopicNotFoundError(undefined, { cause });
 		}
-		assert(definition.message, payload);
+		assert(definition.schema, payload);
 
-		await this.#queueProvider.enqueue({ type: "pubsub_message", payload: { key, payload } }, signal);
+		await this.#options.provider.enqueue(
+			{ type: "topic_publish", payload: { key: ref, payload } },
+			signal,
+		);
 	}
 }
 
-export class NotificationFacade implements NotificationService {
-	#notificationChannelProviders: Record<string, NotificationChannelProvider>;
-	#service: ServiceCollection;
+export interface NotificationFacadeOptions {
+	providers: Record<string, NotificationChannelProvider>;
+	service: ServiceCollection;
+}
 
-	constructor(
-		notificationChannelProviders: Record<string, NotificationChannelProvider>,
-		service: ServiceCollection,
-	) {
-		this.#notificationChannelProviders = notificationChannelProviders;
-		this.#service = service;
+export class NotificationFacade implements NotificationService {
+	#options: NotificationFacadeOptions;
+
+	constructor(options: NotificationFacadeOptions) {
+		this.#options = options;
 	}
 
 	async notify(identityId: Identity["id"], notification: Notification, signal?: AbortSignal): Promise<boolean> {
 		let notified = false;
-		for await (const entry of this.#service.document.list({ prefix: `auth/identity/${identityId}/channel` })) {
+		for await (
+			const entry of this.#options.service.document.list({ prefix: ref(`auth/identity/:identityId/channel`, { identityId }) as any })
+		) {
 			const identityChannel = entry.document.data as IdentityChannel;
 			if (identityChannel.confirmed) {
-				const notificationChannelProvider = this.#notificationChannelProviders[identityChannel.channelId];
+				const notificationChannelProvider = this.#options.providers[identityChannel.channelId];
 				notified ||= await notificationChannelProvider?.send(identityChannel, notification, signal) ?? false;
 			}
 		}
@@ -326,11 +300,11 @@ export class NotificationFacade implements NotificationService {
 
 	async notifyChannel(identityId: Identity["id"], channel: string, notification: Notification, signal?: AbortSignal): Promise<boolean> {
 		try {
-			const identityChannel = await this.#service.document
-				.get(`auth/identity/${identityId}/channel/${channel}`, undefined, signal)
+			const identityChannel = await this.#options.service.document
+				.get(ref(`auth/identity/:identityId/channel/:channel`, { identityId, channel }) as any, undefined, signal)
 				.then((d) => d.data as IdentityChannel);
 			if (identityChannel.confirmed) {
-				const notificationChannelProvider = this.#notificationChannelProviders[identityChannel.channelId];
+				const notificationChannelProvider = this.#options.providers[identityChannel.channelId];
 				return await notificationChannelProvider?.send(identityChannel, notification, signal) ?? false;
 			}
 			return false;
@@ -341,7 +315,7 @@ export class NotificationFacade implements NotificationService {
 
 	unsafeNotifyChannel(identityChannel: IdentityChannel, notification: Notification, signal?: AbortSignal): Promise<boolean> {
 		if (identityChannel.confirmed) {
-			const channel = this.#notificationChannelProviders[identityChannel.channelId];
+			const channel = this.#options.providers[identityChannel.channelId];
 			return channel?.send(identityChannel, notification, signal) ?? true;
 		}
 		return Promise.resolve(false);

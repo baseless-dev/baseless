@@ -1,6 +1,6 @@
 // deno-lint-ignore-file ban-types
-import type { Prettify } from "./schema.ts";
 import { Trie } from "./trie.ts";
+import type { Prettify } from "./prettify.ts";
 
 // deno-fmt-ignore
 type _PathToParams<TPath extends string> =
@@ -9,7 +9,7 @@ type _PathToParams<TPath extends string> =
 	: TPath extends `:${infer Param}` ? { [K in Param]: string }
 	: {};
 
-export type PathToParams<TPath extends string> = Prettify<_PathToParams<TPath>>;
+export type PathToParams<TPath> = TPath extends string ? Prettify<_PathToParams<TPath>> : never;
 
 // deno-fmt-ignore
 export type PathToTemplate<TPath extends string> =
@@ -50,7 +50,7 @@ export type Matcher<TMatch extends { path: string }> = (
 export function matchPath<TMatchables extends { path: string }>(
 	matchables: Array<TMatchables>,
 ): Matcher<TMatchables> {
-	if (matchables.length > 15) {
+	if (matchables.length > 20) {
 		return matchPathTrie(matchables);
 	}
 	return matchPathRegex(matchables);

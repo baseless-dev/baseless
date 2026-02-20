@@ -1,4 +1,4 @@
-import * as Type from "@baseless/core/schema";
+import * as z from "@baseless/core/schema";
 import type {
 	AuthenticationComponentPrompt,
 	Identity,
@@ -11,6 +11,7 @@ import type {
 	IdentityComponentProviderSkipSignInPromptOptions,
 	IdentityComponentProviderVerifySignInPromptOptions,
 } from "../provider.ts";
+import { ref } from "@baseless/core/ref";
 
 export interface PolicyIdentityComponentProviderOptions {
 	policies: Policy[];
@@ -29,7 +30,7 @@ export class PolicyIdentityComponentProvider implements IdentityComponentProvide
 	}
 
 	skipSignInPrompt(options: IdentityComponentProviderSkipSignInPromptOptions): Promise<boolean> {
-		const isAllAccepted = Type.validate(PolicyResponse, options.identityComponent?.data) &&
+		const isAllAccepted = z.guard(PolicyResponse, options.identityComponent?.data) &&
 			this.verifyRequiredDocumentAccepted(options.identityComponent?.data);
 		return Promise.resolve(isAllAccepted);
 	}
@@ -40,7 +41,7 @@ export class PolicyIdentityComponentProvider implements IdentityComponentProvide
 
 	async verifySignInPrompt(options: IdentityComponentProviderVerifySignInPromptOptions): Promise<boolean | Identity["id"]> {
 		const responses = options.value;
-		if (options.identityComponent && Type.validate(PolicyResponse, responses) && this.verifyRequiredDocumentAccepted(responses)) {
+		if (options.identityComponent && z.guard(PolicyResponse, responses) && this.verifyRequiredDocumentAccepted(responses)) {
 			const identityComponent = {
 				...options.identityComponent,
 				data: {
@@ -49,7 +50,10 @@ export class PolicyIdentityComponentProvider implements IdentityComponentProvide
 				},
 			};
 			await options.service.document.atomic()
-				.set(`auth/identity/${options.identityComponent!.identityId}/component/${options.componentId}`, identityComponent)
+				.set(
+					ref("auth/identity/:id/component/:key", { id: options.identityComponent!.identityId, key: options.componentId }) as never,
+					identityComponent as never,
+				)
 				.commit();
 			return true;
 		}
@@ -71,7 +75,7 @@ export class PolicyIdentityComponentProvider implements IdentityComponentProvide
 	setupIdentityComponent(
 		{ value }: IdentityComponentProviderSetupIdentityComponentOptions,
 	): Promise<[Omit<IdentityComponent, "identityId" | "componentId">, ...Omit<IdentityComponent | IdentityChannel, "identityId">[]]> {
-		if (!Type.validate(PolicyResponse, value)) {
+		if (!z.guard(PolicyResponse, value)) {
 			return Promise.reject(new Error("Invalid policy response"));
 		}
 		if (!this.verifyRequiredDocumentAccepted(value)) {
@@ -94,18 +98,12 @@ export interface Policy {
 	content: Record<string, string>;
 }
 
-export const Policy: Type.TObject<{
-	identifier: Type.TString;
-	version: Type.TString;
-	required: Type.TBoolean;
-	name: Type.TRecord<Type.TString>;
-	content: Type.TRecord<Type.TString>;
-}, ["identifier", "version", "required", "name", "content"]> = Type.Object({
-	identifier: Type.String(),
-	version: Type.String(),
-	required: Type.Boolean(),
-	name: Type.Record(Type.String()),
-	content: Type.Record(Type.String()),
-}, ["identifier", "version", "required", "name", "content"]);
+export const Policy = z.strictObject({
+	identifier: z.string(),
+	version: z.string(),
+	required: z.boolean(),
+	name: z.record(z.string(), z.string()),
+	content: z.record(z.string(), z.string()),
+}).meta({ id: "Policy" });
 
-const PolicyResponse: Type.TRecord<Type.TString> = Type.Record(Type.String());
+const PolicyResponse = z.record(z.string(), z.string());

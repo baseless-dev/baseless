@@ -1,4 +1,4 @@
-import * as Type from "./schema.ts";
+import * as z from "./schema.ts";
 import { Identity } from "./identity.ts";
 
 export interface Session {
@@ -7,12 +7,8 @@ export interface Session {
 	scope: string[];
 }
 
-export const Session: Type.TObject<{
-	identityId: Type.TID<"id_">;
-	issuedAt: Type.TNumber;
-	scope: Type.TArray<Type.TString>;
-}, ["identityId", "issuedAt", "scope"]> = Type.Object({
-	identityId: Type.Index(Identity, "id"),
-	issuedAt: Type.Number(),
-	scope: Type.Array(Type.String()),
-}, ["identityId", "issuedAt", "scope"]);
+export const Session = z.strictObject({
+	identityId: z.id("id_"),
+	issuedAt: z.number(),
+	scope: z.array(z.string()),
+}).meta({ id: "Session" });

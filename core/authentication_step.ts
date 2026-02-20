@@ -1,18 +1,16 @@
 import { AuthenticationComponent } from "./authentication_component.ts";
-import * as Type from "./schema.ts";
+import * as z from "./schema.ts";
 
 export interface AuthenticationStep {
 	step: AuthenticationComponent;
 	state: string;
+	expireAt: number;
 	validating: boolean;
 }
 
-export const AuthenticationStep: Type.TObject<{
-	step: typeof AuthenticationComponent;
-	state: Type.TString;
-	validating: Type.TBoolean;
-}, ["step", "state", "validating"]> = Type.Object({
+export const AuthenticationStep = z.strictObject({
 	step: AuthenticationComponent,
-	state: Type.String(),
-	validating: Type.Boolean(),
-}, ["step", "state", "validating"]);
+	state: z.string(),
+	expireAt: z.number(),
+	validating: z.boolean(),
+}).meta({ id: "AuthenticationStep" });

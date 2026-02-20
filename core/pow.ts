@@ -9,8 +9,8 @@ async function hash(data: string): Promise<Uint8Array> {
 
 function numberOfLeadingZeroes(buffer: Uint8Array): number {
 	let i = 0;
-	const l = buffer.length;
-	for (; i < l && ((buffer[Math.floor(i / 2)] >> (i % 2 === 0 ? 4 : 0)) & 0x0F) === 0; i++);
+	const l = buffer.length * 8;
+	for (; i < l && ((buffer[Math.floor(i / 8)] >> (7 - (i % 8))) & 0b1) === 0; i++);
 	return i;
 }
 
@@ -49,8 +49,8 @@ type WorkerResult =
 	| { type: "error"; error: any };
 
 export function work(challenge: string, difficulty: number, options?: { threads?: number; signal?: AbortSignal }): Promise<number> {
-	const threads = options?.threads ?? 1;
-	if (threads === 1) {
+	const threads = options?.threads ?? undefined;
+	if (threads === undefined) {
 		return _work(challenge, difficulty, options?.signal, 1, 0);
 	}
 

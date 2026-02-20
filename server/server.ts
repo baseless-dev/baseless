@@ -1,21 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import {
-	document,
-	Permission,
-	type RegisteredContext,
-	type RegisteredRequirements,
-	type TCollection,
-	type TDecoration,
-	type TDefinition,
-	type TDocument,
-	type TOnDocumentDeleting,
-	type TOnDocumentSetting,
-	type TOnRequest,
-	type TOnTopicMessage,
-	topic,
-	type TopicMessage,
-	type TTopic,
-} from "./app.ts";
+import { App, AppRegistry, EndpointDefinition, Permission, TopicMessage } from "./app.ts";
 import {
 	type Auth,
 	DocumentProvider,
@@ -26,23 +10,28 @@ import {
 	RateLimiterProvider,
 } from "./provider.ts";
 import type { ServiceCollection } from "./service.ts";
-import { type Matcher, matchPath } from "@baseless/core/path";
-import createDocumentApplication from "./applications/document.ts";
-import createPubSubApplication from "./applications/pubsub.ts";
 import { DocumentFacade, KVFacade, NotificationFacade, PubSubFacade, RateLimiterFacade } from "./facade.ts";
 import { first } from "@baseless/core/iter";
 import { decodeBase64Url } from "@std/encoding/base64url";
 import { type ID, id, isID } from "@baseless/core/id";
-import * as Type from "@baseless/core/schema";
+import * as z from "@baseless/core/schema";
 import type { QueueItem } from "@baseless/core/queue";
-import type { AuthenticationOptions } from "./applications/authentication.ts";
-import createAuthenticationApplication from "./applications/authentication.ts";
-import { jwtVerify } from "jose";
-import { ForbiddenError, PublicError, RequestNotFoundError } from "@baseless/core/errors";
+import { jwtVerify, type KeyLike } from "jose";
+import {
+	BadGatewayError,
+	BadRequestError,
+	ForbiddenError,
+	PublicError,
+	RequestNotFoundError,
+	TopicNotFoundError,
+} from "@baseless/core/errors";
+import { Request } from "@baseless/core/request";
+import { Response } from "@baseless/core/response";
 
-export interface BaselessServerOptions {
-	authentication?: AuthenticationOptions;
-	definitions: Record<string, TDefinition>;
+export interface ServerOptions<TRegistry extends AppRegistry> {
+	configuration: Omit<TRegistry["configuration"], "server">;
+	publicKey?: KeyLike;
+	app: App<TRegistry>;
 	providers: {
 		document: DocumentProvider;
 		channels: Record<string, NotificationChannelProvider>;
@@ -51,156 +40,86 @@ export interface BaselessServerOptions {
 		queue: QueueProvider;
 		rateLimiter: RateLimiterProvider;
 	};
-	requirements?: RegisteredRequirements;
 }
 
-export class BaselessServer {
-	#authenticationOptions: AuthenticationOptions | undefined;
-	#documentProvider: DocumentProvider;
-	#kvProvider: KVProvider;
-	#notificationChannelProvider: Record<string, NotificationChannelProvider>;
-	#queueProvider: QueueProvider;
-	#hubProvider: HubProvider;
-	#rateLimiterProvider: RateLimiterProvider;
-	#requirements: RegisteredRequirements;
-	#decorations: TDecoration<any>[];
-	#documents: TDocument<any, any>[];
-	#collections: TCollection<any, any, any>[];
-	#topics: TTopic<any, any>[];
-	#onRequests: TOnRequest<any, any, any>[];
-	#onRequestMatcher: Matcher<TOnRequest<any, any, any>>;
-	#collectionMatcher: Matcher<TCollection<any, any, any>>;
-	#documentMatcher: Matcher<TDocument<any, any>>;
-	#onDocumentSettingMatcher: Matcher<TOnDocumentSetting>;
-	#onDocumentDeletingMatcher: Matcher<TOnDocumentDeleting>;
-	#topicMatcher: Matcher<TTopic<any, any>>;
-	#onTopicMessageMatcher: Matcher<TOnTopicMessage>;
+export class Server<TRegistry extends AppRegistry> {
+	options: ServerOptions<TRegistry>;
 
-	constructor(options: BaselessServerOptions) {
-		this.#authenticationOptions = options.authentication;
-		this.#documentProvider = options.providers.document;
-		this.#kvProvider = options.providers.kv;
-		this.#notificationChannelProvider = options.providers.channels;
-		this.#queueProvider = options.providers.queue;
-		this.#hubProvider = options.providers.hub;
-		this.#rateLimiterProvider = options.providers.rateLimiter;
-		this.#requirements = { ...options.requirements };
-
-		const definitions = Object.values(options.definitions);
-
-		if (this.#authenticationOptions) {
-			definitions.push(...Object.values(createAuthenticationApplication(this.#authenticationOptions)));
-		}
-
-		if (definitions.some((definition) => definition.type === "topic" && definition.security)) {
-			const topics = definitions.filter((value) => value.type === "topic");
-			const topicMatcher = matchPath(topics);
-			definitions.push(...createPubSubApplication(topicMatcher));
-		}
-
-		if (
-			definitions.some((definition) => definition.type === "document" && definition.security) ||
-			definitions.some((definition) => definition.type === "collection" && definition.security)
-		) {
-			const documents: TDocument<any, any>[] = [];
-			const collections = definitions.filter((value) => value.type === "collection");
-			for (const definition of definitions) {
-				if (definition.type === "collection") {
-					documents.push(document(definition.path + "/:key", definition.items, definition.documentSecurity));
-				} else if (definition.type === "document") {
-					documents.push(definition);
-				}
-			}
-			const documentMatcher = matchPath(documents);
-			const collectionMatcher = matchPath(collections);
-			definitions.push(...createDocumentApplication(documentMatcher, collectionMatcher));
-		}
-
-		this.#decorations = definitions.filter((value) => value.type === "decoration");
-		this.#onRequests = definitions.filter((value) => value.type === "on_request");
-		this.#documents = definitions.filter((value) => value.type === "document");
-		this.#collections = definitions.filter((value) => value.type === "collection");
-		for (const definition of this.#collections) {
-			this.#documents.push(document(definition.path + "/:key", definition.items, definition.documentSecurity));
-		}
-		this.#topics = definitions.filter((value) => value.type === "topic");
-		for (const definition of this.#documents) {
-			this.#topics.push(
-				topic(definition.path, Type.Object({ type: Type.String(), document: definition.data }, ["type", "document"]), definition.security),
-			);
-		}
-
-		// TODO validate no document overlap with collection
-		// TODO validate no topic overlap with document
-		// TODO validate no reserved identifier (e.g. from builtin apps)
-
-		this.#onRequestMatcher = matchPath(this.#onRequests);
-		this.#collectionMatcher = matchPath(this.#collections);
-		this.#documentMatcher = matchPath(this.#documents);
-		this.#topicMatcher = matchPath(this.#topics);
-		this.#onDocumentSettingMatcher = matchPath(definitions.filter((value) => value.type === "on_document_setting"));
-		this.#onDocumentDeletingMatcher = matchPath(
-			definitions.filter((value) => value.type === "on_document_deleting"),
-		);
-		this.#onTopicMessageMatcher = matchPath(definitions.filter((value) => value.type === "on_topic_message"));
-	}
-
-	get onRequests(): ReadonlyArray<TOnRequest<any, any, any>> {
-		return [...this.#onRequests];
+	constructor(options: ServerOptions<TRegistry>) {
+		this.options = options;
 	}
 
 	async createContext(
-		request: Request,
+		request: Request<any, any, any, any>,
 		auth: Auth,
 		signal: AbortSignal,
 		waitUntil: (promise: PromiseLike<unknown>) => void,
-	): Promise<[RegisteredContext, ServiceCollection]> {
-		const context: RegisteredContext = { ...this.#requirements };
+	): Promise<{
+		context: AppRegistry["context"];
+		service: ServiceCollection;
+	}> {
+		// const context: TRegistry["context"] = { ...this.#requirements };
+		const context: AppRegistry["context"] = {};
 		const service: ServiceCollection = {
 			document: {} as never,
-			kv: new KVFacade(this.#kvProvider),
+			kv: new KVFacade(this.options.providers.kv),
 			notification: {} as never,
 			pubsub: {} as never,
-			rateLimiter: new RateLimiterFacade(this.#rateLimiterProvider),
+			rateLimiter: new RateLimiterFacade(this.options.providers.rateLimiter),
 		};
-		service.document = new DocumentFacade(
+		service.document = new DocumentFacade({
+			app: this.options.app,
 			auth,
-			this.#documentProvider,
-			service,
+			configuration: {}, // TODO
 			context,
+			provider: this.options.providers.document,
+			service: service,
 			waitUntil,
-			this.#collectionMatcher,
-			this.#documentMatcher,
-			this.#onDocumentSettingMatcher,
-			this.#onDocumentDeletingMatcher,
-		);
-		service.notification = new NotificationFacade(
-			this.#notificationChannelProvider,
-			service,
-		);
-		service.pubsub = new PubSubFacade(
-			this.#queueProvider,
-			this.#topicMatcher,
-		);
-		for (const decorator of this.#decorations) {
-			const decorations = await decorator.handler({
-				auth,
-				request,
-				service,
-				signal,
-				waitUntil,
-			});
+		});
+		service.notification = new NotificationFacade({
+			providers: this.options.providers.channels,
+			service: service,
+		});
+		service.pubsub = new PubSubFacade({
+			app: this.options.app,
+			provider: this.options.providers.queue,
+		});
+		for (const decorator of this.options.app.services) {
+			const services = decorator instanceof Function
+				? await decorator({
+					app: this.options.app,
+					auth,
+					configuration: this.options.configuration,
+					request: request as never,
+					signal,
+					waitUntil,
+				})
+				: decorator;
+			Object.assign(service, services);
+		}
+		for (const decorator of this.options.app.decorators) {
+			const decorations = decorator instanceof Function
+				? await decorator({
+					app: this.options.app,
+					auth,
+					configuration: this.options.configuration,
+					request: request as never,
+					service,
+					signal,
+					waitUntil,
+				})
+				: decorator;
 			Object.assign(context, decorations);
 		}
-		return [context, service];
+		return { context, service };
 	}
 
 	async #parseAuthorization(authorization: string): Promise<Auth> {
-		if (this.#authenticationOptions === undefined) {
+		if (this.options.publicKey === undefined) {
 			return undefined;
 		} else if (authorization.startsWith("Bearer ")) {
 			try {
-				const { payload } = await jwtVerify(authorization.slice("Bearer ".length), this.#authenticationOptions.publicKey);
+				const { payload } = await jwtVerify(authorization.slice("Bearer ".length), this.options.publicKey);
 				if (isID("id_", payload.sub)) {
 					return {
 						identityId: payload.sub!,
@@ -215,15 +134,15 @@ export class BaselessServer {
 		return undefined;
 	}
 
-	async handleRequest(request: Request): Promise<[response: Response, waitUntil: Array<PromiseLike<unknown>>]> {
+	async handleRequest(nativeRequest: globalThis.Request): Promise<[response: globalThis.Response, waitUntil: Array<PromiseLike<unknown>>]> {
 		const promises: Array<PromiseLike<unknown>> = [];
 		const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
-		const url = new URL(request.url);
+		const url = new URL(nativeRequest.url);
 		try {
-			const upgrade = request.headers.get("Upgrade")?.toLowerCase();
+			const upgrade = nativeRequest.headers.get("Upgrade")?.toLowerCase();
 			if (upgrade === "websocket") {
 				// Request in a websocket upgrade might be special like in Deno, do not alter it
-				const protocols = request.headers.get("Sec-WebSocket-Protocol")?.split(",") ?? [];
+				const protocols = nativeRequest.headers.get("Sec-WebSocket-Protocol")?.split(",") ?? [];
 				// Same method used in Kubernetes
 				// https://github.com/kubernetes/kubernetes/commit/714f97d7baf4975ad3aa47735a868a81a984d1f0
 				const encodedBearer = protocols.find((protocol) => protocol.startsWith("base64url.bearer.authorization.baseless.dev."));
@@ -232,65 +151,60 @@ export class BaselessServer {
 					const base64Decoded = decodeBase64Url(encodedBearer.slice(44));
 					authorization = `Bearer ${new TextDecoder().decode(base64Decoded)}`;
 				} else {
-					authorization = request.headers.get("Authorization") ?? undefined;
+					authorization = nativeRequest.headers.get("Authorization") ?? undefined;
 				}
 
 				const auth = authorization ? await this.#parseAuthorization(authorization) : undefined;
 
 				// TODO onHubConnect
-				const [context, _service] = await this.createContext(request, auth, request.signal, waitUntil);
+				const { context } = await this.createContext(nativeRequest as never, auth, nativeRequest.signal, waitUntil);
 				const hubId = id("hub_");
-				const response = await this.#hubProvider.transfer({ auth, context, hubId, request, server: this, signal: request.signal });
+				const response = await this.options.providers.hub.transfer({
+					app: this.options.app,
+					auth,
+					configuration: this.options.configuration,
+					context,
+					hubId,
+					request: nativeRequest,
+					server: this,
+					signal: nativeRequest.signal,
+				});
 				return [response, promises];
 			}
 
 			try {
 				// deno-lint-ignore no-var no-inner-declarations
-				var [params, definition] = first(this.#onRequestMatcher(url.pathname.slice(1)));
+				var [params, definition] = first(
+					this.options.app.match("endpoint", url.pathname.slice(1) + `/#${nativeRequest.method.toLowerCase()}`),
+				);
 			} catch (cause) {
 				throw new RequestNotFoundError(undefined, { cause });
 			}
 
-			const contentType = request.headers.get("Content-Type")?.toLowerCase() ?? "";
-			let input: unknown;
-			if (contentType.startsWith("application/json")) {
-				input = await request.json().catch((_) => undefined);
-			} else if (contentType === "application/x-www-form-urlencoded") {
-				input = Object.fromEntries(new URLSearchParams(await request.text()));
-			} else if (contentType.startsWith("multipart/form-data")) {
-				const form = await request.formData();
-				input = Array.from(form.keys()).reduce(
-					(body, key) => {
-						const values = form.getAll(key);
-						body[key] = values.length === 1 ? values[0] : values;
-						return body;
-					},
-					{} as Record<string, unknown>,
-				);
-			} else {
-				input = undefined;
+			const request = await Request.from(nativeRequest);
+
+			if (!z.guard(definition.request, request)) {
+				throw new BadRequestError();
 			}
 
-			Type.assert(definition.input, input);
-
-			const output = await this.unsafe_handleRequest({
-				handler: definition.handler,
-				input,
+			const response = await this.unsafe_handleRequest({
+				definition,
 				params,
-				request,
-				security: definition.security,
+				request: request as never,
 				waitUntil,
 			});
 
-			Type.assert(definition.output, output);
+			if (!z.guard(definition.response, response)) {
+				throw new BadGatewayError();
+			}
 
-			return [output !== undefined ? Response.json(output) : new Response(), promises];
+			return [response.toResponse(), promises];
 		} catch (cause) {
 			let status = 500;
 			let statusText = "Internal Server Error";
 			let error = "Error";
 			let details: unknown = undefined;
-			if (cause instanceof Type.SchemaAssertionError) {
+			if (cause instanceof z.ZodError) {
 				status = 400;
 				statusText = "Bad Request";
 				error = cause.message;
@@ -303,7 +217,7 @@ export class BaselessServer {
 				error = cause.constructor.name;
 			}
 			return [
-				Response.json({ error, details }, { status, statusText }),
+				globalThis.Response.json({ error, details }, { status, statusText }),
 				promises,
 			];
 		}
@@ -313,24 +227,26 @@ export class BaselessServer {
 		const promises: Array<PromiseLike<unknown>> = [];
 		const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
 		const abortController = new AbortController();
-		const request = new Request("http://hub");
+		const request = await Request.from(new globalThis.Request("http://hub"));
 
-		const { type, ...rest } = await new Response(message as never).json();
+		const { type, ...rest } = await new globalThis.Response(message as never).json();
 
-		const [context, service] = await this.createContext(request, auth, abortController.signal, waitUntil);
+		const { context, service } = await this.createContext(request, auth, abortController.signal, waitUntil);
 
 		if (type === "subscribe") {
 			const { key } = rest;
 			try {
 				// deno-lint-ignore no-var no-inner-declarations
-				var [params, definition] = first(this.#topicMatcher(key));
+				var [params, definition] = first(this.options.app.match("topic", key));
 			} catch (_error) {
-				throw "NOT_FOUND";
+				throw new TopicNotFoundError();
 			}
 
-			if (definition.security) {
+			if ("security" in definition) {
 				const permission = await definition.security({
+					app: this.options.app,
 					auth,
+					configuration: this.options.configuration,
 					context,
 					params,
 					service,
@@ -340,30 +256,34 @@ export class BaselessServer {
 				if ((permission & Permission.Subscribe) == 0) {
 					throw new ForbiddenError();
 				}
+				await this.options.providers.hub.subscribe(key, hubId);
 			}
-
-			await this.#hubProvider.subscribe(key, hubId);
 		} else if (type === "unsubscribe") {
 			const { key } = rest;
 			try {
-				const _ = first(this.#topicMatcher(key));
+				// deno-lint-ignore no-var no-inner-declarations no-redeclare
+				var [_, definition] = first(this.options.app.match("topic", key));
 			} catch (_error) {
-				throw "NOT_FOUND";
+				throw new TopicNotFoundError();
 			}
 
-			await this.#hubProvider.unsubscribe(key, hubId);
+			if ("security" in definition) {
+				await this.options.providers.hub.unsubscribe(key, hubId);
+			}
 		} else if (type === "publish") {
 			const { key, payload } = rest;
 			try {
 				// deno-lint-ignore no-redeclare no-var no-inner-declarations
-				var [params, definition] = first(this.#topicMatcher(key));
+				var [params, definition] = first(this.options.app.match("topic", key));
 			} catch (_error) {
-				throw "NOT_FOUND";
+				throw new TopicNotFoundError();
 			}
 
-			if (definition.security) {
+			if ("security" in definition) {
 				const permission = await definition.security({
+					app: this.options.app,
 					auth,
+					configuration: this.options.configuration,
 					context,
 					params,
 					service,
@@ -373,9 +293,9 @@ export class BaselessServer {
 				if ((permission & Permission.Publish) == 0) {
 					throw new ForbiddenError();
 				}
-			}
 
-			await service.pubsub.publish(key, payload, abortController.signal);
+				await service.pubsub.publish(key as never, payload as never, abortController.signal);
+			}
 		}
 
 		return promises;
@@ -385,11 +305,11 @@ export class BaselessServer {
 		const promises: Array<PromiseLike<unknown>> = [];
 		const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
 		const abortController = new AbortController();
-		const request = new Request("http://hub");
+		const request = await Request.from(new globalThis.Request("http://hub"));
 
-		const [context, service] = await this.createContext(request, undefined, abortController.signal, waitUntil);
+		const { context, service } = await this.createContext(request, undefined, abortController.signal, waitUntil);
 
-		if (item.type === "pubsub_message") {
+		if (item.type === "topic_publish") {
 			const { key, payload } = item.payload as { key: string; payload: unknown };
 
 			const message: TopicMessage<unknown> = {
@@ -399,12 +319,14 @@ export class BaselessServer {
 				stopImmediatePropagation: false,
 			};
 
-			for (const [params, definition] of this.#onTopicMessageMatcher(key)) {
+			for (const [params, definition] of this.options.app.match("onTopicMessage", key)) {
 				await definition.handler({
+					app: this.options.app,
 					auth: undefined,
+					configuration: this.options.configuration,
 					context,
-					message,
-					params,
+					message: message as never,
+					params: params as never,
 					service,
 					signal: abortController.signal,
 					waitUntil,
@@ -414,7 +336,7 @@ export class BaselessServer {
 				}
 			}
 			if (!message.stopPropagation) {
-				await this.#hubProvider.publish(key, payload);
+				await this.options.providers.hub.publish(key, payload);
 			}
 		}
 
@@ -422,49 +344,38 @@ export class BaselessServer {
 	}
 
 	async unsafe_handleRequest({
-		handler,
-		input,
+		definition,
 		params,
 		request,
-		security,
 		waitUntil,
 	}: {
-		handler: TOnRequest<any, any, any>["handler"];
-		input: unknown;
+		definition: EndpointDefinition<
+			AppRegistry,
+			string,
+			z.ZodRequest,
+			z.ZodResponse | z.ZodUnion<z.ZodResponse[]>
+		>;
+		request: Request<any, any, any, any>;
 		params: Record<string, string>;
-		request: Request;
-		security: TOnRequest<any, any, any>["security"];
 		waitUntil: (promise: PromiseLike<unknown>) => void;
-	}): Promise<[result: unknown, waitUntil: Array<PromiseLike<unknown>>]> {
+	}): Promise<Response<any, any, any>> {
 		const authorization = request.headers.get("Authorization");
 		const auth = authorization ? await this.#parseAuthorization(authorization) : undefined;
 
-		const [context, service] = await this.createContext(request, auth, request.signal, waitUntil);
-		if (security) {
-			const permission = await security({
+		const { context, service } = await this.createContext(request, auth, request.signal, waitUntil);
+		const output = definition.handler instanceof Function
+			? await definition.handler({
+				app: this.options.app,
 				auth,
+				configuration: this.options.configuration,
 				context,
 				params,
-				input,
-				request,
+				request: request as never,
 				service,
 				signal: request.signal,
 				waitUntil,
-			});
-			if ((permission & Permission.Fetch) == 0) {
-				throw new ForbiddenError();
-			}
-		}
-		const output = await handler({
-			auth,
-			context,
-			input,
-			params,
-			request,
-			service,
-			signal: request.signal,
-			waitUntil,
-		});
+			})
+			: definition.handler;
 		return output;
 	}
 }

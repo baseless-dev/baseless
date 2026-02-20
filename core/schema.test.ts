@@ -1,129 +1,57 @@
-import { assert, assertEquals, assertFalse } from "@std/assert";
-import * as t from "./schema.ts";
-import { SchemaValidationError } from "./schema.ts";
+import { assertRejects, assertThrows } from "@std/assert";
+import * as z from "./schema.ts";
+import { id } from "./id.ts";
+import { Request } from "./request.ts";
+import { Response } from "./response.ts";
 
 Deno.test("schema", async (ctx) => {
-	await ctx.step("generate Typescript from schema", () => {
-		assertEquals(t.generateTypescriptFromSchema(t.String())[1], `string`);
-		assertEquals(t.generateTypescriptFromSchema(t.Number())[1], `number`);
-		assertEquals(t.generateTypescriptFromSchema(t.Boolean())[1], `boolean`);
-		assertEquals(t.generateTypescriptFromSchema(t.Null())[1], `null`);
-		assertEquals(t.generateTypescriptFromSchema(t.Any())[1], `any`);
-		assertEquals(t.generateTypescriptFromSchema(t.Unknown())[1], `unknown`);
-		assertEquals(t.generateTypescriptFromSchema(t.Void())[1], `void`);
-		assertEquals(t.generateTypescriptFromSchema(t.Literal("42"))[1], `"42"`);
-		assertEquals(t.generateTypescriptFromSchema(t.Array(t.String()))[1], `Array<string>`);
-		assertEquals(t.generateTypescriptFromSchema(t.Union([t.String(), t.Number()]))[1], `string | number`);
-		assertEquals(
-			t.generateTypescriptFromSchema(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"]))[1],
-			`{foo: string; bar?: number}`,
-		);
-		assertEquals(t.generateTypescriptFromSchema(t.Record(t.Number()))[1], `{[key: string]: number}`);
-		assertEquals(
-			t.generateTypescriptFromSchema(
-				t.Recursive((self) => t.Union([t.String(), t.Number(), t.Boolean(), t.Array(self), t.Record(self)]), "JSONValue"),
-			),
-			[new Map([["JSONValue", "string | number | boolean | Array<JSONValue> | {[key: string]: JSONValue}"]]), "JSONValue"],
-		);
+	await ctx.step("ID", () => {
+		const _a = z.id("usr_").parse(id("usr_"));
+		assertThrows(() => z.id("usr_").parse(id("prd_")));
 	});
 
-	await ctx.step("generate schema type from schema", () => {
-		assertEquals(t.generateSchemaFromSchema(t.String()), `Type.TString`);
-		assertEquals(t.generateSchemaFromSchema(t.Number()), `Type.TNumber`);
-		assertEquals(t.generateSchemaFromSchema(t.Boolean()), `Type.TBoolean`);
-		assertEquals(t.generateSchemaFromSchema(t.Null()), `Type.TNull`);
-		assertEquals(t.generateSchemaFromSchema(t.Any()), `Type.TAny`);
-		assertEquals(t.generateSchemaFromSchema(t.Unknown()), `Type.TUnknown`);
-		assertEquals(t.generateSchemaFromSchema(t.Void()), `Type.TVoid`);
-		assertEquals(t.generateSchemaFromSchema(t.Literal("42")), `Type.TLiteral<"42">`);
-		assertEquals(t.generateSchemaFromSchema(t.Array(t.String())), `Type.TArray<Type.TString>`);
-		assertEquals(t.generateSchemaFromSchema(t.Union([t.String(), t.Number()])), `Type.TUnion<[Type.TString, Type.TNumber]>`);
-		assertEquals(
-			t.generateSchemaFromSchema(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"])),
-			`Type.TObject<{foo: Type.TString; bar: Type.TNumber}, ["foo"]>`,
-		);
-		assertEquals(t.generateSchemaFromSchema(t.Record(t.Number())), `Type.TRecord<Type.TNumber>`);
-		assertEquals(
-			t.generateSchemaFromSchema(
-				t.Recursive((self) => t.Union([t.String(), t.Number(), t.Boolean(), t.Array(self), t.Record(self)]), "JSONValue"),
-			),
-			`Type.TRecursive<Type.TUnion<[Type.TString, Type.TNumber, Type.TBoolean, Type.TArray<Type.TSelf<"JSONValue">>, Type.TRecord<Type.TSelf<"JSONValue">>]>, "JSONValue">`,
-		);
+	await ctx.step("Reference", () => {
+		const _a = z.reference("post/:postId").parse("post/1234");
+		assertThrows(() => z.reference("post/:postId").parse("file/1234"));
 	});
 
-	await ctx.step("validate", () => {
-		const errors: SchemaValidationError[] = [];
-		assert(t.validate(t.String(), ""));
-		assert(t.validate(t.Number(), 42));
-		assert(t.validate(t.Boolean(), false));
-		assert(t.validate(t.Null(), null));
-		assert(t.validate(t.Any(), Date));
-		assert(t.validate(t.Unknown(), undefined));
-		assert(t.validate(t.Literal(42), 42));
-		assert(t.validate(t.Array(t.String()), [""]));
-		assert(t.validate(t.Union([t.String(), t.Number()]), ""));
-		assert(t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"]), { foo: "" }));
-		assert(t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"], { additionalProperties: true }), { foo: "", absent: 0 }));
-		assertFalse(
-			t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"], { additionalProperties: false }), { foo: "", absent: 0 }, errors),
-		);
-		assertEquals(errors.length, 2);
-		assertFalse(t.validate(t.Object({ foo: t.String(), bar: t.Number() }, ["foo"]), { bar: 42 }, errors));
-		assertEquals(errors.length, 2);
-		assert(t.validate(t.Record(t.Number()), { foo: 42 }));
-		assert(
-			t.validate(
-				t.Recursive((self) => t.Union([t.String(), t.Number(), t.Boolean(), t.Null(), t.Array(self), t.Record(self)]), "JSONValue"),
-				[
-					"",
-					42,
-					true,
-					null,
-					{ foo: "", bar: 42 },
-				],
-			),
-		);
+	await ctx.step("FormData", () => {
+		const f = new FormData();
+		f.append("foo", "bar");
+		const _a = z.formData({ foo: z.string() }).parse(f);
+		assertThrows(() => z.formData({ bar: z.string() }).parse(f));
 	});
 
-	await ctx.step("toObject", () => {
-		assertEquals(t.toObject(t.String()), { "type": "string" });
-		assertEquals(
-			t.toObject(
-				t.Recursive((self) => t.Union([t.String(), t.Number(), t.Boolean(), t.Null(), t.Array(self), t.Record(self)]), "JSONValue"),
-			),
-			{
-				"type": "recursive",
-				"identifier": "JSONValue",
-				"value": {
-					"type": "union",
-					"types": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }, { "type": "null" }, {
-						"type": "array",
-						"items": { "type": "self", "identifier": "JSONValue" },
-					}, { "type": "record", "value": { "type": "self", "identifier": "JSONValue" } }],
-				},
-			},
-		);
+	await ctx.step("ReadableStream", () => {
+		const _a = z.readableStream().parse(new ReadableStream());
+		assertThrows(() => z.readableStream().parse(new Object()));
 	});
 
-	await ctx.step("fromObject", () => {
-		assertEquals(t.fromObject({ "type": "string" }), t.String());
-		assertEquals(
-			t.toObject(t.fromObject(
-				{
-					"type": "recursive",
-					"identifier": "JSONValue",
-					"value": {
-						"type": "union",
-						"types": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }, { "type": "null" }, {
-							"type": "array",
-							"items": { "type": "self", "identifier": "JSONValue" },
-						}, { "type": "record", "value": { "type": "self", "identifier": "JSONValue" } }],
-					},
-				},
-			)),
-			t.toObject(
-				t.Recursive((self) => t.Union([t.String(), t.Number(), t.Boolean(), t.Null(), t.Array(self), t.Record(self)]), "JSONValue"),
-			),
-		);
+	await ctx.step("Request", async () => {
+		const _a = z.jsonRequest({ foo: z.literal("bar") }).parse(await Request.json({ foo: "bar" }));
+		assertRejects(async () => z.request({ method: "POST" }).parse(await Request.from("http://local", { method: "POST", body: "allo" })));
+	});
+
+	await ctx.step("Response", () => {
+		const _a = z.jsonResponse({ foo: z.literal("bar") }).parse(Response.json({ foo: "bar" }));
+		const _b = z.union([
+			z.jsonResponse(),
+			z.response({
+				status: 200,
+				headers: { "content-type": z.literal("text/html") },
+				body: z.string(),
+			}),
+		]);
+		const _c = new Response("undefined", {
+			status: 200,
+			headers: { "content-type": "text/html" },
+		});
+		const _d = Response.json({});
+		const _t1: z.infer<typeof _b> = _c;
+		const _t2: z.infer<typeof _b> = _d;
+		const _t3: () => z.infer<typeof _b> = () => {
+			return 1 ? _c : _d;
+		};
+		assertThrows(() => z.jsonResponse().parse(Response.error()));
 	});
 });

@@ -5,6 +5,7 @@
 	"deno.codeLens.referencesAllFunctions": true,
 	"deno.codeLens.references": true,
 	"deno.codeLens.implementations": true,
+	"deno.codeLens.test": true,
 	"explorer.fileNesting.enabled": true,
 	"explorer.fileNesting.expand": false,
 	"explorer.fileNesting.patterns": {

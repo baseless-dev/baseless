@@ -1,6 +1,6 @@
 {
 	"name": "@baseless/core",
-	"version": "0.4.0-rc.20",
+	"version": "0.5.0-rc.1",
 	"exports": {
 		".": "./prelude.ts",
 		"./authentication-ceremony": "./authentication_ceremony.ts",
@@ -18,10 +18,17 @@
 		"./notification": "./notification.ts",
 		"./otp": "./otp.ts",
 		"./path": "./path.ts",
+		"./prettify": "./prettify.ts",
+		"./query": "./query/prelude.ts",
 		"./queue": "./queue.ts",
+		"./ref": "./ref.ts",
+		"./request": "./request.ts",
+		"./response": "./response.ts",
 		"./schema": "./schema.ts",
 		"./session": "./session.ts",
-		"./topic": "./topic.ts"
+		"./topic": "./topic.ts",
+		"./trie": "./trie.ts",
+		"./typed": "./typed.ts"
 	},
 	"publish": {
 		"include": [

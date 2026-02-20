@@ -189,8 +189,8 @@ export async function testQueueProvider(
 	});
 
 	await t.step("dequeue", async () => {
-		const consumer = queue.dequeue();
-		const reader = consumer.getReader();
+		const stream = queue.dequeue();
+		const reader = stream.getReader();
 
 		const items = new Set(["a", "b", "c"]);
 
@@ -209,7 +209,7 @@ export async function testQueueProvider(
 		assert(items.size === 0);
 
 		reader.releaseLock();
-		consumer.cancel();
+		stream.cancel();
 	});
 }
 

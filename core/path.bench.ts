@@ -16,7 +16,7 @@ const routes = [
 
 for (let i = 0; i < 4; ++i) {
 	for (const fn of [matchPathRegex, matchPathTrie, matchPath]) {
-		const count = Math.pow(2, i) >> 0;
+		const count = (Math.pow(2, i) >> 0) - 1;
 		const data: Array<typeof routes[number]> = [];
 		for (let j = 0; j < count; ++j) {
 			for (let k = 0; k < routes.length; ++k) {
@@ -25,7 +25,7 @@ for (let i = 0; i < 4; ++i) {
 		}
 		data.push(...routes);
 		const matcher = fn(data);
-		Deno.bench(fn.name, { group: `${count * routes.length} routes`, baseline: fn.name === "matchPath" }, () => {
+		Deno.bench(fn.name, { group: `${data.length} routes`, baseline: fn.name === "matchPath" }, () => {
 			for (const route of routes) {
 				Array.from(matcher(route.path));
 			}

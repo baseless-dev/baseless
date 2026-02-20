@@ -1,3 +1,4 @@
+import { ref } from "@baseless/core/ref";
 import type {
 	AuthenticationComponentPrompt,
 	ID,
@@ -13,17 +14,17 @@ import type {
 	IdentityComponentProviderVerifySignInPromptOptions,
 	IdentityComponentProviderVerifyValidationPromptOptions,
 	Notification,
-	RegisteredContext,
 	ServiceCollection,
 } from "../provider.ts";
 import { otp } from "@baseless/core/otp";
+import type { AppRegistry } from "../app.ts";
 
 export interface EmailIdentityComponentProviderOptions {
 	setupOtp?: boolean;
 	sendValidationNotification: (options: {
 		identityId?: ID<"id_">;
 		code: string;
-		context: RegisteredContext;
+		context: AppRegistry["context"];
 		identityComponent?: IdentityComponent;
 		locale: string;
 		service: ServiceCollection;
@@ -46,7 +47,9 @@ export class EmailIdentityComponentProvider implements IdentityComponentProvider
 			return false;
 		}
 		// deno-fmt-ignore
-		const doc = await options.service.document.get(`auth/identity-by-identification/${options.componentId}/${options.value}`).catch((_) => undefined);
+		const doc = await options.service.document
+			.get(ref("auth/identity-by-identification/:component/:identification", { component: options.componentId, identification: options.value }) as never)
+			.catch((_) => undefined);
 		return doc ? doc.data as Identity["id"] : false;
 	}
 

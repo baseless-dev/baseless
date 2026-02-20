@@ -8,16 +8,17 @@ import type {
 } from "@baseless/core/document";
 import type { ID } from "@baseless/core/id";
 import type { KVGetOptions, KVKey, KVListOptions, KVListResult, KVPutOptions } from "@baseless/core/kv";
-import type { BaselessServer } from "./server.ts";
+import type { Server } from "./server.ts";
 import type { QueueItem } from "@baseless/core/queue";
-import type { Auth, RegisteredContext } from "./app.ts";
+import type { AppRegistry, Auth } from "./app.ts";
 import type { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/identity";
 import type { AuthenticationComponentPrompt } from "@baseless/core/authentication-component";
 import type { ServiceCollection } from "./service.ts";
 import type { Notification } from "@baseless/core/notification";
+import { App } from "@baseless/server";
 
 export type { ID } from "@baseless/core/id";
-export type { Auth, RegisteredContext } from "./app.ts";
+export type { Auth } from "./app.ts";
 export { AuthenticationComponentPrompt } from "@baseless/core/authentication-component";
 export {
 	Document,
@@ -79,38 +80,43 @@ export abstract class QueueProvider {
 }
 
 export type HubProviderTransferOptions = {
+	app: App;
 	auth: Auth;
-	context: RegisteredContext;
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
 	hubId: ID<"hub_">;
 	request: Request;
-	server: BaselessServer;
+	server: Server<AppRegistry>;
 	signal?: AbortSignal;
 };
 
 export abstract class HubProvider {
 	abstract transfer(options: HubProviderTransferOptions): Promise<Response>;
-	abstract subscribe(key: string, hubId: ID<"hub_">, signal?: AbortSignal): Promise<void>;
-	abstract unsubscribe(key: string, hubId: ID<"hub_">, signal?: AbortSignal): Promise<void>;
-	abstract publish(key: string, payload: unknown, signal?: AbortSignal): Promise<void>;
+	abstract subscribe(path: string, hubId: ID<"hub_">, signal?: AbortSignal): Promise<void>;
+	abstract unsubscribe(path: string, hubId: ID<"hub_">, signal?: AbortSignal): Promise<void>;
+	abstract publish(path: string, payload: unknown, signal?: AbortSignal): Promise<void>;
 }
 
 export interface IdentityComponentProviderSkipSignInPromptOptions {
 	componentId: string;
-	context: RegisteredContext;
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
 	identityComponent?: IdentityComponent;
 	service: ServiceCollection;
 }
 
 export interface IdentityComponentProviderGetSignInPromptOptions {
 	componentId: string;
-	context: RegisteredContext;
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
 	identityComponent?: IdentityComponent;
 	service: ServiceCollection;
 }
 
 export interface IdentityComponentSendSignInPromptOptions {
 	componentId: string;
-	context: RegisteredContext;
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
 	identityComponent?: IdentityComponent;
 	locale: string;
 	service: ServiceCollection;
@@ -118,7 +124,8 @@ export interface IdentityComponentSendSignInPromptOptions {
 
 export interface IdentityComponentProviderVerifySignInPromptOptions {
 	componentId: string;
-	context: RegisteredContext;
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
 	identityComponent?: IdentityComponent;
 	value: unknown;
 	service: ServiceCollection;
@@ -126,26 +133,30 @@ export interface IdentityComponentProviderVerifySignInPromptOptions {
 
 export interface IdentityComponentProviderGetSetupPromptOptions {
 	componentId: string;
-	context: RegisteredContext;
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
 	service: ServiceCollection;
 }
 
 export interface IdentityComponentProviderSetupIdentityComponentOptions {
 	componentId: string;
-	context: RegisteredContext;
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
 	value: unknown;
 	service: ServiceCollection;
 }
 
 export interface IdentityComponentProviderGetValidationPromptOptions {
 	componentId: string;
-	context: RegisteredContext;
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
 	service: ServiceCollection;
 }
 
 export interface IdentityComponentProviderSendValidationPromptOptions {
 	componentId: string;
-	context: RegisteredContext;
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
 	identityComponent?: IdentityComponent;
 	locale: string;
 	service: ServiceCollection;
@@ -153,7 +164,8 @@ export interface IdentityComponentProviderSendValidationPromptOptions {
 
 export interface IdentityComponentProviderVerifyValidationPromptOptions {
 	componentId: string;
-	context: RegisteredContext;
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
 	identityComponent?: IdentityComponent;
 	value: unknown;
 	service: ServiceCollection;

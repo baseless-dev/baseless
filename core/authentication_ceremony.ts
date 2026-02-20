@@ -1,4 +1,4 @@
-import * as Type from "./schema.ts";
+import * as z from "./schema.ts";
 
 export interface AuthenticationCeremonyComponent {
 	kind: "component";
@@ -55,103 +55,48 @@ export function component(component: string): AuthenticationCeremonyComponent {
 	return { kind: "component", component };
 }
 
-export const AuthenticationCeremonyComponent: Type.TObject<{
-	kind: Type.TLiteral<"component">;
-	component: Type.TString;
-}, ["kind", "component"]> = Type.Object(
-	{
-		kind: Type.Literal("component"),
-		component: Type.String(),
-	},
-	["kind", "component"],
-	{ $id: "AuthenticationCeremonyComponent" },
+export const AuthenticationCeremonyComponent = z.strictObject({
+	kind: z.literal("component"),
+	component: z.string(),
+}).meta({ id: "AuthenticationCeremonyComponent" });
+
+export const AuthenticationCeremony = z.lazy(() =>
+	z.union([
+		AuthenticationCeremonyComponent,
+		AuthenticationCeremonySequence,
+		AuthenticationCeremonyChoice,
+	]).meta({
+		id: "AuthenticationCeremony",
+	})
 );
 
-export const AuthenticationCeremony: Type.TRecursive<
-	Type.TUnion<[
-		typeof AuthenticationCeremonyComponent,
-		Type.TObject<{
-			kind: Type.TLiteral<"sequence">;
-			components: Type.TArray<Type.TSelf<"AuthenticationCeremony">>;
-		}, ["kind", "components"]>,
-		Type.TObject<{
-			kind: Type.TLiteral<"choice">;
-			components: Type.TArray<Type.TSelf<"AuthenticationCeremony">>;
-		}, ["kind", "components"]>,
-	]>,
-	"AuthenticationCeremony"
-> = Type.Recursive(
-	(self) =>
-		Type.Union([
-			AuthenticationCeremonyComponent,
-			Type.Object(
-				{
-					kind: Type.Literal("sequence"),
-					components: Type.Array(self),
-				},
-				["kind", "components"],
-				{ $id: "AuthenticationCeremonySequence" },
-			),
-			Type.Object(
-				{
-					kind: Type.Literal("choice"),
-					components: Type.Array(self),
-				},
-				["kind", "components"],
-				{ $id: "AuthenticationCeremonyChoice" },
-			),
-		]),
-	"AuthenticationCeremony",
-	{ $id: "AuthenticationCeremony" },
+export const AuthenticationCeremonySequence = z.strictObject({
+	kind: z.literal("sequence"),
+	get components(): z.ZodArray<typeof AuthenticationCeremony> {
+		return z.array(AuthenticationCeremony);
+	},
+}).meta({ id: "AuthenticationCeremonySequence" });
+
+export const AuthenticationCeremonyChoice = z.strictObject(
+	{
+		kind: z.literal("choice"),
+		get components(): z.ZodArray<typeof AuthenticationCeremony> {
+			return z.array(AuthenticationCeremony);
+		},
+	},
+).meta(
+	{ id: "AuthenticationCeremonyChoice" },
 );
 
-export const AuthenticationCeremonySequence: Type.TObject<{
-	kind: Type.TLiteral<"sequence">;
-	components: Type.TArray<typeof AuthenticationCeremony>;
-}, ["kind", "components"]> = Type.Object(
-	{
-		kind: Type.Literal("sequence"),
-		components: Type.Array(AuthenticationCeremony),
-	},
-	["kind", "components"],
-	{ $id: "AuthenticationCeremonySequence" },
-);
+export const AuthenticationCeremonySequenceShallow = z.strictObject({
+	kind: z.literal("sequence"),
+	components: z.array(AuthenticationCeremonyComponent),
+}).meta({ id: "AuthenticationCeremonySequenceShallow" });
 
-export const AuthenticationCeremonyChoice: Type.TObject<{
-	kind: Type.TLiteral<"choice">;
-	components: Type.TArray<typeof AuthenticationCeremony>;
-}, ["kind", "components"]> = Type.Object(
-	{
-		kind: Type.Literal("choice"),
-		components: Type.Array(AuthenticationCeremony),
-	},
-	["kind", "components"],
-	{ $id: "AuthenticationCeremonyChoice" },
-);
-
-export const AuthenticationCeremonySequenceShallow: Type.TObject<{
-	kind: Type.TLiteral<"sequence">;
-	components: Type.TArray<typeof AuthenticationCeremonyComponent>;
-}, ["kind", "components"]> = Type.Object(
-	{
-		kind: Type.Literal("sequence"),
-		components: Type.Array(AuthenticationCeremonyComponent),
-	},
-	["kind", "components"],
-	{ $id: "AuthenticationCeremonySequenceShallow" },
-);
-
-export const AuthenticationCeremonyChoiceShallow: Type.TObject<{
-	kind: Type.TLiteral<"choice">;
-	components: Type.TArray<typeof AuthenticationCeremonyComponent>;
-}, ["kind", "components"]> = Type.Object(
-	{
-		kind: Type.Literal("choice"),
-		components: Type.Array(AuthenticationCeremonyComponent),
-	},
-	["kind", "components"],
-	{ $id: "AuthenticationCeremonyChoiceShallow" },
-);
+export const AuthenticationCeremonyChoiceShallow = z.strictObject({
+	kind: z.literal("choice"),
+	components: z.array(AuthenticationCeremonyComponent),
+}).meta({ id: "AuthenticationCeremonyChoiceShallow" });
 
 /**
  * Check if the value is an {@link AuthenticationCeremonyComponent}

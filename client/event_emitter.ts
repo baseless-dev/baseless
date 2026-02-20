@@ -2,7 +2,7 @@
 /**
  * Provides methods for listening and emitting events
  */
-export class EventEmitter<TEvents extends Record<string, unknown> = {}> {
+export class EventEmitter<TEvents extends Record<string, unknown> = {}> implements Disposable {
 	#listeners: Map<
 		keyof TEvents,
 		Set<(arg: TEvents[keyof TEvents]) => void | Promise<void>>
@@ -21,6 +21,14 @@ export class EventEmitter<TEvents extends Record<string, unknown> = {}> {
 		>,
 	) {
 		this.#listeners = new Map(handlers);
+	}
+
+	[Symbol.dispose](): void {
+		this.clear();
+	}
+
+	clear(): void {
+		this.#listeners.clear();
 	}
 
 	hasListener(event: keyof TEvents): boolean {

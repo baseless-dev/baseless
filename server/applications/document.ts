@@ -1,42 +1,73 @@
-// deno-lint-ignore-file no-explicit-any
-import { onRequest, Permission, type TCollection, type TDefinition, type TDocument, topic } from "../app.ts";
-import { Document, DocumentAtomic, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
-import * as Type from "@baseless/core/schema";
-import type { Matcher } from "@baseless/core/path";
+import { app, Permission } from "../app.ts";
+import * as z from "@baseless/core/schema";
 import { first } from "@baseless/core/iter";
+import { Document, DocumentAtomic, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
 import { CollectionNotFoundError, DocumentAtomicCommitError, DocumentNotFoundError, ForbiddenError } from "@baseless/core/errors";
+import { Response } from "@baseless/core/response";
 
-export default function createDocumentApplication(
-	documentMatcher: Matcher<TDocument<any, any>>,
-	collectionMatcher: Matcher<TCollection<any, any, any>>,
-): TDefinition[] {
-	return [
-		topic(
-			"document/set",
-			Type.Object({ key: Type.String(), data: Type.Unknown() }, ["key", "data"]),
-		),
-		topic(
-			"document/deleted",
-			Type.Object({ key: Type.String() }, ["key"]),
-		),
-		onRequest(
-			"document/get",
-			Type.Object({
-				path: Type.Index(Document, "key"),
-				options: DocumentGetOptions,
-			}, ["path"]),
-			Document,
-			async ({ auth, context, service, signal, input, waitUntil }) => {
+const documentApp = app()
+	.endpoint({
+		path: "core/document/get",
+		request: z.jsonRequest({
+			path: z.string(),
+			options: z.optional(DocumentGetOptions),
+		}),
+		response: z.jsonResponse({
+			document: Document(),
+		}),
+		handler: async ({ app, auth, configuration, context, request, service, signal, waitUntil }) => {
+			const { path, options } = request.body;
+			try {
+				// deno-lint-ignore no-var no-inner-declarations
+				var [params, definition] = first(app.match("document", path));
+			} catch (cause) {
+				throw new DocumentNotFoundError(undefined, { cause });
+			}
+
+			if ("documentSecurity" in definition) {
+				const permission = await definition.documentSecurity({
+					app,
+					auth,
+					configuration,
+					context,
+					params,
+					service,
+					signal,
+					waitUntil,
+				});
+				if ((permission & Permission.Get) == 0) {
+					throw new ForbiddenError();
+				}
+			}
+
+			const document = await service.document.get(path as never, options);
+			return Response.json({ document });
+		},
+	})
+	.endpoint({
+		path: "core/document/get-many",
+		request: z.jsonRequest({
+			paths: z.array(z.string()),
+			options: z.optional(DocumentGetOptions),
+		}),
+		response: z.jsonResponse({
+			documents: z.array(Document()),
+		}),
+		handler: async ({ app, auth, configuration, context, request, service, signal, waitUntil }) => {
+			const { paths, options } = request.body;
+			for (const key of paths) {
 				try {
 					// deno-lint-ignore no-var no-inner-declarations
-					var [params, definition] = first(documentMatcher(input.path));
+					var [params, definition] = first(app.match("document", key));
 				} catch (cause) {
 					throw new DocumentNotFoundError(undefined, { cause });
 				}
 
-				if (definition.security) {
-					const permission = await definition.security({
+				if ("documentSecurity" in definition) {
+					const permission = await definition.documentSecurity({
+						app,
 						auth,
+						configuration,
 						context,
 						params,
 						service,
@@ -47,31 +78,31 @@ export default function createDocumentApplication(
 						throw new ForbiddenError();
 					}
 				}
+			}
 
-				const document = await service.document.get(input.path, input.options);
-				return document;
-			},
-			() => Permission.All,
-		),
-		onRequest(
-			"document/get-many",
-			Type.Object({
-				paths: Type.Array(Type.Index(Document, "key")),
-				options: DocumentGetOptions,
-			}, ["paths"]),
-			Type.Array(Document),
-			async ({ auth, context, service, signal, input, waitUntil }) => {
-				for (const key of input.paths) {
-					try {
-						// deno-lint-ignore no-var no-inner-declarations
-						var [params, definition] = first(documentMatcher(key));
-					} catch (cause) {
-						throw new DocumentNotFoundError(undefined, { cause });
-					}
-
-					if (definition.security) {
-						const permission = await definition.security({
+			const documents = await service.document.getMany(paths as never, options);
+			return Response.json({ documents });
+		},
+	})
+	.endpoint({
+		path: "core/document/commit",
+		request: z.jsonRequest({
+			atomic: DocumentAtomic,
+		}),
+		response: z.jsonResponse({
+			result: z.boolean(),
+		}),
+		handler: async ({ app, auth, configuration, context, request, service, signal, waitUntil }) => {
+			const { checks, operations } = request.body.atomic;
+			const atomic = service.document.atomic();
+			for (const check of checks) {
+				try {
+					const [params, definition] = first(app.match("document", check.key));
+					if ("documentSecurity" in definition) {
+						const permission = await definition.documentSecurity({
+							app,
 							auth,
+							configuration,
 							context,
 							params,
 							service,
@@ -82,100 +113,84 @@ export default function createDocumentApplication(
 							throw new ForbiddenError();
 						}
 					}
-				}
-
-				const documents = await service.document.getMany(input.paths, input.options);
-				return documents;
-			},
-			() => Permission.All,
-		),
-		onRequest(
-			"document/commit",
-			DocumentAtomic,
-			Type.Void(),
-			async ({ auth, context, service, signal, input: { checks, operations }, waitUntil }) => {
-				const atomic = service.document.atomic();
-				for (const check of checks) {
-					try {
-						const [params, definition] = first(documentMatcher(check.key));
-						if (definition.security) {
-							const permission = await definition.security({
-								auth,
-								context,
-								params,
-								service,
-								signal,
-								waitUntil,
-							});
-							if ((permission & Permission.Get) == 0) {
-								throw new ForbiddenError();
-							}
-						}
-					} catch (cause) {
-						throw new DocumentAtomicCommitError(undefined, { cause });
-					}
-					atomic.check(check.key, check.versionstamp ?? null);
-				}
-				for (const op of operations) {
-					try {
-						const [params, definition] = first(documentMatcher(op.key));
-						if (definition.security) {
-							const permission = await definition.security({
-								auth,
-								context,
-								params,
-								service,
-								signal,
-								waitUntil,
-							});
-							if ((op.type === "set" && (permission & Permission.Set) == 0) || (permission & Permission.Delete) == 0) {
-								throw new ForbiddenError();
-							}
-						}
-					} catch (cause) {
-						throw new DocumentAtomicCommitError(undefined, { cause });
-					}
-					if (op.type === "set") {
-						atomic.set(op.key, op.data);
-					} else {
-						atomic.delete(op.key);
-					}
-				}
-
-				return atomic.commit();
-			},
-			() => Permission.All,
-		),
-		onRequest(
-			"document/list",
-			DocumentListOptions,
-			Type.Array(DocumentListEntry),
-			async ({ auth, context, service, signal, input: { prefix, cursor, limit }, waitUntil }) => {
-				try {
-					// deno-lint-ignore no-var no-inner-declarations
-					var [params, definition] = first(collectionMatcher(prefix));
+					atomic.check(check.key as never, check.versionstamp ?? null);
 				} catch (cause) {
-					throw new CollectionNotFoundError(undefined, { cause });
+					throw new DocumentAtomicCommitError(undefined, { cause });
 				}
-
-				if (definition.security) {
-					const permission = await definition.security({
-						auth,
-						context,
-						params,
-						service,
-						signal,
-						waitUntil,
-					});
-					if ((permission & Permission.List) == 0) {
-						throw new ForbiddenError();
+			}
+			for (const op of operations) {
+				try {
+					const [params, definition] = first(app.match("document", op.key));
+					if ("documentSecurity" in definition) {
+						const permission = await definition.documentSecurity({
+							app,
+							auth,
+							configuration,
+							context,
+							params,
+							service,
+							signal,
+							waitUntil,
+						});
+						if ((op.type === "set" && (permission & Permission.Set) == 0) || (permission & Permission.Delete) == 0) {
+							throw new ForbiddenError();
+						}
+						if (op.type === "set") {
+							atomic.set(op.key as never, op.data as never);
+						} else {
+							atomic.delete(op.key as never);
+						}
 					}
+				} catch (cause) {
+					throw new DocumentAtomicCommitError(undefined, { cause });
 				}
+			}
 
-				const documents = await service.document.list({ prefix, cursor, limit });
-				return Array.fromAsync(documents);
-			},
-			() => Permission.All,
-		),
-	];
-}
+			await atomic.commit();
+			return Response.json({ result: true });
+		},
+	})
+	.endpoint({
+		path: "core/document/list",
+		request: z.jsonRequest({
+			options: DocumentListOptions,
+		}),
+		response: z.jsonResponse({
+			documents: z.array(DocumentListEntry()),
+		}),
+		handler: async (
+			{ app, auth, configuration, context, request, service, signal, waitUntil },
+		) => {
+			const { prefix, cursor, limit } = request.body.options;
+			try {
+				// deno-lint-ignore no-var no-inner-declarations
+				var [params, definition] = first(app.match("collection", prefix));
+			} catch (cause) {
+				throw new CollectionNotFoundError(undefined, { cause });
+			}
+
+			if ("collectionSecurity" in definition) {
+				const permission = await definition.collectionSecurity({
+					app,
+					auth,
+					configuration,
+					context,
+					params,
+					service,
+					signal,
+					waitUntil,
+				});
+				if ((permission & Permission.List) == 0) {
+					throw new ForbiddenError();
+				}
+			}
+
+			const stream = await service.document.list({ prefix: prefix as never, cursor, limit });
+			const documents = await Array.fromAsync(stream);
+			return Response.json({ documents });
+		},
+	});
+
+export default documentApp;
+
+export type DocumentApplication = ReturnType<typeof documentApp.build>;

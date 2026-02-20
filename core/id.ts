@@ -1,9 +1,9 @@
-declare const PREFIX: unique symbol;
+declare const BRAND: unique symbol;
 
 /**
  * A unique identifier with an optional prefix
  */
-export type ID<Prefix extends string = ""> = string & { [PREFIX]: Prefix };
+export type ID<Prefix extends string = ""> = string & { [BRAND]: Prefix };
 
 const buffer1 = new Uint8Array(17);
 const buffer2 = new Uint8Array(8);
@@ -43,8 +43,8 @@ export function isID<const Prefix extends string>(
 	id: unknown,
 ): id is ID<Prefix>;
 export function isID(id_or_prefix: unknown | string, id?: unknown): boolean {
-	const prefix = typeof id === "string" ? `${id_or_prefix}` : "";
-	id = typeof id === "string" ? id : id_or_prefix;
+	const prefix = typeof id !== "undefined" ? `${id_or_prefix}` : "";
+	id = typeof id !== "undefined" ? id : id_or_prefix;
 	return typeof id === "string" && id.startsWith(prefix) &&
 		(id.length === prefix.length + 22 || id.length === prefix.length + 32);
 }
@@ -63,8 +63,8 @@ export function assertID<const Prefix extends string>(
 	id: unknown,
 ): asserts id is ID<Prefix>;
 export function assertID(id_or_prefix: unknown | string, id?: unknown): void {
-	const prefix = typeof id === "string" ? `${id_or_prefix}` : "";
-	id = typeof id === "string" ? id : id_or_prefix;
+	const prefix = typeof id !== "undefined" ? `${id_or_prefix}` : "";
+	id = typeof id !== "undefined" ? id : id_or_prefix;
 	if (!isID(prefix, id)) {
 		throw new InvalidIDError(prefix, id);
 	}

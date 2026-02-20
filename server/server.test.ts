@@ -1,5 +1,4 @@
-import type { TDefinition } from "./app.ts";
-import { BaselessServer, BaselessServerOptions } from "./server.ts";
+import { Server, ServerOptions } from "./server.ts";
 import {
 	MemoryDocumentProvider,
 	MemoryKVProvider,
@@ -8,13 +7,14 @@ import {
 	MemoryRateLimiterProvider,
 } from "@baseless/inmemory-provider";
 import { DenoHubProvider } from "@baseless/deno-provider";
-import * as Type from "@baseless/core/schema";
+import * as z from "@baseless/core/schema";
 import { ServiceCollection } from "./prelude.ts";
 import { fromServerErrorData, ServerErrorData } from "@baseless/core/errors";
+import { AppRegistry } from "./app.ts";
+import { Request } from "@baseless/core/request";
 
-export default async function createMemoryServer(
-	app: Record<string, TDefinition> = {},
-	authenticationOptions?: BaselessServerOptions["authentication"],
+export default async function createMemoryServer<TRegistry extends AppRegistry>(
+	options: Omit<ServerOptions<TRegistry>, "providers">,
 ): Promise<
 	{
 		provider: {
@@ -24,11 +24,11 @@ export default async function createMemoryServer(
 			notification: MemoryNotificationProvider;
 			queue: MemoryQueueProvider;
 		};
-		post: <T extends Type.TSchema = Type.TUnknown>(
+		fetch: <T extends z.ZodType = z.ZodUnknown>(
 			endpoint: string,
-			options: { data: unknown; headers?: Record<string, string>; schema?: T },
-		) => Promise<Type.Static<T>>;
-		server: BaselessServer;
+			options: { method?: string; data?: unknown; headers?: Record<string, string>; schema?: T },
+		) => Promise<z.infer<T>>;
+		server: Server<TRegistry>;
 		service: ServiceCollection;
 	} & Disposable
 > {
@@ -39,9 +39,8 @@ export default async function createMemoryServer(
 	const notification = new MemoryNotificationProvider();
 	const rateLimiter = new MemoryRateLimiterProvider();
 
-	const server = new BaselessServer({
-		authentication: authenticationOptions,
-		definitions: app,
+	const server = new Server({
+		...options,
 		providers: {
 			channels: { email: notification },
 			document,
@@ -52,30 +51,36 @@ export default async function createMemoryServer(
 		},
 	});
 
-	async function post<T extends Type.TSchema = Type.TUnknown>(
+	async function fetch<T extends z.ZodType = z.ZodUnknown>(
 		endpoint: string,
-		options: { data: unknown; headers?: Record<string, string>; schema?: T },
-	): Promise<Type.Static<T>> {
+		options: { method?: string; data?: unknown; headers?: Record<string, string>; schema?: T },
+	): Promise<z.infer<T>> {
 		const [response, promises] = await server.handleRequest(
-			new Request(`http://test${endpoint}`, {
-				method: "POST",
+			new globalThis.Request(`http://test${endpoint}`, {
+				method: options.method ?? "POST",
 				headers: {
 					...options.headers,
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify(options.data),
+				...(options.data ? { body: JSON.stringify(options.data) } : {}),
 			}),
 		);
 		await Promise.allSettled(promises);
 		const json = await response.json().catch((_) => undefined);
-		if (response.status !== 200 && Type.validate(ServerErrorData, json)) {
+		if (response.status !== 200 && z.guard(ServerErrorData, json)) {
 			throw fromServerErrorData(json);
 		}
-		Type.assert(options.schema ?? Type.Unknown(), json);
-		return json as Type.Static<T>;
+
+		z.assert(options.schema ?? z.unknown(), json);
+		return json as never;
 	}
 
-	const [, service] = await server.createContext(new Request("http://test"), undefined, new AbortController().signal, () => {});
+	const { service } = await server.createContext(
+		await Request.from(new globalThis.Request("http://test")),
+		undefined,
+		new AbortController().signal,
+		() => {},
+	);
 
 	return {
 		provider: {
@@ -85,7 +90,7 @@ export default async function createMemoryServer(
 			notification,
 			queue,
 		},
-		post,
+		fetch,
 		server,
 		service,
 		[Symbol.dispose]: () => {
@@ -104,7 +109,7 @@ export const deadline = (ms: number): Disposable => {
 	}, ms);
 	return { [Symbol.dispose]: () => clearTimeout(id) };
 };
-export const serve = async (server: BaselessServer): Promise<{ url: URL } & Disposable> => {
+export const serve = async (server: Server<any>): Promise<{ url: URL } & Disposable> => {
 	const ready = Promise.withResolvers<URL>();
 	const abortController = new AbortController();
 	Deno.serve({
@@ -184,21 +189,42 @@ export const connect = (url: URL, protocols?: string | string[]): {
 	};
 };
 
-export const pubsub = (mock: Awaited<ReturnType<typeof createMemoryServer>>): { next: () => Promise<void> } & Disposable => {
+export const pubsub = (
+	mock: Awaited<ReturnType<typeof createMemoryServer>>,
+): { next: () => Promise<void>; drain: () => Promise<void> } & AsyncDisposable => {
 	const abortController = new AbortController();
 	const stream = mock.provider.queue.dequeue(abortController.signal);
 	const reader = stream.getReader();
 	return {
 		async next(): Promise<void> {
-			const result = await reader.read();
-			if (!result.done) {
-				const promises = await mock.server.handleQueueItem(result.value);
-				await Promise.allSettled(promises);
+			try {
+				const result = await reader.read();
+				if (!result.done) {
+					const promises = await mock.server.handleQueueItem(result.value);
+					await Promise.allSettled(promises);
+				}
+			} catch (_cause) {
+				return;
 			}
 		},
-		[Symbol.dispose]: () => {
+		async drain(): Promise<void> {
+			while (true) {
+				try {
+					const result = await reader.read();
+					if (!result.done) {
+						const promises = await mock.server.handleQueueItem(result.value);
+						await Promise.allSettled(promises);
+					} else {
+						break;
+					}
+				} catch (_cause) {
+					break;
+				}
+			}
+		},
+		[Symbol.asyncDispose]: async () => {
 			reader.releaseLock();
-			stream.cancel();
+			await stream.cancel();
 			abortController.abort();
 		},
 	};

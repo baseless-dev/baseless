@@ -1,4 +1,4 @@
-import * as Type from "./schema.ts";
+import * as z from "./schema.ts";
 
 export interface AuthenticationComponentPrompt {
 	kind: "component";
@@ -17,46 +17,23 @@ export type AuthenticationComponent =
 	| AuthenticationComponentPrompt
 	| AuthenticationComponentChoice;
 
-export const AuthenticationComponentPrompt: Type.TObject<{
-	kind: Type.TLiteral<"component">;
-	id: Type.TString;
-	prompt: Type.TString;
-	options: Type.TRecord<Type.TUnknown>;
-	sendable: Type.TBoolean;
-}, ["kind", "id", "prompt", "options", "sendable"]> = Type.Object(
-	{
-		kind: Type.Literal("component"),
-		id: Type.String(),
-		prompt: Type.String(),
-		options: Type.Record(Type.Unknown()),
-		sendable: Type.Boolean(),
-	},
-	["kind", "id", "prompt", "options", "sendable"],
-	{ $id: "AuthenticationComponentPrompt" },
-);
+export const AuthenticationComponentPrompt = z.strictObject({
+	kind: z.literal("component"),
+	id: z.string(),
+	prompt: z.string(),
+	options: z.record(z.string(), z.unknown()),
+	sendable: z.boolean(),
+}).meta({ id: "AuthenticationComponentPrompt" });
 
-export const AuthenticationComponentChoice: Type.TObject<{
-	kind: Type.TLiteral<"choice">;
-	prompts: Type.TArray<typeof AuthenticationComponentPrompt>;
-}, ["kind", "prompts"]> = Type.Object(
-	{
-		kind: Type.Literal("choice"),
-		prompts: Type.Array(AuthenticationComponentPrompt),
-	},
-	["kind", "prompts"],
-	{ $id: "AuthenticationComponentChoice" },
-);
+export const AuthenticationComponentChoice = z.strictObject({
+	kind: z.literal("choice"),
+	prompts: z.array(AuthenticationComponentPrompt),
+}).meta({ id: "AuthenticationComponentChoice" });
 
-export const AuthenticationComponent: Type.TUnion<[
-	typeof AuthenticationComponentPrompt,
-	Type.TObject<{
-		kind: Type.TLiteral<"choice">;
-		prompts: Type.TArray<typeof AuthenticationComponentPrompt>;
-	}, ["kind", "prompts"]>,
-]> = Type.Union([
+export const AuthenticationComponent = z.union([
 	AuthenticationComponentPrompt,
 	AuthenticationComponentChoice,
-], { $id: "AuthenticationComponent" });
+]).meta({ id: "AuthenticationComponent" });
 
 /**
  * Check if the value is an {@link AuthenticationComponentPrompt}

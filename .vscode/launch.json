@@ -14,8 +14,11 @@
 			"runtimeExecutable": "/home/grenierdev/.deno/bin/deno",
 			"runtimeArgs": [
 				"run",
+				"--allow-net",
+				"--allow-env",
+				"--allow-read",
+				"--allow-write",
 				"--unstable-kv",
-				"--allow-all",
 				"--inspect-brk"
 			],
 			"attachSimplePort": 9229

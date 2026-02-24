@@ -1,4 +1,6 @@
 const encoder = new TextEncoder();
+
+/** Error thrown when a proof-of-work computation is cancelled via an {@link AbortSignal}. */
 export class WorkAbortedError extends Error {}
 
 async function hash(data: string): Promise<Uint8Array> {
@@ -29,6 +31,13 @@ async function _work(challenge: string, difficulty: number, signal?: AbortSignal
 	return nonce - threads;
 }
 
+/**
+ * Verifies a proof-of-work nonce against a challenge and difficulty target.
+ * @param challenge The challenge string used during work computation.
+ * @param difficulty The minimum number of leading zero bits required in the SHA-1 hash.
+ * @param nonce The nonce produced by {@link work}.
+ * @returns `true` when the `hash(challenge + nonce)` satisfies the difficulty.
+ */
 export async function verify(challenge: string, difficulty: number, nonce: number): Promise<boolean> {
 	const hashHex = await hash(challenge + nonce);
 	return numberOfLeadingZeroes(hashHex) >= difficulty;
@@ -48,6 +57,17 @@ type WorkerResult =
 	| { type: "nonce"; nonce: number }
 	| { type: "error"; error: any };
 
+/**
+ * Finds a nonce satisfying the given proof-of-work difficulty.
+ * When `options.threads` is specified the work is distributed across
+ * multiple Web Workers.
+ *
+ * @param challenge The challenge string to hash against.
+ * @param difficulty The number of leading zero bits required.
+ * @param options Optional `{ threads, signal }` configuration.
+ * @returns A promise that resolves to the nonce value.
+ * @throws {@link WorkAbortedError} When the computation is aborted via `signal`.
+ */
 export function work(challenge: string, difficulty: number, options?: { threads?: number; signal?: AbortSignal }): Promise<number> {
 	const threads = options?.threads ?? undefined;
 	if (threads === undefined) {

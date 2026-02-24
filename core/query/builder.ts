@@ -19,6 +19,10 @@ import {
 } from "./schema.ts";
 import type { Prettify } from "../prettify.ts";
 
+/**
+ * Maps a {@link TReferenceOrLiteral} (or a record of them) to the
+ * TypeScript type they represent at runtime.
+ */
 // deno-fmt-ignore
 export type InferModelFromTReferenceOrLiteral<T> =
 	T extends TNamedColumnReference<any, infer TData> ? TData
@@ -35,10 +39,25 @@ type _ExtractNamedParamReference<TExpr, M extends any[]> =
 	: TExpr extends Record<string, TReferenceOrLiteral> ? { [K in keyof TExpr]: _ExtractNamedParamReference<TExpr[K], [1, ...M]> }[keyof TExpr]
 	: TExpr extends TNamedFunctionReference<infer TName, infer TParams, infer TOutput> ? { [K in keyof TParams]: _ExtractNamedParamReference<TParams[K], [1, ...M]> }[number]
 	: never;
+/**
+ * Extracts all {@link TNamedParamReference} bindings from an expression tree
+ * and merges them into a single intersection object type.
+ */
 export type ExtractNamedParamReference<T> = Prettify<UnionToIntersection<_ExtractNamedParamReference<T, []>>>;
 
+/**
+ * Converts a union type `U` into the intersection of all its members.
+ * Used internally to merge named query parameter maps.
+ */
 export type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends ((x: infer I) => void) ? I : never;
 
+/**
+ * Builder for scalar operands in query expressions: column references, table
+ * references, parameter references, literal values, string concatenation, and
+ * function invocations.
+ *
+ * @template TTables The map of table names to their row models.
+ */
 export class ReferenceOrLiteralBuilder<
 	TTables extends {},
 > {
@@ -82,6 +101,13 @@ export class ReferenceOrLiteralBuilder<
 	}
 }
 
+/**
+ * Builder for boolean predicate expressions (`AND`, `OR`, and binary
+ * comparisons such as `=`, `!=`, `>`, `>=`, `<`, `<=`, `IN`, `NOT IN`).
+ *
+ * @template TTables The map of table names to their row models.
+ * @template TParams Accumulated named parameter types.
+ */
 export class BooleanExpressionBuilder<
 	TTables extends {},
 	TParams extends {},
@@ -341,6 +367,13 @@ export class BooleanExpressionBuilder<
 	}
 }
 
+/**
+ * Combined builder that exposes both {@link ReferenceOrLiteralBuilder} and
+ * {@link BooleanExpressionBuilder} through mixin composition.
+ *
+ * @template TTables The map of table names to their row models.
+ * @template TParams Accumulated named parameter types.
+ */
 export interface ExpressionBuilder<
 	TTables extends {},
 	TParams extends {},
@@ -352,11 +385,24 @@ export class ExpressionBuilder<
 
 applyMixin(ExpressionBuilder, [ReferenceOrLiteralBuilder, BooleanExpressionBuilder]);
 
+/**
+ * Common interface implemented by all statement builder types.
+ *
+ * @template TParams Named parameter types required to execute the statement.
+ * @template TOutput The TypeScript type returned when the statement executes.
+ */
 export interface IStatementBuilder<TParams extends {}, TOutput> {
 	build(): TAnyStatement;
 	toStatement(): TStatement<TParams, TOutput>;
 }
 
+/**
+ * Base entry-point builder that starts a `SELECT`, `INSERT`, `UPDATE`, or `DELETE`
+ * statement for the given table schema.
+ *
+ * @template TTables Tables available for reading.
+ * @template TInsertTables Tables available for writing.
+ */
 export class StatementBuilder<
 	TTables extends {},
 	TInsertTables extends {},
@@ -428,6 +474,13 @@ export class StatementBuilder<
 	}
 }
 
+/**
+ * Extends {@link StatementBuilder} with a `batch()` factory method that
+ * begins a {@link BatchStatementBuilder}.
+ *
+ * @template TTables Tables available for reading.
+ * @template TInsertTables Tables available for writing.
+ */
 export class BatchableStatementBuilder<
 	TTables extends {},
 	TInsertTables extends {},
@@ -437,6 +490,14 @@ export class BatchableStatementBuilder<
 	}
 }
 
+/**
+ * Builds a {@link TBatchStatement} that atomically executes multiple
+ * write statements with optional pre-condition checks.
+ *
+ * @template TTables Tables available for reading.
+ * @template TInsertTables Tables available for writing.
+ * @template TParams Accumulated named parameter types.
+ */
 export class BatchStatementBuilder<TTables extends {}, TInsertTables extends {}, TParams extends {}>
 	implements IStatementBuilder<TParams, void> {
 	#statements: TAnyStatement[];
@@ -490,6 +551,15 @@ export class BatchStatementBuilder<TTables extends {}, TInsertTables extends {},
 	}
 }
 
+/**
+ * Builds a {@link TInsertStatement} for inserting rows into a table.
+ *
+ * @template TTables Tables available for reading (used in `FROM` sub-selects).
+ * @template TInsertTables Tables available for writing.
+ * @template TFrom The aliased table map for operand expressions.
+ * @template TModel The row model of the target table.
+ * @template TParams Accumulated named parameter types.
+ */
 export class InsertStatementBuilder<
 	TTables extends {},
 	TInsertTables extends {},
@@ -571,6 +641,14 @@ export class InsertStatementBuilder<
 	}
 }
 
+/**
+ * Builds a {@link TUpdateStatement} for modifying existing rows in a table.
+ *
+ * @template TTables Tables available for reading.
+ * @template TFrom The aliased table map for operand expressions.
+ * @template TModel The row model of the target table.
+ * @template TParams Accumulated named parameter types.
+ */
 export class UpdateStatementBuilder<
 	TTables extends {},
 	TFrom extends {},
@@ -688,6 +766,13 @@ export class UpdateStatementBuilder<
 	}
 }
 
+/**
+ * Builds a {@link TDeleteStatement} for removing rows from a table.
+ *
+ * @template TTables Tables available for reading.
+ * @template TFrom The aliased table map for operand expressions.
+ * @template TParams Accumulated named parameter types.
+ */
 export class DeleteStatementBuilder<
 	TTables extends {},
 	TFrom extends {},
@@ -780,6 +865,17 @@ export class DeleteStatementBuilder<
 	}
 }
 
+/**
+ * Builds a {@link TSelectStatement} for querying rows from a table.
+ * When `limit(1)` is called the return type narrows to a single `TModel`
+ * instead of `TModel[]`.
+ *
+ * @template TTables Tables available for reading.
+ * @template TFrom The aliased table map for operand expressions.
+ * @template TModel The projected row model produced by `pick()`.
+ * @template TParams Accumulated named parameter types.
+ * @template TSingleResult `true` when `limit(1)` has been applied.
+ */
 export class SelectStatementBuilder<
 	TTables extends {},
 	TFrom extends {},

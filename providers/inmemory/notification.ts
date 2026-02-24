@@ -1,6 +1,12 @@
 import { type IdentityChannel, type Notification, NotificationChannelProvider } from "@baseless/server";
 import { createLogger, LogLevel, LogLevelMethod } from "@baseless/core/logger";
 
+/**
+ * In-memory implementation of {@link NotificationChannelProvider}.
+ *
+ * Accumulates sent {@link Notification} objects in the public `notifications`
+ * array, making it easy to assert delivery in unit tests.
+ */
 export class MemoryNotificationProvider extends NotificationChannelProvider {
 	notifications: Notification[] = [];
 
@@ -10,6 +16,13 @@ export class MemoryNotificationProvider extends NotificationChannelProvider {
 	}
 }
 
+/**
+ * Debug {@link NotificationChannelProvider} that logs notifications to the
+ * console via the built-in `@baseless/core` logger.
+ *
+ * The log level can be configured at construction time; it defaults to
+ * `LogLevel.DEBUG`.
+ */
 export class ConsoleNotificationProvider extends NotificationChannelProvider {
 	#logger = createLogger("ConsoleNotificationProvider");
 	#level: LogLevel;

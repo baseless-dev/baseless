@@ -28,6 +28,11 @@ import {
 import { Request } from "@baseless/core/request";
 import { Response } from "@baseless/core/response";
 
+/**
+ * Construction options for {@link Server}.
+ *
+ * @template TRegistry The server's app registry.
+ */
 export interface ServerOptions<TRegistry extends AppRegistry> {
 	configuration: Omit<TRegistry["configuration"], "server">;
 	publicKey?: KeyLike;
@@ -42,6 +47,21 @@ export interface ServerOptions<TRegistry extends AppRegistry> {
 	};
 }
 
+/**
+ * The Baseless HTTP/WebSocket server. Handles incoming requests, delegates to
+ * the registered endpoints, processes hub (WebSocket) messages, and drains
+ * the queue.
+ *
+ * @template TRegistry The server's app registry.
+ *
+ * @example
+ * ```ts
+ * import { Server } from "@baseless/server";
+ *
+ * const server = new Server({ app, configuration, providers });
+ * Deno.serve((req) => server.handleRequest(req).then(([res]) => res));
+ * ```
+ */
 export class Server<TRegistry extends AppRegistry> {
 	options: ServerOptions<TRegistry>;
 
@@ -49,6 +69,14 @@ export class Server<TRegistry extends AppRegistry> {
 		this.options = options;
 	}
 
+	/**
+	 * Builds the request context (decoration + services) for a single request.
+	 * @param request The incoming request.
+	 * @param auth The resolved authentication principal (or `undefined`).
+	 * @param signal Abort signal tied to the request lifecycle.
+	 * @param waitUntil Callback to register background work.
+	 * @returns The populated `context` and `service` objects.
+	 */
 	async createContext(
 		request: Request<any, any, any, any>,
 		auth: Auth,
@@ -134,6 +162,12 @@ export class Server<TRegistry extends AppRegistry> {
 		return undefined;
 	}
 
+	/**
+	 * Handles a native `Request` (HTTP or WebSocket upgrade) and returns a
+	 * native `Response` along with any background promises.
+	 * @param nativeRequest The incoming native HTTP request.
+	 * @returns A tuple of `[response, waitUntil promises]`.
+	 */
 	async handleRequest(nativeRequest: globalThis.Request): Promise<[response: globalThis.Response, waitUntil: Array<PromiseLike<unknown>>]> {
 		const promises: Array<PromiseLike<unknown>> = [];
 		const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
@@ -223,6 +257,14 @@ export class Server<TRegistry extends AppRegistry> {
 		}
 	}
 
+	/**
+	 * Processes a message from a connected WebSocket hub client (subscribe,
+	 * unsubscribe, or publish).
+	 * @param hubId The hub connection identifier.
+	 * @param auth The hub connection's authentication principal.
+	 * @param message The raw WebSocket message payload.
+	 * @returns Background promises to await after the message is processed.
+	 */
 	async handleHubMessage(hubId: ID<"hub_">, auth: Auth, message: unknown): Promise<Array<PromiseLike<unknown>>> {
 		const promises: Array<PromiseLike<unknown>> = [];
 		const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
@@ -301,6 +343,12 @@ export class Server<TRegistry extends AppRegistry> {
 		return promises;
 	}
 
+	/**
+	 * Processes a dequeued {@link QueueItem}, dispatching it to the registered
+	 * `onTopicMessage` handlers and publishing it to the hub provider.
+	 * @param item The queue item to process.
+	 * @returns Background promises to await after processing.
+	 */
 	async handleQueueItem(item: QueueItem): Promise<Array<PromiseLike<unknown>>> {
 		const promises: Array<PromiseLike<unknown>> = [];
 		const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
@@ -343,6 +391,13 @@ export class Server<TRegistry extends AppRegistry> {
 		return promises;
 	}
 
+	/**
+	 * Executes a matched endpoint definition without HTTP-layer validation.
+	 * Useful for server-side service-to-service calls.
+	 * @param options The matched definition, request, path params, and
+	 * waitUntil callback.
+	 * @returns The handler's {@link Response}.
+	 */
 	async unsafe_handleRequest({
 		definition,
 		params,

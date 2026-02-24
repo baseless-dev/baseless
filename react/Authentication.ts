@@ -10,6 +10,12 @@ import { id } from "@baseless/core/id";
 
 const ClientAuthCeremonyContext = createContext<ClientAuthCeremony>(null!);
 
+/**
+ * Returns the nearest {@link ClientAuthCeremony} from context.
+ * Must be rendered inside an {@link Authentication} component.
+ * @returns The current {@link ClientAuthCeremony}.
+ * @throws If called outside an `Authentication` component.
+ */
 export function useAuthenticationCeremony(): ClientAuthCeremony {
 	const ceremony = useContext(ClientAuthCeremonyContext);
 	if (!ceremony) {
@@ -36,6 +42,16 @@ const createStore: (key: string) => ClientAuthCeremonyStore = (key) => {
 	};
 };
 
+/**
+ * Initializes and manages a {@link ClientAuthCeremony}, persisting progress
+ * to `localStorage` and providing it to children via React context.
+ *
+ * @param props.children Child nodes or render-prop receiving the ceremony.
+ * @param props.client The {@link Client} to use (defaults to context client).
+ * @param props.flow `"authentication"` or `"registration"`.
+ * @param props.identifier Cache key prefix for `localStorage`.
+ * @param props.scopes OAuth2 scopes to request.
+ */
 export function Authentication({
 	children,
 	client = useClient(),
@@ -82,6 +98,14 @@ export function Authentication({
 	return jsx(ClientAuthCeremonyContext.Provider, { value: ceremony, children: node }, hash);
 }
 
+/**
+ * Renders the appropriate prompt for the current authentication step.
+ * Delegates to the matching entry in `prompts` by the step's
+ * `prompt` discriminator, or to `choice` for choice-type steps.
+ *
+ * @param props.choice Render function for choice-type steps.
+ * @param props.prompts Map of prompt names to render functions.
+ */
 export function AuthenticationPrompt({ choice, prompts }: {
 	choice: (ceremony: ClientAuthCeremony, prompts: Array<AuthenticationComponentPrompt>) => ReactNode;
 	prompts: Record<string, (ceremony: ClientAuthCeremony, prompt: AuthenticationComponentPrompt) => ReactNode>;

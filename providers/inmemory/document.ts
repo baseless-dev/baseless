@@ -10,14 +10,28 @@ import {
 } from "@baseless/server";
 import OrderedMap from "./ordered_map.ts";
 
+/**
+ * In-memory implementation of {@link DocumentProvider}.
+ *
+ * Stores documents in an {@link OrderedMap} keyed by their path.  Suitable
+ * for unit tests and local development; data is not persisted.
+ */
 export class MemoryDocumentProvider extends DocumentProvider {
 	#storage = new OrderedMap<string, Document>();
 
+	/** Clears all stored documents and releases memory. */
 	[Symbol.dispose](): void {
 		this.#storage.clear();
 	}
 
 	// deno-lint-ignore require-await
+	/**
+	 * Retrieves a single document by key.
+	 * @param key The document path.
+	 * @param _options Ignored; present for interface compatibility.
+	 * @returns A deep clone of the stored {@link Document}.
+	 * @throws {@link DocumentNotFoundError} When no document exists at `key`.
+	 */
 	async get(
 		key: string,
 		_options?: DocumentGetOptions,
@@ -30,6 +44,12 @@ export class MemoryDocumentProvider extends DocumentProvider {
 	}
 
 	// deno-lint-ignore require-await
+	/**
+	 * Retrieves multiple documents in a single operation.
+	 * @param keys Array of document paths to retrieve.
+	 * @param _options Ignored; present for interface compatibility.
+	 * @returns An array of deep-cloned {@link Document} values for keys that exist.
+	 */
 	async getMany(
 		keys: Array<string>,
 		_options?: DocumentGetOptions,
@@ -44,6 +64,12 @@ export class MemoryDocumentProvider extends DocumentProvider {
 		return documents;
 	}
 
+	/**
+	 * Lists documents whose path starts with `prefix`, skipping to `cursor` if
+	 * provided, and capping results at `limit`.
+	 * @param options Listing options (prefix, cursor, limit).
+	 * @returns A `ReadableStream` of {@link DocumentListEntry} values in key order.
+	 */
 	list({ cursor = "", prefix, limit = Number.MAX_VALUE }: DocumentListOptions): ReadableStream<DocumentListEntry> {
 		return new ReadableStream<DocumentListEntry>({
 			start: (controller) => {
@@ -71,11 +97,21 @@ export class MemoryDocumentProvider extends DocumentProvider {
 		});
 	}
 
+	/**
+	 * Creates a new {@link MemoryDocumentAtomic} batch builder for this provider.
+	 * @returns A fresh atomic batch.
+	 */
 	atomic(): DocumentAtomic {
 		return new MemoryDocumentAtomic(this, this.#storage);
 	}
 }
 
+/**
+ * Atomic batch builder for {@link MemoryDocumentProvider}.
+ *
+ * Implements the {@link DocumentAtomic} contract using in-memory
+ * optimistic-concurrency versionstamp checks.
+ */
 export class MemoryDocumentAtomic extends DocumentAtomic {
 	#provider: MemoryDocumentProvider;
 	#storage: OrderedMap<string, Document>;
@@ -89,6 +125,14 @@ export class MemoryDocumentAtomic extends DocumentAtomic {
 		this.#storage = storage;
 	}
 
+	/**
+	 * Applies all accumulated checks and operations to the in-memory store.
+	 *
+	 * Validates every {@link DocumentAtomicCheck} versionstamp before writing;
+	 * throws {@link DocumentAtomicCommitError} if any check fails.
+	 *
+	 * @throws {@link DocumentAtomicCommitError} When a versionstamp check fails.
+	 */
 	async commit(): Promise<void> {
 		for (const check of this.checks) {
 			if (check.versionstamp === null) {

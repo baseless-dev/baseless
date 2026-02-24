@@ -10,6 +10,7 @@ import { Response } from "@baseless/core/response";
 import type { Prettify } from "@baseless/core/prettify";
 
 // deno-fmt-ignore
+/** Bit-field flags for access control on endpoints, documents, collections, topics, and tables. */
 export const Permission = {
 	None:		0b000000000,
 	All:		0b111111111,
@@ -23,8 +24,13 @@ export const Permission = {
 	Insert:		0b010000000,
 	Update:		0b100000000,
 } as const;
+/** Numeric bit-field type representing a set of {@link Permission} flags. */
 export type Permission = number;
 
+/**
+ * The resolved authentication context for a request — either an
+ * `{ identityId, scope }` object or `undefined` for unauthenticated requests.
+ */
 export type Auth =
 	| {
 		identityId: ID<"id_">;
@@ -32,6 +38,10 @@ export type Auth =
 	}
 	| undefined;
 
+/**
+ * Type-level registry that describes all resources (collections, documents,
+ * topics, tables, services, context) registered with an {@link App}.
+ */
 export interface AppRegistry {
 	collections: {};
 	configuration: {};
@@ -51,6 +61,10 @@ export interface AppRegistry {
 	topics: {};
 }
 
+/**
+ * The public subset of an {@link AppRegistry} exposed to clients (endpoints,
+ * collections, documents, tables, topics).
+ */
 export interface PublicAppRegistry {
 	endpoints: {};
 	collections: {};
@@ -59,6 +73,10 @@ export interface PublicAppRegistry {
 	topics: {};
 }
 
+/**
+ * A value (or async factory function) that adds properties to the request
+ * context before the handler runs.
+ */
 export type DecorationHandler<TRegistry extends AppRegistry, TDecoration extends {}> =
 	| TDecoration
 	| ((options: {
@@ -71,6 +89,10 @@ export type DecorationHandler<TRegistry extends AppRegistry, TDecoration extends
 		waitUntil: (promise: PromiseLike<unknown>) => void;
 	}) => TDecoration | Promise<TDecoration>);
 
+/**
+ * A value (or async factory function) that produces additional service objects
+ * to expose in the {@link ServiceCollection}.
+ */
 export type ServiceHandler<TRegistry extends AppRegistry, TService extends {}> =
 	| TService
 	| ((options: {
@@ -82,6 +104,10 @@ export type ServiceHandler<TRegistry extends AppRegistry, TService extends {}> =
 		waitUntil: (promise: PromiseLike<unknown>) => void;
 	}) => TService | Promise<TService>);
 
+/**
+ * Handler function for a typed API endpoint. Receives the full request
+ * context and returns a typed response.
+ */
 export type RequestHandler<
 	TRegistry extends AppRegistry,
 	TParams extends {},
@@ -101,6 +127,10 @@ export type RequestHandler<
 		waitUntil: (promise: PromiseLike<unknown>) => void;
 	}) => TResponse | Promise<TResponse>);
 
+/**
+ * Security handler that determines which {@link Permission} flags the current
+ * principal has for a given endpoint request.
+ */
 export type RequestSecurityHandler<TRegistry extends AppRegistry, TParams extends {}, TRequest extends Request> = (
 	options: {
 		app: App;
@@ -115,6 +145,10 @@ export type RequestSecurityHandler<TRegistry extends AppRegistry, TParams extend
 	},
 ) => Permission | Promise<Permission>;
 
+/**
+ * Security handler that determines which {@link Permission} flags the current
+ * principal has for a given document (read/write/delete/list).
+ */
 export type DocumentSecurityHandler<TRegistry extends AppRegistry, TParams extends {}, TData> = (options: {
 	app: App;
 	auth: Auth;
@@ -127,6 +161,10 @@ export type DocumentSecurityHandler<TRegistry extends AppRegistry, TParams exten
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 }) => Permission | Promise<Permission>;
 
+/**
+ * Hook called just before a document is created or updated.
+ * Use it to perform side-effects inside the same atomic batch.
+ */
 export type DocumentSettingHandler<TRegistry extends AppRegistry, TParams extends {}, TData> = (options: {
 	app: App;
 	atomic: DocumentServiceAtomic<TRegistry["documents"]>;
@@ -140,6 +178,10 @@ export type DocumentSettingHandler<TRegistry extends AppRegistry, TParams extend
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 }) => void | Promise<void>;
 
+/**
+ * Hook called just before a document is deleted.
+ * Use it to perform side-effects inside the same atomic batch.
+ */
 export type DocumentDeletingHandler<TRegistry extends AppRegistry, TParams extends {}, TData> = (options: {
 	app: App;
 	atomic: DocumentServiceAtomic<TRegistry["documents"]>;
@@ -152,6 +194,10 @@ export type DocumentDeletingHandler<TRegistry extends AppRegistry, TParams exten
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 }) => void | Promise<void>;
 
+/**
+ * Security handler that determines which {@link Permission} flags the current
+ * principal has for operations on a collection (list, set, delete).
+ */
 export type CollectionSecurityHandler<TRegistry extends AppRegistry, TParams extends {}> = (options: {
 	app: App;
 	auth: Auth;
@@ -163,6 +209,10 @@ export type CollectionSecurityHandler<TRegistry extends AppRegistry, TParams ext
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 }) => Permission | Promise<Permission>;
 
+/**
+ * Security handler that determines which {@link Permission} flags the current
+ * principal has for table-level (DDL) operations.
+ */
 export type TableTableSecurityHandler<TRegistry extends AppRegistry, TParams extends {}, TName extends string, TData> = (options: {
 	app: App;
 	auth: Auth;
@@ -174,6 +224,10 @@ export type TableTableSecurityHandler<TRegistry extends AppRegistry, TParams ext
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 }) => Permission | Promise<Permission>;
 
+/**
+ * Row-level security handler that returns a boolean expression used to filter
+ * rows the current principal is allowed to see.
+ */
 export type TableRowSecurityHandler<TRegistry extends AppRegistry, TParams extends {}, TName extends string, TData> = (options: {
 	app: App;
 	auth: Auth;
@@ -186,6 +240,7 @@ export type TableRowSecurityHandler<TRegistry extends AppRegistry, TParams exten
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 }) => TBooleanComparisonExpression<{}> | TBooleanExpression<{}> | Promise<TBooleanComparisonExpression<{}> | TBooleanExpression<{}>>;
 
+/** A typed message delivered to a topic handler. */
 export type TopicMessage<TData> = {
 	topic: string;
 	data: TData;
@@ -193,6 +248,10 @@ export type TopicMessage<TData> = {
 	stopImmediatePropagation: boolean;
 };
 
+/**
+ * Handler invoked for each message published to a topic the app has
+ * subscribed to via {@link AppBuilder.onTopicMessage}.
+ */
 export type TopicMessageHandler<TRegistry extends AppRegistry, TParams extends {}, TMessage> = (options: {
 	app: App;
 	auth: Auth;
@@ -205,6 +264,10 @@ export type TopicMessageHandler<TRegistry extends AppRegistry, TParams extends {
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 }) => void | Promise<void>;
 
+/**
+ * Security handler that determines which {@link Permission} flags
+ * (publish/subscribe) the current principal has for a topic.
+ */
 export type TopicMessageSecurityHandler<TRegistry extends AppRegistry, TParams extends {}, TMessage> = (options: {
 	app: App;
 	auth: Auth;
@@ -217,6 +280,11 @@ export type TopicMessageSecurityHandler<TRegistry extends AppRegistry, TParams e
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 }) => Permission | Promise<Permission>;
 
+/**
+ * Utility type that checks whether `TRegistry` satisfies all requirements
+ * declared by `TOtherRegistry`; yields an {@link AppBuilder} on success, or
+ * `never` on failure.
+ */
 // deno-fmt-ignore
 export type AppRegistryMetRequirements<TRegistry extends AppRegistry, TOtherRegistry extends AppRegistry, TOtherPublicRegistry extends PublicAppRegistry> =
 	TRegistry["context"] extends TOtherRegistry["requirements"]["context"]
@@ -233,11 +301,13 @@ export type AppRegistryMetRequirements<TRegistry extends AppRegistry, TOtherRegi
 			: never
 		: never;
 
+/** Server-private collection definition (not exposed to clients). */
 export interface ServerCollectionDefinition<TRegistry extends AppRegistry, TPath extends string, TData extends z.ZodType> {
 	path: TPath;
 	schema: TData;
 }
 
+/** Public collection definition including security handlers. */
 export interface PublicCollectionDefinition<TRegistry extends AppRegistry, TPath extends string, TData extends z.ZodType> {
 	path: TPath;
 	schema: TData;
@@ -246,13 +316,16 @@ export interface PublicCollectionDefinition<TRegistry extends AppRegistry, TPath
 	topicSecurity: TopicMessageSecurityHandler<TRegistry, PathToParams<TPath>, TData>;
 }
 
+/** Union of {@link ServerCollectionDefinition} and {@link PublicCollectionDefinition}. */
 export type CollectionDefinition = ServerCollectionDefinition<any, any, any> | PublicCollectionDefinition<any, any, any>;
 
+/** Server-private document definition (not exposed to clients). */
 export interface ServerDocumentDefinition<TRegistry extends AppRegistry, TPath extends string, TData extends z.ZodType> {
 	path: TPath;
 	schema: TData;
 }
 
+/** Public document definition including security handlers. */
 export interface PublicDocumentDefinition<TRegistry extends AppRegistry, TPath extends string, TData extends z.ZodType> {
 	path: TPath;
 	schema: TData;
@@ -260,8 +333,10 @@ export interface PublicDocumentDefinition<TRegistry extends AppRegistry, TPath e
 	topicSecurity: TopicMessageSecurityHandler<TRegistry, PathToParams<TPath>, TData>;
 }
 
+/** Union of {@link ServerDocumentDefinition} and {@link PublicDocumentDefinition}. */
 export type DocumentDefinition = ServerDocumentDefinition<any, any, any> | PublicDocumentDefinition<any, any, any>;
 
+/** Definition of a document `onSetting` lifecycle hook registered via {@link AppBuilder.onDocumentSetting}. */
 export interface OnDocumentSettingDefinition<
 	TRegistry extends AppRegistry,
 	TPath extends keyof TRegistry["documents"],
@@ -270,6 +345,7 @@ export interface OnDocumentSettingDefinition<
 	handler: DocumentSettingHandler<TRegistry, PathToParams<TPath>, TRegistry["documents"][TPath]>;
 }
 
+/** Definition of a document `onDeleting` lifecycle hook registered via {@link AppBuilder.onDocumentDeleting}. */
 export interface OnDocumentDeletingDefinition<
 	TRegistry extends AppRegistry,
 	TPath extends keyof TRegistry["documents"],
@@ -278,6 +354,7 @@ export interface OnDocumentDeletingDefinition<
 	handler: DocumentDeletingHandler<TRegistry, PathToParams<TPath>, TRegistry["documents"][TPath]>;
 }
 
+/** Definition of a typed API endpoint registered via {@link AppBuilder.endpoint}. */
 export interface EndpointDefinition<
 	TRegistry extends AppRegistry,
 	TPath extends string,
@@ -290,6 +367,7 @@ export interface EndpointDefinition<
 	handler: RequestHandler<TRegistry, PathToParams<TPath>, z.infer<TRequest>, z.infer<TResponse>>;
 }
 
+/** Server-private table definition (not exposed to clients). */
 export interface ServerTableDefinition<
 	TRegistry extends AppRegistry,
 	TName extends string,
@@ -299,6 +377,7 @@ export interface ServerTableDefinition<
 	schema: TData;
 }
 
+/** Public table definition including security handlers. */
 export interface PublicTableDefinition<
 	TRegistry extends AppRegistry,
 	TName extends string,
@@ -310,8 +389,10 @@ export interface PublicTableDefinition<
 	rowSecurity: TableRowSecurityHandler<TRegistry, {}, TName, z.infer<TData>>;
 }
 
+/** Union of {@link ServerTableDefinition} and {@link PublicTableDefinition}. */
 export type TableDefinition = ServerTableDefinition<any, any, any> | PublicTableDefinition<any, any, any>;
 
+/** Server-private topic definition (not exposed to clients). */
 export interface ServerTopicDefinition<
 	TRegistry extends AppRegistry,
 	TPath extends string,
@@ -321,6 +402,7 @@ export interface ServerTopicDefinition<
 	schema: TData;
 }
 
+/** Public topic definition including a subscribe/publish security handler. */
 export interface PublicTopicDefinition<
 	TRegistry extends AppRegistry,
 	TPath extends string,
@@ -331,8 +413,10 @@ export interface PublicTopicDefinition<
 	security: TopicMessageSecurityHandler<TRegistry, PathToParams<TPath>, TData>;
 }
 
+/** Union of {@link ServerTopicDefinition} and {@link PublicTopicDefinition}. */
 export type TopicDefinition = ServerTopicDefinition<any, any, any> | PublicTopicDefinition<any, any, any>;
 
+/** Definition of a topic `onMessage` handler registered via {@link AppBuilder.onTopicMessage}. */
 export interface OnTopicMessageDefinition<
 	TRegistry extends AppRegistry,
 	TPath extends keyof TRegistry["topics"],
@@ -341,6 +425,24 @@ export interface OnTopicMessageDefinition<
 	handler: TopicMessageHandler<TRegistry, PathToParams<TPath>, TRegistry["topics"][TPath]>;
 }
 
+/**
+ * Fluent builder for composing a Baseless server application. Obtain a fresh
+ * instance via {@link app}.
+ *
+ * Each method returns a new `AppBuilder` with the TypeScript registry updated
+ * to reflect the added resources.
+ *
+ * @example
+ * ```ts
+ * import { app } from "@baseless/server";
+ * import * as z from "@baseless/core/schema";
+ *
+ * const myApp = app()
+ *   .collection({ path: "posts", schema: z.object({ title: z.string() }), ... })
+ *   .endpoint({ path: "hello", request: z.request(), response: z.jsonResponse({ greeting: z.string() }), handler: () => Response.json({ greeting: "hi" }) })
+ *   .build();
+ * ```
+ */
 export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry extends PublicAppRegistry> {
 	#app: ConstructorParameters<typeof App>[0];
 
@@ -348,6 +450,7 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		this.#app = app;
 	}
 
+	/** Finalizes the builder and returns an immutable {@link App} instance. */
 	build(): App<TServerRegistry, TPublicRegistry> {
 		return new App(this.#app);
 	}
@@ -370,6 +473,15 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Registers a collection definition, automatically creating the backing
+	 * document path (`{path}/:key`) and topic paths.
+	 * Pass a {@link PublicCollectionDefinition} (with `collectionSecurity`,
+	 * `documentSecurity`, and `topicSecurity`) to expose it to clients, or a
+	 * {@link ServerCollectionDefinition} to keep it server-private.
+	 * @param definition The collection definition to register.
+	 * @returns A new builder with the collection added to the registry.
+	 */
 	collection<
 		TPath extends string,
 		TData extends z.ZodType,
@@ -414,6 +526,14 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Registers a standalone document definition.
+	 * Pass a {@link PublicDocumentDefinition} (with `documentSecurity` and
+	 * `topicSecurity`) to expose it to clients, or a
+	 * {@link ServerDocumentDefinition} to keep it server-private.
+	 * @param definition The document definition to register.
+	 * @returns A new builder with the document added to the registry.
+	 */
 	document<
 		TPath extends string,
 		TData extends z.ZodType,
@@ -456,6 +576,12 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Registers a typed HTTP endpoint.
+	 * @param definition The endpoint definition including its `path`, `request`
+	 * schema, `response` schema, and `handler`.
+	 * @returns A new builder with the endpoint added to the public registry.
+	 */
 	endpoint<
 		TPath extends string,
 		TRequest extends z.ZodRequest<any, any, any, any>,
@@ -478,6 +604,12 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Registers a {@link ServiceHandler} that produces additional service
+	 * objects available to all handlers via the `service` parameter.
+	 * @param constructor The service value or async factory.
+	 * @returns A new builder with the extended services type.
+	 */
 	service<TServices extends {}>(
 		constructor: ServiceHandler<TServerRegistry, TServices>,
 	): AppBuilder<{
@@ -496,6 +628,14 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Registers a SQL table definition.
+	 * Pass a {@link PublicTableDefinition} (with `tableSecurity` and
+	 * `rowSecurity`) to expose it to clients, or a
+	 * {@link ServerTableDefinition} to keep it server-private.
+	 * @param definition The table definition to register.
+	 * @returns A new builder with the table added to the registry.
+	 */
 	table<
 		TName extends string,
 		TData extends z.ZodObject,
@@ -538,6 +678,14 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Registers a pub/sub topic definition.
+	 * Pass a {@link PublicTopicDefinition} (with a `security` handler) to
+	 * expose it to clients, or a {@link ServerTopicDefinition} to keep it
+	 * server-private.
+	 * @param definition The topic definition to register.
+	 * @returns A new builder with the topic added to the registry.
+	 */
 	topic<
 		TPath extends string,
 		TData extends z.ZodType,
@@ -580,6 +728,18 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Merges another {@link AppBuilder}'s registrations into this one,
+	 * combining all collections, documents, endpoints, topics, tables,
+	 * decorators, services, and lifecycle hooks.
+	 *
+	 * The TypeScript compiler enforces that this builder's registry satisfies
+	 * all requirements declared by `other` via
+	 * {@link AppRegistryMetRequirements}.
+	 *
+	 * @param other The app builder to merge in.
+	 * @returns A new builder with the merged registries.
+	 */
 	extend<TOtherRegistry extends AppRegistry, TOtherPublicRegistry extends PublicAppRegistry>(
 		other: AppRegistryMetRequirements<TServerRegistry, TOtherRegistry, TOtherPublicRegistry>,
 	): AppBuilder<{
@@ -629,6 +789,12 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Registers an {@link OnDocumentSettingDefinition} lifecycle hook that is
+	 * called just before a matching document is created or updated.
+	 * @param definition Hook definition with `path` and `handler`.
+	 * @returns A new builder with the hook registered.
+	 */
 	onDocumentSetting<TPath extends keyof TServerRegistry["documents"]>(
 		definition: OnDocumentSettingDefinition<TServerRegistry, TPath>,
 	): AppBuilder<TServerRegistry, TPublicRegistry> {
@@ -638,6 +804,12 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Registers an {@link OnDocumentDeletingDefinition} lifecycle hook that is
+	 * called just before a matching document is deleted.
+	 * @param definition Hook definition with `path` and `handler`.
+	 * @returns A new builder with the hook registered.
+	 */
 	onDocumentDeleting<TPath extends keyof TServerRegistry["documents"]>(
 		definition: OnDocumentDeletingDefinition<TServerRegistry, TPath>,
 	): AppBuilder<TServerRegistry, TPublicRegistry> {
@@ -647,6 +819,12 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Registers an {@link OnTopicMessageDefinition} handler invoked for each
+	 * message published to a matching topic.
+	 * @param definition Handler definition with `path` and `handler`.
+	 * @returns A new builder with the handler registered.
+	 */
 	onTopicMessage<TPath extends keyof TServerRegistry["topics"]>(
 		definition: OnTopicMessageDefinition<TServerRegistry, TPath>,
 	): AppBuilder<TServerRegistry, TPublicRegistry> {
@@ -656,6 +834,12 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Declares that this app requires a collection with the given path and
+	 * schema to be provided by the host app that calls {@link extend}.
+	 * @param options Object with `path` and `schema`.
+	 * @returns A new builder with the collection requirement added.
+	 */
 	requireCollection<TPath extends string, TData extends z.ZodType>(options: {
 		path: TPath;
 		schema: TData;
@@ -689,6 +873,12 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Declares that this app requires certain configuration keys (with default
+	 * values) to be supplied by the host application.
+	 * @param defaults Record of required configuration keys and their defaults.
+	 * @returns A new builder with the configuration requirements added.
+	 */
 	requireConfiguration<TRequirements extends {}>(
 		defaults: TRequirements,
 	): AppBuilder<{
@@ -721,6 +911,12 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Declares that this app requires certain context keys (with default
+	 * values) to be provided by a {@link DecorationHandler} in the host app.
+	 * @param defaults Record of required context keys and their defaults.
+	 * @returns A new builder with the context requirements added.
+	 */
 	requireContext<TRequirements extends {}>(
 		defaults: TRequirements,
 	): AppBuilder<{
@@ -753,6 +949,12 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Declares that this app requires a document with the given path and schema
+	 * to be provided by the host app that calls {@link extend}.
+	 * @param options Object with `path` and `schema`.
+	 * @returns A new builder with the document requirement added.
+	 */
 	requireDocument<TPath extends string, TData extends z.ZodType>(options: {
 		path: TPath;
 		schema: TData;
@@ -786,6 +988,12 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Declares that this app requires certain service keys (with default
+	 * values) to be registered by the host app via {@link service}.
+	 * @param defaults Record of required service keys and their defaults.
+	 * @returns A new builder with the service requirements added.
+	 */
 	requireService<TRequirements extends {}>(
 		defaults: TRequirements,
 	): AppBuilder<{
@@ -818,6 +1026,12 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Declares that this app requires a table with the given name and schema
+	 * to be provided by the host app that calls {@link extend}.
+	 * @param options Object with `name` and `schema`.
+	 * @returns A new builder with the table requirement added.
+	 */
 	requireTable<TName extends string, TData extends z.ZodType>(options: {
 		name: TName;
 		schema: TData;
@@ -851,6 +1065,12 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		});
 	}
 
+	/**
+	 * Declares that this app requires a topic with the given path and schema
+	 * to be provided by the host app that calls {@link extend}.
+	 * @param options Object with `path` and `schema`.
+	 * @returns A new builder with the topic requirement added.
+	 */
 	requireTopic<TPath extends string, TData extends z.ZodType>(options: {
 		path: TPath;
 		schema: TData;
@@ -885,6 +1105,17 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 	}
 }
 
+/**
+ * An immutable Baseless server application that holds all registered
+ * resources (endpoints, collections, documents, topics, tables) together with
+ * pre-compiled path matchers for efficient routing.
+ *
+ * Prefer creating instances via {@link app} and {@link AppBuilder.build}
+ * rather than calling this constructor directly.
+ *
+ * @template TServerRegistry The full server-side registry.
+ * @template TPublicRegistry The public (client-facing) subset.
+ */
 export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegistry extends PublicAppRegistry = PublicAppRegistry> {
 	collections: Record<string, CollectionDefinition> = {};
 	decorators: Array<DecorationHandler<AppRegistry, {}>> = [];
@@ -1011,6 +1242,12 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 		};
 	}
 
+	/**
+	 * Looks up a registered definition by `type` and `path`, returning the
+	 * matched definition together with any extracted path parameters.
+	 * @param type The resource type to match (e.g. `"collection"`, `"document"`, `"endpoint"`).
+	 * @param path The request path to match against registered patterns.
+	 */
 	match(type: "collection", path: string): ReturnType<Matcher<CollectionDefinition>>;
 	match(type: "document", path: string): ReturnType<Matcher<DocumentDefinition>>;
 	match(type: "endpoint", path: string): ReturnType<Matcher<EndpointDefinition<any, any, any, any>>>;
@@ -1025,6 +1262,20 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 	}
 }
 
+/**
+ * Creates a new {@link AppBuilder} with an empty registry. Call builder
+ * methods to register collections, documents, endpoints, topics, and then
+ * call `.build()` to obtain the {@link App}.
+ *
+ * @returns A fresh {@link AppBuilder}.
+ *
+ * @example
+ * ```ts
+ * import { app } from "@baseless/server";
+ *
+ * const myApp = app().endpoint({ ... }).build();
+ * ```
+ */
 export function app(): AppBuilder<AppRegistry, PublicAppRegistry> {
 	return new AppBuilder<AppRegistry, PublicAppRegistry>({
 		collections: {},

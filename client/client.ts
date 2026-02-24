@@ -30,12 +30,28 @@ const INTERNAL_WEBSOCKET_STATE = Symbol();
 const INTERNAL_TOPIC_SUBSCRIPTIONS = Symbol();
 const INTERNAL_TOPIC_EMITTER = Symbol();
 
+/**
+ * Construction options for {@link Client}.
+ */
 export interface ClientOptions {
 	baseUrl: URL;
 	credentials?: Credentials;
 	fetch?: (input: string | globalThis.URL | globalThis.RequestInfo, init?: globalThis.RequestInit) => Promise<globalThis.Response>;
 }
 
+/**
+ * Main Baseless client. Handles HTTP requests, WebSocket connections, token
+ * refresh, and exposes {@link auth}, {@link document}, and {@link pubsub}
+ * sub-clients.
+ *
+ * @example
+ * ```ts
+ * import { Client } from "@baseless/client";
+ *
+ * const client = new Client({ baseUrl: new URL("http://localhost:8000/") });
+ * await client.auth.begin("authentication");
+ * ```
+ */
 export class Client implements AsyncDisposable {
 	#baseUrl: URL;
 	#credentials: Credentials;
@@ -63,18 +79,22 @@ export class Client implements AsyncDisposable {
 		this.#janitor.use(this[INTERNAL_TOPIC_EMITTER]);
 	}
 
+	/** The {@link Credentials} store used by this client. */
 	get credentials(): Credentials {
 		return this.#credentials;
 	}
 
+	/** Returns a {@link ClientAuth} sub-client for authentication operations. */
 	get auth(): ClientAuth {
 		return new ClientAuth(this);
 	}
 
+	/** Returns a {@link ClientDocument} sub-client for document store operations. */
 	get document(): ClientDocument {
 		return new ClientDocument(this);
 	}
 
+	/** Returns a {@link ClientPubsub} sub-client for publish/subscribe operations. */
 	get pubsub(): ClientPubsub {
 		return new ClientPubsub(this);
 	}
@@ -84,12 +104,17 @@ export class Client implements AsyncDisposable {
 		await this.disconnect();
 	}
 
+	/**
+	 * Casts the client to a strongly-typed wrapper inferred from the given
+	 * {@link App} type parameter.
+	 */
 	asTyped<TApp extends App<any, any>>(): TypedClient<
 		TApp extends App<any, infer TPublicAppRegistry> ? TPublicAppRegistry : PublicAppRegistry
 	> {
 		return this as never;
 	}
 
+	/** Returns the client without the typed wrapper. */
 	asUntyped(): Client {
 		return this as never;
 	}
@@ -123,6 +148,13 @@ export class Client implements AsyncDisposable {
 		await this.#refreshTokensIfNeededPromise;
 	}
 
+	/**
+	 * Makes an authenticated HTTP request to the server and returns the parsed
+	 * {@link Response}. Throws if the server returns an error payload.
+	 * @param path The server path (relative to `baseUrl`).
+	 * @param init Optional native `RequestInit` options.
+	 * @returns The server response.
+	 */
 	async fetch(path: string, init?: globalThis.RequestInit): Promise<Response> {
 		await this.#refreshTokensIfNeeded(init?.signal ?? undefined);
 		const tokens = this.#credentials.tokens;
@@ -143,6 +175,11 @@ export class Client implements AsyncDisposable {
 		return response;
 	}
 
+	/**
+	 * Opens a WebSocket connection to the server (or reuses an existing one).
+	 * Automatically re-subscribes to any active topics after reconnecting.
+	 * @param baseUrl Optional override for the WebSocket URL.
+	 */
 	async connect(baseUrl?: URL): Promise<void> {
 		this[INTERNAL_WEBSOCKET] ??= this.#refreshTokensIfNeeded()
 			.then(() => {
@@ -190,6 +227,9 @@ export class Client implements AsyncDisposable {
 		await this[INTERNAL_WEBSOCKET];
 	}
 
+	/**
+	 * Closes the active WebSocket connection and clears all topic subscriptions.
+	 */
 	async disconnect(): Promise<void> {
 		const socket = await this[INTERNAL_WEBSOCKET];
 		if (socket) {
@@ -204,6 +244,10 @@ export class Client implements AsyncDisposable {
 	}
 }
 
+/**
+ * Sub-client for authentication operations (begin ceremony, sign out).
+ * Obtain an instance via {@link Client.auth}.
+ */
 export class ClientAuth {
 	#client: Client;
 
@@ -211,6 +255,12 @@ export class ClientAuth {
 		this.#client = client;
 	}
 
+	/**
+	 * Starts a new authentication or registration ceremony.
+	 * @param kind Whether to start an `"authentication"` or `"registration"` flow.
+	 * @param options Optional scopes, abort signal, and local ceremony store.
+	 * @returns A {@link ClientAuthCeremony} to drive the multi-step flow.
+	 */
 	begin(
 		kind: "authentication" | "registration",
 		options?: { scopes?: string[]; signal?: AbortSignal; store?: ClientAuthCeremonyStore },
@@ -218,6 +268,11 @@ export class ClientAuth {
 		return ClientAuthCeremony.init(this.#client, kind, options);
 	}
 
+	/**
+	 * Signs the current user out by invalidating their session on the server and
+	 * removing stored credentials.
+	 * @param signal Optional abort signal.
+	 */
 	async signOut(signal?: AbortSignal): Promise<void> {
 		const identityId = this.#client.credentials.tokens?.identity.id;
 		if (identityId) {
@@ -231,6 +286,10 @@ export class ClientAuth {
 	}
 }
 
+/**
+ * Optional persistence interface supplied to {@link ClientAuthCeremony} so
+ * that ceremony progress survives page reloads.
+ */
 export interface ClientAuthCeremonyStore {
 	set: (steps: Array<AuthenticationStep | AuthenticationComponentChoiceSelection>) => void | Promise<void>;
 	get: () =>
@@ -240,10 +299,17 @@ export interface ClientAuthCeremonyStore {
 	delete: () => void | Promise<void>;
 }
 
+/**
+ * Represents a user's choice when the ceremony presents a choice step.
+ */
 export interface AuthenticationComponentChoiceSelection {
 	selected: string;
 }
 
+/**
+ * Drives a multi-step authentication or registration ceremony.
+ * Obtain an instance via {@link ClientAuth.begin}.
+ */
 export class ClientAuthCeremony implements Disposable {
 	#client: Client;
 	#kind: "authentication" | "registration";
@@ -293,6 +359,7 @@ export class ClientAuthCeremony implements Disposable {
 		this.#emitter[Symbol.dispose]();
 	}
 
+	/** The current {@link AuthenticationStep}, or `null` when the ceremony is complete. */
 	get current(): AuthenticationStep | null {
 		const current = this.#steps.at(-1) ?? null;
 		if (current && "selected" in current) {
@@ -312,10 +379,19 @@ export class ClientAuthCeremony implements Disposable {
 		return current;
 	}
 
+	/**
+	 * Registers a callback invoked whenever the current step changes.
+	 * @param handler Called with the new step (or `null` when finished).
+	 * @returns A {@link Disposable} that removes the listener when disposed.
+	 */
 	onChange(handler: (step: AuthenticationStep | null) => void): Disposable {
 		return this.#emitter.on("step", handler);
 	}
 
+	/**
+	 * Resets the ceremony back to the first step by requesting a fresh one from
+	 * the server.
+	 */
 	async reset(): Promise<void> {
 		const response = await this.#client.fetch(`core/auth/begin`, {
 			method: "POST",
@@ -329,6 +405,10 @@ export class ClientAuthCeremony implements Disposable {
 		this.#emitter.emit("step", this.current);
 	}
 
+	/**
+	 * Goes back to the previous step.
+	 * Does nothing if already at the first step.
+	 */
 	async prev(): Promise<void> {
 		if (this.#steps.length > 1) {
 			this.#steps = this.#steps.slice(0, -1);
@@ -338,6 +418,12 @@ export class ClientAuthCeremony implements Disposable {
 		this.#emitter.emit("step", this.current);
 	}
 
+	/**
+	 * Selects a component by `id` when the current step is a choice step.
+	 * @param id The component ID to pick.
+	 * @throws {@link AuthenticationCeremonyInvalidStateError} if not at a choice step.
+	 * @throws {@link AuthenticationCeremonyInvalidPromptError} if `id` is not a valid option.
+	 */
 	async choose(id: string): Promise<void> {
 		const current = this.current;
 		if (!current) {
@@ -373,6 +459,12 @@ export class ClientAuthCeremony implements Disposable {
 		}
 	}
 
+	/**
+	 * Asks the server to send a prompt (e.g. an OTP code) to the user's channel.
+	 * @param locale BCP 47 locale string for the message.
+	 * @param signal Optional abort signal.
+	 * @returns `true` if the prompt was sent successfully.
+	 */
 	async sendPrompt(locale: string, signal?: AbortSignal): Promise<boolean> {
 		const id = this.current?.step.kind === "component" ? this.current?.step.id : null;
 		if (!id) {
@@ -388,6 +480,12 @@ export class ClientAuthCeremony implements Disposable {
 		return response.body.result;
 	}
 
+	/**
+	 * Submits the user's answer for the current prompt step.
+	 * @param value The prompt value to submit.
+	 * @param signal Optional abort signal.
+	 * @returns The next {@link AuthenticationResponse} (another step or tokens).
+	 */
 	async submitPrompt(value: unknown, signal?: AbortSignal): Promise<AuthenticationResponse> {
 		const id = this.current?.step.kind === "component" ? this.current?.step.id : null;
 		if (!id) {
@@ -414,6 +512,12 @@ export class ClientAuthCeremony implements Disposable {
 		return response.body.result;
 	}
 
+	/**
+	 * Asks the server to send a validation code (e.g. for email/phone OTP).
+	 * @param locale BCP 47 locale string for the message.
+	 * @param signal Optional abort signal.
+	 * @returns `true` if the code was sent successfully.
+	 */
 	async sendValidationCode(locale: string, signal?: AbortSignal): Promise<boolean> {
 		const id = this.current?.step.kind === "component" ? this.current?.step.id : null;
 		if (!id) {
@@ -429,6 +533,12 @@ export class ClientAuthCeremony implements Disposable {
 		return response.body.result;
 	}
 
+	/**
+	 * Submits a validation code received out-of-band (e.g. via email).
+	 * @param code The validation code to submit.
+	 * @param signal Optional abort signal.
+	 * @returns The next {@link AuthenticationResponse} (another step or tokens).
+	 */
 	async submitValidationCode(code: unknown, signal?: AbortSignal): Promise<AuthenticationResponse> {
 		const id = this.current?.step.kind === "component" ? this.current?.step.id : null;
 		if (!id) {
@@ -456,6 +566,10 @@ export class ClientAuthCeremony implements Disposable {
 	}
 }
 
+/**
+ * Sub-client for document store operations (get, list, atomic writes).
+ * Obtain an instance via {@link Client.document}.
+ */
 export class ClientDocument {
 	#client: Client;
 
@@ -463,6 +577,13 @@ export class ClientDocument {
 		this.#client = client;
 	}
 
+	/**
+	 * Fetches a single document by path.
+	 * @param path The document path.
+	 * @param options Optional consistency / read options.
+	 * @param signal Optional abort signal.
+	 * @returns The {@link Document} at the given path.
+	 */
 	async get(path: string, options?: DocumentGetOptions, signal?: AbortSignal): Promise<Document<unknown>> {
 		const response = await this.#client.fetch(`core/document/get`, {
 			signal,
@@ -474,6 +595,13 @@ export class ClientDocument {
 		return response.body.document;
 	}
 
+	/**
+	 * Fetches multiple documents in a single request.
+	 * @param paths Array of document paths to retrieve.
+	 * @param options Optional consistency / read options.
+	 * @param signal Optional abort signal.
+	 * @returns An array of {@link Document} values in the same order as `paths`.
+	 */
 	async getMany(paths: Array<string>, options?: DocumentGetOptions, signal?: AbortSignal): Promise<Array<Document<unknown>>> {
 		const response = await this.#client.fetch(`core/document/get-many`, {
 			signal,
@@ -485,6 +613,13 @@ export class ClientDocument {
 		return response.body.documents;
 	}
 
+	/**
+	 * Lists documents under a path prefix, streaming results as a
+	 * `ReadableStream`.
+	 * @param options Listing options (prefix, cursor, limit, etc.).
+	 * @param signal Optional abort signal to cancel the stream.
+	 * @returns A stream of {@link DocumentListEntry} values.
+	 */
 	list(options: DocumentListOptions, signal?: AbortSignal): ReadableStream<DocumentListEntry<unknown>> {
 		const abortController = new AbortController();
 		signal?.addEventListener("abort", () => abortController.abort(), { once: true });
@@ -508,11 +643,19 @@ export class ClientDocument {
 		});
 	}
 
+	/**
+	 * Returns a builder for atomic document operations.
+	 * @returns A {@link ClientDocumentAtomic} builder.
+	 */
 	atomic(): ClientDocumentAtomic {
 		return new ClientDocumentAtomic(this.#client);
 	}
 }
 
+/**
+ * Builder for atomic document operations (check-and-set / delete).
+ * Obtain an instance via {@link ClientDocument.atomic}.
+ */
 export class ClientDocumentAtomic {
 	#client: Client;
 	#checks: DocumentAtomicCheck[] = [];
@@ -522,21 +665,42 @@ export class ClientDocumentAtomic {
 		this.#client = client;
 	}
 
+	/**
+	 * Adds a version-stamp pre-condition to the atomic operation.
+	 * @param path The document path.
+	 * @param versionstamp The expected versionstamp, or `null` to check absence.
+	 * @returns `this` for chaining.
+	 */
 	check(path: string, versionstamp: string | null): ClientDocumentAtomic {
 		this.#checks.push({ type: "check", key: path, versionstamp });
 		return this;
 	}
 
+	/**
+	 * Adds a set operation to the atomic batch.
+	 * @param path The document path.
+	 * @param value The value to write.
+	 * @returns `this` for chaining.
+	 */
 	set(path: string, value: unknown): ClientDocumentAtomic {
 		this.#operations.push({ type: "set", key: path, data: value });
 		return this;
 	}
 
+	/**
+	 * Adds a delete operation to the atomic batch.
+	 * @param path The document path to delete.
+	 * @returns `this` for chaining.
+	 */
 	delete(path: string): ClientDocumentAtomic {
 		this.#operations.push({ type: "delete", key: path });
 		return this;
 	}
 
+	/**
+	 * Commits the atomic batch to the server.
+	 * @param signal Optional abort signal.
+	 */
 	async commit(signal?: AbortSignal): Promise<void> {
 		const response = await this.#client.fetch(`core/document/commit`, {
 			signal,
@@ -554,6 +718,10 @@ export class ClientDocumentAtomic {
 	}
 }
 
+/**
+ * Sub-client for publish/subscribe operations.
+ * Obtain an instance via {@link Client.pubsub}.
+ */
 export class ClientPubsub {
 	#client: Client;
 
@@ -561,6 +729,12 @@ export class ClientPubsub {
 		this.#client = client;
 	}
 
+	/**
+	 * Publishes a `payload` to all subscribers of `key`.
+	 * @param key The topic key.
+	 * @param payload The payload to broadcast.
+	 * @param signal Optional abort signal.
+	 */
 	async publish(key: string, payload: unknown, signal?: AbortSignal): Promise<void> {
 		const response = await this.#client.fetch(`core/pubsub/publish`, {
 			signal,
@@ -572,6 +746,14 @@ export class ClientPubsub {
 		return;
 	}
 
+	/**
+	 * Returns a `ReadableStream` that emits payloads published to `key`.
+	 * Opens a WebSocket connection if one is not already active.
+	 * The stream unsubscribes automatically when cancelled.
+	 * @param key The topic key to subscribe to.
+	 * @param signal Optional abort signal to cancel the stream.
+	 * @returns A stream of incoming payloads.
+	 */
 	subscribe(key: string, signal?: AbortSignal): ReadableStream<unknown> {
 		let listener: Disposable;
 		let socket: WebSocket;
@@ -598,13 +780,26 @@ export class ClientPubsub {
 	}
 }
 
+/**
+ * Strongly-typed wrapper around {@link Client} inferred from an
+ * {@link App} definition. Obtain via {@link Client.asTyped}.
+ *
+ * @template TPublicAppRegistry The registry exported by the server app.
+ */
 export interface TypedClient<TPublicAppRegistry extends PublicAppRegistry> extends AsyncDisposable {
+	/** The {@link Credentials} store used by this client. */
 	credentials: Credentials;
 
+	/** Returns the client without the typed wrapper. */
 	asUntyped(): Client;
 
 	/**
-	 * Fetch an endpoint using GET method
+	 * Makes an authenticated HTTP request to a typed endpoint using the GET
+	 * method. The `init` argument may be omitted when the endpoint requires no
+	 * custom headers or body.
+	 * @param path Reference to the endpoint path.
+	 * @param init Optional request options (headers, signal, etc.).
+	 * @returns The typed response produced by the endpoint.
 	 */
 	fetch<TPath extends keyof RemoveBuiltinEndpoints<TPublicAppRegistry["endpoints"]>>(
 		// @ts-expect-error: request parameter is expected
@@ -618,7 +813,12 @@ export interface TypedClient<TPublicAppRegistry extends PublicAppRegistry> exten
 		// @ts-expect-error: response parameter is expected
 	): Promise<TPublicAppRegistry["endpoints"][TPath]["response"]>;
 	/**
-	 * Fetch an endpoint
+	 * Makes an authenticated HTTP request to a typed endpoint. Automatically
+	 * attaches the bearer token and throws if the server returns an error payload.
+	 * @param path Reference to the endpoint path.
+	 * @param init Request options including method, headers, and body as required
+	 *   by the endpoint's request type.
+	 * @returns The typed response produced by the endpoint.
 	 */
 	fetch<TPath extends keyof RemoveBuiltinEndpoints<TPublicAppRegistry["endpoints"]>>(
 		path: Reference<TPath>,
@@ -630,51 +830,136 @@ export interface TypedClient<TPublicAppRegistry extends PublicAppRegistry> exten
 		// @ts-expect-error: response parameter is expected
 	): Promise<TPublicAppRegistry["endpoints"][TPath]["response"]>;
 
+	/**
+	 * Opens a WebSocket connection to the server (or reuses an existing one).
+	 * Automatically re-subscribes to any active topics after reconnecting.
+	 * @param baseUrl Optional override for the WebSocket URL.
+	 */
 	connect(baseUrl?: URL): Promise<void>;
 
+	/** Sub-client for authentication operations. */
 	auth: ClientAuth;
+	/** Typed document sub-client. */
 	document: TypedClientDocument<TPublicAppRegistry["collections"], TPublicAppRegistry["documents"]>;
+	/** Typed pubsub sub-client. */
 	pubsub: TypedClientPubsub<TPublicAppRegistry["topics"]>;
 }
 
+/**
+ * Typed document sub-client inferred from an {@link App} registry.
+ *
+ * @template TCollections Map of collection paths to their document types.
+ * @template TDocuments Map of document paths to their value types.
+ */
 export interface TypedClientDocument<
 	TCollections extends PublicAppRegistry["collections"],
 	TDocuments extends PublicAppRegistry["documents"],
 > {
+	/**
+	 * Fetches a single document by path.
+	 * @param ref Reference to the document path.
+	 * @param options Optional consistency / read options.
+	 * @param signal Optional abort signal.
+	 * @returns The {@link Document} at the given path.
+	 */
 	get<TPath extends keyof TDocuments>(
 		ref: Reference<TPath>,
 		options?: DocumentGetOptions,
 		signal?: AbortSignal,
 	): Promise<Document<TDocuments[TPath]>>;
+	/**
+	 * Fetches multiple documents in a single request.
+	 * @param refs Array of document path references to retrieve.
+	 * @param options Optional consistency / read options.
+	 * @param signal Optional abort signal.
+	 * @returns An array of {@link Document} values in the same order as `refs`.
+	 */
 	getMany<TPath extends keyof TDocuments>(
 		refs: Array<Reference<TPath>>,
 		options?: DocumentGetOptions,
 		signal?: AbortSignal,
 	): Promise<Array<Document<TDocuments[TPath]>>>;
+	/**
+	 * Lists documents under a path prefix, streaming results as a
+	 * `ReadableStream`.
+	 * @param options Listing options (prefix, cursor, limit, etc.).
+	 * @param signal Optional abort signal to cancel the stream.
+	 * @returns A stream of {@link DocumentListEntry} values.
+	 */
 	list<TPath extends keyof TCollections>(
 		options: DocumentListOptions<Reference<TPath>>,
 		signal?: AbortSignal,
 	): ReadableStream<DocumentListEntry<TCollections[TPath]>>;
+	/**
+	 * Returns a builder for atomic document operations.
+	 * @returns A {@link TypedClientDocumentAtomic} builder.
+	 */
 	atomic(): TypedClientDocumentAtomic<TCollections, TDocuments>;
 }
 
+/**
+ * Typed atomic document operation builder inferred from an {@link App} registry.
+ *
+ * @template TCollections Map of collection paths to their document types.
+ * @template TDocuments Map of document paths to their value types.
+ */
 export interface TypedClientDocumentAtomic<
 	TCollections extends PublicAppRegistry["collections"],
 	TDocuments extends PublicAppRegistry["documents"],
 > {
+	/**
+	 * Adds a version-stamp pre-condition to the atomic operation.
+	 * @param ref Reference to the document path.
+	 * @param versionstamp The expected versionstamp, or `null` to check absence.
+	 * @returns `this` for chaining.
+	 */
 	check<TPath extends keyof TDocuments>(
 		ref: Reference<TPath>,
 		versionstamp: string | null,
 	): TypedClientDocumentAtomic<TCollections, TDocuments>;
+	/**
+	 * Adds a set operation to the atomic batch.
+	 * @param ref Reference to the document path.
+	 * @param value The value to write.
+	 * @returns `this` for chaining.
+	 */
 	set<TPath extends keyof TDocuments>(ref: Reference<TPath>, value: TDocuments[TPath]): TypedClientDocumentAtomic<TCollections, TDocuments>;
+	/**
+	 * Adds a delete operation to the atomic batch.
+	 * @param ref Reference to the document path to delete.
+	 * @returns `this` for chaining.
+	 */
 	delete<TPath extends keyof TDocuments>(ref: Reference<TPath>): TypedClientDocumentAtomic<TCollections, TDocuments>;
+	/**
+	 * Commits the atomic batch to the server.
+	 * @param signal Optional abort signal.
+	 */
 	commit(signal?: AbortSignal): Promise<void>;
 }
 
+/**
+ * Typed pubsub sub-client inferred from an {@link App} registry.
+ *
+ * @template TTopics Map of topic paths to their payload types.
+ */
 export interface TypedClientPubsub<
 	TTopics extends PublicAppRegistry["topics"],
 > {
+	/**
+	 * Publishes a `payload` to all subscribers of `ref`.
+	 * @param ref Reference to the topic key.
+	 * @param payload The payload to broadcast.
+	 * @param signal Optional abort signal.
+	 */
 	publish<TPath extends keyof TTopics>(ref: Reference<TPath>, payload: TTopics[TPath], signal?: AbortSignal): Promise<void>;
+	/**
+	 * Returns a `ReadableStream` that emits payloads published to `ref`.
+	 * Opens a WebSocket connection if one is not already active.
+	 * The stream unsubscribes automatically when cancelled.
+	 * @param ref Reference to the topic key to subscribe to.
+	 * @param abortSignal Optional abort signal to cancel the stream.
+	 * @returns A stream of incoming payloads.
+	 */
 	subscribe<TPath extends keyof TTopics>(ref: Reference<TPath>, abortSignal?: AbortSignal): ReadableStream<TTopics[TPath]>;
 }
 

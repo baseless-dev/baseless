@@ -19,6 +19,7 @@ import type {
 import { otp } from "@baseless/core/otp";
 import type { AppRegistry } from "../app.ts";
 
+/** Options for constructing an {@link EmailIdentityComponentProvider}. */
 export interface EmailIdentityComponentProviderOptions {
 	setupOtp?: boolean;
 	sendValidationNotification: (options: {
@@ -31,6 +32,11 @@ export interface EmailIdentityComponentProviderOptions {
 	}) => Notification | Promise<Notification>;
 }
 
+/**
+ * {@link IdentityComponentProvider} that authenticates users by email address.
+ * Validates the email by sending a one-time validation code and can optionally
+ * set up an OTP component at the same time.
+ */
 export class EmailIdentityComponentProvider implements IdentityComponentProvider {
 	#options: EmailIdentityComponentProviderOptions;
 

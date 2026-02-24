@@ -16,6 +16,7 @@ import type {
 } from "../provider.ts";
 import { otp, OTPOptions } from "@baseless/core/otp";
 
+/** Options for constructing an {@link OtpComponentProvider}. */
 export interface OtpComponentProviderOptions {
 	otp: OTPOptions;
 	signInNotification: (options: {
@@ -28,6 +29,10 @@ export interface OtpComponentProviderOptions {
 	}) => Notification | Promise<Notification>;
 }
 
+/**
+ * {@link IdentityComponentProvider} that authenticates users via a
+ * one-time password (OTP) sent to a channel registered on the identity.
+ */
 export class OtpComponentProvider implements IdentityComponentProvider {
 	#options: OtpComponentProviderOptions;
 

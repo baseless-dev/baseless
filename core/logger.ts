@@ -10,6 +10,9 @@ export const LogLevel = {
 	CRITICAL: "CRITICAL",
 } as const;
 
+/**
+ * Log level type — a union of all level name strings defined in {@link LogLevel}.
+ */
 export type LogLevel = typeof LogLevel[keyof typeof LogLevel];
 
 /**
@@ -42,6 +45,10 @@ export type LogHandler = (
 	message: string,
 ) => void;
 
+/**
+ * Maps each {@link LogLevel} value to the conventional lowercase method name
+ * used on a {@link Logger} instance (e.g. `"DEBUG"` → `"debug"`).
+ */
 export const LogLevelMethod = {
 	[LogLevel.DEBUG]: "debug",
 	[LogLevel.LOG]: "log",
@@ -145,9 +152,15 @@ export function createLogger(namespace: string): Logger {
 
 const defaultLogger: Logger = createLogger("default");
 
+/** Logs a debug-level message using the default logger. */
 export const debug = defaultLogger.debug;
+/** Logs a log-level message using the default logger. */
 export const log = defaultLogger.log;
+/** Logs an info-level message using the default logger. */
 export const info = defaultLogger.info;
+/** Logs a warning using the default logger. */
 export const warn = defaultLogger.warn;
+/** Logs an error using the default logger. */
 export const error = defaultLogger.error;
+/** Logs a critical message using the default logger. */
 export const critical = defaultLogger.critical;

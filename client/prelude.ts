@@ -1,3 +1,8 @@
+/**
+ * @module
+ * Browser/server SDK for Baseless — provides {@link Client}, {@link Credentials},
+ * typed document, pubsub, and authentication helpers.
+ */
 export * from "./client.ts";
 export * from "./credentials.ts";
 export * from "./errors.ts";

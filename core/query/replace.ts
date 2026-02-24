@@ -10,6 +10,20 @@ import {
 } from "./schema.ts";
 import { visit } from "./visit.ts";
 
+/**
+ * Recursively traverses a {@link TAnyFragment} AST and replaces nodes using
+ * the provided `replacer` callback.
+ *
+ * The `replacer` is called for every node in the tree. Returning `undefined`
+ * leaves the node unchanged; returning a new node substitutes it in place.
+ * Structural equality is checked via {@link isFragmentEquals} so that nodes
+ * that are not modified are returned by reference.
+ *
+ * @param search The root AST node to traverse.
+ * @param replacer Called for each {@link TAnyFragment} node. Return a
+ * replacement node or `undefined` to keep the original.
+ * @returns The (possibly mutated) AST root.
+ */
 export function replace(search: TAnyFragment, replacer: <T extends TAnyFragment>(node: T) => T | undefined): TAnyFragment {
 	return visit<TAnyFragment, void>(search, {
 		visitLiteral: (node) => replacer(node) ?? node,

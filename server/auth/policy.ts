@@ -13,16 +13,26 @@ import type {
 } from "../provider.ts";
 import { ref } from "@baseless/core/ref";
 
+/** Options for constructing a {@link PolicyIdentityComponentProvider}. */
 export interface PolicyIdentityComponentProviderOptions {
 	policies: Policy[];
 }
 
+/**
+ * {@link IdentityComponentProvider} that presents terms-of-service /
+ * privacy-policy acceptance prompts to users during sign-in or registration.
+ */
 export class PolicyIdentityComponentProvider implements IdentityComponentProvider {
 	#policies: Policy[];
 	constructor(policies: Policy[]) {
 		this.#policies = policies;
 	}
 
+	/**
+	 * Returns `true` when all required {@link Policy} documents have been
+	 * accepted in `responses`.
+	 * @param responses Map of policy identifiers to accepted version strings.
+	 */
 	verifyRequiredDocumentAccepted(responses: Record<string, string>): boolean {
 		return this.#policies
 			.filter((policy) => policy.required === true)
@@ -90,6 +100,10 @@ export class PolicyIdentityComponentProvider implements IdentityComponentProvide
 	}
 }
 
+/**
+ * A single policy (terms, privacy notice, etc.) that users must accept.
+ * Paired with a Zod schema const of the same name.
+ */
 export interface Policy {
 	identifier: string;
 	version: string;
@@ -98,6 +112,7 @@ export interface Policy {
 	content: Record<string, string>;
 }
 
+/** Zod schema for {@link Policy}. */
 export const Policy = z.strictObject({
 	identifier: z.string(),
 	version: z.string(),

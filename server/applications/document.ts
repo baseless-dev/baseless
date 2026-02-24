@@ -193,4 +193,5 @@ const documentApp = app()
 
 export default documentApp;
 
+/** The compiled document {@link App} returned by `documentApp.build()`. */
 export type DocumentApplication = ReturnType<typeof documentApp.build>;

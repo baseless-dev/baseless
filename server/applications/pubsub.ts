@@ -47,4 +47,5 @@ const pubsubApp = app()
 
 export default pubsubApp;
 
+/** The compiled pub/sub {@link App} returned by `pubsubApp.build()`. */
 export type PubsubApplication = ReturnType<typeof pubsubApp.build>;

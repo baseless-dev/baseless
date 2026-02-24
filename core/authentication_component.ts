@@ -1,5 +1,10 @@
 import * as z from "./schema.ts";
 
+/**
+ * A single prompt component presented to the user during an authentication or
+ * registration ceremony. Describes what input to collect (e.g. an email address
+ * or a TOTP code) via its `prompt` discriminator and `options` metadata.
+ */
 export interface AuthenticationComponentPrompt {
 	kind: "component";
 	id: string;
@@ -8,15 +13,24 @@ export interface AuthenticationComponentPrompt {
 	sendable: boolean;
 }
 
+/**
+ * A choice component that presents the user with multiple
+ * {@link AuthenticationComponentPrompt} alternatives to select from.
+ */
 export interface AuthenticationComponentChoice {
 	kind: "choice";
 	prompts: AuthenticationComponentPrompt[];
 }
 
+/**
+ * An authentication component — either a {@link AuthenticationComponentPrompt}
+ * or an {@link AuthenticationComponentChoice}.
+ */
 export type AuthenticationComponent =
 	| AuthenticationComponentPrompt
 	| AuthenticationComponentChoice;
 
+/** Zod schema for {@link AuthenticationComponentPrompt}. */
 export const AuthenticationComponentPrompt = z.strictObject({
 	kind: z.literal("component"),
 	id: z.string(),
@@ -25,11 +39,13 @@ export const AuthenticationComponentPrompt = z.strictObject({
 	sendable: z.boolean(),
 }).meta({ id: "AuthenticationComponentPrompt" });
 
+/** Zod schema for {@link AuthenticationComponentChoice}. */
 export const AuthenticationComponentChoice = z.strictObject({
 	kind: z.literal("choice"),
 	prompts: z.array(AuthenticationComponentPrompt),
 }).meta({ id: "AuthenticationComponentChoice" });
 
+/** Zod schema for {@link AuthenticationComponent}. */
 export const AuthenticationComponent = z.union([
 	AuthenticationComponentPrompt,
 	AuthenticationComponentChoice,

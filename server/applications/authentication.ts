@@ -29,6 +29,10 @@ import {
 import { AuthenticationComponent } from "@baseless/core/authentication-component";
 import { Response } from "@baseless/core/response";
 
+/**
+ * Async function or value that resolves the authentication / registration
+ * ceremony for the current request context.
+ */
 export type AuthenticationCeremonyResolver = (
 	options: {
 		context: AppRegistry["context"];
@@ -38,6 +42,10 @@ export type AuthenticationCeremonyResolver = (
 	},
 ) => AuthenticationCeremony | Promise<AuthenticationCeremony>;
 
+/**
+ * Configuration options for the built-in authentication application.
+ * Pass this as `{ auth: options }` in the server's `configuration` object.
+ */
 export interface AuthOptions {
 	accessTokenTTL: number;
 	authenticationTTL: number;
@@ -597,6 +605,7 @@ const authApp = app()
 
 export default authApp;
 
+/** The compiled authentication {@link App} returned by `authApp.build()`. */
 export type AuthenticationApplication = ReturnType<typeof authApp.build>;
 
 async function unrollState({
@@ -885,6 +894,10 @@ async function mapCeremonyToComponent({ ceremony, state, configuration, context,
 	return prompts.length === 1 ? prompts[0] : { kind: "choice", prompts };
 }
 
+/**
+ * Encrypted opaque state blob exchanged between the client and server during
+ * a multi-step authentication or registration ceremony.
+ */
 export type AuthenticationState =
 	| {
 		kind: "authentication";
@@ -900,6 +913,7 @@ export type AuthenticationState =
 		scopes: string[];
 	};
 
+/** Zod schema for {@link AuthenticationState}. */
 export const AuthenticationState = z.union([
 	z.strictObject({
 		kind: z.literal("authentication"),

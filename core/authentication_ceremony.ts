@@ -1,29 +1,53 @@
 import * as z from "./schema.ts";
 
+/**
+ * A single component node in an {@link AuthenticationCeremony} tree.
+ * Identifies a named authentication component (e.g. `"email"`, `"password"`).
+ */
 export interface AuthenticationCeremonyComponent {
 	kind: "component";
 	component: string;
 }
 
+/**
+ * An ordered sequence of {@link AuthenticationCeremony} nodes.
+ * All components in the sequence must be completed in order.
+ */
 export interface AuthenticationCeremonySequence<T = AuthenticationCeremony> {
 	kind: "sequence";
 	components: T[];
 }
 
+/**
+ * A choice between multiple {@link AuthenticationCeremony} nodes.
+ * The user must complete exactly one of the alternatives.
+ */
 export interface AuthenticationCeremonyChoice<T = AuthenticationCeremony> {
 	kind: "choice";
 	components: T[];
 }
 
+/**
+ * A ceremony tree node — either a {@link AuthenticationCeremonyComponent},
+ * a {@link AuthenticationCeremonySequence}, or a {@link AuthenticationCeremonyChoice}.
+ */
 export type AuthenticationCeremony =
 	| AuthenticationCeremonyComponent
 	| AuthenticationCeremonySequence
 	| AuthenticationCeremonyChoice;
 
+/**
+ * A shallow {@link AuthenticationCeremonySequence} whose children are all
+ * {@link AuthenticationCeremonyComponent} leaves (no nested sequences or choices).
+ */
 export type AuthenticationCeremonySequenceShallow = AuthenticationCeremonySequence<
 	AuthenticationCeremonyComponent
 >;
 
+/**
+ * A shallow {@link AuthenticationCeremonyChoice} whose alternatives are all
+ * {@link AuthenticationCeremonyComponent} leaves (no nested sequences or choices).
+ */
 export type AuthenticationCeremonyChoiceShallow = AuthenticationCeremonyChoice<
 	AuthenticationCeremonyComponent
 >;
@@ -55,11 +79,13 @@ export function component(component: string): AuthenticationCeremonyComponent {
 	return { kind: "component", component };
 }
 
+/** Zod schema for {@link AuthenticationCeremonyComponent}. */
 export const AuthenticationCeremonyComponent = z.strictObject({
 	kind: z.literal("component"),
 	component: z.string(),
 }).meta({ id: "AuthenticationCeremonyComponent" });
 
+/** Zod schema for {@link AuthenticationCeremony}. */
 export const AuthenticationCeremony = z.lazy(() =>
 	z.union([
 		AuthenticationCeremonyComponent,
@@ -70,6 +96,7 @@ export const AuthenticationCeremony = z.lazy(() =>
 	})
 );
 
+/** Zod schema for {@link AuthenticationCeremonySequence}. */
 export const AuthenticationCeremonySequence = z.strictObject({
 	kind: z.literal("sequence"),
 	get components(): z.ZodArray<typeof AuthenticationCeremony> {
@@ -77,6 +104,7 @@ export const AuthenticationCeremonySequence = z.strictObject({
 	},
 }).meta({ id: "AuthenticationCeremonySequence" });
 
+/** Zod schema for {@link AuthenticationCeremonyChoice}. */
 export const AuthenticationCeremonyChoice = z.strictObject(
 	{
 		kind: z.literal("choice"),
@@ -88,11 +116,13 @@ export const AuthenticationCeremonyChoice = z.strictObject(
 	{ id: "AuthenticationCeremonyChoice" },
 );
 
+/** Zod schema for {@link AuthenticationCeremonySequenceShallow}. */
 export const AuthenticationCeremonySequenceShallow = z.strictObject({
 	kind: z.literal("sequence"),
 	components: z.array(AuthenticationCeremonyComponent),
 }).meta({ id: "AuthenticationCeremonySequenceShallow" });
 
+/** Zod schema for {@link AuthenticationCeremonyChoiceShallow}. */
 export const AuthenticationCeremonyChoiceShallow = z.strictObject({
 	kind: z.literal("choice"),
 	components: z.array(AuthenticationCeremonyComponent),

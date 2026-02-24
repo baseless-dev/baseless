@@ -1,3 +1,10 @@
+/**
+ * A typed variant of the platform `FormData` API.
+ * Constrains `append`, `get`, `getAll`, `has`, and `set` to the fields
+ * defined in `TData`.
+ *
+ * @template TData A record mapping field names to their value types.
+ */
 export interface TypedFormData<TData extends Record<string, string | File> = Record<string, string | File>>
 	extends DomIterable<keyof TData, TData[keyof TData]> {
 	append<TName extends keyof TData>(name: TName, value: TData[TName] extends File ? Blob : TData[TName], fileName?: string): void;

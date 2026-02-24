@@ -16,6 +16,17 @@ import type {
 	TUpdateStatement,
 } from "./schema.ts";
 
+/**
+ * Walk a {@link TAnyFragment} AST node by dispatching each node type to the
+ * corresponding method on `visitor`.
+ *
+ * @param node The root AST node to walk.
+ * @param visitor An object implementing {@link Visitor} whose methods are
+ * called for each node encountered.
+ * @param defaultContext Optional context value forwarded to every visitor
+ * method.
+ * @returns The aggregated return value produced by the visitor.
+ */
 export function visit<TReturn>(
 	node: TAnyFragment,
 	visitor: Visitor<TReturn, void>,
@@ -66,8 +77,17 @@ export function visit<TReturn, TContext>(
 	}
 }
 
+/** Error thrown when a {@link TAnyFragment} node has an unrecognized `type` discriminant. */
 export class UnknownExpressionError extends Error {}
 
+/**
+ * Interface that consumers must implement to walk a query AST.
+ * Each method receives the typed AST node, a recursive `visit` helper, and
+ * the caller-supplied context value.
+ *
+ * @template TReturn The value produced by each visitor method.
+ * @template TContext Arbitrary context forwarded to every visitor method.
+ */
 export interface Visitor<TReturn, TContext> {
 	visitLiteral(node: TLiteral<any>, visit: (node: TAnyFragment, ctx: TContext) => TReturn, ctx: TContext): TReturn;
 	visitNamedFunctionReference(

@@ -1,3 +1,8 @@
+/**
+ * @module
+ * Server module for Baseless — provides {@link app}, {@link Server}, providers,
+ * authentication helpers, and the full service layer.
+ */
 export * from "./app.ts";
 export * from "./auth/email.ts";
 export * from "./auth/otp.ts";

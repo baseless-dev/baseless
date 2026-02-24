@@ -151,6 +151,10 @@ function responseToOpenAPIResponse(responseSchemas: z.ZodResponse[], components:
 	return responses;
 }
 
+/**
+ * Returns `true` when `schema` is a Zod type object.
+ * @param schema The value to test.
+ */
 export const isAnyZodType = (schema: unknown): schema is z.core.$ZodTypes =>
 	typeof schema === "object" && schema !== null && "_zod" in schema;
 

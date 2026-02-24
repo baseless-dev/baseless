@@ -28,6 +28,10 @@ import { type Notification } from "@baseless/core/notification";
 import { DocumentNotFoundError, NotificationChannelNotFoundError, TopicNotFoundError } from "@baseless/core/errors";
 import { ref, Reference } from "@baseless/core/ref";
 
+/**
+ * Facade that wraps a {@link KVProvider} and implements the {@link KVService}
+ * interface consumed by handlers.
+ */
 export class KVFacade implements KVService {
 	#provider: KVProvider;
 
@@ -61,6 +65,7 @@ export class KVFacade implements KVService {
 	}
 }
 
+/** Options required to construct a {@link DocumentFacade}. */
 export interface DocumentFacadeOptions {
 	app: App;
 	auth: Auth;
@@ -71,6 +76,10 @@ export interface DocumentFacadeOptions {
 	waitUntil: (promise: PromiseLike<unknown>) => void;
 }
 
+/**
+ * Facade that wraps a {@link DocumentProvider} with authorization checks
+ * and implements the {@link DocumentService} interface.
+ */
 export class DocumentFacade implements DocumentService<any, any> {
 	#options: DocumentFacadeOptions;
 
@@ -133,6 +142,10 @@ export class DocumentFacade implements DocumentService<any, any> {
 	}
 }
 
+/**
+ * Atomic operation builder that wraps a {@link DocumentProvider}\'s atomic
+ * and enforces authorization checks and triggers document lifecycle hooks.
+ */
 export class DocumentFacadeAtomic implements DocumentServiceAtomic<any> {
 	#options: DocumentFacadeOptions;
 	checks: DocumentServiceAtomicCheck[] = [];
@@ -239,11 +252,16 @@ export class DocumentFacadeAtomic implements DocumentServiceAtomic<any> {
 	}
 }
 
+/** Options required to construct a {@link PubSubFacade}. */
 export interface PubSubFacadeOptions {
 	app: App;
 	provider: QueueProvider;
 }
 
+/**
+ * Facade that implements {@link PubSubService} by enqueuing topic-publish
+ * jobs via the {@link QueueProvider}.
+ */
 export class PubSubFacade implements PubSubService<any> {
 	#options: PubSubFacadeOptions;
 
@@ -272,11 +290,16 @@ export class PubSubFacade implements PubSubService<any> {
 	}
 }
 
+/** Options required to construct a {@link NotificationFacade}. */
 export interface NotificationFacadeOptions {
 	providers: Record<string, NotificationChannelProvider>;
 	service: ServiceCollection;
 }
 
+/**
+ * Facade that implements {@link NotificationService} by routing notifications
+ * to the appropriate {@link NotificationChannelProvider}.
+ */
 export class NotificationFacade implements NotificationService {
 	#options: NotificationFacadeOptions;
 
@@ -322,6 +345,10 @@ export class NotificationFacade implements NotificationService {
 	}
 }
 
+/**
+ * Facade that wraps a {@link RateLimiterProvider} and exposes the
+ * {@link RateLimiterService} interface.
+ */
 export class RateLimiterFacade {
 	#provider: RateLimiterProvider;
 

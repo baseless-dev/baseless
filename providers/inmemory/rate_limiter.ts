@@ -6,6 +6,13 @@ interface KeyMetadata {
 	expireAt: number;
 }
 
+/**
+ * In-memory implementation of {@link RateLimiterProvider}.
+ *
+ * Tracks request counts per key using an {@link LruCache} so that memory
+ * usage is bounded.  Suitable for unit tests and single-process servers;
+ * does not share state across multiple processes.
+ */
 export class MemoryRateLimiterProvider extends RateLimiterProvider {
 	#storage: LruCache<string, KeyMetadata>;
 

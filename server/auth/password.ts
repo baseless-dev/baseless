@@ -11,6 +11,10 @@ import type {
 } from "../provider.ts";
 import { encodeBase64 } from "@std/encoding/base64";
 
+/**
+ * {@link IdentityComponentProvider} that authenticates users via a
+ * salted SHA-512 password hash.
+ */
 export class PasswordIdentityComponentProvider implements IdentityComponentProvider {
 	#salt: string;
 
@@ -18,6 +22,11 @@ export class PasswordIdentityComponentProvider implements IdentityComponentProvi
 		this.#salt = salt;
 	}
 
+	/**
+	 * Hashes a plain-text password using SHA-512 with the configured salt.
+	 * @param password The plain-text password to hash.
+	 * @returns A Base64-encoded SHA-512 hash string.
+	 */
 	async hashPassword(password: string): Promise<string> {
 		return encodeBase64(
 			await crypto.subtle.digest(

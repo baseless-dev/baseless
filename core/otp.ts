@@ -1,13 +1,20 @@
 import { decodeBase32 } from "@std/encoding/base32";
 
+/** HMAC algorithm used for OTP generation. */
 export type OTPAlgorithm = "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
 
+/**
+ * Options for generating an HMAC-Based One-Time Password (HOTP).
+ */
 export type HOTPOptions = {
 	readonly key: string | CryptoKey;
 	readonly algorithm?: OTPAlgorithm;
 	readonly digits?: number;
 };
 
+/**
+ * Options for generating a Time-Based One-Time Password (TOTP).
+ */
 export type TOTPOptions = {
 	readonly key: string | CryptoKey;
 	readonly period: number;
@@ -15,15 +22,28 @@ export type TOTPOptions = {
 	readonly digits?: number;
 };
 
+/**
+ * Options for generating a random one-time password.
+ */
 export type OTPOptions = {
 	readonly digits?: number;
 };
 
+/**
+ * Checks whether `value` is a valid {@link OTPAlgorithm} string.
+ * @param value The value to test.
+ * @returns `true` if `value` is a supported HMAC algorithm identifier.
+ */
 export function isOTPAlgorithm(value?: unknown): value is OTPAlgorithm {
 	return !!value && typeof value === "string" &&
 		["SHA-1", "SHA-256", "SHA-384", "SHA-512"].includes(value);
 }
 
+/**
+ * Asserts that `value` is a valid {@link OTPAlgorithm} string.
+ * @param value The value to assert.
+ * @throws {@link InvalidOTPAlgorithmError} When `value` is not a supported algorithm.
+ */
 export function assertOTPAlgorithm(
 	value?: unknown,
 ): asserts value is OTPAlgorithm {
@@ -32,8 +52,14 @@ export function assertOTPAlgorithm(
 	}
 }
 
+/** Error thrown when an invalid {@link OTPAlgorithm} value is encountered. */
 export class InvalidOTPAlgorithmError extends Error {}
 
+/**
+ * Checks whether `value` is a valid {@link HOTPOptions} object.
+ * @param value The value to test.
+ * @returns `true` if `value` satisfies the {@link HOTPOptions} shape.
+ */
 export function isHOTPOptions(value?: unknown): value is HOTPOptions {
 	return !!value && typeof value === "object" && "key" in value &&
 		(typeof value.key === "string" || value.key instanceof CryptoKey) &&
@@ -41,6 +67,11 @@ export function isHOTPOptions(value?: unknown): value is HOTPOptions {
 		(!("digits" in value) || typeof value.digits === "number");
 }
 
+/**
+ * Asserts that `value` is a valid {@link HOTPOptions} object.
+ * @param value The value to assert.
+ * @throws {@link InvalidHOTPOptionsError} When `value` is not valid HOTP options.
+ */
 export function assertHOTPOptions(
 	value?: unknown,
 ): asserts value is HOTPOptions {
@@ -49,8 +80,14 @@ export function assertHOTPOptions(
 	}
 }
 
+/** Error thrown when invalid {@link HOTPOptions} are encountered. */
 export class InvalidHOTPOptionsError extends Error {}
 
+/**
+ * Checks whether `value` is a valid {@link TOTPOptions} object.
+ * @param value The value to test.
+ * @returns `true` if `value` satisfies the {@link TOTPOptions} shape.
+ */
 export function isTOTPOptions(value?: unknown): value is TOTPOptions {
 	return !!value && typeof value === "object" && "key" in value &&
 		(typeof value.key === "string" || value.key instanceof CryptoKey) &&
@@ -59,6 +96,11 @@ export function isTOTPOptions(value?: unknown): value is TOTPOptions {
 		(!("digits" in value) || typeof value.digits === "number");
 }
 
+/**
+ * Asserts that `value` is a valid {@link TOTPOptions} object.
+ * @param value The value to assert.
+ * @throws {@link InvalidTOTPOptionsError} When `value` is not valid TOTP options.
+ */
 export function assertTOTPOptions(
 	value?: unknown,
 ): asserts value is TOTPOptions {
@@ -67,13 +109,24 @@ export function assertTOTPOptions(
 	}
 }
 
+/** Error thrown when invalid {@link TOTPOptions} are encountered. */
 export class InvalidTOTPOptionsError extends Error {}
 
+/**
+ * Checks whether `value` is a valid {@link OTPOptions} object.
+ * @param value The value to test.
+ * @returns `true` if `value` satisfies the {@link OTPOptions} shape.
+ */
 export function isOTPOptions(value?: unknown): value is OTPOptions {
 	return !!value && typeof value === "object" && "digits" in value &&
 		typeof value.digits === "number";
 }
 
+/**
+ * Asserts that `value` is a valid {@link OTPOptions} object.
+ * @param value The value to assert.
+ * @throws {@link InvalidOTPOptionsError} When `value` is not valid OTP options.
+ */
 export function assertOTPOptions(
 	value?: unknown,
 ): asserts value is OTPOptions {
@@ -82,6 +135,7 @@ export function assertOTPOptions(
 	}
 }
 
+/** Error thrown when invalid {@link OTPOptions} are encountered. */
 export class InvalidOTPOptionsError extends Error {}
 
 /**
@@ -198,21 +252,39 @@ export function generateKey(length = 16, alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ2
 	return key;
 }
 
+/**
+ * Options for building an `otpauth://` URI.
+ *
+ * Use the `"hotp"` variant for counter-based codes and the `"totp"` variant
+ * for time-based codes.
+ */
 export type OTPAuthURIOptions =
 	| {
+		/** Selects the HOTP (counter-based) URI scheme. */
 		type: "hotp";
+		/** Base32-encoded shared secret. */
 		secret: string;
+		/** Human-readable account label shown in authenticator apps. */
 		label: string;
+		/** HMAC algorithm. Defaults to `"SHA-1"`. */
 		algorithm?: OTPAlgorithm;
+		/** Number of digits in the generated code. Defaults to `6`. */
 		digits?: number;
+		/** Initial counter value for the HOTP sequence. */
 		counter: number;
 	}
 	| {
+		/** Selects the TOTP (time-based) URI scheme. */
 		type: "totp";
+		/** Base32-encoded shared secret. */
 		secret: string;
+		/** Human-readable account label shown in authenticator apps. */
 		label: string;
+		/** HMAC algorithm. Defaults to `"SHA-1"`. */
 		algorithm?: OTPAlgorithm;
+		/** Number of digits in the generated code. Defaults to `6`. */
 		digits?: number;
+		/** Time step in seconds. Defaults to `30`. */
 		period?: number;
 	};
 

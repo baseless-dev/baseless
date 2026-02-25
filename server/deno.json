@@ -3,9 +3,9 @@
 	"version": "0.5.0-rc.1",
 	"exports": {
 		".": "./prelude.ts",
-		"./applications/authentication": "./applications/authentication.ts",
-		"./applications/document": "./applications/document.ts",
-		"./applications/pubsub": "./applications/pubsub.ts",
+		"./apps/authentication": "./apps/authentication.ts",
+		"./apps/document": "./apps/document.ts",
+		"./apps/pubsub": "./apps/pubsub.ts",
 		"./auth/email": "./auth/email.ts",
 		"./auth/otp": "./auth/otp.ts",
 		"./auth/password": "./auth/password.ts",

@@ -12,7 +12,7 @@ import React from "react";
 import { fireEvent, render as _render, type RenderOptions, type RenderResult, waitFor } from "@testing-library/react";
 import { assertEquals } from "@std/assert/equals";
 import { assert } from "@std/assert/assert";
-import authApp from "@baseless/server/applications/authentication";
+import authApp from "@baseless/server/apps/authentication";
 import { generateKeyPair } from "jose/key/generate/keypair";
 import createMemoryServer from "../server/server.test.ts";
 import { app } from "@baseless/server";

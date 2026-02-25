@@ -1,7 +1,7 @@
 import { app, Permission } from "@baseless/server";
-import docApp from "@baseless/server/applications/document";
-import pubsubApp from "@baseless/server/applications/pubsub";
-import authApp from "@baseless/server/applications/authentication";
+import docApp from "@baseless/server/apps/document";
+import pubsubApp from "@baseless/server/apps/pubsub";
+import authApp from "@baseless/server/apps/authentication";
 import { Client } from "./client.ts";
 import { generateKeyPair } from "jose/key/generate/keypair";
 import createMemoryServer, { pubsub, serve, sleep } from "../server/server.test.ts";

@@ -1,8 +1,8 @@
 // deno-lint-ignore-file ban-types no-explicit-any
 import type { App, PublicAppRegistry } from "@baseless/server";
-import type { AuthenticationApplication } from "@baseless/server/applications/authentication";
-import type { DocumentApplication } from "@baseless/server/applications/document";
-import type { PubsubApplication } from "@baseless/server/applications/pubsub";
+import type { AuthenticationApplication } from "@baseless/server/apps/authentication";
+import type { DocumentApplication } from "@baseless/server/apps/document";
+import type { PubsubApplication } from "@baseless/server/apps/pubsub";
 import type { Reference } from "@baseless/core/ref";
 import type { Request } from "@baseless/core/request";
 import { Response } from "@baseless/core/response";

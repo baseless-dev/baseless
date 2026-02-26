@@ -127,16 +127,12 @@ const authApp = app()
 		response: z.jsonResponse({
 			result: z.boolean(),
 		}),
-		handler: async ({ configuration, service, request }) => {
+		handler: async ({ service, request }) => {
 			const authorization = request.headers.get("authorization");
 			if (authorization) {
 				try {
-					const { payload } = await jwtVerify(authorization.slice("Bearer ".length), configuration.auth.keyPublic);
-					const { sub, sid } = payload;
-					if (isID("id_", sub) && isID("ses_", sid)) {
-						await service.kv.delete(`auth/identity/${sub}/session/${sid}`);
-						return Response.json({ result: true });
-					}
+					await service.auth.revoke(authorization);
+					return Response.json({ result: true });
 				} catch (cause) {
 					throw new ForbiddenError(undefined, { cause });
 				}
@@ -152,22 +148,10 @@ const authApp = app()
 		response: z.jsonResponse({
 			result: AuthenticationTokens,
 		}),
-		handler: async ({ configuration, request, service }) => {
+		handler: async ({ request, service }) => {
 			const { token } = request.body;
 			try {
-				const { payload } = await jwtVerify(token, configuration.auth.keyPublic);
-				const { sub, sid } = payload;
-				assertID("id_", sub);
-				assertID("ses_", sid);
-				const session = await service.kv.get(`auth/identity/${sub}/session/${sid}`).then((v) => v.value as Session);
-				const identity = await service.document.get(ref("auth/identity/:key", { key: sub }));
-				const result = await createTokens({
-					identity: identity.data,
-					issuedAt: session.issuedAt,
-					options: configuration.auth,
-					sessionId: sid,
-					scope: session.scope,
-				});
+				const result = await service.auth.refreshSession(token);
 				return Response.json({ result });
 			} catch (cause) {
 				throw new AuthenticationRefreshTokenError(undefined, { cause });
@@ -296,12 +280,11 @@ const authApp = app()
 					const identity = await service.document
 						//.get(`auth/identity/${stateObj.id}`);
 						.get(ref("auth/identity/:key", { key: stateObj.id! }));
-					const tokens = await createSessionAndTokens({
-						service,
-						identity: identity.data,
-						scope: stateObj.scopes,
-						options: configuration.auth,
-					});
+					const tokens = await service.auth.createSession(
+						identity.data,
+						Date.now() / 1000 >> 0,
+						stateObj.scopes,
+					);
 					return Response.json({ result: tokens });
 				}
 				if (!component) {
@@ -363,12 +346,11 @@ const authApp = app()
 				});
 				if (component === true) {
 					const identityId = await createIdentity(service, stateObj.id, stateObj.components, stateObj.channels);
-					const tokens = await createSessionAndTokens({
-						identity: { id: identityId, data: {} },
-						service,
-						options: configuration.auth,
-						scope: stateObj.scopes,
-					});
+					const tokens = await service.auth.createSession(
+						{ id: identityId, data: {} },
+						Date.now() / 1000 >> 0,
+						stateObj.scopes,
+					);
 					return Response.json({ result: tokens });
 				}
 				if (!component) {
@@ -573,12 +555,11 @@ const authApp = app()
 			if (component === true) {
 				const identity = await service.document
 					.get(ref("auth/identity/:key", { key: stateObj.id! }));
-				const tokens = await createSessionAndTokens({
-					identity: identity.data,
-					options: configuration.auth,
-					service,
-					scope: stateObj.scopes,
-				});
+				const tokens = await service.auth.createSession(
+					identity.data,
+					Date.now() / 1000 >> 0,
+					stateObj.scopes,
+				);
 				return Response.json({ result: tokens });
 			}
 			if (!component) {
@@ -719,36 +700,6 @@ async function createIdentity(
 	return identityId;
 }
 
-async function createSessionAndTokens({
-	service,
-	identity,
-	scope,
-	options,
-}: {
-	service: ServiceCollection;
-	identity: Identity;
-	scope: Session["scope"];
-	options: AuthOptions;
-}): Promise<AuthenticationTokens> {
-	const sessionId = id("ses_");
-	const session: Session = {
-		identityId: identity.id,
-		issuedAt: Date.now() / 1000 >> 0,
-		scope,
-	};
-	const tokens = await createTokens({
-		identity,
-		issuedAt: session.issuedAt,
-		options,
-		sessionId,
-		scope,
-	});
-	await service.kv.put(`auth/identity/${identity.id}/session/${sessionId}`, session, {
-		expiration: options.refreshTokenTTL ?? options.accessTokenTTL,
-	});
-	return tokens;
-}
-
 async function getCeremonyFromFlow(
 	{ context, flow, identityId, service, options }: {
 		context: AppRegistry["context"];
@@ -821,44 +772,6 @@ async function getAuthenticationCeremonyComponent(
 			}
 		}
 	}
-}
-
-async function createTokens(
-	{
-		identity,
-		issuedAt,
-		options,
-		sessionId,
-		scope,
-	}: {
-		identity: Identity;
-		issuedAt: number;
-		options: AuthOptions;
-		sessionId: ID<"ses_">;
-		scope: string[];
-	},
-): Promise<AuthenticationTokens> {
-	const now = Date.now();
-	const accessToken = await new SignJWT({ scope, aat: issuedAt, sid: sessionId })
-		.setSubject(identity.id)
-		.setIssuedAt()
-		.setExpirationTime((now + options.accessTokenTTL) / 1000 >> 0)
-		.setProtectedHeader({ alg: options.keyAlgo })
-		.sign(options.keyPrivate);
-	const idToken = await new SignJWT({ claims: Object.fromEntries(scope.map((s) => [s, identity.data?.[s]])) })
-		.setSubject(identity.id)
-		.setIssuedAt()
-		.setProtectedHeader({ alg: options.keyAlgo })
-		.sign(options.keyPrivate);
-	const refreshToken = typeof options.refreshTokenTTL === "number"
-		? await new SignJWT({ scope, sid: sessionId })
-			.setSubject(identity.id)
-			.setIssuedAt(issuedAt)
-			.setExpirationTime((now + options.refreshTokenTTL) / 1000 >> 0)
-			.setProtectedHeader({ alg: options.keyAlgo })
-			.sign(options.keyPrivate)
-		: undefined;
-	return { accessToken, idToken, refreshToken };
 }
 
 async function mapCeremonyToComponent({ ceremony, state, configuration, context, service, options }: {

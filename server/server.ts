@@ -10,7 +10,7 @@ import {
 	RateLimiterProvider,
 } from "./provider.ts";
 import type { ServiceCollection } from "./service.ts";
-import { DocumentFacade, KVFacade, NotificationFacade, PubSubFacade, RateLimiterFacade } from "./facade.ts";
+import { AuthFacade, DocumentFacade, KVFacade, NotificationFacade, PubSubFacade, RateLimiterFacade } from "./facade.ts";
 import { first } from "@baseless/core/iter";
 import { decodeBase64Url } from "@std/encoding/base64url";
 import { type ID, id, isID } from "@baseless/core/id";
@@ -34,8 +34,7 @@ import { Response } from "@baseless/core/response";
  * @template TRegistry The server's app registry.
  */
 export interface ServerOptions<TRegistry extends AppRegistry> {
-	configuration: Omit<TRegistry["configuration"], "server">;
-	publicKey?: KeyLike;
+	configuration: TRegistry["configuration"];
 	app: App<TRegistry>;
 	providers: {
 		document: DocumentProvider;
@@ -89,6 +88,11 @@ export class Server<TRegistry extends AppRegistry> {
 		// const context: TRegistry["context"] = { ...this.#requirements };
 		const context: AppRegistry["context"] = {};
 		const service: ServiceCollection = {
+			auth: new AuthFacade({
+				configuration: this.options.configuration.auth,
+				document: this.options.providers.document,
+				kv: this.options.providers.kv,
+			}),
 			document: {} as never,
 			kv: new KVFacade(this.options.providers.kv),
 			notification: {} as never,
@@ -143,11 +147,11 @@ export class Server<TRegistry extends AppRegistry> {
 	}
 
 	async #parseAuthorization(authorization: string): Promise<Auth> {
-		if (this.options.publicKey === undefined) {
+		if (this.options.configuration.auth?.keyPublic === undefined) {
 			return undefined;
 		} else if (authorization.startsWith("Bearer ")) {
 			try {
-				const { payload } = await jwtVerify(authorization.slice("Bearer ".length), this.options.publicKey);
+				const { payload } = await jwtVerify(authorization.slice("Bearer ".length), this.options.configuration.auth.keyPublic);
 				if (isID("id_", payload.sub)) {
 					return {
 						identityId: payload.sub!,

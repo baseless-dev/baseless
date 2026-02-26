@@ -8,6 +8,7 @@ import { Document } from "@baseless/core/document";
 import { Request } from "@baseless/core/request";
 import { Response } from "@baseless/core/response";
 import type { Prettify } from "@baseless/core/prettify";
+import { KeyLike } from "jose";
 
 // deno-fmt-ignore
 /** Bit-field flags for access control on endpoints, documents, collections, topics, and tables. */
@@ -44,7 +45,18 @@ export type Auth =
  */
 export interface AppRegistry {
 	collections: {};
-	configuration: {};
+	configuration: {
+		auth?:
+			| { keyPublic: KeyLike }
+			| {
+				accessTokenTTL: number;
+				keyAlgo: string;
+				keyPublic: KeyLike;
+				keyPrivate: KeyLike;
+				keySecret: Uint8Array;
+				refreshTokenTTL: number;
+			};
+	};
 	context: {};
 	documents: {};
 	requirements: {

@@ -27,6 +27,11 @@ import type { Identity, IdentityChannel } from "@baseless/core/identity";
 import { type Notification } from "@baseless/core/notification";
 import { DocumentNotFoundError, NotificationChannelNotFoundError, TopicNotFoundError } from "@baseless/core/errors";
 import { ref, Reference } from "@baseless/core/ref";
+import type { Session } from "@baseless/core/session";
+import type { AuthenticationTokens } from "@baseless/core/authentication-tokens";
+import { jwtVerify } from "jose/jwt/verify";
+import { assertID, ID, id, isID } from "@baseless/core/id";
+import { SignJWT } from "jose/jwt/sign";
 
 /**
  * Facade that wraps a {@link KVProvider} and implements the {@link KVService}
@@ -62,6 +67,137 @@ export class KVFacade implements KVService {
 
 	delete(key: string, signal?: AbortSignal): Promise<void> {
 		return this.#provider.delete(key, signal);
+	}
+}
+
+/** Options required to construct a {@link AuthFacade}. */
+export interface AuthFacadeOptions {
+	configuration: AppRegistry["configuration"]["auth"];
+	document: DocumentProvider;
+	kv: KVProvider;
+}
+
+export class AuthFacade {
+	#options: AuthFacadeOptions;
+
+	constructor(options: AuthFacadeOptions) {
+		this.#options = options;
+	}
+
+	async authenticate(authorization: string, signal?: AbortSignal): Promise<Auth> {
+		if (this.#options.configuration?.keyPublic === undefined) {
+			return undefined;
+		} else if (authorization.startsWith("Bearer ")) {
+			try {
+				const { payload } = await jwtVerify(authorization.slice("Bearer ".length), this.#options.configuration?.keyPublic);
+				if (isID("id_", payload.sub)) {
+					return {
+						identityId: payload.sub!,
+						scope: `${payload.scope}`.split(" "),
+					};
+				}
+				// deno-lint-ignore no-empty
+			} catch (_error) {}
+		} else if (authorization.startsWith("Token ")) {
+			throw "TODO!";
+		}
+		return undefined;
+	}
+
+	async revoke(authorization: string, signal?: AbortSignal): Promise<void> {
+		if (this.#options.configuration?.keyPublic === undefined) {
+			return undefined;
+		} else if (authorization.startsWith("Bearer ")) {
+			const { payload } = await jwtVerify(authorization.slice("Bearer ".length), this.#options.configuration?.keyPublic);
+			const { sub, sid } = payload;
+			if (isID("id_", sub) && isID("ses_", sid)) {
+				await this.#options.kv.delete(`auth/identity/${sub}/session/${sid}`, signal);
+			}
+		} else if (authorization.startsWith("Token ")) {
+			throw "TODO!";
+		}
+	}
+
+	async #createTokens(
+		identity: Identity,
+		issuedAt: number,
+		sessionId: ID<"ses_">,
+		scope: string[],
+	): Promise<AuthenticationTokens> {
+		if (
+			this.#options.configuration?.keyPublic === undefined ||
+			this.#options.configuration === undefined ||
+			!("keyPrivate" in this.#options.configuration)
+		) {
+			throw new Error("Authentication is not properly configured");
+		}
+		const now = Date.now();
+		const accessToken = await new SignJWT({ scope, aat: issuedAt, sid: sessionId })
+			.setSubject(identity.id)
+			.setIssuedAt()
+			.setExpirationTime((now + this.#options.configuration.accessTokenTTL) / 1000 >> 0)
+			.setProtectedHeader({ alg: this.#options.configuration.keyAlgo })
+			.sign(this.#options.configuration.keyPrivate);
+		const idToken = await new SignJWT({ claims: Object.fromEntries(scope.map((s) => [s, identity.data?.[s]])) })
+			.setSubject(identity.id)
+			.setIssuedAt()
+			.setProtectedHeader({ alg: this.#options.configuration.keyAlgo })
+			.sign(this.#options.configuration.keyPrivate);
+		const refreshToken = typeof this.#options.configuration.refreshTokenTTL === "number"
+			? await new SignJWT({ scope, sid: sessionId })
+				.setSubject(identity.id)
+				.setIssuedAt(issuedAt)
+				.setExpirationTime((now + this.#options.configuration.refreshTokenTTL) / 1000 >> 0)
+				.setProtectedHeader({ alg: this.#options.configuration.keyAlgo })
+				.sign(this.#options.configuration.keyPrivate)
+			: undefined;
+		return { accessToken, idToken, refreshToken };
+	}
+
+	async createSession(identity: Identity, issuedAt: number, scope: string[], signal?: AbortSignal): Promise<AuthenticationTokens> {
+		if (
+			this.#options.configuration?.keyPublic === undefined ||
+			this.#options.configuration === undefined ||
+			!("keyPrivate" in this.#options.configuration)
+		) {
+			throw new Error("Authentication is not properly configured");
+		}
+		const session: Session = {
+			id: id("ses_"),
+			identityId: identity.id,
+			issuedAt,
+			scope,
+		};
+		const tokens = await this.#createTokens(identity, issuedAt, session.id, scope);
+		await this.#options.kv.put(`auth/identity/${identity.id}/session/${session.id}`, session, {
+			expiration: this.#options.configuration.refreshTokenTTL ?? this.#options.configuration.accessTokenTTL,
+		});
+		return tokens;
+	}
+
+	async refreshSession(refreshToken: string, signal?: AbortSignal): Promise<AuthenticationTokens> {
+		if (
+			this.#options.configuration?.keyPublic === undefined ||
+			this.#options.configuration === undefined ||
+			!("keyPrivate" in this.#options.configuration)
+		) {
+			throw new Error("Authentication is not properly configured");
+		}
+		const { payload } = await jwtVerify(refreshToken, this.#options.configuration.keyPublic);
+		const { sub, sid } = payload;
+		assertID("id_", sub);
+		assertID("ses_", sid);
+		const session = await this.#options.kv.get(`auth/identity/${sub}/session/${sid}`, undefined, signal)
+			.then((v) => v.value as Session);
+		const identity = await this.#options.document.get(ref("auth/identity/:key", { key: sub }), undefined, signal)
+			.then((d) => d as Document<Identity>);
+		const tokens = await this.#createTokens(
+			identity.data,
+			session.issuedAt,
+			sid,
+			session.scope,
+		);
+		return tokens;
 	}
 }
 

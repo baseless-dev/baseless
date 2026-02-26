@@ -30,7 +30,6 @@ Deno.test("Simple authentication", async (t) => {
 	});
 	const password = new PasswordIdentityComponentProvider("dummy salt");
 	using mock = await createMemoryServer({
-		publicKey: keyPair.publicKey,
 		app: app()
 			.extend(authApp)
 			.build(),
@@ -243,7 +242,6 @@ Deno.test("Two factor authentication", async (t) => {
 		{ identifier: "terms", version: "1.0", required: true, name: { en: "Terms of service" }, content: { en: "..." } },
 	]);
 	using mock = await createMemoryServer({
-		publicKey: keyPair.publicKey,
 		app: app()
 			.extend(authApp)
 			.build(),

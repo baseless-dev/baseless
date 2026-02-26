@@ -1,9 +1,10 @@
-import type { AppRegistry } from "./app.ts";
-import type { Document, DocumentAtomic, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
+import type { AppRegistry, Auth } from "./app.ts";
+import type { Document, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
 import type { KVProvider, RateLimiterProvider } from "./provider.ts";
 import type { Identity, IdentityChannel } from "@baseless/core/identity";
 import type { Notification } from "@baseless/core/notification";
-import { ref, type Reference } from "@baseless/core/ref";
+import type { Reference } from "@baseless/core/ref";
+import type { AuthenticationTokens } from "@baseless/core/authentication-tokens";
 
 /**
  * The full service bag injected into every handler. Contains document, KV,
@@ -11,12 +12,20 @@ import { ref, type Reference } from "@baseless/core/ref";
  * services.
  */
 export type ServiceCollection<TRegistry extends AppRegistry = AppRegistry> = {
+	auth: AuthService;
 	document: DocumentService<TRegistry["documents"], TRegistry["collections"]>;
 	kv: KVService;
 	notification: NotificationService;
 	pubsub: PubSubService<TRegistry["topics"]>;
 	rateLimiter: RateLimiterService;
 } & TRegistry["services"];
+
+export interface AuthService {
+	authenticate(authorization: string, signal?: AbortSignal): Promise<Auth>;
+	revoke(authorization: string, signal?: AbortSignal): Promise<void>;
+	createSession(identity: Identity, issuedAt: number, scope: string[], signal?: AbortSignal): Promise<AuthenticationTokens>;
+	refreshSession(refreshToken: string, signal?: AbortSignal): Promise<AuthenticationTokens>;
+}
 
 /**
  * Options for {@link DocumentService.list}, extending the core

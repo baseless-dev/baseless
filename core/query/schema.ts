@@ -42,7 +42,7 @@ export interface TNamedTableReference {
 
 /** Zod schema for {@link TNamedTableReference}. */
 export const TNamedTableReference = z.strictObject({
-	type: z.literal("table"),
+	type: z.literal("tableref"),
 	table: z.string(),
 	alias: z.optional(z.string()),
 }).meta({ id: "NamedTableReference" });
@@ -183,6 +183,7 @@ export interface TJoinFragment {
 
 /** Zod schema for {@link TJoinFragment}. */
 export const TJoinFragment = z.strictObject({
+	type: z.literal("join"),
 	table: z.string(),
 	alias: z.optional(z.string()),
 	on: z.optional(z.union([TBooleanComparisonExpression, TBooleanExpression])),
@@ -214,7 +215,7 @@ export const TSelectStatement = z.strictObject({
 	from: TNamedTableReference,
 	join: z.array(TJoinFragment),
 	select: z.record(z.string(), TReferenceOrLiteral),
-	where: z.union([TBooleanExpression, TExpression]),
+	where: z.optional(z.union([TBooleanExpression, TExpression])),
 	groupBy: z.array(z.strictObject({
 		column: TReferenceOrLiteral,
 	})),
@@ -222,8 +223,8 @@ export const TSelectStatement = z.strictObject({
 		column: TReferenceOrLiteral,
 		order: z.union([z.literal("ASC"), z.literal("DESC")]),
 	})),
-	limit: z.number(),
-	offset: z.number(),
+	limit: z.optional(z.number()),
+	offset: z.optional(z.number()),
 }).meta({ id: "SelectStatement" });
 
 /**
@@ -242,7 +243,7 @@ export const TInsertStatement = z.strictObject({
 	type: z.literal("insert"),
 	into: TNamedTableReference,
 	columns: z.array(z.string()),
-	values: z.array(z.record(z.string(), TReferenceOrLiteral)),
+	values: z.optional(z.array(z.record(z.string(), TReferenceOrLiteral))),
 	from: z.optional(TSelectStatement),
 }).meta({ id: "InsertStatement" });
 

@@ -36,7 +36,7 @@ const q = new BatchableStatementBuilder<Tables, InsertTables>();
 
 Deno.test("replace", () => {
 	const a1 = q.select("posts", "p")
-		.pick((q) => ({
+		.map((q) => ({
 			title: q.ref("p", "title"),
 		}))
 		.build();

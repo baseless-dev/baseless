@@ -3,6 +3,7 @@ import type { App, PublicAppRegistry } from "@baseless/server";
 import type { AuthenticationApplication } from "@baseless/server/apps/authentication";
 import type { DocumentApplication } from "@baseless/server/apps/document";
 import type { PubsubApplication } from "@baseless/server/apps/pubsub";
+import type { TableApplication } from "@baseless/server/apps/table";
 import type { Reference } from "@baseless/core/ref";
 import type { Request } from "@baseless/core/request";
 import { Response } from "@baseless/core/response";
@@ -24,6 +25,7 @@ import { AuthenticationTokens } from "@baseless/core/authentication-tokens";
 import { encodeBase64Url } from "@std/encoding/base64url";
 import { EventEmitter } from "./event_emitter.ts";
 import { AuthenticationCeremonyInvalidPromptError, AuthenticationCeremonyInvalidStateError } from "./errors.ts";
+import { BatchableStatementBuilder, type IStatementBuilder, type TStatement } from "@baseless/core/query";
 
 const INTERNAL_WEBSOCKET = Symbol();
 const INTERNAL_WEBSOCKET_STATE = Symbol();
@@ -97,6 +99,11 @@ export class Client implements AsyncDisposable {
 	/** Returns a {@link ClientPubsub} sub-client for publish/subscribe operations. */
 	get pubsub(): ClientPubsub {
 		return new ClientPubsub(this);
+	}
+
+	/** Returns a {@link ClientTable} sub-client for table query operations. */
+	get table(): ClientTable {
+		return new ClientTable(this);
 	}
 
 	async [Symbol.asyncDispose](): Promise<void> {
@@ -781,6 +788,41 @@ export class ClientPubsub {
 }
 
 /**
+ * Sub-client for table query operations.
+ * Obtain an instance via {@link Client.table}.
+ */
+export class ClientTable {
+	#client: Client;
+
+	constructor(client: Client) {
+		this.#client = client;
+	}
+
+	/**
+	 * Executes a query statement against the server's registered tables.
+	 * @param fn A callback receiving a {@link BatchableStatementBuilder} and returning the statement to execute.
+	 * @param params A record of named parameter values to bind.
+	 * @param signal Optional abort signal.
+	 * @returns The query result.
+	 */
+	async execute<TParams extends Record<string, unknown>, TOutput>(
+		fn: (q: BatchableStatementBuilder<{}, {}>) => IStatementBuilder<TParams, TOutput>,
+		params: TParams,
+		signal?: AbortSignal,
+	): Promise<TOutput> {
+		const statement = fn(new BatchableStatementBuilder()).toStatement();
+		const response = await this.#client.fetch(`core/table/execute`, {
+			signal,
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ statement, params }),
+		});
+		z.assert(z.object({ result: z.unknown() }), response.body);
+		return response.body.result as TOutput;
+	}
+}
+
+/**
  * Strongly-typed wrapper around {@link Client} inferred from an
  * {@link App} definition. Obtain via {@link Client.asTyped}.
  *
@@ -843,6 +885,8 @@ export interface TypedClient<TPublicAppRegistry extends PublicAppRegistry> exten
 	document: TypedClientDocument<TPublicAppRegistry["collections"], TPublicAppRegistry["documents"]>;
 	/** Typed pubsub sub-client. */
 	pubsub: TypedClientPubsub<TPublicAppRegistry["topics"]>;
+	/** Typed table sub-client. */
+	table: TypedClientTable<TPublicAppRegistry["tables"]>;
 }
 
 /**
@@ -963,6 +1007,28 @@ export interface TypedClientPubsub<
 	subscribe<TPath extends keyof TTopics>(ref: Reference<TPath>, abortSignal?: AbortSignal): ReadableStream<TTopics[TPath]>;
 }
 
+/**
+ * Typed table sub-client inferred from an {@link App} registry.
+ *
+ * @template TTables Map of table names to their row types.
+ */
+export interface TypedClientTable<
+	TTables extends PublicAppRegistry["tables"],
+> {
+	/**
+	 * Executes a query statement against the server's registered tables.
+	 * @param fn A callback receiving a {@link BatchableStatementBuilder} typed to the registered tables and returning the statement to execute.
+	 * @param params A record of named parameter values to bind.
+	 * @param signal Optional abort signal.
+	 * @returns The query result.
+	 */
+	execute<TParams extends Record<string, unknown>, TOutput>(
+		fn: (q: BatchableStatementBuilder<TTables, TTables>) => IStatementBuilder<TParams, TOutput>,
+		params: TParams,
+		signal?: AbortSignal,
+	): Promise<TOutput>;
+}
+
 // deno-fmt-ignore
 type RequestInitFromRequest<T> = T extends Request<infer TMethod, infer THeaders, any, infer TBody>
 	? Prettify<(
@@ -986,6 +1052,7 @@ type ApplicationEndpoints<T> = T extends App<any, infer TRegistry> ? TRegistry["
 type BuiltinEndpointPaths =
 	| keyof ApplicationEndpoints<AuthenticationApplication>
 	| keyof ApplicationEndpoints<DocumentApplication>
-	| keyof ApplicationEndpoints<PubsubApplication>;
+	| keyof ApplicationEndpoints<PubsubApplication>
+	| keyof ApplicationEndpoints<TableApplication>;
 
 type RemoveBuiltinEndpoints<TEndpoints> = Omit<TEndpoints, BuiltinEndpointPaths>;

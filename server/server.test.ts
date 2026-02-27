@@ -12,6 +12,9 @@ import { ServiceCollection } from "./prelude.ts";
 import { fromServerErrorData, ServerErrorData } from "@baseless/core/errors";
 import { AppRegistry } from "./app.ts";
 import { Request } from "@baseless/core/request";
+import { type Client as LibSQLClient, createClient } from "npm:@libsql/client@0.14.0/node";
+import { LibSQLTableProvider } from "../providers/universal/table.ts";
+import { TableProvider } from "./provider.ts";
 
 export default async function createMemoryServer<TRegistry extends AppRegistry>(
 	options: Omit<ServerOptions<TRegistry>, "providers">,
@@ -21,8 +24,10 @@ export default async function createMemoryServer<TRegistry extends AppRegistry>(
 			document: MemoryDocumentProvider;
 			hub: DenoHubProvider;
 			kv: MemoryKVProvider;
+			libsql: LibSQLClient;
 			notification: MemoryNotificationProvider;
 			queue: MemoryQueueProvider;
+			table: TableProvider;
 		};
 		fetch: <T extends z.ZodType = z.ZodUnknown>(
 			endpoint: string,
@@ -39,6 +44,9 @@ export default async function createMemoryServer<TRegistry extends AppRegistry>(
 	const notification = new MemoryNotificationProvider();
 	const rateLimiter = new MemoryRateLimiterProvider();
 
+	const libsqlClient = createClient({ url: "file::memory:" });
+	const table = new LibSQLTableProvider(libsqlClient);
+
 	const server = new Server({
 		...options,
 		providers: {
@@ -48,6 +56,7 @@ export default async function createMemoryServer<TRegistry extends AppRegistry>(
 			kv,
 			queue,
 			rateLimiter,
+			table,
 		},
 	});
 
@@ -87,8 +96,10 @@ export default async function createMemoryServer<TRegistry extends AppRegistry>(
 			document,
 			hub,
 			kv,
+			libsql: libsqlClient,
 			notification,
 			queue,
+			table,
 		},
 		fetch,
 		server,

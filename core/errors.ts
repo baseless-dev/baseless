@@ -129,6 +129,18 @@ export class RequestNotFoundError extends PublicError {
 	statusText = "Not Found";
 	details = null;
 }
+/** HTTP 404 Not Found. Thrown when a requested table is not registered. */
+export class TableNotFoundError extends PublicError {
+	status = 404;
+	statusText = "Not Found";
+	details = null;
+}
+/** HTTP 400 Bad Request. Thrown when a table statement execution fails (invalid statement or constraint violation). */
+export class TableExecutionError extends PublicError {
+	status = 400;
+	statusText = "Bad Request";
+	details = null;
+}
 /** HTTP 404 Not Found. Thrown when a pub/sub topic is not registered. */
 export class TopicNotFoundError extends PublicError {
 	status = 404;
@@ -191,6 +203,10 @@ export function fromServerErrorData(data: ServerErrorData): PublicError | Server
 			return new RateLimitedError();
 		case RequestNotFoundError.name:
 			return new RequestNotFoundError();
+		case TableNotFoundError.name:
+			return new TableNotFoundError();
+		case TableExecutionError.name:
+			return new TableExecutionError();
 		case TopicNotFoundError.name:
 			return new TopicNotFoundError();
 	}

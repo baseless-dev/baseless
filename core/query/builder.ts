@@ -971,7 +971,7 @@ export class SelectStatementBuilder<
 		);
 	}
 
-	pick<TSelect extends Record<string, TReferenceOrLiteral>>(
+	map<TSelect extends Record<string, TReferenceOrLiteral>>(
 		builder: (expr: ReferenceOrLiteralBuilder<TFrom>) => TSelect,
 	): SelectStatementBuilder<
 		TTables,

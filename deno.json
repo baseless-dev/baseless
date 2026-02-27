@@ -5,6 +5,7 @@
 		"./examples/hello-world",
 		"./providers/deno",
 		"./providers/inmemory",
+		"./providers/universal",
 		"./react",
 		"./server"
 	],

@@ -40,7 +40,7 @@ Deno.test("queryToString", () => {
 		.from((q) =>
 			q.select("posts", "p")
 				.where((q) => q.equal(q.ref("p", "author_id"), q.param("author_id")))
-				.pick((q) => ({
+				.map((q) => ({
 					title: q.ref("p", "title"),
 					content: q.ref("p", "content"),
 					postDate: q.ref("p", "postDate"),

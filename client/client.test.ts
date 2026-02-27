@@ -1,6 +1,7 @@
 import { app, Permission } from "@baseless/server";
 import docApp from "@baseless/server/apps/document";
 import pubsubApp from "@baseless/server/apps/pubsub";
+import tableApp from "@baseless/server/apps/table";
 import authApp from "@baseless/server/apps/authentication";
 import { Client } from "./client.ts";
 import { generateKeyPair } from "jose/key/generate/keypair";
@@ -12,6 +13,7 @@ import { id, ksuid } from "@baseless/core/id";
 import { assert } from "@std/assert/assert";
 import { assertEquals } from "@std/assert/equals";
 import { assertObjectMatch } from "@std/assert/object-match";
+import { assertRejects } from "@std/assert/rejects";
 import { EmailIdentityComponentProvider } from "@baseless/server/auth/email";
 import { PasswordIdentityComponentProvider } from "@baseless/server/auth/password";
 import { component, sequence } from "@baseless/core/authentication-ceremony";
@@ -19,10 +21,12 @@ import { AuthenticationTokensObject } from "@baseless/core/authentication-tokens
 
 Deno.test("Client", async (ctx) => {
 	const keyPair = await generateKeyPair("PS512");
+
 	const testApp = app()
 		.extend(authApp)
 		.extend(docApp)
 		.extend(pubsubApp)
+		.extend(tableApp)
 		.endpoint({
 			path: `hello`,
 			request: z.request(),
@@ -80,7 +84,6 @@ Deno.test("Client", async (ctx) => {
 	});
 	const password = new PasswordIdentityComponentProvider("dummy salt");
 	await using mock = await createMemoryServer({
-		publicKey: keyPair.publicKey,
 		app: testApp,
 		configuration: {
 			auth: {
@@ -97,6 +100,10 @@ Deno.test("Client", async (ctx) => {
 			},
 		},
 	});
+
+	// Create the table used by the table test step
+	await mock.provider.libsql.execute(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY)`);
+
 	await using client = new Client({
 		baseUrl: new URL("http://localhost"),
 		fetch: async (input, init): Promise<globalThis.Response> => {
@@ -200,6 +207,40 @@ Deno.test("Client", async (ctx) => {
 			.set(ref("users/:userid/preferences", { userid: "baz" }), { foo: false, bar: "baz" })
 			.delete(ref("users/:userid/preferences", { userid: "foo" }))
 			.commit();
+	});
+
+	await ctx.step("table", async () => {
+		// Authenticate so row security resolves to our identity
+		{
+			using auth = await client.auth.begin("authentication");
+			await auth.submitPrompt("foo@test.local");
+			await auth.submitPrompt("lepassword");
+		}
+
+		// Insert a row matching our identity (allowed by row security)
+		await client.table.execute(
+			(q) => q.insert("users").values((q) => ({ id: q.literal(identity.id) })),
+			{},
+		);
+
+		// Insert another row (should be blocked by row security)
+		await assertRejects(() =>
+			client.table.execute(
+				(q) => q.insert("users").values((q) => ({ id: q.literal("someone_else") })),
+				{},
+			)
+		);
+
+		// SELECT – row security injects WHERE users.id = identity.id
+		const rows = await client.table.execute(
+			(q) => q.select("users").map((q) => ({ id: q.ref("users", "id") })),
+			{},
+		) as { id: string }[];
+		assertEquals(rows.length, 1);
+		assertEquals(rows[0].id, identity.id);
+
+		// Clean up
+		await client.auth.signOut();
 	});
 
 	await ctx.step("pubsub", async () => {

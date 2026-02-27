@@ -15,6 +15,7 @@ import type { Identity, IdentityChannel, IdentityComponent } from "@baseless/cor
 import type { AuthenticationComponentPrompt } from "@baseless/core/authentication-component";
 import type { ServiceCollection } from "./service.ts";
 import type { Notification } from "@baseless/core/notification";
+import type { TStatement } from "@baseless/core/query";
 import { App } from "@baseless/server";
 
 export type { ID } from "@baseless/core/id";
@@ -470,4 +471,31 @@ export abstract class RateLimiterProvider {
 	 * @returns `true` if the request is allowed, `false` if the limit is exceeded.
 	 */
 	abstract limit(options: RateLimiterProviderLimitOptions): Promise<boolean>;
+}
+
+/**
+ * Abstract table provider for executing query AST statements against a
+ * relational-style backing store (SQL database, in-memory engine, etc.).
+ *
+ * Implementations receive fully-resolved AST statements (parameters already
+ * substituted, row-security expressions injected) and must interpret or
+ * translate them into the underlying storage API.
+ */
+export abstract class TableProvider {
+	/**
+	 * Executes a query AST statement.
+	 *
+	 * - For `SELECT` statements, returns an array of row objects.
+	 * - For `INSERT` / `UPDATE` / `DELETE`, returns `void` or an affected-row count.
+	 * - For `BATCH`, executes all sub-statements atomically and returns `void`.
+	 *
+	 * @param statement The resolved query AST statement to execute.
+	 * @param signal Optional abort signal.
+	 * @returns The query result (shape depends on the statement type).
+	 */
+	abstract execute(
+		statement: TStatement<Record<string, unknown>, unknown>,
+		params: Record<string, unknown>,
+		signal?: AbortSignal,
+	): Promise<unknown>;
 }

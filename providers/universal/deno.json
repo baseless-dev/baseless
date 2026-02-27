@@ -1,0 +1,22 @@
+{
+	"name": "@baseless/universal-provider",
+	"version": "0.5.0-rc.1",
+	"exports": {
+		".": "./prelude.ts",
+		"./table": "./table.ts"
+	},
+	"publish": {
+		"include": [
+			"LICENSE",
+			"**/*.ts"
+		],
+		"exclude": [
+			"*.test.ts",
+			"*.bench.ts"
+		]
+	},
+	"imports": {
+		"@libsql/client": "npm:@libsql/client@0.14.0",
+		"@libsql/client/node": "npm:@libsql/client@0.14.0/node"
+	}
+}

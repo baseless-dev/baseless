@@ -26,6 +26,7 @@ Deno.test("app", async (t) => {
 			.table({
 				path: "users",
 				schema: z.object({ id: z.string() }),
+				tableSecurity: () => Permission.Select,
 				rowSecurity: ({ q, auth }) => q.equal(q.ref("users", "id"), q.literal(auth?.identityId ?? "")),
 			})
 			.topic({

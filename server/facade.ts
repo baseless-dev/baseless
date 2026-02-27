@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import type { App, AppRegistry, Auth } from "./app.ts";
+import { Permission } from "./app.ts";
 import { assert } from "@baseless/core/schema";
 import {
 	DocumentProvider,
@@ -8,6 +9,7 @@ import {
 	QueueProvider,
 	RateLimiterProvider,
 	RateLimiterProviderLimitOptions,
+	TableProvider,
 } from "./provider.ts";
 import type { KVGetOptions, KVKey, KVListOptions, KVListResult, KVPutOptions } from "@baseless/core/kv";
 import { type Document, type DocumentGetOptions, type DocumentListEntry } from "@baseless/core/document";
@@ -21,17 +23,19 @@ import type {
 	NotificationService,
 	PubSubService,
 	ServiceCollection,
+	TableService,
 } from "./service.ts";
 import { first } from "@baseless/core/iter";
 import type { Identity, IdentityChannel } from "@baseless/core/identity";
 import { type Notification } from "@baseless/core/notification";
-import { DocumentNotFoundError, NotificationChannelNotFoundError, TopicNotFoundError } from "@baseless/core/errors";
+import { DocumentNotFoundError, ForbiddenError, NotificationChannelNotFoundError, TopicNotFoundError } from "@baseless/core/errors";
 import { ref, Reference } from "@baseless/core/ref";
 import type { Session } from "@baseless/core/session";
 import type { AuthenticationTokens } from "@baseless/core/authentication-tokens";
 import { jwtVerify } from "jose/jwt/verify";
 import { assertID, ID, id, isID } from "@baseless/core/id";
 import { SignJWT } from "jose/jwt/sign";
+import type { TStatement } from "@baseless/core/query";
 
 /**
  * Facade that wraps a {@link KVProvider} and implements the {@link KVService}
@@ -494,5 +498,29 @@ export class RateLimiterFacade {
 
 	limit(options: RateLimiterProviderLimitOptions): Promise<boolean> {
 		return this.#provider.limit(options);
+	}
+}
+
+/**
+ * Facade that wraps a {@link TableProvider} and implements the
+ * {@link TableService} interface consumed by server-internal handlers.
+ *
+ * Security (table-level and row-level) is enforced at the client-facing
+ * app layer (`server/apps/table.ts`), not here.
+ */
+export class TableFacade implements TableService<any> {
+	#provider: TableProvider;
+
+	constructor(provider: TableProvider) {
+		this.#provider = provider;
+	}
+
+	async execute<TParams extends Record<string, unknown>, TOutput>(
+		statement: TStatement<TParams, TOutput>,
+		params: TParams,
+		signal?: AbortSignal,
+	): Promise<TOutput> {
+		const result = await this.#provider.execute(statement as TStatement<Record<string, unknown>, unknown>, params, signal);
+		return result as TOutput;
 	}
 }

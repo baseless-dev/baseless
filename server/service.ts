@@ -5,6 +5,7 @@ import type { Identity, IdentityChannel } from "@baseless/core/identity";
 import type { Notification } from "@baseless/core/notification";
 import type { Reference } from "@baseless/core/ref";
 import type { AuthenticationTokens } from "@baseless/core/authentication-tokens";
+import type { TStatement } from "@baseless/core/query";
 
 /**
  * The full service bag injected into every handler. Contains document, KV,
@@ -18,6 +19,7 @@ export type ServiceCollection<TRegistry extends AppRegistry = AppRegistry> = {
 	notification: NotificationService;
 	pubsub: PubSubService<TRegistry["topics"]>;
 	rateLimiter: RateLimiterService;
+	table: TableService<TRegistry["tables"]>;
 } & TRegistry["services"];
 
 export interface AuthService {
@@ -120,3 +122,32 @@ export interface PubSubService<TTopics> {
 
 /** Rate-limiter service, alias for {@link RateLimiterProvider}. */
 export interface RateLimiterService extends RateLimiterProvider {}
+
+/**
+ * Table query service available inside every request handler.
+ * Wraps the raw {@link TableProvider} with row-level and table-level
+ * security enforcement.
+ *
+ * @template TTables Map of table names to their row types.
+ */
+export interface TableService<TTables> {
+	/**
+	 * Executes a query statement against the registered tables.
+	 *
+	 * The facade resolves table definitions, checks `tableSecurity` permissions,
+	 * injects `rowSecurity` WHERE clauses, substitutes named parameters, and
+	 * delegates to the underlying {@link TableProvider}.
+	 *
+	 * @template TParams Named parameter types extracted from the statement.
+	 * @template TOutput The expected output type (row array for SELECT, void for mutations).
+	 * @param statement The query AST statement wrapper.
+	 * @param params A record of named parameter values to bind.
+	 * @param signal Optional abort signal.
+	 * @returns The query result.
+	 */
+	execute<TParams extends Record<string, unknown>, TOutput>(
+		statement: TStatement<TParams, TOutput>,
+		params: TParams,
+		signal?: AbortSignal,
+	): Promise<TOutput>;
+}

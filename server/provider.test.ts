@@ -3,7 +3,9 @@ import { assertRejects } from "@std/assert/rejects";
 import { assertExists } from "@std/assert/exists";
 import { assert } from "@std/assert/assert";
 import { assertFalse } from "@std/assert/false";
-import { DocumentProvider, KVProvider, QueueProvider, RateLimiterProvider } from "./provider.ts";
+import { DocumentProvider, KVProvider, QueueProvider, RateLimiterProvider, TableProvider } from "./provider.ts";
+import { BatchableStatementBuilder } from "@baseless/core/query";
+import type { TStatement } from "@baseless/core/query";
 
 export async function testDocumentProvider(
 	provider: DocumentProvider,
@@ -224,5 +226,355 @@ export async function testRateLimiterProvider(
 		assertFalse(await provider.limit({ key: "a", limit: 2, period: 500 }));
 		await new Promise((r) => setTimeout(r, 1000));
 		assert(await provider.limit({ key: "a", limit: 2, period: 500 }));
+	});
+}
+
+type User = {
+	user_id: number;
+	display: string;
+	email: string;
+	age: number;
+};
+
+type Post = {
+	post_id: number;
+	title: string;
+	content: string;
+	author_id: number;
+};
+
+type Tables = {
+	users: User;
+	posts: Post;
+};
+
+type InsertTables = {
+	users: Omit<User, "user_id">;
+	posts: Omit<Post, "post_id">;
+};
+
+const q = new BatchableStatementBuilder<Tables, InsertTables>();
+
+async function seedUsers(provider: TableProvider): Promise<void> {
+	const insertStmt = q.insert("users").values((q) => ({
+		display: q.param("display"),
+		email: q.param("email"),
+		age: q.param("age"),
+	})).toStatement();
+
+	await provider.execute(
+		insertStmt as TStatement<Record<string, unknown>, unknown>,
+		{ display: "Alice", email: "alice@example.com", age: 30 },
+	);
+	await provider.execute(
+		insertStmt as TStatement<Record<string, unknown>, unknown>,
+		{ display: "Bob", email: "bob@example.com", age: 25 },
+	);
+	await provider.execute(
+		insertStmt as TStatement<Record<string, unknown>, unknown>,
+		{ display: "Charlie", email: "charlie@example.com", age: 35 },
+	);
+}
+
+export async function testTableProvider(
+	provider: TableProvider,
+	t: Deno.TestContext,
+): Promise<void> {
+	await t.step("INSERT VALUES and SELECT all rows", async () => {
+		await seedUsers(provider);
+
+		const selectStmt = q.select("users")
+			.map((q) => ({
+				user_id: q.ref("users", "user_id"),
+				display: q.ref("users", "display"),
+				email: q.ref("users", "email"),
+				age: q.ref("users", "age"),
+			}))
+			.toStatement();
+
+		const rows = await provider.execute(
+			selectStmt as TStatement<Record<string, unknown>, unknown>,
+			{},
+		) as Record<string, unknown>[];
+
+		assertEquals(rows.length, 3);
+		assertEquals(rows[0].display, "Alice");
+		assertEquals(rows[1].display, "Bob");
+		assertEquals(rows[2].display, "Charlie");
+	});
+
+	await t.step("SELECT with WHERE clause", async () => {
+		const stmt = q.select("users")
+			.map((q) => ({
+				display: q.ref("users", "display"),
+				age: q.ref("users", "age"),
+			}))
+			.where((q) => q.greaterThan(q.ref("users", "age"), q.param("minAge")))
+			.toStatement();
+
+		const rows = await provider.execute(
+			stmt as TStatement<Record<string, unknown>, unknown>,
+			{ minAge: 28 },
+		) as Record<string, unknown>[];
+
+		assertEquals(rows.length, 2);
+		assertEquals(rows[0].display, "Alice");
+		assertEquals(rows[1].display, "Charlie");
+	});
+
+	await t.step("SELECT with ORDER BY and LIMIT", async () => {
+		const builder = q.select("users")
+			.map((q) => ({
+				display: q.ref("users", "display"),
+				age: q.ref("users", "age"),
+			}))
+			.limit(2);
+
+		// Manually inject orderBy since the builder doesn't expose a chainable method yet
+		const built = builder.build();
+		built.orderBy = [{ column: { type: "columnref", table: "users", column: "age" }, order: "DESC" }];
+		const stmt: TStatement<Record<string, unknown>, unknown> = { type: "statement", statement: built };
+
+		const rows = await provider.execute(stmt, {}) as Record<string, unknown>[];
+
+		assertEquals(rows.length, 2);
+		assertEquals(rows[0].display, "Charlie");
+		assertEquals(rows[1].display, "Alice");
+	});
+
+	await t.step("SELECT with JOIN", async () => {
+		// Insert a post for Alice (user_id = 1)
+		const insertPost = q.insert("posts").values((q) => ({
+			title: q.param("title"),
+			content: q.param("content"),
+			author_id: q.param("author_id"),
+		})).toStatement();
+
+		await provider.execute(
+			insertPost as TStatement<Record<string, unknown>, unknown>,
+			{ title: "Hello World", content: "My first post!", author_id: 1 },
+		);
+
+		const stmt = q.select("posts", "p")
+			.join("users", "u", (q) => q.equal(q.ref("u", "user_id"), q.ref("p", "author_id")))
+			.map((q) => ({
+				post_title: q.ref("p", "title"),
+				author_display: q.ref("u", "display"),
+			}))
+			.toStatement();
+
+		const rows = await provider.execute(
+			stmt as TStatement<Record<string, unknown>, unknown>,
+			{},
+		) as Record<string, unknown>[];
+
+		assertEquals(rows.length, 1);
+		assertEquals(rows[0].post_title, "Hello World");
+		assertEquals(rows[0].author_display, "Alice");
+	});
+
+	await t.step("UPDATE with WHERE", async () => {
+		const updateStmt = q.update("users")
+			.set((q) => ({
+				age: q.param("newAge"),
+			}))
+			.where((q) => q.equal(q.ref("users", "display"), q.param("name")))
+			.toStatement();
+
+		await provider.execute(
+			updateStmt as TStatement<Record<string, unknown>, unknown>,
+			{ newAge: 31, name: "Alice" },
+		);
+
+		const selectStmt = q.select("users")
+			.map((q) => ({
+				display: q.ref("users", "display"),
+				age: q.ref("users", "age"),
+			}))
+			.where((q) => q.equal(q.ref("users", "display"), q.param("name")))
+			.toStatement();
+
+		const rows = await provider.execute(
+			selectStmt as TStatement<Record<string, unknown>, unknown>,
+			{ name: "Alice" },
+		) as Record<string, unknown>[];
+
+		assertEquals(rows.length, 1);
+		assertEquals(rows[0].age, 31);
+	});
+
+	await t.step("DELETE with WHERE", async () => {
+		const deleteStmt = q.delete("users")
+			.where((q) => q.equal(q.ref("users", "display"), q.param("name")))
+			.toStatement();
+
+		await provider.execute(
+			deleteStmt as TStatement<Record<string, unknown>, unknown>,
+			{ name: "Bob" },
+		);
+
+		const selectStmt = q.select("users")
+			.map((q) => ({
+				display: q.ref("users", "display"),
+			}))
+			.toStatement();
+
+		const rows = await provider.execute(
+			selectStmt as TStatement<Record<string, unknown>, unknown>,
+			{},
+		) as Record<string, unknown>[];
+
+		assertEquals(rows.length, 2);
+		assertEquals(rows[0].display, "Alice");
+		assertEquals(rows[1].display, "Charlie");
+	});
+
+	await t.step("BATCH with pre-condition checks", async () => {
+		const batch = q.batch()
+			.checkIfNotExists(
+				q.select("users").where((q) => q.equal(q.ref("users", "display"), q.param("name"))),
+			)
+			.execute(
+				q.insert("users").values((q) => ({
+					display: q.param("name"),
+					email: q.param("email"),
+					age: q.param("age"),
+				})),
+			)
+			.toStatement();
+
+		await provider.execute(
+			batch as TStatement<Record<string, unknown>, unknown>,
+			{ name: "Dave", email: "dave@example.com", age: 40 },
+		);
+
+		const selectStmt = q.select("users")
+			.map((q) => ({
+				display: q.ref("users", "display"),
+			}))
+			.toStatement();
+
+		const rows = await provider.execute(
+			selectStmt as TStatement<Record<string, unknown>, unknown>,
+			{},
+		) as Record<string, unknown>[];
+
+		// After seedUsers (3) - delete Bob (2) + insert Dave (3)
+		assertEquals(rows.length, 3);
+	});
+
+	await t.step("BATCH fails when pre-condition not met", async () => {
+		const batch = q.batch()
+			.checkIfNotExists(
+				q.select("users").where((q) => q.equal(q.ref("users", "display"), q.param("name"))),
+			)
+			.execute(
+				q.insert("users").values((q) => ({
+					display: q.param("name"),
+					email: q.param("email"),
+					age: q.param("age"),
+				})),
+			)
+			.toStatement();
+
+		await assertRejects(
+			() =>
+				provider.execute(
+					batch as TStatement<Record<string, unknown>, unknown>,
+					{ name: "Alice", email: "alice2@example.com", age: 99 },
+				),
+			Error,
+			"pre-condition failed",
+		);
+
+		// Verify no additional Alice was inserted
+		const selectStmt = q.select("users")
+			.map((q) => ({
+				display: q.ref("users", "display"),
+			}))
+			.toStatement();
+
+		const rows = await provider.execute(
+			selectStmt as TStatement<Record<string, unknown>, unknown>,
+			{},
+		) as Record<string, unknown>[];
+
+		assertEquals(rows.length, 3);
+	});
+
+	await t.step("SELECT with WHERE equality on literal", async () => {
+		// Dave has age 40 (inserted in batch step)
+		const stmt = q.select("users")
+			.map((q) => ({
+				display: q.ref("users", "display"),
+			}))
+			.where((q) => q.equal(q.ref("users", "age"), q.literal(40)))
+			.toStatement();
+
+		const rows = await provider.execute(
+			stmt as TStatement<Record<string, unknown>, unknown>,
+			{},
+		) as Record<string, unknown>[];
+
+		assertEquals(rows.length, 1);
+		assertEquals(rows[0].display, "Dave");
+	});
+
+	await t.step("SELECT with OFFSET", async () => {
+		const builder = q.select("users")
+			.map((q) => ({
+				display: q.ref("users", "display"),
+			}))
+			.limit(2)
+			.offset(1);
+
+		// Manually inject orderBy
+		const built = builder.build();
+		built.orderBy = [{ column: { type: "columnref", table: "users", column: "user_id" }, order: "ASC" }];
+		const stmt: TStatement<Record<string, unknown>, unknown> = { type: "statement", statement: built };
+
+		const rows = await provider.execute(stmt, {}) as Record<string, unknown>[];
+
+		assertEquals(rows.length, 2);
+	});
+
+	await t.step("INSERT FROM SELECT", async () => {
+		// Insert from select: duplicate existing post for a different author
+		// After previous steps: Alice (1), Charlie (3), Dave (4) exist; Bob (2) was deleted
+		// The "Hello World" post belongs to author_id=1 (Alice)
+		const insertFrom = q.insert("posts")
+			.from((q) =>
+				q.select("posts", "p")
+					.where((q) => q.equal(q.ref("p", "author_id"), q.param("source_author")))
+					.map((q) => ({
+						title: q.ref("p", "title"),
+						content: q.ref("p", "content"),
+						author_id: q.param("target_author"),
+					}))
+			)
+			.toStatement();
+
+		await provider.execute(
+			insertFrom as TStatement<Record<string, unknown>, unknown>,
+			{ source_author: 1, target_author: 3 },
+		);
+
+		const selectPosts = q.select("posts")
+			.map((q) => ({
+				title: q.ref("posts", "title"),
+				author_id: q.ref("posts", "author_id"),
+			}))
+			.toStatement();
+
+		const rows = await provider.execute(
+			selectPosts as TStatement<Record<string, unknown>, unknown>,
+			{},
+		) as Record<string, unknown>[];
+
+		assertEquals(rows.length, 2);
+		assertEquals(rows[0].author_id, 1);
+		assertEquals(rows[1].author_id, 3);
+		assertEquals(rows[0].title, "Hello World");
+		assertEquals(rows[1].title, "Hello World");
 	});
 }

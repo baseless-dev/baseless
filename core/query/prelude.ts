@@ -4,3 +4,5 @@
  */
 export * from "./builder.ts";
 export * from "./schema.ts";
+export * from "./visit.ts";
+export * from "./replace.ts";

@@ -235,7 +235,7 @@ Deno.test("Client", async (ctx) => {
 		const rows = await client.table.execute(
 			(q) => q.select("users").map((q) => ({ id: q.ref("users", "id") })),
 			{},
-		) as { id: string }[];
+		);
 		assertEquals(rows.length, 1);
 		assertEquals(rows[0].id, identity.id);
 

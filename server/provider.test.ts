@@ -3,7 +3,8 @@ import { assertRejects } from "@std/assert/rejects";
 import { assertExists } from "@std/assert/exists";
 import { assert } from "@std/assert/assert";
 import { assertFalse } from "@std/assert/false";
-import { DocumentProvider, KVProvider, QueueProvider, RateLimiterProvider, TableProvider } from "./provider.ts";
+import { DocumentProvider, KVProvider, QueueProvider, RateLimiterProvider, StorageProvider, TableProvider } from "./provider.ts";
+import { StorageObjectNotFoundError } from "@baseless/core/errors";
 import { BatchableStatementBuilder } from "@baseless/core/query";
 import type { TStatement } from "@baseless/core/query";
 
@@ -576,5 +577,178 @@ export async function testTableProvider(
 		assertEquals(rows[1].author_id, 3);
 		assertEquals(rows[0].title, "Hello World");
 		assertEquals(rows[1].title, "Hello World");
+	});
+}
+
+export async function testStorageProvider(
+	provider: StorageProvider,
+	t: Deno.TestContext,
+): Promise<void> {
+	await t.step("put stores content from ArrayBuffer", async () => {
+		const data = new TextEncoder().encode("hello world");
+		await provider.put("files/hello.txt", data.buffer, {
+			contentType: "text/plain",
+			metadata: { author: "test" },
+		});
+	});
+
+	await t.step("get retrieves stored content", async () => {
+		const stream = await provider.get("files/hello.txt");
+		const reader = stream.getReader();
+		const chunks: Uint8Array[] = [];
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			chunks.push(value);
+		}
+		let totalLength = 0;
+		for (const chunk of chunks) totalLength += chunk.byteLength;
+		const merged = new Uint8Array(totalLength);
+		let offset = 0;
+		for (const chunk of chunks) {
+			merged.set(chunk, offset);
+			offset += chunk.byteLength;
+		}
+		assertEquals(new TextDecoder().decode(merged), "hello world");
+	});
+
+	await t.step("get throws StorageObjectNotFoundError for missing key", async () => {
+		await assertRejects(
+			() => provider.get("nonexistent/file.bin"),
+			StorageObjectNotFoundError,
+		);
+	});
+
+	await t.step("put stores content from Blob", async () => {
+		const blob = new Blob(["blob content"], { type: "text/plain" });
+		await provider.put("files/blob.txt", blob, { contentType: "text/plain" });
+
+		const stream = await provider.get("files/blob.txt");
+		const text = await new Response(stream).text();
+		assertEquals(text, "blob content");
+	});
+
+	await t.step("put stores content from ReadableStream", async () => {
+		const data = new TextEncoder().encode("streamed content");
+		const readable = new ReadableStream<Uint8Array>({
+			start(controller): void {
+				controller.enqueue(data);
+				controller.close();
+			},
+		});
+		await provider.put("files/stream.txt", readable, { contentType: "text/plain" });
+
+		const stream = await provider.get("files/stream.txt");
+		const text = await new Response(stream).text();
+		assertEquals(text, "streamed content");
+	});
+
+	await t.step("put overwrites existing content", async () => {
+		await provider.put("files/hello.txt", new TextEncoder().encode("updated").buffer, {
+			contentType: "text/plain",
+		});
+
+		const stream = await provider.get("files/hello.txt");
+		const text = await new Response(stream).text();
+		assertEquals(text, "updated");
+	});
+
+	await t.step("getMetadata returns object metadata", async () => {
+		const meta = await provider.getMetadata("files/hello.txt");
+		assertEquals(meta.key, "files/hello.txt");
+		assertEquals(meta.contentType, "text/plain");
+		assertExists(meta.lastModified);
+		assertExists(meta.etag);
+	});
+
+	await t.step("getMetadata throws StorageObjectNotFoundError for missing key", async () => {
+		await assertRejects(
+			() => provider.getMetadata("nonexistent/file.bin"),
+			StorageObjectNotFoundError,
+		);
+	});
+
+	await t.step("getSignedUploadUrl returns a signed URL", async () => {
+		const result = await provider.getSignedUploadUrl("files/upload.txt", {
+			contentType: "text/plain",
+			metadata: { tag: "upload" },
+		});
+		assertEquals(typeof result.url, "string");
+		assert(result.url.length > 0);
+		assertExists(result.expiresAt);
+	});
+
+	await t.step("getSignedDownloadUrl returns a signed URL", async () => {
+		const result = await provider.getSignedDownloadUrl("files/hello.txt");
+		assertEquals(typeof result.url, "string");
+		assert(result.url.length > 0);
+		assertExists(result.expiresAt);
+	});
+
+	await t.step("getSignedDownloadUrl throws for missing key", async () => {
+		await assertRejects(
+			() => provider.getSignedDownloadUrl("nonexistent/file.bin"),
+			StorageObjectNotFoundError,
+		);
+	});
+
+	await t.step("list returns stored objects", async () => {
+		const entries = await Array.fromAsync(provider.list({ prefix: "files" }));
+		assert(entries.length >= 3); // hello.txt, blob.txt, stream.txt (+ upload.txt from signed-url)
+		for (const entry of entries) {
+			assert(entry.object.key.startsWith("files/"));
+			assertExists(entry.cursor);
+		}
+	});
+
+	await t.step("list with limit and cursor paginates", async () => {
+		const page1 = await Array.fromAsync(provider.list({ prefix: "files", limit: 2 }));
+		assertEquals(page1.length, 2);
+
+		const page2 = await Array.fromAsync(
+			provider.list({ prefix: "files", limit: 2, cursor: page1[page1.length - 1].cursor }),
+		);
+		assert(page2.length > 0);
+
+		// No overlap between pages
+		const page1Keys = new Set(page1.map((e) => e.object.key));
+		for (const entry of page2) {
+			assertFalse(page1Keys.has(entry.object.key));
+		}
+	});
+
+	await t.step("list returns empty for unknown prefix", async () => {
+		const entries = await Array.fromAsync(provider.list({ prefix: "unknown" }));
+		assertEquals(entries.length, 0);
+	});
+
+	await t.step("delete removes the object", async () => {
+		await provider.delete("files/blob.txt");
+
+		await assertRejects(
+			() => provider.get("files/blob.txt"),
+			StorageObjectNotFoundError,
+		);
+		await assertRejects(
+			() => provider.getMetadata("files/blob.txt"),
+			StorageObjectNotFoundError,
+		);
+	});
+
+	await t.step("getSignedUploadUrl with conditions returns a signed URL", async () => {
+		const result = await provider.getSignedUploadUrl("files/conditioned.txt", {
+			contentType: "text/plain",
+			conditions: {
+				"content-type": "text/plain",
+				"content-length-range": "0-1048576",
+			},
+		});
+		assertEquals(typeof result.url, "string");
+		assert(result.url.length > 0);
+		assertExists(result.expiresAt);
+	});
+
+	await t.step("delete on missing key does not throw", async () => {
+		await provider.delete("nonexistent/file.bin");
 	});
 }

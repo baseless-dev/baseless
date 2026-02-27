@@ -1,6 +1,7 @@
 import { app, Permission } from "@baseless/server";
 import docApp from "@baseless/server/apps/document";
 import pubsubApp from "@baseless/server/apps/pubsub";
+import storageApp from "@baseless/server/apps/storage";
 import tableApp from "@baseless/server/apps/table";
 import authApp from "@baseless/server/apps/authentication";
 import { Client } from "./client.ts";
@@ -12,8 +13,10 @@ import { ref } from "@baseless/core/ref";
 import { id, ksuid } from "@baseless/core/id";
 import { assert } from "@std/assert/assert";
 import { assertEquals } from "@std/assert/equals";
+import { assertExists } from "@std/assert/exists";
 import { assertObjectMatch } from "@std/assert/object-match";
 import { assertRejects } from "@std/assert/rejects";
+import { StorageObjectNotFoundError } from "@baseless/core/errors";
 import { EmailIdentityComponentProvider } from "@baseless/server/auth/email";
 import { PasswordIdentityComponentProvider } from "@baseless/server/auth/password";
 import { component, sequence } from "@baseless/core/authentication-ceremony";
@@ -26,6 +29,7 @@ Deno.test("Client", async (ctx) => {
 		.extend(authApp)
 		.extend(docApp)
 		.extend(pubsubApp)
+		.extend(storageApp)
 		.extend(tableApp)
 		.endpoint({
 			path: `hello`,
@@ -64,6 +68,15 @@ Deno.test("Client", async (ctx) => {
 			schema: z.object({ id: z.string() }),
 			tableSecurity: () => Permission.All,
 			rowSecurity: ({ q, auth }) => q.equal(q.ref("users", "id"), q.literal(auth?.identityId ?? "")),
+		})
+		.file({
+			path: `avatar`,
+			fileSecurity: () => Permission.All,
+		})
+		.folder({
+			path: `uploads`,
+			folderSecurity: () => Permission.All,
+			fileSecurity: () => Permission.All,
 		})
 		.topic({
 			path: `presence`,
@@ -241,6 +254,51 @@ Deno.test("Client", async (ctx) => {
 
 		// Clean up
 		await client.auth.signOut();
+	});
+
+	await ctx.step("storage", async () => {
+		// Seed some files via the provider
+		await mock.provider.storage.put("avatar", new TextEncoder().encode("avatar-data").buffer, {
+			contentType: "image/png",
+			metadata: { userId: "u1" },
+		});
+		await mock.provider.storage.put("uploads/photo1.jpg", new TextEncoder().encode("photo1").buffer, {
+			contentType: "image/jpeg",
+		});
+		await mock.provider.storage.put("uploads/photo2.jpg", new TextEncoder().encode("photo2").buffer, {
+			contentType: "image/jpeg",
+		});
+
+		// getMetadata
+		const meta = await client.storage.getMetadata(ref("avatar"));
+		assertEquals(meta.key, "avatar");
+		assertEquals(meta.contentType, "image/png");
+		assertExists(meta.etag);
+
+		// getSignedUploadUrl
+		const uploadUrl = await client.storage.getSignedUploadUrl(ref("avatar"), {
+			contentType: "image/png",
+		});
+		assert(typeof uploadUrl.url === "string" && uploadUrl.url.length > 0);
+		assertExists(uploadUrl.expiresAt);
+
+		// getSignedDownloadUrl
+		const downloadUrl = await client.storage.getSignedDownloadUrl(ref("avatar"));
+		assert(typeof downloadUrl.url === "string" && downloadUrl.url.length > 0);
+		assertExists(downloadUrl.expiresAt);
+
+		// list folder
+		const entries = await Array.fromAsync(client.storage.list({ prefix: ref("uploads") }));
+		assertEquals(entries.length, 2);
+		assert(entries[0].object.key.startsWith("uploads/"));
+		assert(entries[1].object.key.startsWith("uploads/"));
+
+		// delete
+		await client.storage.delete(ref("avatar"));
+		await assertRejects(
+			() => client.storage.getMetadata(ref("avatar")),
+			StorageObjectNotFoundError,
+		);
 	});
 
 	await ctx.step("pubsub", async () => {

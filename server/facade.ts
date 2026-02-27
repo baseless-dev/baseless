@@ -9,6 +9,7 @@ import {
 	QueueProvider,
 	RateLimiterProvider,
 	RateLimiterProviderLimitOptions,
+	StorageProvider,
 	TableProvider,
 } from "./provider.ts";
 import type { KVGetOptions, KVKey, KVListOptions, KVListResult, KVPutOptions } from "@baseless/core/kv";
@@ -23,12 +24,21 @@ import type {
 	NotificationService,
 	PubSubService,
 	ServiceCollection,
+	StorageService,
+	StorageServiceListOptions,
 	TableService,
 } from "./service.ts";
 import { first } from "@baseless/core/iter";
 import type { Identity, IdentityChannel } from "@baseless/core/identity";
 import { type Notification } from "@baseless/core/notification";
-import { DocumentNotFoundError, ForbiddenError, NotificationChannelNotFoundError, TopicNotFoundError } from "@baseless/core/errors";
+import {
+	DocumentNotFoundError,
+	ForbiddenError,
+	NotificationChannelNotFoundError,
+	StorageFolderNotFoundError,
+	StorageObjectNotFoundError,
+	TopicNotFoundError,
+} from "@baseless/core/errors";
 import { ref, Reference } from "@baseless/core/ref";
 import type { Session } from "@baseless/core/session";
 import type { AuthenticationTokens } from "@baseless/core/authentication-tokens";
@@ -36,6 +46,13 @@ import { jwtVerify } from "jose/jwt/verify";
 import { assertID, ID, id, isID } from "@baseless/core/id";
 import { SignJWT } from "jose/jwt/sign";
 import type { TStatement } from "@baseless/core/query";
+import type {
+	StorageDownloadOptions,
+	StorageListEntry,
+	StorageObject,
+	StorageSignedUrl,
+	StorageUploadOptions,
+} from "@baseless/core/storage";
 
 /**
  * Facade that wraps a {@link KVProvider} and implements the {@link KVService}
@@ -522,5 +539,121 @@ export class TableFacade implements TableService<any> {
 	): Promise<TOutput> {
 		const result = await this.#provider.execute(statement as TStatement<Record<string, unknown>, unknown>, params, signal);
 		return result as TOutput;
+	}
+}
+
+/** Options required to construct a {@link StorageFacade}. */
+export interface StorageFacadeOptions {
+	app: App;
+	provider: StorageProvider;
+}
+
+/**
+ * Facade that wraps a {@link StorageProvider} with path-validation checks
+ * and implements the {@link StorageService} interface.
+ */
+export class StorageFacade implements StorageService<any, any> {
+	#options: StorageFacadeOptions;
+
+	constructor(options: StorageFacadeOptions) {
+		this.#options = options;
+	}
+
+	getMetadata<TPath extends keyof any>(
+		fileRef: Reference<TPath>,
+		signal?: AbortSignal,
+	): Promise<StorageObject> {
+		try {
+			// deno-lint-ignore no-var no-inner-declarations
+			var _ = first(this.#options.app.match("file", fileRef));
+		} catch (cause) {
+			throw new StorageObjectNotFoundError(undefined, { cause });
+		}
+		return this.#options.provider.getMetadata(fileRef, signal);
+	}
+
+	getSignedUploadUrl<TPath extends keyof any>(
+		fileRef: Reference<TPath>,
+		options?: StorageUploadOptions,
+		signal?: AbortSignal,
+	): Promise<StorageSignedUrl> {
+		try {
+			// deno-lint-ignore no-var no-inner-declarations
+			var _ = first(this.#options.app.match("file", fileRef));
+		} catch (cause) {
+			throw new StorageObjectNotFoundError(undefined, { cause });
+		}
+		return this.#options.provider.getSignedUploadUrl(fileRef, options, signal);
+	}
+
+	getSignedDownloadUrl<TPath extends keyof any>(
+		fileRef: Reference<TPath>,
+		options?: StorageDownloadOptions,
+		signal?: AbortSignal,
+	): Promise<StorageSignedUrl> {
+		try {
+			// deno-lint-ignore no-var no-inner-declarations
+			var _ = first(this.#options.app.match("file", fileRef));
+		} catch (cause) {
+			throw new StorageObjectNotFoundError(undefined, { cause });
+		}
+		return this.#options.provider.getSignedDownloadUrl(fileRef, options, signal);
+	}
+
+	put<TPath extends keyof any>(
+		fileRef: Reference<TPath>,
+		content: ReadableStream<Uint8Array> | ArrayBuffer | Blob,
+		options?: StorageUploadOptions,
+		signal?: AbortSignal,
+	): Promise<void> {
+		try {
+			// deno-lint-ignore no-var no-inner-declarations
+			var _ = first(this.#options.app.match("file", fileRef));
+		} catch (cause) {
+			throw new StorageObjectNotFoundError(undefined, { cause });
+		}
+		return this.#options.provider.put(fileRef, content, options, signal);
+	}
+
+	get<TPath extends keyof any>(
+		fileRef: Reference<TPath>,
+		signal?: AbortSignal,
+	): Promise<ReadableStream<Uint8Array>> {
+		try {
+			// deno-lint-ignore no-var no-inner-declarations
+			var _ = first(this.#options.app.match("file", fileRef));
+		} catch (cause) {
+			throw new StorageObjectNotFoundError(undefined, { cause });
+		}
+		return this.#options.provider.get(fileRef, signal);
+	}
+
+	delete<TPath extends keyof any>(
+		fileRef: Reference<TPath>,
+		signal?: AbortSignal,
+	): Promise<void> {
+		try {
+			// deno-lint-ignore no-var no-inner-declarations
+			var _ = first(this.#options.app.match("file", fileRef));
+		} catch (cause) {
+			throw new StorageObjectNotFoundError(undefined, { cause });
+		}
+		return this.#options.provider.delete(fileRef, signal);
+	}
+
+	list<TPath extends keyof any>(
+		options: StorageServiceListOptions<TPath>,
+		signal?: AbortSignal,
+	): ReadableStream<StorageListEntry> {
+		try {
+			// deno-lint-ignore no-var no-inner-declarations
+			var _ = first(this.#options.app.match("folder", options.prefix));
+		} catch (cause) {
+			throw new StorageFolderNotFoundError(undefined, { cause });
+		}
+		return this.#options.provider.list(
+			{ prefix: options.prefix as string, cursor: options.cursor, limit: options.limit },
+			signal,
+		);
 	}
 }

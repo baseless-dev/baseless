@@ -59,11 +59,15 @@ export interface AppRegistry {
 	};
 	context: {};
 	documents: {};
+	files: {};
+	folders: {};
 	requirements: {
 		configuration: {};
 		context: {};
 		collections: {};
 		documents: {};
+		files: {};
+		folders: {};
 		services: {};
 		tables: {};
 		topics: {};
@@ -81,6 +85,8 @@ export interface PublicAppRegistry {
 	endpoints: {};
 	collections: {};
 	documents: {};
+	files: {};
+	folders: {};
 	tables: {};
 	topics: {};
 }
@@ -404,6 +410,85 @@ export interface PublicTableDefinition<
 /** Union of {@link ServerTableDefinition} and {@link PublicTableDefinition}. */
 export type TableDefinition = ServerTableDefinition<any, any, any> | PublicTableDefinition<any, any, any>;
 
+/**
+ * Security handler that determines which {@link Permission} flags the current
+ * principal has for a given file (download / upload / delete).
+ */
+export type FileSecurityHandler<TRegistry extends AppRegistry, TParams extends {}> = (options: {
+	app: App;
+	auth: Auth;
+	configuration: TRegistry["configuration"];
+	context: TRegistry["context"];
+	params: TParams;
+	service: ServiceCollection<TRegistry>;
+	signal: AbortSignal;
+	waitUntil: (promise: PromiseLike<unknown>) => void;
+}) => Permission | Promise<Permission>;
+
+/**
+ * Security handler that determines which {@link Permission} flags the current
+ * principal has for a given folder (list).
+ */
+export type FolderSecurityHandler<TRegistry extends AppRegistry, TParams extends {}> = (options: {
+	app: App;
+	auth: Auth;
+	configuration: TRegistry["configuration"];
+	context: TRegistry["context"];
+	params: TParams;
+	service: ServiceCollection<TRegistry>;
+	signal: AbortSignal;
+	waitUntil: (promise: PromiseLike<unknown>) => void;
+}) => Permission | Promise<Permission>;
+
+/** Server-private file definition (not exposed to clients). */
+export interface ServerFileDefinition<
+	TRegistry extends AppRegistry,
+	TPath extends string,
+> {
+	path: TPath;
+	/** Server-enforced upload conditions (e.g. `content-type`, `content-length-range`). */
+	conditions?: Record<string, string>;
+}
+
+/** Public file definition including a security handler. */
+export interface PublicFileDefinition<
+	TRegistry extends AppRegistry,
+	TPath extends string,
+> {
+	path: TPath;
+	fileSecurity: FileSecurityHandler<TRegistry, PathToParams<TPath>>;
+	/** Server-enforced upload conditions (e.g. `content-type`, `content-length-range`). */
+	conditions?: Record<string, string>;
+}
+
+/** Union of {@link ServerFileDefinition} and {@link PublicFileDefinition}. */
+export type FileDefinition = ServerFileDefinition<any, any> | PublicFileDefinition<any, any>;
+
+/** Server-private folder definition (not exposed to clients). */
+export interface ServerFolderDefinition<
+	TRegistry extends AppRegistry,
+	TPath extends string,
+> {
+	path: TPath;
+	/** Server-enforced upload conditions inherited by files in this folder. */
+	conditions?: Record<string, string>;
+}
+
+/** Public folder definition including security handlers for the folder and its files. */
+export interface PublicFolderDefinition<
+	TRegistry extends AppRegistry,
+	TPath extends string,
+> {
+	path: TPath;
+	folderSecurity: FolderSecurityHandler<TRegistry, PathToParams<TPath>>;
+	fileSecurity: FileSecurityHandler<TRegistry, PathToParams<`${TPath}/:key`>>;
+	/** Server-enforced upload conditions inherited by files in this folder. */
+	conditions?: Record<string, string>;
+}
+
+/** Union of {@link ServerFolderDefinition} and {@link PublicFolderDefinition}. */
+export type FolderDefinition = ServerFolderDefinition<any, any> | PublicFolderDefinition<any, any>;
+
 /** Server-private topic definition (not exposed to clients). */
 export interface ServerTopicDefinition<
 	TRegistry extends AppRegistry,
@@ -474,6 +559,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: Prettify<TServerRegistry["context"] & TDecoration>;
 		documents: TServerRegistry["documents"];
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
 		tables: TServerRegistry["tables"];
@@ -502,6 +589,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: Prettify<TServerRegistry["documents"] & { [k in `${TPath}/:key`]: z.infer<TData> }>;
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
 		tables: TServerRegistry["tables"];
@@ -510,6 +599,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		endpoints: TPublicRegistry["endpoints"];
 		collections: Prettify<TPublicRegistry["collections"] & { [k in TPath]: z.infer<TData> }>;
 		documents: Prettify<TPublicRegistry["documents"] & { [k in `${TPath}/:key`]: z.infer<TData> }>;
+		files: TPublicRegistry["files"];
+		folders: TPublicRegistry["folders"];
 		tables: TPublicRegistry["tables"];
 		topics: Prettify<TPublicRegistry["topics"] & { [k in TPath]: z.infer<TData> } & { [k in `${TPath}/:key`]: z.infer<TData> }>;
 	}>;
@@ -523,6 +614,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: Prettify<TServerRegistry["documents"] & { [k in `${TPath}/:key`]: z.infer<TData> }>;
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
 		tables: TServerRegistry["tables"];
@@ -554,6 +647,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: Prettify<TServerRegistry["documents"] & { [k in TPath]: z.infer<TData> }>;
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
 		tables: TServerRegistry["tables"];
@@ -562,6 +657,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		endpoints: TPublicRegistry["endpoints"];
 		collections: TPublicRegistry["collections"];
 		documents: Prettify<TPublicRegistry["documents"] & { [k in TPath]: z.infer<TData> }>;
+		files: TPublicRegistry["files"];
+		folders: TPublicRegistry["folders"];
 		tables: TPublicRegistry["tables"];
 		topics: Prettify<TPublicRegistry["topics"] & { [k in TPath]: z.infer<TData> }>;
 	}>;
@@ -573,6 +670,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: Prettify<TServerRegistry["documents"] & { [k in TPath]: z.infer<TData> }>;
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
 		tables: TServerRegistry["tables"];
@@ -604,6 +703,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		endpoints: Prettify<TPublicRegistry["endpoints"] & { [k in TPath]: { request: z.infer<TRequest>; response: z.infer<TResponse> } }>;
 		collections: TPublicRegistry["collections"];
 		documents: TPublicRegistry["documents"];
+		files: TPublicRegistry["files"];
+		folders: TPublicRegistry["folders"];
 		tables: TPublicRegistry["tables"];
 		topics: TPublicRegistry["topics"];
 	}> {
@@ -613,6 +714,112 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		return new AppBuilder<any, any>({
 			...this.#app,
 			endpoints,
+		});
+	}
+
+	/**
+	 * Registers a standalone file definition for a single storage object.
+	 * Pass a {@link PublicFileDefinition} (with `fileSecurity`) to expose it
+	 * to clients, or a {@link ServerFileDefinition} to keep it server-private.
+	 * @param definition The file definition to register.
+	 * @returns A new builder with the file added to the registry.
+	 */
+	file<
+		TPath extends string,
+	>(definition: PublicFileDefinition<TServerRegistry, TPath>): AppBuilder<{
+		collections: TServerRegistry["collections"];
+		configuration: TServerRegistry["configuration"];
+		context: TServerRegistry["context"];
+		documents: TServerRegistry["documents"];
+		files: Prettify<TServerRegistry["files"] & { [k in TPath]: true }>;
+		folders: TServerRegistry["folders"];
+		requirements: TServerRegistry["requirements"];
+		services: TServerRegistry["services"];
+		tables: TServerRegistry["tables"];
+		topics: TServerRegistry["topics"];
+	}, {
+		endpoints: TPublicRegistry["endpoints"];
+		collections: TPublicRegistry["collections"];
+		documents: TPublicRegistry["documents"];
+		files: Prettify<TPublicRegistry["files"] & { [k in TPath]: true }>;
+		folders: TPublicRegistry["folders"];
+		tables: TPublicRegistry["tables"];
+		topics: TPublicRegistry["topics"];
+	}>;
+	file<
+		TPath extends string,
+	>(definition: ServerFileDefinition<TServerRegistry, TPath>): AppBuilder<{
+		collections: TServerRegistry["collections"];
+		configuration: TServerRegistry["configuration"];
+		context: TServerRegistry["context"];
+		documents: TServerRegistry["documents"];
+		files: Prettify<TServerRegistry["files"] & { [k in TPath]: true }>;
+		folders: TServerRegistry["folders"];
+		requirements: TServerRegistry["requirements"];
+		services: TServerRegistry["services"];
+		tables: TServerRegistry["tables"];
+		topics: TServerRegistry["topics"];
+	}, TPublicRegistry>;
+	file<
+		TPath extends string,
+	>(definition: PublicFileDefinition<TServerRegistry, TPath>): AppBuilder<any, any> {
+		return new AppBuilder<any, any>({
+			...this.#app,
+			files: { ...this.#app.files, [definition.path]: definition as never },
+		});
+	}
+
+	/**
+	 * Registers a folder definition that groups storage objects under a prefix.
+	 * Automatically creates a backing file path (`{path}/:key`).
+	 * Pass a {@link PublicFolderDefinition} (with `folderSecurity` and
+	 * `fileSecurity`) to expose it to clients, or a
+	 * {@link ServerFolderDefinition} to keep it server-private.
+	 * @param definition The folder definition to register.
+	 * @returns A new builder with the folder added to the registry.
+	 */
+	folder<
+		TPath extends string,
+	>(definition: PublicFolderDefinition<TServerRegistry, TPath>): AppBuilder<{
+		collections: TServerRegistry["collections"];
+		configuration: TServerRegistry["configuration"];
+		context: TServerRegistry["context"];
+		documents: TServerRegistry["documents"];
+		files: Prettify<TServerRegistry["files"] & { [k in `${TPath}/:key`]: true }>;
+		folders: Prettify<TServerRegistry["folders"] & { [k in TPath]: true }>;
+		requirements: TServerRegistry["requirements"];
+		services: TServerRegistry["services"];
+		tables: TServerRegistry["tables"];
+		topics: TServerRegistry["topics"];
+	}, {
+		endpoints: TPublicRegistry["endpoints"];
+		collections: TPublicRegistry["collections"];
+		documents: TPublicRegistry["documents"];
+		files: Prettify<TPublicRegistry["files"] & { [k in `${TPath}/:key`]: true }>;
+		folders: Prettify<TPublicRegistry["folders"] & { [k in TPath]: true }>;
+		tables: TPublicRegistry["tables"];
+		topics: TPublicRegistry["topics"];
+	}>;
+	folder<
+		TPath extends string,
+	>(definition: ServerFolderDefinition<TServerRegistry, TPath>): AppBuilder<{
+		collections: TServerRegistry["collections"];
+		configuration: TServerRegistry["configuration"];
+		context: TServerRegistry["context"];
+		documents: TServerRegistry["documents"];
+		files: Prettify<TServerRegistry["files"] & { [k in `${TPath}/:key`]: true }>;
+		folders: Prettify<TServerRegistry["folders"] & { [k in TPath]: true }>;
+		requirements: TServerRegistry["requirements"];
+		services: TServerRegistry["services"];
+		tables: TServerRegistry["tables"];
+		topics: TServerRegistry["topics"];
+	}, TPublicRegistry>;
+	folder<
+		TPath extends string,
+	>(definition: PublicFolderDefinition<TServerRegistry, TPath>): AppBuilder<any, any> {
+		return new AppBuilder<any, any>({
+			...this.#app,
+			folders: { ...this.#app.folders, [definition.path]: definition as never },
 		});
 	}
 
@@ -629,6 +836,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: TServerRegistry["requirements"];
 		services: Prettify<TServerRegistry["services"] & TServices>;
 		tables: TServerRegistry["tables"];
@@ -656,6 +865,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
 		tables: Prettify<TServerRegistry["tables"] & { [k in TName]: z.infer<TData> }>;
@@ -664,6 +875,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		endpoints: TPublicRegistry["endpoints"];
 		collections: TPublicRegistry["collections"];
 		documents: TPublicRegistry["documents"];
+		files: TPublicRegistry["files"];
+		folders: TPublicRegistry["folders"];
 		tables: Prettify<TPublicRegistry["tables"] & { [k in TName]: z.infer<TData> }>;
 		topics: TPublicRegistry["topics"];
 	}>;
@@ -675,6 +888,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
 		tables: Prettify<TServerRegistry["tables"] & { [k in TName]: z.infer<TData> }>;
@@ -706,6 +921,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
 		tables: TServerRegistry["tables"];
@@ -714,6 +931,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		endpoints: TPublicRegistry["endpoints"];
 		collections: TPublicRegistry["collections"];
 		documents: TPublicRegistry["documents"];
+		files: TPublicRegistry["files"];
+		folders: TPublicRegistry["folders"];
 		tables: TPublicRegistry["tables"];
 		topics: Prettify<TPublicRegistry["topics"] & { [k in TPath]: z.infer<TData> }>;
 	}>;
@@ -725,6 +944,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
 		tables: TServerRegistry["tables"];
@@ -759,11 +980,15 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: Prettify<TServerRegistry["configuration"] & TOtherRegistry["configuration"]>;
 		context: Prettify<TServerRegistry["context"] & TOtherRegistry["context"]>;
 		documents: Prettify<TServerRegistry["documents"] & TOtherRegistry["documents"]>;
+		files: Prettify<TServerRegistry["files"] & TOtherRegistry["files"]>;
+		folders: Prettify<TServerRegistry["folders"] & TOtherRegistry["folders"]>;
 		requirements: Prettify<{
 			configuration: Prettify<TServerRegistry["requirements"]["configuration"] & TOtherRegistry["requirements"]["configuration"]>;
 			context: Prettify<TServerRegistry["requirements"]["context"] & TOtherRegistry["requirements"]["context"]>;
 			collections: Prettify<TServerRegistry["requirements"]["collections"] & TOtherRegistry["requirements"]["collections"]>;
 			documents: Prettify<TServerRegistry["requirements"]["documents"] & TOtherRegistry["requirements"]["documents"]>;
+			files: Prettify<TServerRegistry["requirements"]["files"] & TOtherRegistry["requirements"]["files"]>;
+			folders: Prettify<TServerRegistry["requirements"]["folders"] & TOtherRegistry["requirements"]["folders"]>;
 			services: Prettify<TServerRegistry["requirements"]["services"] & TOtherRegistry["requirements"]["services"]>;
 			tables: Prettify<TServerRegistry["requirements"]["tables"] & TOtherRegistry["requirements"]["tables"]>;
 			topics: Prettify<TServerRegistry["requirements"]["topics"] & TOtherRegistry["requirements"]["topics"]>;
@@ -775,6 +1000,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		endpoints: Prettify<TPublicRegistry["endpoints"] & TOtherPublicRegistry["endpoints"]>;
 		collections: Prettify<TPublicRegistry["collections"] & TOtherPublicRegistry["collections"]>;
 		documents: Prettify<TPublicRegistry["documents"] & TOtherPublicRegistry["documents"]>;
+		files: Prettify<TPublicRegistry["files"] & TOtherPublicRegistry["files"]>;
+		folders: Prettify<TPublicRegistry["folders"] & TOtherPublicRegistry["folders"]>;
 		tables: Prettify<TPublicRegistry["tables"] & TOtherPublicRegistry["tables"]>;
 		topics: Prettify<TPublicRegistry["topics"] & TOtherPublicRegistry["topics"]>;
 	}> {
@@ -783,6 +1010,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 			decorators: [...this.#app.decorators, ...other.#app.decorators],
 			documents: { ...this.#app.documents, ...other.#app.documents },
 			endpoints: { ...this.#app.endpoints, ...other.#app.endpoints },
+			files: { ...this.#app.files, ...other.#app.files },
+			folders: { ...this.#app.folders, ...other.#app.folders },
 			onDocumentSetting: [...this.#app.onDocumentSetting, ...other.#app.onDocumentSetting],
 			onDocumentDeleting: [...this.#app.onDocumentDeleting, ...other.#app.onDocumentDeleting],
 			onTopicMessage: [...this.#app.onTopicMessage, ...other.#app.onTopicMessage],
@@ -791,6 +1020,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 				context: { ...this.#app.requirements?.context, ...other.#app.requirements?.context },
 				collections: { ...this.#app.requirements?.collections, ...other.#app.requirements?.collections },
 				documents: { ...this.#app.requirements?.documents, ...other.#app.requirements?.documents },
+				files: { ...this.#app.requirements?.files, ...other.#app.requirements?.files },
+				folders: { ...this.#app.requirements?.folders, ...other.#app.requirements?.folders },
 				services: { ...this.#app.requirements?.services, ...other.#app.requirements?.services },
 				tables: { ...this.#app.requirements?.tables, ...other.#app.requirements?.tables },
 				topics: { ...this.#app.requirements?.topics, ...other.#app.requirements?.topics },
@@ -860,11 +1091,15 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: Prettify<TServerRegistry["documents"] & { [k in `${TPath}/:key`]: z.infer<TData> }>;
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: {
 			configuration: TServerRegistry["requirements"]["configuration"];
 			context: TServerRegistry["requirements"]["context"];
 			collections: Prettify<TServerRegistry["requirements"]["collections"] & { [k in TPath]: z.infer<TData> }>;
 			documents: TServerRegistry["requirements"]["documents"];
+			files: TServerRegistry["requirements"]["files"];
+			folders: TServerRegistry["requirements"]["folders"];
 			services: TServerRegistry["requirements"]["services"];
 			tables: TServerRegistry["requirements"]["tables"];
 			topics: TServerRegistry["requirements"]["topics"];
@@ -898,11 +1133,15 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: Prettify<TServerRegistry["configuration"] & TRequirements>;
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: {
 			configuration: Prettify<TServerRegistry["requirements"]["configuration"] & TRequirements>;
 			context: TServerRegistry["requirements"]["context"];
 			collections: TServerRegistry["requirements"]["collections"];
 			documents: TServerRegistry["requirements"]["documents"];
+			files: TServerRegistry["requirements"]["files"];
+			folders: TServerRegistry["requirements"]["folders"];
 			services: TServerRegistry["requirements"]["services"];
 			tables: TServerRegistry["requirements"]["tables"];
 			topics: TServerRegistry["requirements"]["topics"];
@@ -936,11 +1175,15 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: Prettify<TServerRegistry["context"] & TRequirements>;
 		documents: TServerRegistry["documents"];
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: {
 			configuration: TServerRegistry["requirements"]["configuration"];
 			context: Prettify<TServerRegistry["requirements"]["context"] & TRequirements>;
 			collections: TServerRegistry["requirements"]["collections"];
 			documents: TServerRegistry["requirements"]["documents"];
+			files: TServerRegistry["requirements"]["files"];
+			folders: TServerRegistry["requirements"]["folders"];
 			services: TServerRegistry["requirements"]["services"];
 			tables: TServerRegistry["requirements"]["tables"];
 			topics: TServerRegistry["requirements"]["topics"];
@@ -975,11 +1218,15 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: Prettify<TServerRegistry["documents"] & { [k in TPath]: z.infer<TData> }>;
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: {
 			configuration: TServerRegistry["requirements"]["configuration"];
 			context: TServerRegistry["requirements"]["context"];
 			collections: TServerRegistry["requirements"]["collections"];
 			documents: Prettify<TServerRegistry["requirements"]["documents"] & { [k in TPath]: z.infer<TData> }>;
+			files: TServerRegistry["requirements"]["files"];
+			folders: TServerRegistry["requirements"]["folders"];
 			services: TServerRegistry["requirements"]["services"];
 			tables: TServerRegistry["requirements"]["tables"];
 			topics: TServerRegistry["requirements"]["topics"];
@@ -1001,6 +1248,95 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 	}
 
 	/**
+	 * Declares that this app requires a file with the given path to be
+	 * provided by the host app that calls {@link extend}.
+	 * @param options Object with `path`.
+	 * @returns A new builder with the file requirement added.
+	 */
+	requireFile<TPath extends string>(options: {
+		path: TPath;
+	}): AppBuilder<{
+		collections: TServerRegistry["collections"];
+		configuration: TServerRegistry["configuration"];
+		context: TServerRegistry["context"];
+		documents: TServerRegistry["documents"];
+		files: Prettify<TServerRegistry["files"] & { [k in TPath]: true }>;
+		folders: TServerRegistry["folders"];
+		requirements: {
+			configuration: TServerRegistry["requirements"]["configuration"];
+			context: TServerRegistry["requirements"]["context"];
+			collections: TServerRegistry["requirements"]["collections"];
+			documents: TServerRegistry["requirements"]["documents"];
+			files: Prettify<TServerRegistry["requirements"]["files"] & { [k in TPath]: true }>;
+			folders: TServerRegistry["requirements"]["folders"];
+			services: TServerRegistry["requirements"]["services"];
+			tables: TServerRegistry["requirements"]["tables"];
+			topics: TServerRegistry["requirements"]["topics"];
+		};
+		services: TServerRegistry["services"];
+		tables: TServerRegistry["tables"];
+		topics: TServerRegistry["topics"];
+	}, TPublicRegistry> {
+		return new AppBuilder<any, any>({
+			...this.#app,
+			requirements: {
+				...this.#app.requirements,
+				files: {
+					...this.#app.requirements.files,
+					[options.path]: true,
+				},
+			},
+		});
+	}
+
+	/**
+	 * Declares that this app requires a folder with the given path to be
+	 * provided by the host app that calls {@link extend}.  Also implicitly
+	 * requires the backing file path (`{path}/:key`).
+	 * @param options Object with `path`.
+	 * @returns A new builder with the folder requirement added.
+	 */
+	requireFolder<TPath extends string>(options: {
+		path: TPath;
+	}): AppBuilder<{
+		collections: TServerRegistry["collections"];
+		configuration: TServerRegistry["configuration"];
+		context: TServerRegistry["context"];
+		documents: TServerRegistry["documents"];
+		files: Prettify<TServerRegistry["files"] & { [k in `${TPath}/:key`]: true }>;
+		folders: Prettify<TServerRegistry["folders"] & { [k in TPath]: true }>;
+		requirements: {
+			configuration: TServerRegistry["requirements"]["configuration"];
+			context: TServerRegistry["requirements"]["context"];
+			collections: TServerRegistry["requirements"]["collections"];
+			documents: TServerRegistry["requirements"]["documents"];
+			files: Prettify<TServerRegistry["requirements"]["files"] & { [k in `${TPath}/:key`]: true }>;
+			folders: Prettify<TServerRegistry["requirements"]["folders"] & { [k in TPath]: true }>;
+			services: TServerRegistry["requirements"]["services"];
+			tables: TServerRegistry["requirements"]["tables"];
+			topics: TServerRegistry["requirements"]["topics"];
+		};
+		services: TServerRegistry["services"];
+		tables: TServerRegistry["tables"];
+		topics: TServerRegistry["topics"];
+	}, TPublicRegistry> {
+		return new AppBuilder<any, any>({
+			...this.#app,
+			requirements: {
+				...this.#app.requirements,
+				folders: {
+					...this.#app.requirements.folders,
+					[options.path]: true,
+				},
+				files: {
+					...this.#app.requirements.files,
+					[`${options.path}/:key`]: true,
+				},
+			},
+		});
+	}
+
+	/**
 	 * Declares that this app requires certain service keys (with default
 	 * values) to be registered by the host app via {@link service}.
 	 * @param defaults Record of required service keys and their defaults.
@@ -1013,11 +1349,15 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: {
 			configuration: TServerRegistry["requirements"]["configuration"];
 			context: TServerRegistry["requirements"]["context"];
 			collections: TServerRegistry["requirements"]["collections"];
 			documents: TServerRegistry["requirements"]["documents"];
+			files: TServerRegistry["requirements"]["files"];
+			folders: TServerRegistry["requirements"]["folders"];
 			services: Prettify<TServerRegistry["requirements"]["services"] & TRequirements>;
 			tables: TServerRegistry["requirements"]["tables"];
 			topics: TServerRegistry["requirements"]["topics"];
@@ -1052,11 +1392,15 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: {
 			configuration: TServerRegistry["requirements"]["configuration"];
 			context: TServerRegistry["requirements"]["context"];
 			collections: TServerRegistry["requirements"]["collections"];
 			documents: TServerRegistry["requirements"]["documents"];
+			files: TServerRegistry["requirements"]["files"];
+			folders: TServerRegistry["requirements"]["folders"];
 			services: TServerRegistry["requirements"]["services"];
 			tables: Prettify<TServerRegistry["requirements"]["tables"] & { [k in TName]: z.infer<TData> }>;
 			topics: TServerRegistry["requirements"]["topics"];
@@ -1091,11 +1435,15 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
+		files: TServerRegistry["files"];
+		folders: TServerRegistry["folders"];
 		requirements: {
 			configuration: TServerRegistry["requirements"]["configuration"];
 			context: TServerRegistry["requirements"]["context"];
 			collections: TServerRegistry["requirements"]["collections"];
 			documents: TServerRegistry["requirements"]["documents"];
+			files: TServerRegistry["requirements"]["files"];
+			folders: TServerRegistry["requirements"]["folders"];
 			services: TServerRegistry["requirements"]["services"];
 			tables: TServerRegistry["requirements"]["tables"];
 			topics: Prettify<TServerRegistry["requirements"]["topics"] & { [k in TPath]: z.infer<TData> }>;
@@ -1144,6 +1492,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 			>
 		>
 	> = {};
+	files: Record<string, FileDefinition> = {};
+	folders: Record<string, FolderDefinition> = {};
 	onDocumentDeleting: Array<OnDocumentDeletingDefinition<any, any>> = [];
 	onDocumentSetting: Array<OnDocumentSettingDefinition<any, any>> = [];
 	onTopicMessage: Array<OnTopicMessageDefinition<any, any>> = [];
@@ -1152,6 +1502,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 		context: Record<string, unknown>;
 		collections: Record<string, z.ZodType>;
 		documents: Record<string, z.ZodType>;
+		files: Record<string, unknown>;
+		folders: Record<string, unknown>;
 		services: Record<string, unknown>;
 		tables: Record<string, z.ZodType>;
 		topics: Record<string, z.ZodType>;
@@ -1160,6 +1512,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 		context: {},
 		collections: {},
 		documents: {},
+		files: {},
+		folders: {},
 		services: {},
 		tables: {},
 		topics: {},
@@ -1172,6 +1526,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 		collection: Matcher<CollectionDefinition>;
 		document: Matcher<DocumentDefinition>;
 		endpoint: Matcher<EndpointDefinition<any, any, any, any>>;
+		file: Matcher<FileDefinition>;
+		folder: Matcher<FolderDefinition>;
 		onDocumentDeleting: Matcher<OnDocumentDeletingDefinition<any, any>>;
 		onDocumentSetting: Matcher<OnDocumentSettingDefinition<any, any>>;
 		onTopicMessage: Matcher<OnTopicMessageDefinition<any, any>>;
@@ -1184,6 +1540,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 		decorators: App["decorators"];
 		documents: App["documents"];
 		endpoints: App["endpoints"];
+		files: App["files"];
+		folders: App["folders"];
 		onDocumentDeleting: App["onDocumentDeleting"];
 		onDocumentSetting: App["onDocumentSetting"];
 		onTopicMessage: App["onTopicMessage"];
@@ -1196,6 +1554,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 		this.decorators = options.decorators;
 		this.documents = options.documents;
 		this.endpoints = options.endpoints;
+		this.files = options.files;
+		this.folders = options.folders;
 		this.onDocumentDeleting = options.onDocumentDeleting;
 		this.onDocumentSetting = options.onDocumentSetting;
 		this.onTopicMessage = options.onTopicMessage;
@@ -1242,10 +1602,22 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 					}, endpoints);
 			}, [] as EndpointDefinition<any, any, any, any>[]);
 
+		const folderDefinitions = Object.values(this.folders);
+		const fileDefinitions = Object.values(this.files);
+		for (const definition of folderDefinitions) {
+			fileDefinitions.push({
+				path: `${definition.path}/:key`,
+				...("fileSecurity" in definition ? { fileSecurity: definition.fileSecurity } : {}),
+				...("conditions" in definition ? { conditions: definition.conditions } : {}),
+			} as FileDefinition);
+		}
+
 		this.#matchers = {
 			collection: matchPath(collectionDefinitions),
 			document: matchPath(documentDefinitions),
 			endpoint: matchPath(endpoints),
+			file: matchPath(fileDefinitions),
+			folder: matchPath(folderDefinitions),
 			onDocumentDeleting: matchPath(this.onDocumentDeleting),
 			onDocumentSetting: matchPath(this.onDocumentSetting),
 			onTopicMessage: matchPath(this.onTopicMessage),
@@ -1263,6 +1635,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 	match(type: "collection", path: string): ReturnType<Matcher<CollectionDefinition>>;
 	match(type: "document", path: string): ReturnType<Matcher<DocumentDefinition>>;
 	match(type: "endpoint", path: string): ReturnType<Matcher<EndpointDefinition<any, any, any, any>>>;
+	match(type: "file", path: string): ReturnType<Matcher<FileDefinition>>;
+	match(type: "folder", path: string): ReturnType<Matcher<FolderDefinition>>;
 	match(type: "onDocumentDeleting", path: string): ReturnType<Matcher<OnDocumentDeletingDefinition<any, any>>>;
 	match(type: "onDocumentSetting", path: string): ReturnType<Matcher<OnDocumentSettingDefinition<any, any>>>;
 	match(type: "onTopicMessage", path: string): ReturnType<Matcher<OnTopicMessageDefinition<any, any>>>;
@@ -1294,6 +1668,8 @@ export function app(): AppBuilder<AppRegistry, PublicAppRegistry> {
 		decorators: [],
 		documents: {},
 		endpoints: {},
+		files: {},
+		folders: {},
 		onDocumentDeleting: [],
 		onDocumentSetting: [],
 		onTopicMessage: [],
@@ -1302,6 +1678,8 @@ export function app(): AppBuilder<AppRegistry, PublicAppRegistry> {
 			context: {},
 			collections: {},
 			documents: {},
+			files: {},
+			folders: {},
 			services: {},
 			tables: {},
 			topics: {},

@@ -1,5 +1,12 @@
 import type { AppRegistry, Auth } from "./app.ts";
 import type { Document, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
+import type {
+	StorageDownloadOptions,
+	StorageListEntry,
+	StorageObject,
+	StorageSignedUrl,
+	StorageUploadOptions,
+} from "@baseless/core/storage";
 import type { KVProvider, RateLimiterProvider } from "./provider.ts";
 import type { Identity, IdentityChannel } from "@baseless/core/identity";
 import type { Notification } from "@baseless/core/notification";
@@ -19,6 +26,7 @@ export type ServiceCollection<TRegistry extends AppRegistry = AppRegistry> = {
 	notification: NotificationService;
 	pubsub: PubSubService<TRegistry["topics"]>;
 	rateLimiter: RateLimiterService;
+	storage: StorageService<TRegistry["files"], TRegistry["folders"]>;
 	table: TableService<TRegistry["tables"]>;
 } & TRegistry["services"];
 
@@ -150,4 +158,100 @@ export interface TableService<TTables> {
 		params: TParams,
 		signal?: AbortSignal,
 	): Promise<TOutput>;
+}
+
+/**
+ * Options for {@link StorageService.list}, extending the core
+ * {@link StorageListOptions} with a typed reference prefix.
+ */
+export interface StorageServiceListOptions<TPrefix = string> {
+	readonly prefix: Reference<TPrefix>;
+	readonly cursor?: string;
+	readonly limit?: number;
+}
+
+/**
+ * Typed storage service available inside every request handler.
+ * Wraps the raw {@link StorageProvider} with identity-aware authorization.
+ *
+ * @template TFiles Map of file paths to their types.
+ * @template TFolders Map of folder paths to their types.
+ */
+export interface StorageService<TFiles, TFolders> {
+	/**
+	 * Retrieves metadata for a stored file.
+	 * @param ref Reference to the file path.
+	 * @param signal Optional abort signal.
+	 * @returns The {@link StorageObject} metadata.
+	 */
+	getMetadata<TPath extends keyof TFiles>(
+		ref: Reference<TPath>,
+		signal?: AbortSignal,
+	): Promise<StorageObject>;
+	/**
+	 * Generates a pre-signed URL for uploading a file.
+	 * @param ref Reference to the file path.
+	 * @param options Optional upload options (content-type, metadata, expiry).
+	 * @param signal Optional abort signal.
+	 * @returns A {@link StorageSignedUrl} for the upload.
+	 */
+	getSignedUploadUrl<TPath extends keyof TFiles>(
+		ref: Reference<TPath>,
+		options?: StorageUploadOptions,
+		signal?: AbortSignal,
+	): Promise<StorageSignedUrl>;
+	/**
+	 * Generates a pre-signed URL for downloading a file.
+	 * @param ref Reference to the file path.
+	 * @param options Optional download options (expiry).
+	 * @param signal Optional abort signal.
+	 * @returns A {@link StorageSignedUrl} for the download.
+	 */
+	getSignedDownloadUrl<TPath extends keyof TFiles>(
+		ref: Reference<TPath>,
+		options?: StorageDownloadOptions,
+		signal?: AbortSignal,
+	): Promise<StorageSignedUrl>;
+	/**
+	 * Stores a file with the given content.
+	 * @param ref Reference to the file path.
+	 * @param content The file content as a `ReadableStream`, `ArrayBuffer`, or `Blob`.
+	 * @param options Optional upload options (content-type, metadata).
+	 * @param signal Optional abort signal.
+	 */
+	put<TPath extends keyof TFiles>(
+		ref: Reference<TPath>,
+		content: ReadableStream<Uint8Array> | ArrayBuffer | Blob,
+		options?: StorageUploadOptions,
+		signal?: AbortSignal,
+	): Promise<void>;
+	/**
+	 * Retrieves the content of a stored file as a `ReadableStream`.
+	 * @param ref Reference to the file path.
+	 * @param signal Optional abort signal.
+	 * @returns A `ReadableStream` of the file content.
+	 */
+	get<TPath extends keyof TFiles>(
+		ref: Reference<TPath>,
+		signal?: AbortSignal,
+	): Promise<ReadableStream<Uint8Array>>;
+	/**
+	 * Deletes a file.
+	 * @param ref Reference to the file path.
+	 * @param signal Optional abort signal.
+	 */
+	delete<TPath extends keyof TFiles>(
+		ref: Reference<TPath>,
+		signal?: AbortSignal,
+	): Promise<void>;
+	/**
+	 * Lists files within a folder.
+	 * @param options Listing options (prefix, cursor, limit).
+	 * @param signal Optional abort signal.
+	 * @returns A `ReadableStream` of {@link StorageListEntry} values.
+	 */
+	list<TPath extends keyof TFolders>(
+		options: StorageServiceListOptions<TPath>,
+		signal?: AbortSignal,
+	): ReadableStream<StorageListEntry>;
 }

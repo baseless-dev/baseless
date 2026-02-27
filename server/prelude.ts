@@ -17,4 +17,12 @@ export { Response } from "@baseless/core/response";
 export type { PathToParams } from "@baseless/core/path";
 export type { ID } from "@baseless/core/id";
 export type { Document, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
+export type {
+	StorageDownloadOptions,
+	StorageListEntry,
+	StorageListOptions,
+	StorageObject,
+	StorageSignedUrl,
+	StorageUploadOptions,
+} from "@baseless/core/storage";
 export { choice, component, sequence } from "@baseless/core/authentication-ceremony";

@@ -3,6 +3,7 @@ import type { App, PublicAppRegistry } from "@baseless/server";
 import type { AuthenticationApplication } from "@baseless/server/apps/authentication";
 import type { DocumentApplication } from "@baseless/server/apps/document";
 import type { PubsubApplication } from "@baseless/server/apps/pubsub";
+import type { StorageApplication } from "@baseless/server/apps/storage";
 import type { TableApplication } from "@baseless/server/apps/table";
 import type { Reference } from "@baseless/core/ref";
 import type { Request } from "@baseless/core/request";
@@ -26,6 +27,14 @@ import { encodeBase64Url } from "@std/encoding/base64url";
 import { EventEmitter } from "./event_emitter.ts";
 import { AuthenticationCeremonyInvalidPromptError, AuthenticationCeremonyInvalidStateError } from "./errors.ts";
 import { BatchableStatementBuilder, type IStatementBuilder, type TStatement } from "@baseless/core/query";
+import {
+	StorageDownloadOptions,
+	StorageListEntry,
+	StorageListOptions,
+	StorageObject,
+	StorageSignedUrl,
+	StorageUploadOptions,
+} from "@baseless/core/storage";
 
 const INTERNAL_WEBSOCKET = Symbol();
 const INTERNAL_WEBSOCKET_STATE = Symbol();
@@ -104,6 +113,11 @@ export class Client implements AsyncDisposable {
 	/** Returns a {@link ClientTable} sub-client for table query operations. */
 	get table(): ClientTable {
 		return new ClientTable(this);
+	}
+
+	/** Returns a {@link ClientStorage} sub-client for storage operations. */
+	get storage(): ClientStorage {
+		return new ClientStorage(this);
 	}
 
 	async [Symbol.asyncDispose](): Promise<void> {
@@ -823,6 +837,114 @@ export class ClientTable {
 }
 
 /**
+ * Sub-client for storage operations (metadata, signed URLs, delete, list).
+ * Obtain an instance via {@link Client.storage}.
+ */
+export class ClientStorage {
+	#client: Client;
+
+	constructor(client: Client) {
+		this.#client = client;
+	}
+
+	/**
+	 * Fetches metadata for a single storage object.
+	 * @param path The file path.
+	 * @param signal Optional abort signal.
+	 * @returns The {@link StorageObject} metadata.
+	 */
+	async getMetadata(path: string, signal?: AbortSignal): Promise<StorageObject> {
+		const response = await this.#client.fetch(`core/storage/get-metadata`, {
+			signal,
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ path }),
+		});
+		z.assert(z.object({ object: StorageObject() }), response.body);
+		return response.body.object;
+	}
+
+	/**
+	 * Gets a signed upload URL for a file.
+	 * @param path The file path.
+	 * @param options Optional upload options (contentType, metadata, expirySeconds).
+	 * @param signal Optional abort signal.
+	 * @returns A {@link StorageSignedUrl} with the upload URL and expiry.
+	 */
+	async getSignedUploadUrl(path: string, options?: StorageUploadOptions, signal?: AbortSignal): Promise<StorageSignedUrl> {
+		const response = await this.#client.fetch(`core/storage/upload-url`, {
+			signal,
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ path, options }),
+		});
+		z.assert(z.object({ url: StorageSignedUrl() }), response.body);
+		return response.body.url;
+	}
+
+	/**
+	 * Gets a signed download URL for a file.
+	 * @param path The file path.
+	 * @param options Optional download options (expirySeconds).
+	 * @param signal Optional abort signal.
+	 * @returns A {@link StorageSignedUrl} with the download URL and expiry.
+	 */
+	async getSignedDownloadUrl(path: string, options?: StorageDownloadOptions, signal?: AbortSignal): Promise<StorageSignedUrl> {
+		const response = await this.#client.fetch(`core/storage/download-url`, {
+			signal,
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ path, options }),
+		});
+		z.assert(z.object({ url: StorageSignedUrl() }), response.body);
+		return response.body.url;
+	}
+
+	/**
+	 * Deletes a file from storage.
+	 * @param path The file path.
+	 * @param signal Optional abort signal.
+	 */
+	async delete(path: string, signal?: AbortSignal): Promise<void> {
+		await this.#client.fetch(`core/storage/delete`, {
+			signal,
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ path }),
+		});
+	}
+
+	/**
+	 * Lists files in a folder, streaming results as a `ReadableStream`.
+	 * @param options Listing options (prefix, cursor, limit).
+	 * @param signal Optional abort signal.
+	 * @returns A stream of {@link StorageListEntry} values.
+	 */
+	list(options: StorageListOptions, signal?: AbortSignal): ReadableStream<StorageListEntry> {
+		const abortController = new AbortController();
+		signal?.addEventListener("abort", () => abortController.abort(), { once: true });
+		return new ReadableStream<StorageListEntry>({
+			start: async (controller): Promise<void> => {
+				const response = await this.#client.fetch(`core/storage/list`, {
+					signal,
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ options }),
+				});
+				z.assert(z.object({ entries: z.array(StorageListEntry()) }), response.body);
+				for (const entry of response.body.entries) {
+					controller.enqueue(entry);
+				}
+				controller.close();
+			},
+			cancel: () => {
+				abortController.abort();
+			},
+		});
+	}
+}
+
+/**
  * Strongly-typed wrapper around {@link Client} inferred from an
  * {@link App} definition. Obtain via {@link Client.asTyped}.
  *
@@ -885,6 +1007,8 @@ export interface TypedClient<TPublicAppRegistry extends PublicAppRegistry> exten
 	document: TypedClientDocument<TPublicAppRegistry["collections"], TPublicAppRegistry["documents"]>;
 	/** Typed pubsub sub-client. */
 	pubsub: TypedClientPubsub<TPublicAppRegistry["topics"]>;
+	/** Typed storage sub-client. */
+	storage: TypedClientStorage<TPublicAppRegistry["files"], TPublicAppRegistry["folders"]>;
 	/** Typed table sub-client. */
 	table: TypedClientTable<TPublicAppRegistry["tables"]>;
 }
@@ -1029,6 +1153,71 @@ export interface TypedClientTable<
 	): Promise<TOutput>;
 }
 
+/**
+ * Typed storage sub-client inferred from an {@link App} registry.
+ *
+ * @template TFiles Map of file paths.
+ * @template TFolders Map of folder paths.
+ */
+export interface TypedClientStorage<
+	TFiles extends PublicAppRegistry["files"],
+	TFolders extends PublicAppRegistry["folders"],
+> {
+	/**
+	 * Fetches metadata for a single storage file.
+	 * @param ref Reference to the file path.
+	 * @param signal Optional abort signal.
+	 * @returns The {@link StorageObject} metadata.
+	 */
+	getMetadata<TPath extends keyof TFiles>(
+		ref: Reference<TPath>,
+		signal?: AbortSignal,
+	): Promise<StorageObject>;
+	/**
+	 * Gets a signed upload URL for the given file.
+	 * @param ref Reference to the file path.
+	 * @param options Optional upload options.
+	 * @param signal Optional abort signal.
+	 * @returns A {@link StorageSignedUrl} with the upload URL and expiry.
+	 */
+	getSignedUploadUrl<TPath extends keyof TFiles>(
+		ref: Reference<TPath>,
+		options?: StorageUploadOptions,
+		signal?: AbortSignal,
+	): Promise<StorageSignedUrl>;
+	/**
+	 * Gets a signed download URL for the given file.
+	 * @param ref Reference to the file path.
+	 * @param options Optional download options.
+	 * @param signal Optional abort signal.
+	 * @returns A {@link StorageSignedUrl} with the download URL and expiry.
+	 */
+	getSignedDownloadUrl<TPath extends keyof TFiles>(
+		ref: Reference<TPath>,
+		options?: StorageDownloadOptions,
+		signal?: AbortSignal,
+	): Promise<StorageSignedUrl>;
+	/**
+	 * Deletes a file from storage.
+	 * @param ref Reference to the file path.
+	 * @param signal Optional abort signal.
+	 */
+	delete<TPath extends keyof TFiles>(
+		ref: Reference<TPath>,
+		signal?: AbortSignal,
+	): Promise<void>;
+	/**
+	 * Lists files under a folder prefix, streaming results.
+	 * @param options Listing options with typed prefix.
+	 * @param signal Optional abort signal.
+	 * @returns A stream of {@link StorageListEntry} values.
+	 */
+	list<TPath extends keyof TFolders>(
+		options: StorageListOptions<Reference<TPath>>,
+		signal?: AbortSignal,
+	): ReadableStream<StorageListEntry>;
+}
+
 // deno-fmt-ignore
 type RequestInitFromRequest<T> = T extends Request<infer TMethod, infer THeaders, any, infer TBody>
 	? Prettify<(
@@ -1053,6 +1242,7 @@ type BuiltinEndpointPaths =
 	| keyof ApplicationEndpoints<AuthenticationApplication>
 	| keyof ApplicationEndpoints<DocumentApplication>
 	| keyof ApplicationEndpoints<PubsubApplication>
+	| keyof ApplicationEndpoints<StorageApplication>
 	| keyof ApplicationEndpoints<TableApplication>;
 
 type RemoveBuiltinEndpoints<TEndpoints> = Omit<TEndpoints, BuiltinEndpointPaths>;

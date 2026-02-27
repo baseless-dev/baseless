@@ -7,7 +7,8 @@
 		"./kv": "./kv.ts",
 		"./notification": "./notification.ts",
 		"./queue": "./queue.ts",
-		"./rate-limiter": "./rate_limiter.ts"
+		"./rate-limiter": "./rate_limiter.ts",
+		"./storage": "./storage.ts"
 	},
 	"publish": {
 		"include": [

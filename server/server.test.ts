@@ -5,6 +5,7 @@ import {
 	MemoryNotificationProvider,
 	MemoryQueueProvider,
 	MemoryRateLimiterProvider,
+	MemoryStorageProvider,
 } from "@baseless/inmemory-provider";
 import { DenoHubProvider } from "@baseless/deno-provider";
 import * as z from "@baseless/core/schema";
@@ -27,6 +28,7 @@ export default async function createMemoryServer<TRegistry extends AppRegistry>(
 			libsql: LibSQLClient;
 			notification: MemoryNotificationProvider;
 			queue: MemoryQueueProvider;
+			storage: MemoryStorageProvider;
 			table: TableProvider;
 		};
 		fetch: <T extends z.ZodType = z.ZodUnknown>(
@@ -43,6 +45,7 @@ export default async function createMemoryServer<TRegistry extends AppRegistry>(
 	const hub = new DenoHubProvider();
 	const notification = new MemoryNotificationProvider();
 	const rateLimiter = new MemoryRateLimiterProvider();
+	const storage = new MemoryStorageProvider();
 
 	const libsqlClient = createClient({ url: "file::memory:" });
 	const table = new LibSQLTableProvider(libsqlClient);
@@ -56,6 +59,7 @@ export default async function createMemoryServer<TRegistry extends AppRegistry>(
 			kv,
 			queue,
 			rateLimiter,
+			storage,
 			table,
 		},
 	});
@@ -99,6 +103,7 @@ export default async function createMemoryServer<TRegistry extends AppRegistry>(
 			libsql: libsqlClient,
 			notification,
 			queue,
+			storage,
 			table,
 		},
 		fetch,

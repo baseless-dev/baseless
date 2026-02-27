@@ -8,10 +8,20 @@ import {
 	NotificationChannelProvider,
 	QueueProvider,
 	RateLimiterProvider,
+	StorageProvider,
 	TableProvider,
 } from "./provider.ts";
 import type { ServiceCollection } from "./service.ts";
-import { AuthFacade, DocumentFacade, KVFacade, NotificationFacade, PubSubFacade, RateLimiterFacade, TableFacade } from "./facade.ts";
+import {
+	AuthFacade,
+	DocumentFacade,
+	KVFacade,
+	NotificationFacade,
+	PubSubFacade,
+	RateLimiterFacade,
+	StorageFacade,
+	TableFacade,
+} from "./facade.ts";
 import { first } from "@baseless/core/iter";
 import { decodeBase64Url } from "@std/encoding/base64url";
 import { type ID, id, isID } from "@baseless/core/id";
@@ -44,6 +54,7 @@ export interface ServerOptions<TRegistry extends AppRegistry> {
 		kv: KVProvider;
 		queue: QueueProvider;
 		rateLimiter: RateLimiterProvider;
+		storage: StorageProvider;
 		table: TableProvider;
 	};
 }
@@ -100,6 +111,10 @@ export class Server<TRegistry extends AppRegistry> {
 			notification: {} as never,
 			pubsub: {} as never,
 			rateLimiter: new RateLimiterFacade(this.options.providers.rateLimiter),
+			storage: new StorageFacade({
+				app: this.options.app,
+				provider: this.options.providers.storage,
+			}),
 			table: new TableFacade(this.options.providers.table),
 		};
 		service.document = new DocumentFacade({

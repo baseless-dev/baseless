@@ -141,6 +141,18 @@ export class TableExecutionError extends PublicError {
 	statusText = "Bad Request";
 	details = null;
 }
+/** HTTP 404 Not Found. Thrown when a requested storage file does not exist. */
+export class StorageObjectNotFoundError extends PublicError {
+	status = 404;
+	statusText = "Not Found";
+	details = null;
+}
+/** HTTP 404 Not Found. Thrown when a requested storage folder does not exist. */
+export class StorageFolderNotFoundError extends PublicError {
+	status = 404;
+	statusText = "Not Found";
+	details = null;
+}
 /** HTTP 404 Not Found. Thrown when a pub/sub topic is not registered. */
 export class TopicNotFoundError extends PublicError {
 	status = 404;
@@ -207,6 +219,10 @@ export function fromServerErrorData(data: ServerErrorData): PublicError | Server
 			return new TableNotFoundError();
 		case TableExecutionError.name:
 			return new TableExecutionError();
+		case StorageObjectNotFoundError.name:
+			return new StorageObjectNotFoundError();
+		case StorageFolderNotFoundError.name:
+			return new StorageFolderNotFoundError();
 		case TopicNotFoundError.name:
 			return new TopicNotFoundError();
 	}

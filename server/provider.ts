@@ -6,6 +6,14 @@ import type {
 	DocumentListEntry,
 	DocumentListOptions,
 } from "@baseless/core/document";
+import type {
+	StorageDownloadOptions,
+	StorageListEntry,
+	StorageListOptions,
+	StorageObject,
+	StorageSignedUrl,
+	StorageUploadOptions,
+} from "@baseless/core/storage";
 import type { ID } from "@baseless/core/id";
 import type { KVGetOptions, KVKey, KVListOptions, KVListResult, KVPutOptions } from "@baseless/core/kv";
 import type { Server } from "./server.ts";
@@ -29,6 +37,14 @@ export {
 	DocumentListEntry,
 	DocumentListOptions,
 } from "@baseless/core/document";
+export {
+	type StorageDownloadOptions,
+	StorageListEntry,
+	StorageListOptions,
+	StorageObject,
+	StorageSignedUrl,
+	type StorageUploadOptions,
+} from "@baseless/core/storage";
 export { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/identity";
 export { type KVGetOptions, type KVKey, type KVListKey, type KVListOptions, type KVListResult, type KVPutOptions } from "@baseless/core/kv";
 export type { QueueItem } from "@baseless/core/queue";
@@ -498,4 +514,82 @@ export abstract class TableProvider {
 		params: Record<string, unknown>,
 		signal?: AbortSignal,
 	): Promise<unknown>;
+}
+
+/**
+ * Abstract storage provider based on an S3-like API. Implement this class
+ * to back the Baseless storage service with any object-storage layer (S3,
+ * GCS, R2, local filesystem, etc.).
+ */
+export abstract class StorageProvider {
+	/**
+	 * Lists objects matching the given prefix as a stream.
+	 * @param options Listing options (prefix, cursor, limit).
+	 * @param signal Optional abort signal.
+	 * @returns A `ReadableStream` of {@link StorageListEntry} values.
+	 */
+	abstract list(options: StorageListOptions, signal?: AbortSignal): ReadableStream<StorageListEntry>;
+
+	/**
+	 * Retrieves metadata for a single stored object.
+	 * @param key The object key/path.
+	 * @param signal Optional abort signal.
+	 * @returns The {@link StorageObject} metadata.
+	 */
+	abstract getMetadata(key: string, signal?: AbortSignal): Promise<StorageObject>;
+
+	/**
+	 * Generates a pre-signed URL that allows a client to upload (PUT) a file.
+	 * @param key The object key/path.
+	 * @param options Optional upload options (content-type, metadata, expiry).
+	 * @param signal Optional abort signal.
+	 * @returns A {@link StorageSignedUrl} the client can use to upload.
+	 */
+	abstract getSignedUploadUrl(
+		key: string,
+		options?: StorageUploadOptions,
+		signal?: AbortSignal,
+	): Promise<StorageSignedUrl>;
+
+	/**
+	 * Generates a pre-signed URL that allows a client to download (GET) a file.
+	 * @param key The object key/path.
+	 * @param options Optional download options (expiry).
+	 * @param signal Optional abort signal.
+	 * @returns A {@link StorageSignedUrl} the client can use to download.
+	 */
+	abstract getSignedDownloadUrl(
+		key: string,
+		options?: StorageDownloadOptions,
+		signal?: AbortSignal,
+	): Promise<StorageSignedUrl>;
+
+	/**
+	 * Stores an object with the given key.
+	 * @param key The object key/path.
+	 * @param content The file content as a `ReadableStream`, `ArrayBuffer`, or `Blob`.
+	 * @param options Optional upload options (content-type, metadata).
+	 * @param signal Optional abort signal.
+	 */
+	abstract put(
+		key: string,
+		content: ReadableStream<Uint8Array> | ArrayBuffer | Blob,
+		options?: StorageUploadOptions,
+		signal?: AbortSignal,
+	): Promise<void>;
+
+	/**
+	 * Retrieves the content of a stored object as a `ReadableStream`.
+	 * @param key The object key/path.
+	 * @param signal Optional abort signal.
+	 * @returns A `ReadableStream` of the file content.
+	 */
+	abstract get(key: string, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>>;
+
+	/**
+	 * Deletes the object at the given key.
+	 * @param key The object key/path to delete.
+	 * @param signal Optional abort signal.
+	 */
+	abstract delete(key: string, signal?: AbortSignal): Promise<void>;
 }

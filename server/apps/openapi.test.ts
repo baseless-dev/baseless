@@ -31,7 +31,6 @@ Deno.test("OpenAPI", async (t) => {
 	});
 	const password = new PasswordIdentityComponentProvider("dummy salt");
 	using mock = await createMemoryServer({
-		publicKey: keyPair.publicKey,
 		app: app()
 			// .extend(authApp)
 			.extend(openapiApp)

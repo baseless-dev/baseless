@@ -1,8 +1,6 @@
 /// <reference lib="dom" />
 /// <reference lib="deno.ns" />
 /// <reference lib="esnext" />
-/** @jsxImportSource npm:react@19 */
-/** @jsxImportSourceTypes npm:@types/react@19 */
 
 import "npm:global-jsdom/register";
 // deno-lint-ignore no-explicit-any
@@ -46,7 +44,6 @@ Deno.test("Authentication", async (ctx) => {
 		});
 		const password = new PasswordIdentityComponentProvider("dummy salt");
 		const server = await createMemoryServer({
-			publicKey: keyPair.publicKey,
 			app: testApp,
 			configuration: {
 				auth: {

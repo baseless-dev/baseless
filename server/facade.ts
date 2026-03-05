@@ -441,7 +441,7 @@ export class PubSubFacade implements PubSubService<any> {
 		assert(definition.schema, payload);
 
 		await this.#options.provider.enqueue(
-			{ type: "topic_publish", payload: { key: ref, payload } },
+			{ type: "topic_publish", key: ref, payload },
 			signal,
 		);
 	}

@@ -186,9 +186,9 @@ export async function testQueueProvider(
 	t: Deno.TestContext,
 ): Promise<void> {
 	await t.step("enqueue", async () => {
-		await queue.enqueue({ type: "a", payload: "A" });
-		await queue.enqueue({ type: "b", payload: "B" });
-		await queue.enqueue({ type: "c", payload: "C" });
+		await queue.enqueue({ type: "topic_publish", key: "a", payload: "A" });
+		await queue.enqueue({ type: "topic_publish", key: "b", payload: "B" });
+		await queue.enqueue({ type: "topic_publish", key: "c", payload: "C" });
 	});
 
 	await t.step("dequeue", async () => {
@@ -199,15 +199,15 @@ export async function testQueueProvider(
 
 		const first = await reader.read();
 		assert(first.done === false);
-		items.delete(first.value.type);
+		items.delete(first.value.key);
 
 		const second = await reader.read();
 		assert(second.done === false);
-		items.delete(second.value.type);
+		items.delete(second.value.key);
 
 		const third = await reader.read();
 		assert(third.done === false);
-		items.delete(third.value.type);
+		items.delete(third.value.key);
 
 		assert(items.size === 0);
 

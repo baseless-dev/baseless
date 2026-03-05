@@ -380,16 +380,14 @@ export class Server<TRegistry extends AppRegistry> {
 		const { context, service } = await this.createContext(request, undefined, abortController.signal, waitUntil);
 
 		if (item.type === "topic_publish") {
-			const { key, payload } = item.payload as { key: string; payload: unknown };
-
 			const message: TopicMessage<unknown> = {
-				topic: key,
-				data: payload,
+				topic: item.key,
+				data: item.payload,
 				stopPropagation: false,
 				stopImmediatePropagation: false,
 			};
 
-			for (const [params, definition] of this.options.app.match("onTopicMessage", key)) {
+			for (const [params, definition] of this.options.app.match("onTopicMessage", item.key)) {
 				await definition.handler({
 					app: this.options.app,
 					auth: undefined,
@@ -406,7 +404,35 @@ export class Server<TRegistry extends AppRegistry> {
 				}
 			}
 			if (!message.stopPropagation) {
-				await this.options.providers.hub.publish(key, payload);
+				await this.options.providers.hub.publish(item.key, item.payload);
+			}
+		} else if (item.type === "file_deleted") {
+			for (const [params, definition] of this.options.app.match("onFileDeleted", item.key)) {
+				await definition.handler({
+					app: this.options.app,
+					auth: undefined,
+					configuration: this.options.configuration,
+					context,
+					file: item.file,
+					params: params as never,
+					service,
+					signal: abortController.signal,
+					waitUntil,
+				});
+			}
+		} else if (item.type === "file_uploaded") {
+			for (const [params, definition] of this.options.app.match("onFileUploaded", item.key)) {
+				await definition.handler({
+					app: this.options.app,
+					auth: undefined,
+					configuration: this.options.configuration,
+					context,
+					file: item.file,
+					params: params as never,
+					service,
+					signal: abortController.signal,
+					waitUntil,
+				});
 			}
 		}
 

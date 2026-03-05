@@ -9,6 +9,7 @@ import { Request } from "@baseless/core/request";
 import { Response } from "@baseless/core/response";
 import type { Prettify } from "@baseless/core/prettify";
 import { KeyLike } from "jose";
+import { StorageObject } from "@baseless/core/storage";
 
 // deno-fmt-ignore
 /** Bit-field flags for access control on endpoints, documents, collections, topics, and tables. */
@@ -283,6 +284,22 @@ export type TopicMessageHandler<TRegistry extends AppRegistry, TParams extends {
 }) => void | Promise<void>;
 
 /**
+ * Handler invoked for each file uploaded or deleted from the app has
+ * subscribed to via {@link AppBuilder.onFileUploaded} or {@link AppBuilder.onFileDeleted}.
+ */
+export type FileHandler<TRegistry extends AppRegistry, TParams extends {}, TData> = (options: {
+	app: App;
+	auth: Auth;
+	configuration: TRegistry["configuration"];
+	context: TRegistry["context"];
+	file: StorageObject;
+	params: TParams;
+	service: ServiceCollection<TRegistry>;
+	signal: AbortSignal;
+	waitUntil: (promise: PromiseLike<unknown>) => void;
+}) => void | Promise<void>;
+
+/**
  * Security handler that determines which {@link Permission} flags
  * (publish/subscribe) the current principal has for a topic.
  */
@@ -520,6 +537,24 @@ export interface OnTopicMessageDefinition<
 > {
 	path: TPath;
 	handler: TopicMessageHandler<TRegistry, PathToParams<TPath>, TRegistry["topics"][TPath]>;
+}
+
+/** Definition of a file upload handler registered via {@link AppBuilder.onFileUploaded}. */
+export interface OnFileUploadedDefinition<
+	TRegistry extends AppRegistry,
+	TPath extends keyof TRegistry["files"],
+> {
+	path: TPath;
+	handler: FileHandler<TRegistry, PathToParams<TPath>, TRegistry["files"][TPath]>;
+}
+
+/** Definition of a file deleted handler registered via {@link AppBuilder.onFileDeleted}. */
+export interface OnFileDeletedDefinition<
+	TRegistry extends AppRegistry,
+	TPath extends keyof TRegistry["files"],
+> {
+	path: TPath;
+	handler: FileHandler<TRegistry, PathToParams<TPath>, TRegistry["files"][TPath]>;
 }
 
 /**
@@ -1015,6 +1050,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 			onDocumentSetting: [...this.#app.onDocumentSetting, ...other.#app.onDocumentSetting],
 			onDocumentDeleting: [...this.#app.onDocumentDeleting, ...other.#app.onDocumentDeleting],
 			onTopicMessage: [...this.#app.onTopicMessage, ...other.#app.onTopicMessage],
+			onFileDeleted: [...this.#app.onFileDeleted, ...other.#app.onFileDeleted],
+			onFileUploaded: [...this.#app.onFileUploaded, ...other.#app.onFileUploaded],
 			requirements: {
 				configuration: { ...this.#app.requirements?.configuration, ...other.#app.requirements?.configuration },
 				context: { ...this.#app.requirements?.context, ...other.#app.requirements?.context },
@@ -1074,6 +1111,36 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		return new AppBuilder<any, any>({
 			...this.#app,
 			onTopicMessage: [...this.#app.onTopicMessage, definition as never],
+		});
+	}
+
+	/**
+	 * Registers an {@link OnFileUploadedDefinition} handler invoked for each
+	 * file uploaded to a matching file.
+	 * @param definition Handler definition with `path` and `handler`.
+	 * @returns A new builder with the handler registered.
+	 */
+	onFileUploaded<TPath extends keyof TServerRegistry["files"]>(
+		definition: OnFileUploadedDefinition<TServerRegistry, TPath>,
+	): AppBuilder<TServerRegistry, TPublicRegistry> {
+		return new AppBuilder<any, any>({
+			...this.#app,
+			onFileUploaded: [...this.#app.onFileUploaded, definition as never],
+		});
+	}
+
+	/**
+	 * Registers an {@link OnFileDeletedDefinition} handler invoked for each
+	 * file deleted from a matching file.
+	 * @param definition Handler definition with `path` and `handler`.
+	 * @returns A new builder with the handler registered.
+	 */
+	onFileDeleted<TPath extends keyof TServerRegistry["files"]>(
+		definition: OnFileDeletedDefinition<TServerRegistry, TPath>,
+	): AppBuilder<TServerRegistry, TPublicRegistry> {
+		return new AppBuilder<any, any>({
+			...this.#app,
+			onFileDeleted: [...this.#app.onFileDeleted, definition as never],
 		});
 	}
 
@@ -1497,6 +1564,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 	onDocumentDeleting: Array<OnDocumentDeletingDefinition<any, any>> = [];
 	onDocumentSetting: Array<OnDocumentSettingDefinition<any, any>> = [];
 	onTopicMessage: Array<OnTopicMessageDefinition<any, any>> = [];
+	onFileDeleted: Array<OnFileDeletedDefinition<any, any>> = [];
+	onFileUploaded: Array<OnFileUploadedDefinition<any, any>> = [];
 	requirements: {
 		configuration: Record<string, unknown>;
 		context: Record<string, unknown>;
@@ -1531,6 +1600,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 		onDocumentDeleting: Matcher<OnDocumentDeletingDefinition<any, any>>;
 		onDocumentSetting: Matcher<OnDocumentSettingDefinition<any, any>>;
 		onTopicMessage: Matcher<OnTopicMessageDefinition<any, any>>;
+		onFileDeleted: Matcher<OnFileDeletedDefinition<any, any>>;
+		onFileUploaded: Matcher<OnFileUploadedDefinition<any, any>>;
 		table: Matcher<TableDefinition>;
 		topic: Matcher<TopicDefinition>;
 	};
@@ -1545,6 +1616,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 		onDocumentDeleting: App["onDocumentDeleting"];
 		onDocumentSetting: App["onDocumentSetting"];
 		onTopicMessage: App["onTopicMessage"];
+		onFileDeleted: App["onFileDeleted"];
+		onFileUploaded: App["onFileUploaded"];
 		requirements: App["requirements"];
 		services: App["services"];
 		tables: App["tables"];
@@ -1559,6 +1632,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 		this.onDocumentDeleting = options.onDocumentDeleting;
 		this.onDocumentSetting = options.onDocumentSetting;
 		this.onTopicMessage = options.onTopicMessage;
+		this.onFileDeleted = options.onFileDeleted;
+		this.onFileUploaded = options.onFileUploaded;
 		this.requirements = options.requirements;
 		this.services = options.services;
 		this.tables = options.tables;
@@ -1621,6 +1696,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 			onDocumentDeleting: matchPath(this.onDocumentDeleting),
 			onDocumentSetting: matchPath(this.onDocumentSetting),
 			onTopicMessage: matchPath(this.onTopicMessage),
+			onFileDeleted: matchPath(this.onFileDeleted),
+			onFileUploaded: matchPath(this.onFileUploaded),
 			table: matchPath(Object.values(this.tables)),
 			topic: matchPath(topicDefinitions),
 		};
@@ -1640,6 +1717,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 	match(type: "onDocumentDeleting", path: string): ReturnType<Matcher<OnDocumentDeletingDefinition<any, any>>>;
 	match(type: "onDocumentSetting", path: string): ReturnType<Matcher<OnDocumentSettingDefinition<any, any>>>;
 	match(type: "onTopicMessage", path: string): ReturnType<Matcher<OnTopicMessageDefinition<any, any>>>;
+	match(type: "onFileDeleted", path: string): ReturnType<Matcher<OnFileDeletedDefinition<any, any>>>;
+	match(type: "onFileUploaded", path: string): ReturnType<Matcher<OnFileUploadedDefinition<any, any>>>;
 	match(type: "table", path: string): ReturnType<Matcher<TableDefinition>>;
 	match(type: "topic", path: string): ReturnType<Matcher<TopicDefinition>>;
 	match(type: string, path: string): ReturnType<Matcher<any>> {
@@ -1673,6 +1752,8 @@ export function app(): AppBuilder<AppRegistry, PublicAppRegistry> {
 		onDocumentDeleting: [],
 		onDocumentSetting: [],
 		onTopicMessage: [],
+		onFileDeleted: [],
+		onFileUploaded: [],
 		requirements: {
 			configuration: {},
 			context: {},

@@ -113,7 +113,9 @@ export class Server<TRegistry extends AppRegistry> {
 			rateLimiter: new RateLimiterFacade(this.options.providers.rateLimiter),
 			storage: new StorageFacade({
 				app: this.options.app,
-				provider: this.options.providers.storage,
+				storageProvider: this.options.providers.storage,
+				queueProvider: this.options.providers.queue,
+				waitUntil,
 			}),
 			table: new TableFacade(this.options.providers.table),
 		};

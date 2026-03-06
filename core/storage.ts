@@ -95,7 +95,7 @@ export function StorageSignedUrl(): z.ZodObject<{
 /**
  * Options for requesting a signed upload URL.
  */
-export interface StorageUploadOptions {
+export interface StorageSignedUploadUrlOptions {
 	readonly contentType?: string;
 	readonly metadata?: Record<string, string>;
 	readonly expirySeconds?: number;
@@ -111,11 +111,14 @@ export interface StorageUploadOptions {
 	 * Providers that support pre-signed URL policies (S3, R2, GCS …) should
 	 * embed these conditions in the policy document.
 	 */
-	readonly conditions?: Record<string, string>;
+	readonly conditions?: {
+		accept?: string[];
+		contentLengthRange?: { min?: number; max?: number };
+	};
 }
 
-/** Zod schema for {@link StorageUploadOptions}. */
-export const StorageUploadOptions = z.strictObject({
+/** Zod schema for {@link StorageSignedUploadUrlOptions}. */
+export const StorageSignedUploadUrlOptions = z.strictObject({
 	contentType: z.optional(z.string()),
 	metadata: z.optional(z.record(z.string(), z.string())),
 	expirySeconds: z.optional(z.number()),
@@ -123,13 +126,37 @@ export const StorageUploadOptions = z.strictObject({
 });
 
 /**
+ * Options for uploading a file to storage.
+ */
+export interface StoragePutOptions {
+	contentType: string;
+	metadata: Record<string, string>;
+	etag: string;
+}
+
+/**
+ * Creates a Zod schema for a {@link StoragePutOptions}.
+ */
+export function StoragePutOptions(): z.ZodObject<{
+	contentType: z.ZodString;
+	metadata: z.ZodRecord<z.ZodString, z.ZodString>;
+	etag: z.ZodString;
+}> {
+	return z.strictObject({
+		contentType: z.string(),
+		metadata: z.record(z.string(), z.string()),
+		etag: z.string(),
+	});
+}
+
+/**
  * Options for requesting a signed download URL.
  */
-export interface StorageDownloadOptions {
+export interface StorageSignedDownloadUrlOptions {
 	readonly expirySeconds?: number;
 }
 
-/** Zod schema for {@link StorageDownloadOptions}. */
-export const StorageDownloadOptions = z.strictObject({
+/** Zod schema for {@link StorageSignedDownloadUrlOptions}. */
+export const StorageSignedDownloadUrlOptions = z.strictObject({
 	expirySeconds: z.optional(z.number()),
 });

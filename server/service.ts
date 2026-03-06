@@ -1,11 +1,11 @@
 import type { AppRegistry, Auth } from "./app.ts";
 import type { Document, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
 import type {
-	StorageDownloadOptions,
 	StorageListEntry,
 	StorageObject,
+	StorageSignedDownloadUrlOptions,
+	StorageSignedUploadUrl,
 	StorageSignedUrl,
-	StorageUploadOptions,
 } from "@baseless/core/storage";
 import type { KVProvider, RateLimiterProvider } from "./provider.ts";
 import type { Identity, IdentityChannel } from "@baseless/core/identity";
@@ -197,7 +197,7 @@ export interface StorageService<TFiles, TFolders> {
 	 */
 	getSignedUploadUrl<TPath extends keyof TFiles>(
 		ref: Reference<TPath>,
-		options?: StorageUploadOptions,
+		options?: StorageSignedUploadUrl,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 	/**
@@ -209,7 +209,7 @@ export interface StorageService<TFiles, TFolders> {
 	 */
 	getSignedDownloadUrl<TPath extends keyof TFiles>(
 		ref: Reference<TPath>,
-		options?: StorageDownloadOptions,
+		options?: StorageSignedDownloadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 	/**
@@ -222,7 +222,7 @@ export interface StorageService<TFiles, TFolders> {
 	put<TPath extends keyof TFiles>(
 		ref: Reference<TPath>,
 		content: ReadableStream<Uint8Array> | ArrayBuffer | Blob,
-		options?: StorageUploadOptions,
+		options?: StorageSignedUploadUrl,
 		signal?: AbortSignal,
 	): Promise<void>;
 	/**

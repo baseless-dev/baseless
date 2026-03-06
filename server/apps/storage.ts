@@ -2,12 +2,12 @@ import { app, Permission } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import { first } from "@baseless/core/iter";
 import {
-	StorageDownloadOptions,
 	StorageListEntry,
 	StorageListOptions,
 	StorageObject,
+	StorageSignedDownloadUrlOptions,
+	StorageSignedUploadUrlOptions,
 	StorageSignedUrl,
-	StorageUploadOptions,
 } from "@baseless/core/storage";
 import { ForbiddenError, StorageFolderNotFoundError, StorageObjectNotFoundError } from "@baseless/core/errors";
 import { Response } from "@baseless/core/response";
@@ -54,7 +54,7 @@ const storageApp = app()
 		path: "core/storage/upload-url",
 		request: z.jsonRequest({
 			path: z.string(),
-			options: z.optional(StorageUploadOptions),
+			options: z.optional(StorageSignedUploadUrlOptions),
 		}),
 		response: z.jsonResponse({
 			url: StorageSignedUrl(),
@@ -97,7 +97,7 @@ const storageApp = app()
 		path: "core/storage/download-url",
 		request: z.jsonRequest({
 			path: z.string(),
-			options: z.optional(StorageDownloadOptions),
+			options: z.optional(StorageSignedDownloadUrlOptions),
 		}),
 		response: z.jsonResponse({
 			url: StorageSignedUrl(),

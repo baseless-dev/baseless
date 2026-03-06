@@ -47,11 +47,12 @@ import { assertID, ID, id, isID } from "@baseless/core/id";
 import { SignJWT } from "jose/jwt/sign";
 import type { TStatement } from "@baseless/core/query";
 import type {
-	StorageDownloadOptions,
 	StorageListEntry,
 	StorageObject,
+	StoragePutOptions,
+	StorageSignedDownloadUrlOptions,
+	StorageSignedUploadUrlOptions,
 	StorageSignedUrl,
-	StorageUploadOptions,
 } from "@baseless/core/storage";
 
 /**
@@ -545,7 +546,9 @@ export class TableFacade implements TableService<any> {
 /** Options required to construct a {@link StorageFacade}. */
 export interface StorageFacadeOptions {
 	app: App;
-	provider: StorageProvider;
+	storageProvider: StorageProvider;
+	queueProvider: QueueProvider;
+	waitUntil: (promise: PromiseLike<unknown>) => void;
 }
 
 /**
@@ -564,55 +567,53 @@ export class StorageFacade implements StorageService<any, any> {
 		signal?: AbortSignal,
 	): Promise<StorageObject> {
 		try {
-			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#options.app.match("file", fileRef));
+			const _ = first(this.#options.app.match("file", fileRef));
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.provider.getMetadata(fileRef, signal);
+		return this.#options.storageProvider.getMetadata(fileRef, signal);
 	}
 
 	getSignedUploadUrl<TPath extends keyof any>(
 		fileRef: Reference<TPath>,
-		options?: StorageUploadOptions,
+		options?: StorageSignedUploadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl> {
 		try {
-			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#options.app.match("file", fileRef));
+			const _ = first(this.#options.app.match("file", fileRef));
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.provider.getSignedUploadUrl(fileRef, options, signal);
+		return this.#options.storageProvider.getSignedUploadUrl(fileRef, options, signal);
 	}
 
 	getSignedDownloadUrl<TPath extends keyof any>(
 		fileRef: Reference<TPath>,
-		options?: StorageDownloadOptions,
+		options?: StorageSignedDownloadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl> {
 		try {
-			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#options.app.match("file", fileRef));
+			const _ = first(this.#options.app.match("file", fileRef));
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.provider.getSignedDownloadUrl(fileRef, options, signal);
+		return this.#options.storageProvider.getSignedDownloadUrl(fileRef, options, signal);
 	}
 
-	put<TPath extends keyof any>(
+	async put<TPath extends keyof any>(
 		fileRef: Reference<TPath>,
 		content: ReadableStream<Uint8Array> | ArrayBuffer | Blob,
-		options?: StorageUploadOptions,
+		options?: StoragePutOptions,
 		signal?: AbortSignal,
 	): Promise<void> {
 		try {
-			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#options.app.match("file", fileRef));
+			const _ = first(this.#options.app.match("file", fileRef));
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.provider.put(fileRef, content, options, signal);
+		await this.#options.storageProvider.put(fileRef, content, options, signal);
+		const file = await this.#options.storageProvider.getMetadata(fileRef, signal);
+		this.#options.waitUntil(this.#options.queueProvider.enqueue({ type: "file_uploaded", key: fileRef as never, file }, signal));
 	}
 
 	get<TPath extends keyof any>(
@@ -620,25 +621,28 @@ export class StorageFacade implements StorageService<any, any> {
 		signal?: AbortSignal,
 	): Promise<ReadableStream<Uint8Array>> {
 		try {
-			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#options.app.match("file", fileRef));
+			const _ = first(this.#options.app.match("file", fileRef));
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.provider.get(fileRef, signal);
+		return this.#options.storageProvider.get(fileRef, signal);
 	}
 
-	delete<TPath extends keyof any>(
+	async delete<TPath extends keyof any>(
 		fileRef: Reference<TPath>,
 		signal?: AbortSignal,
 	): Promise<void> {
 		try {
+			const _ = first(this.#options.app.match("file", fileRef));
 			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#options.app.match("file", fileRef));
+			var file = await this.#options.storageProvider.getMetadata(fileRef, signal);
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.provider.delete(fileRef, signal);
+
+		await this.#options.storageProvider.delete(fileRef, signal);
+
+		this.#options.waitUntil(this.#options.queueProvider.enqueue({ type: "file_deleted", key: fileRef as never, file }, signal));
 	}
 
 	list<TPath extends keyof any>(
@@ -651,7 +655,7 @@ export class StorageFacade implements StorageService<any, any> {
 		} catch (cause) {
 			throw new StorageFolderNotFoundError(undefined, { cause });
 		}
-		return this.#options.provider.list(
+		return this.#options.storageProvider.list(
 			{ prefix: options.prefix as string, cursor: options.cursor, limit: options.limit },
 			signal,
 		);

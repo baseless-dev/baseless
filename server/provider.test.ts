@@ -588,7 +588,8 @@ export async function testStorageProvider(
 		const data = new TextEncoder().encode("hello world");
 		await provider.put("files/hello.txt", data.buffer, {
 			contentType: "text/plain",
-			metadata: { author: "test" },
+			etag: "",
+			metadata: {},
 		});
 	});
 
@@ -621,7 +622,7 @@ export async function testStorageProvider(
 
 	await t.step("put stores content from Blob", async () => {
 		const blob = new Blob(["blob content"], { type: "text/plain" });
-		await provider.put("files/blob.txt", blob, { contentType: "text/plain" });
+		await provider.put("files/blob.txt", blob, { contentType: "text/plain", etag: "", metadata: {} });
 
 		const stream = await provider.get("files/blob.txt");
 		const text = await new Response(stream).text();
@@ -636,7 +637,7 @@ export async function testStorageProvider(
 				controller.close();
 			},
 		});
-		await provider.put("files/stream.txt", readable, { contentType: "text/plain" });
+		await provider.put("files/stream.txt", readable, { contentType: "text/plain", etag: "", metadata: {} });
 
 		const stream = await provider.get("files/stream.txt");
 		const text = await new Response(stream).text();
@@ -646,6 +647,8 @@ export async function testStorageProvider(
 	await t.step("put overwrites existing content", async () => {
 		await provider.put("files/hello.txt", new TextEncoder().encode("updated").buffer, {
 			contentType: "text/plain",
+			etag: "",
+			metadata: {},
 		});
 
 		const stream = await provider.get("files/hello.txt");
@@ -739,8 +742,8 @@ export async function testStorageProvider(
 		const result = await provider.getSignedUploadUrl("files/conditioned.txt", {
 			contentType: "text/plain",
 			conditions: {
-				"content-type": "text/plain",
-				"content-length-range": "0-1048576",
+				"accept": ["text/plain"],
+				"contentLengthRange": { max: 1048576 },
 			},
 		});
 		assertEquals(typeof result.url, "string");

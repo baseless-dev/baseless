@@ -7,12 +7,13 @@ import type {
 	DocumentListOptions,
 } from "@baseless/core/document";
 import type {
-	StorageDownloadOptions,
 	StorageListEntry,
 	StorageListOptions,
 	StorageObject,
+	StoragePutOptions,
+	StorageSignedDownloadUrlOptions,
+	StorageSignedUploadUrlOptions,
 	StorageSignedUrl,
-	StorageUploadOptions,
 } from "@baseless/core/storage";
 import type { ID } from "@baseless/core/id";
 import type { KVGetOptions, KVKey, KVListOptions, KVListResult, KVPutOptions } from "@baseless/core/kv";
@@ -38,12 +39,12 @@ export {
 	DocumentListOptions,
 } from "@baseless/core/document";
 export {
-	type StorageDownloadOptions,
 	StorageListEntry,
 	StorageListOptions,
 	StorageObject,
+	type StorageSignedDownloadUrlOptions,
+	type StorageSignedUploadUrlOptions,
 	StorageSignedUrl,
-	type StorageUploadOptions,
 } from "@baseless/core/storage";
 export { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/identity";
 export { type KVGetOptions, type KVKey, type KVListKey, type KVListOptions, type KVListResult, type KVPutOptions } from "@baseless/core/kv";
@@ -547,7 +548,7 @@ export abstract class StorageProvider {
 	 */
 	abstract getSignedUploadUrl(
 		key: string,
-		options?: StorageUploadOptions,
+		options?: StorageSignedUploadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 
@@ -560,7 +561,7 @@ export abstract class StorageProvider {
 	 */
 	abstract getSignedDownloadUrl(
 		key: string,
-		options?: StorageDownloadOptions,
+		options?: StorageSignedDownloadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 
@@ -574,7 +575,7 @@ export abstract class StorageProvider {
 	abstract put(
 		key: string,
 		content: ReadableStream<Uint8Array> | ArrayBuffer | Blob,
-		options?: StorageUploadOptions,
+		options?: StoragePutOptions,
 		signal?: AbortSignal,
 	): Promise<void>;
 

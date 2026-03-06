@@ -28,12 +28,12 @@ import { EventEmitter } from "./event_emitter.ts";
 import { AuthenticationCeremonyInvalidPromptError, AuthenticationCeremonyInvalidStateError } from "./errors.ts";
 import { BatchableStatementBuilder, type IStatementBuilder, type TStatement } from "@baseless/core/query";
 import {
-	StorageDownloadOptions,
 	StorageListEntry,
-	StorageListOptions,
+	type StorageListOptions,
 	StorageObject,
+	type StorageSignedDownloadUrlOptions,
+	type StorageSignedUploadUrlOptions,
 	StorageSignedUrl,
-	StorageUploadOptions,
 } from "@baseless/core/storage";
 
 const INTERNAL_WEBSOCKET = Symbol();
@@ -871,7 +871,7 @@ export class ClientStorage {
 	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} with the upload URL and expiry.
 	 */
-	async getSignedUploadUrl(path: string, options?: StorageUploadOptions, signal?: AbortSignal): Promise<StorageSignedUrl> {
+	async getSignedUploadUrl(path: string, options?: StorageSignedUploadUrlOptions, signal?: AbortSignal): Promise<StorageSignedUrl> {
 		const response = await this.#client.fetch(`core/storage/upload-url`, {
 			signal,
 			method: "POST",
@@ -889,7 +889,7 @@ export class ClientStorage {
 	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} with the download URL and expiry.
 	 */
-	async getSignedDownloadUrl(path: string, options?: StorageDownloadOptions, signal?: AbortSignal): Promise<StorageSignedUrl> {
+	async getSignedDownloadUrl(path: string, options?: StorageSignedDownloadUrlOptions, signal?: AbortSignal): Promise<StorageSignedUrl> {
 		const response = await this.#client.fetch(`core/storage/download-url`, {
 			signal,
 			method: "POST",
@@ -1182,7 +1182,7 @@ export interface TypedClientStorage<
 	 */
 	getSignedUploadUrl<TPath extends keyof TFiles>(
 		ref: Reference<TPath>,
-		options?: StorageUploadOptions,
+		options?: StorageSignedUploadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 	/**
@@ -1194,7 +1194,7 @@ export interface TypedClientStorage<
 	 */
 	getSignedDownloadUrl<TPath extends keyof TFiles>(
 		ref: Reference<TPath>,
-		options?: StorageDownloadOptions,
+		options?: StorageSignedDownloadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 	/**

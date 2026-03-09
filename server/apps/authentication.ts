@@ -117,7 +117,7 @@ const authApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/auth/sign-out",
+		path: "auth/sign-out",
 		request: z.request({
 			method: "POST",
 			headers: {
@@ -141,7 +141,7 @@ const authApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/auth/refresh-token",
+		path: "auth/refresh-token",
 		request: z.jsonRequest({
 			token: z.string().meta({ id: "RefreshToken" }),
 		}),
@@ -159,7 +159,7 @@ const authApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/auth/begin",
+		path: "auth/begin",
 		request: z.jsonRequest({
 			kind: z.union([z.literal("authentication"), z.literal("registration")]),
 			scopes: z.optional(z.array(z.string())),
@@ -216,7 +216,7 @@ const authApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/auth/submit-prompt",
+		path: "auth/submit-prompt",
 		request: z.jsonRequest({
 			id: z.string(),
 			value: z.unknown(),
@@ -373,7 +373,7 @@ const authApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/auth/send-prompt",
+		path: "auth/send-prompt",
 		request: z.jsonRequest({
 			id: z.string(),
 			locale: z.string(),
@@ -426,7 +426,7 @@ const authApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/auth/send-validation-code",
+		path: "auth/send-validation-code",
 		request: z.jsonRequest({
 			id: z.string(),
 			locale: z.string(),
@@ -479,7 +479,7 @@ const authApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/auth/submit-validation-code",
+		path: "auth/submit-validation-code",
 		request: z.jsonRequest({
 			id: z.string(),
 			code: z.unknown(),

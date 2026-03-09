@@ -85,7 +85,7 @@ Deno.test("Simple authentication", async (t) => {
 		.commit();
 
 	await t.step("login", async () => {
-		const { result: begin } = await mock.fetch("/core/auth/begin", {
+		const { result: begin } = await mock.fetch("/auth/begin", {
 			data: { kind: "authentication", scopes: ["firstName", "non-existing"] },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
@@ -96,12 +96,12 @@ Deno.test("Simple authentication", async (t) => {
 		assert(begin.step.prompt === "email");
 		assert(!begin.step.sendable);
 		await assertRejects(() =>
-			mock.fetch("/core/auth/submit-prompt", {
+			mock.fetch("/auth/submit-prompt", {
 				data: { id: "email", value: "bar@test.local", state: begin.state },
 				schema: z.object({ result: AuthenticationResponse }),
 			})
 		);
-		const { result: email } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: email } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "email", value: "foo@test.local", state: begin.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
@@ -111,7 +111,7 @@ Deno.test("Simple authentication", async (t) => {
 		assert(email.step.id === "password");
 		assert(email.step.prompt === "password");
 		assert(!email.step.sendable);
-		const { result: password } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: password } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "password", value: "lepassword", state: email.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
@@ -120,25 +120,23 @@ Deno.test("Simple authentication", async (t) => {
 	});
 
 	await t.step("refresh token", async () => {
-		const { result: begin } = await mock.fetch("/core/auth/begin", {
+		const { result: begin } = await mock.fetch("/auth/begin", {
 			data: { kind: "authentication", scopes: [] },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
 		assert("state" in begin);
-		const { result: email } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: email } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "email", value: "foo@test.local", state: begin.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
 		assert("state" in email);
-		const { result: password } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: password } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "password", value: "lepassword", state: email.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
 		assert("refreshToken" in password);
-		await assertRejects(() =>
-			mock.fetch("/core/auth/refresh-token", { data: "foobar", schema: z.object({ result: AuthenticationResponse }) })
-		);
-		const { result: tokens } = await mock.fetch("/core/auth/refresh-token", {
+		await assertRejects(() => mock.fetch("/auth/refresh-token", { data: "foobar", schema: z.object({ result: AuthenticationResponse }) }));
+		const { result: tokens } = await mock.fetch("/auth/refresh-token", {
 			data: { token: password.refreshToken },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
@@ -148,22 +146,22 @@ Deno.test("Simple authentication", async (t) => {
 	});
 
 	await t.step("sign-out", async () => {
-		const { result: begin } = await mock.fetch("/core/auth/begin", {
+		const { result: begin } = await mock.fetch("/auth/begin", {
 			data: { kind: "authentication", scopes: [] },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
 		assert("state" in begin);
-		const { result: email } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: email } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "email", value: "foo@test.local", state: begin.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
 		assert("state" in email);
-		const { result: password } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: password } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "password", value: "lepassword", state: email.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
 		assert("accessToken" in password);
-		const { result } = await mock.fetch("/core/auth/sign-out", {
+		const { result } = await mock.fetch("/auth/sign-out", {
 			data: undefined,
 			headers: { Authorization: `Bearer ${password.accessToken}` },
 			schema: z.object({ result: z.boolean() }),
@@ -172,7 +170,7 @@ Deno.test("Simple authentication", async (t) => {
 	});
 
 	await t.step("register", async () => {
-		const { result: begin } = await mock.fetch("/core/auth/begin", {
+		const { result: begin } = await mock.fetch("/auth/begin", {
 			data: { kind: "registration", scopes: [] },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
@@ -181,7 +179,7 @@ Deno.test("Simple authentication", async (t) => {
 		assert(begin.step.kind === "component");
 		assert(begin.step.id === "email");
 		assert(begin.step.prompt === "email");
-		const { result: email } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: email } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "email", value: "bar@test.local", state: begin.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
@@ -190,14 +188,14 @@ Deno.test("Simple authentication", async (t) => {
 		assert(email.step.kind === "component");
 		assert(email.step.id === "email");
 		assert(email.step.prompt === "otp");
-		const sendValidationCode = await mock.fetch("/core/auth/send-validation-code", {
+		const sendValidationCode = await mock.fetch("/auth/send-validation-code", {
 			data: { id: "email", locale: "en", state: email.state },
 			schema: z.object({ result: z.boolean() }),
 		});
 		assert(sendValidationCode);
 		const code = mock.provider.notification.notifications[0].content["text/x-code"];
 		assert(code);
-		const { result: submitValidationCode } = await mock.fetch("/core/auth/submit-validation-code", {
+		const { result: submitValidationCode } = await mock.fetch("/auth/submit-validation-code", {
 			data: { id: "email", code, state: email.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
@@ -206,7 +204,7 @@ Deno.test("Simple authentication", async (t) => {
 		assert(submitValidationCode.step.kind === "component");
 		assert(submitValidationCode.step.id === "password");
 		assert(submitValidationCode.step.prompt === "password");
-		const { result: password } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: password } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "password", value: "qwerty", state: submitValidationCode.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
@@ -329,7 +327,7 @@ Deno.test("Two factor authentication", async (t) => {
 		.commit();
 
 	await t.step("login", async () => {
-		const { result: begin } = await mock.fetch("/core/auth/begin", {
+		const { result: begin } = await mock.fetch("/auth/begin", {
 			data: { kind: "authentication", scopes: [] },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
@@ -337,7 +335,7 @@ Deno.test("Two factor authentication", async (t) => {
 		assert(begin.step.kind === "component");
 		assert(begin.step.id === "email");
 		assert(!begin.step.sendable);
-		const { result: email } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: email } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "email", value: "foo@test.local", state: begin.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
@@ -345,7 +343,7 @@ Deno.test("Two factor authentication", async (t) => {
 		assert(email.step.kind === "component");
 		assert(email.step.id === "password");
 		assert(!email.step.sendable);
-		const { result: password } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: password } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "password", value: "lepassword", state: email.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
@@ -353,14 +351,14 @@ Deno.test("Two factor authentication", async (t) => {
 		assert(password.step.kind === "component");
 		assert(password.step.id === "otp");
 		assert(password.step.sendable);
-		const { result: sendPrompt } = await mock.fetch("/core/auth/send-prompt", {
+		const { result: sendPrompt } = await mock.fetch("/auth/send-prompt", {
 			data: { id: "otp", locale: "en", state: password.state },
 			schema: z.object({ result: z.boolean() }),
 		});
 		assert(sendPrompt);
 		const code = mock.provider.notification.notifications[0].content["text/x-code"];
 		assert(code);
-		const { result: otp } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: otp } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "otp", value: code, state: password.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
@@ -369,20 +367,20 @@ Deno.test("Two factor authentication", async (t) => {
 		assert(otp.step.kind === "component");
 		assert(otp.step.id === "policy");
 		assert(!otp.step.sendable);
-		const { result: policy } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: policy } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "policy", value: { terms: "1.0" }, state: otp.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});
 		assert("accessToken" in policy);
 
-		const { result: sendPrompt2 } = await mock.fetch("/core/auth/send-prompt", {
+		const { result: sendPrompt2 } = await mock.fetch("/auth/send-prompt", {
 			data: { id: "otp", locale: "en", state: password.state },
 			schema: z.object({ result: z.boolean() }),
 		});
 		assert(sendPrompt2);
 		const code2 = mock.provider.notification.notifications[1].content["text/x-code"];
 		assert(code2);
-		const { result: otp2 } = await mock.fetch("/core/auth/submit-prompt", {
+		const { result: otp2 } = await mock.fetch("/auth/submit-prompt", {
 			data: { id: "otp", value: code2, state: password.state },
 			schema: z.object({ result: AuthenticationResponse }),
 		});

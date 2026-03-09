@@ -7,7 +7,7 @@ import { Response } from "@baseless/core/response";
 
 const documentApp = app()
 	.endpoint({
-		path: "core/document/get",
+		path: "document/get",
 		request: z.jsonRequest({
 			path: z.string(),
 			options: z.optional(DocumentGetOptions),
@@ -45,7 +45,7 @@ const documentApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/document/get-many",
+		path: "document/get-many",
 		request: z.jsonRequest({
 			paths: z.array(z.string()),
 			options: z.optional(DocumentGetOptions),
@@ -85,7 +85,7 @@ const documentApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/document/commit",
+		path: "document/commit",
 		request: z.jsonRequest({
 			atomic: DocumentAtomic,
 		}),
@@ -151,7 +151,7 @@ const documentApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/document/list",
+		path: "document/list",
 		request: z.jsonRequest({
 			options: DocumentListOptions,
 		}),

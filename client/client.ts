@@ -45,7 +45,7 @@ const INTERNAL_TOPIC_EMITTER = Symbol();
  * Construction options for {@link Client}.
  */
 export interface ClientOptions {
-	baseUrl: URL;
+	baseUrl: URL | { base: URL; auth: string; document: string; pubsub: string; storage: string; table: string };
 	credentials?: Credentials;
 	fetch?: (input: string | globalThis.URL | globalThis.RequestInfo, init?: globalThis.RequestInit) => Promise<globalThis.Response>;
 }
@@ -64,7 +64,7 @@ export interface ClientOptions {
  * ```
  */
 export class Client implements AsyncDisposable {
-	#baseUrl: URL;
+	#baseUrls: { base: URL; auth: string; document: string; pubsub: string; storage: string; table: string };
 	#credentials: Credentials;
 	#janitor: AsyncDisposableStack;
 	#fetch: (input: string | globalThis.URL | globalThis.RequestInfo, init?: globalThis.RequestInit) => Promise<globalThis.Response>;
@@ -76,7 +76,9 @@ export class Client implements AsyncDisposable {
 	[INTERNAL_TOPIC_EMITTER]: EventEmitter<{ [key: string]: unknown }>;
 
 	constructor(options: ClientOptions) {
-		this.#baseUrl = options.baseUrl;
+		this.#baseUrls = options.baseUrl instanceof URL
+			? { base: options.baseUrl, auth: "auth", document: "document", pubsub: "pubsub", storage: "storage", table: "table" }
+			: options.baseUrl;
 		this.#credentials = options.credentials ?? new Credentials(new MemoryCredentialsStore());
 		this.#janitor = new AsyncDisposableStack();
 		this.#fetch = options.fetch ?? globalThis.fetch;
@@ -97,27 +99,27 @@ export class Client implements AsyncDisposable {
 
 	/** Returns a {@link ClientAuth} sub-client for authentication operations. */
 	get auth(): ClientAuth {
-		return new ClientAuth(this);
+		return new ClientAuth(this, this.#baseUrls.auth);
 	}
 
 	/** Returns a {@link ClientDocument} sub-client for document store operations. */
 	get document(): ClientDocument {
-		return new ClientDocument(this);
+		return new ClientDocument(this, this.#baseUrls.document);
 	}
 
 	/** Returns a {@link ClientPubsub} sub-client for publish/subscribe operations. */
 	get pubsub(): ClientPubsub {
-		return new ClientPubsub(this);
+		return new ClientPubsub(this, this.#baseUrls.pubsub);
 	}
 
 	/** Returns a {@link ClientTable} sub-client for table query operations. */
 	get table(): ClientTable {
-		return new ClientTable(this);
+		return new ClientTable(this, this.#baseUrls.table);
 	}
 
 	/** Returns a {@link ClientStorage} sub-client for storage operations. */
 	get storage(): ClientStorage {
-		return new ClientStorage(this);
+		return new ClientStorage(this, this.#baseUrls.storage);
 	}
 
 	async [Symbol.asyncDispose](): Promise<void> {
@@ -145,7 +147,7 @@ export class Client implements AsyncDisposable {
 			const now = Date.now() / 1000 >> 0;
 			const tokens = this.#credentials.tokens;
 			if (tokens?.accessToken && tokens.refreshToken && tokens.accessTokenExpiration - now < 10) {
-				this.#fetch(`${this.#baseUrl}core/auth/refresh-tokens`, {
+				this.#fetch(`${this.#baseUrls}core/auth/refresh-tokens`, {
 					signal,
 					method: "POST",
 					headers: { "content-type": "application/json" },
@@ -180,7 +182,7 @@ export class Client implements AsyncDisposable {
 		await this.#refreshTokensIfNeeded(init?.signal ?? undefined);
 		const tokens = this.#credentials.tokens;
 		const nativeResponse = await this.#fetch(
-			new globalThis.Request(`${this.#baseUrl}${path}`, {
+			new globalThis.Request(`${this.#baseUrls.base}${path}`, {
 				...init,
 				headers: {
 					...init?.headers,
@@ -205,7 +207,7 @@ export class Client implements AsyncDisposable {
 		this[INTERNAL_WEBSOCKET] ??= this.#refreshTokensIfNeeded()
 			.then(() => {
 				this[INTERNAL_WEBSOCKET_STATE] = "connecting";
-				const url = baseUrl ?? new URL(this.#baseUrl);
+				const url = baseUrl ?? new URL(this.#baseUrls.base);
 				url.protocol = url.protocol === "http:" ? "ws:" : "wss:";
 				const tokens = this.#credentials.tokens;
 				const protocols: string[] = ["bls"];
@@ -271,9 +273,11 @@ export class Client implements AsyncDisposable {
  */
 export class ClientAuth {
 	#client: Client;
+	#endpoint: string;
 
-	constructor(client: Client) {
+	constructor(client: Client, endpoint: string) {
 		this.#client = client;
+		this.#endpoint = endpoint;
 	}
 
 	/**
@@ -286,7 +290,7 @@ export class ClientAuth {
 		kind: "authentication" | "registration",
 		options?: { scopes?: string[]; signal?: AbortSignal; store?: ClientAuthCeremonyStore },
 	): Promise<ClientAuthCeremony> {
-		return ClientAuthCeremony.init(this.#client, kind, options);
+		return ClientAuthCeremony.init(this.#client, this.#endpoint, kind, options);
 	}
 
 	/**
@@ -297,7 +301,7 @@ export class ClientAuth {
 	async signOut(signal?: AbortSignal): Promise<void> {
 		const identityId = this.#client.credentials.tokens?.identity.id;
 		if (identityId) {
-			const _response = await this.#client.fetch(`core/auth/sign-out`, {
+			const _response = await this.#client.fetch(`${this.#endpoint}/sign-out`, {
 				signal,
 				method: "POST",
 			});
@@ -333,6 +337,7 @@ export interface AuthenticationComponentChoiceSelection {
  */
 export class ClientAuthCeremony implements Disposable {
 	#client: Client;
+	#endpoint: string;
 	#kind: "authentication" | "registration";
 	#scopes?: string[];
 	#steps: Array<AuthenticationStep | AuthenticationComponentChoiceSelection>;
@@ -342,12 +347,13 @@ export class ClientAuthCeremony implements Disposable {
 
 	static async init(
 		client: Client,
+		endpoint: string,
 		kind: "authentication" | "registration",
 		options?: { scopes?: string[]; signal?: AbortSignal; store?: ClientAuthCeremonyStore },
 	): Promise<ClientAuthCeremony> {
 		let steps: Array<AuthenticationStep | AuthenticationComponentChoiceSelection> | null = await options?.store?.get() ?? null;
 		if (!steps) {
-			const response = await client.fetch(`core/auth/begin`, {
+			const response = await client.fetch(`${endpoint}/begin`, {
 				signal: options?.signal,
 				method: "POST",
 				headers: { "content-type": "application/json" },
@@ -356,17 +362,19 @@ export class ClientAuthCeremony implements Disposable {
 			z.assert(z.object({ result: AuthenticationStep }), response.body);
 			steps = [response.body.result];
 		}
-		return new ClientAuthCeremony(client, kind, options?.scopes ?? [], steps, options?.store);
+		return new ClientAuthCeremony(client, endpoint, kind, options?.scopes ?? [], steps, options?.store);
 	}
 
 	constructor(
 		client: Client,
+		endpoint: string,
 		kind: "authentication" | "registration",
 		scopes: string[],
 		steps: Array<AuthenticationStep | AuthenticationComponentChoiceSelection>,
 		store?: ClientAuthCeremonyStore,
 	) {
 		this.#client = client;
+		this.#endpoint = endpoint;
 		this.#kind = kind;
 		this.#scopes = scopes;
 		this.#store = store;
@@ -414,7 +422,7 @@ export class ClientAuthCeremony implements Disposable {
 	 * the server.
 	 */
 	async reset(): Promise<void> {
-		const response = await this.#client.fetch(`core/auth/begin`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/begin`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ kind: this.#kind, scopes: this.#scopes }),
@@ -491,7 +499,7 @@ export class ClientAuthCeremony implements Disposable {
 		if (!id) {
 			throw new AuthenticationCeremonyInvalidStateError();
 		}
-		const response = await this.#client.fetch(`core/auth/send-prompt`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/send-prompt`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -512,7 +520,7 @@ export class ClientAuthCeremony implements Disposable {
 		if (!id) {
 			throw new AuthenticationCeremonyInvalidStateError();
 		}
-		const response = await this.#client.fetch(`core/auth/submit-prompt`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/submit-prompt`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -544,7 +552,7 @@ export class ClientAuthCeremony implements Disposable {
 		if (!id) {
 			throw new AuthenticationCeremonyInvalidStateError();
 		}
-		const response = await this.#client.fetch(`core/auth/send-validation-code`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/send-validation-code`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -565,7 +573,7 @@ export class ClientAuthCeremony implements Disposable {
 		if (!id) {
 			throw new AuthenticationCeremonyInvalidStateError();
 		}
-		const response = await this.#client.fetch(`core/auth/submit-validation-code`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/submit-validation-code`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -593,9 +601,11 @@ export class ClientAuthCeremony implements Disposable {
  */
 export class ClientDocument {
 	#client: Client;
+	#endpoint: string;
 
-	constructor(client: Client) {
+	constructor(client: Client, endpoint: string) {
 		this.#client = client;
+		this.#endpoint = endpoint;
 	}
 
 	/**
@@ -606,7 +616,7 @@ export class ClientDocument {
 	 * @returns The {@link Document} at the given path.
 	 */
 	async get(path: string, options?: DocumentGetOptions, signal?: AbortSignal): Promise<Document<unknown>> {
-		const response = await this.#client.fetch(`core/document/get`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/get`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -624,7 +634,7 @@ export class ClientDocument {
 	 * @returns An array of {@link Document} values in the same order as `paths`.
 	 */
 	async getMany(paths: Array<string>, options?: DocumentGetOptions, signal?: AbortSignal): Promise<Array<Document<unknown>>> {
-		const response = await this.#client.fetch(`core/document/get-many`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/get-many`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -646,7 +656,7 @@ export class ClientDocument {
 		signal?.addEventListener("abort", () => abortController.abort(), { once: true });
 		return new ReadableStream<DocumentListEntry>({
 			start: async (controller): Promise<void> => {
-				const response = await this.#client.fetch(`core/document/list`, {
+				const response = await this.#client.fetch(`${this.#endpoint}/list`, {
 					signal,
 					method: "POST",
 					headers: { "content-type": "application/json" },
@@ -669,7 +679,7 @@ export class ClientDocument {
 	 * @returns A {@link ClientDocumentAtomic} builder.
 	 */
 	atomic(): ClientDocumentAtomic {
-		return new ClientDocumentAtomic(this.#client);
+		return new ClientDocumentAtomic(this.#client, this.#endpoint);
 	}
 }
 
@@ -679,11 +689,13 @@ export class ClientDocument {
  */
 export class ClientDocumentAtomic {
 	#client: Client;
+	#endpoint: string;
 	#checks: DocumentAtomicCheck[] = [];
 	#operations: DocumentAtomicOperation[] = [];
 
-	constructor(client: Client) {
+	constructor(client: Client, endpoint: string) {
 		this.#client = client;
+		this.#endpoint = endpoint;
 	}
 
 	/**
@@ -723,7 +735,7 @@ export class ClientDocumentAtomic {
 	 * @param signal Optional abort signal.
 	 */
 	async commit(signal?: AbortSignal): Promise<void> {
-		const response = await this.#client.fetch(`core/document/commit`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/commit`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -745,9 +757,11 @@ export class ClientDocumentAtomic {
  */
 export class ClientPubsub {
 	#client: Client;
+	#endpoint: string;
 
-	constructor(client: Client) {
+	constructor(client: Client, endpoint: string) {
 		this.#client = client;
+		this.#endpoint = endpoint;
 	}
 
 	/**
@@ -757,7 +771,7 @@ export class ClientPubsub {
 	 * @param signal Optional abort signal.
 	 */
 	async publish(key: string, payload: unknown, signal?: AbortSignal): Promise<void> {
-		const response = await this.#client.fetch(`core/pubsub/publish`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/publish`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -807,9 +821,11 @@ export class ClientPubsub {
  */
 export class ClientTable {
 	#client: Client;
+	#endpoint: string;
 
-	constructor(client: Client) {
+	constructor(client: Client, endpoint: string) {
 		this.#client = client;
+		this.#endpoint = endpoint;
 	}
 
 	/**
@@ -825,7 +841,7 @@ export class ClientTable {
 		signal?: AbortSignal,
 	): Promise<TOutput> {
 		const statement = fn(new BatchableStatementBuilder()).toStatement();
-		const response = await this.#client.fetch(`core/table/execute`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/execute`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -842,9 +858,11 @@ export class ClientTable {
  */
 export class ClientStorage {
 	#client: Client;
+	#endpoint: string;
 
-	constructor(client: Client) {
+	constructor(client: Client, endpoint: string) {
 		this.#client = client;
+		this.#endpoint = endpoint;
 	}
 
 	/**
@@ -854,7 +872,7 @@ export class ClientStorage {
 	 * @returns The {@link StorageObject} metadata.
 	 */
 	async getMetadata(path: string, signal?: AbortSignal): Promise<StorageObject> {
-		const response = await this.#client.fetch(`core/storage/get-metadata`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/get-metadata`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -872,7 +890,7 @@ export class ClientStorage {
 	 * @returns A {@link StorageSignedUrl} with the upload URL and expiry.
 	 */
 	async getSignedUploadUrl(path: string, options?: StorageSignedUploadUrlOptions, signal?: AbortSignal): Promise<StorageSignedUrl> {
-		const response = await this.#client.fetch(`core/storage/upload-url`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/upload-url`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -890,7 +908,7 @@ export class ClientStorage {
 	 * @returns A {@link StorageSignedUrl} with the download URL and expiry.
 	 */
 	async getSignedDownloadUrl(path: string, options?: StorageSignedDownloadUrlOptions, signal?: AbortSignal): Promise<StorageSignedUrl> {
-		const response = await this.#client.fetch(`core/storage/download-url`, {
+		const response = await this.#client.fetch(`${this.#endpoint}/download-url`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -906,7 +924,7 @@ export class ClientStorage {
 	 * @param signal Optional abort signal.
 	 */
 	async delete(path: string, signal?: AbortSignal): Promise<void> {
-		await this.#client.fetch(`core/storage/delete`, {
+		await this.#client.fetch(`${this.#endpoint}/delete`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -925,7 +943,7 @@ export class ClientStorage {
 		signal?.addEventListener("abort", () => abortController.abort(), { once: true });
 		return new ReadableStream<StorageListEntry>({
 			start: async (controller): Promise<void> => {
-				const response = await this.#client.fetch(`core/storage/list`, {
+				const response = await this.#client.fetch(`${this.#endpoint}/list`, {
 					signal,
 					method: "POST",
 					headers: { "content-type": "application/json" },

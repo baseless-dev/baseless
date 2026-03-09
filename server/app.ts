@@ -336,6 +336,10 @@ export type AppRegistryMetRequirements<TRegistry extends AppRegistry, TOtherRegi
 			: never
 		: never;
 
+export type Prefixed<T extends Record<string, any>, TPrefix extends string> = {
+	[k in keyof T as `${TPrefix}${string & k}`]: T[k];
+};
+
 /** Server-private collection definition (not exposed to clients). */
 export interface ServerCollectionDefinition<TRegistry extends AppRegistry, TPath extends string, TData extends z.ZodType> {
 	path: TPath;
@@ -1005,6 +1009,7 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 	 * all requirements declared by `other` via
 	 * {@link AppRegistryMetRequirements}.
 	 *
+	 * @param prefix Optional path prefix to apply to all of `other`'s registered endpoints
 	 * @param other The app builder to merge in.
 	 * @returns A new builder with the merged registries.
 	 */
@@ -1039,12 +1044,54 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		folders: Prettify<TPublicRegistry["folders"] & TOtherPublicRegistry["folders"]>;
 		tables: Prettify<TPublicRegistry["tables"] & TOtherPublicRegistry["tables"]>;
 		topics: Prettify<TPublicRegistry["topics"] & TOtherPublicRegistry["topics"]>;
-	}> {
+	}>;
+	extend<TPrefix extends string, TOtherRegistry extends AppRegistry, TOtherPublicRegistry extends PublicAppRegistry>(
+		prefix: TPrefix,
+		other: AppRegistryMetRequirements<TServerRegistry, TOtherRegistry, TOtherPublicRegistry>,
+	): AppBuilder<{
+		collections: Prettify<TServerRegistry["collections"] & TOtherRegistry["collections"]>;
+		configuration: Prettify<TServerRegistry["configuration"] & TOtherRegistry["configuration"]>;
+		context: Prettify<TServerRegistry["context"] & TOtherRegistry["context"]>;
+		documents: Prettify<TServerRegistry["documents"] & TOtherRegistry["documents"]>;
+		files: Prettify<TServerRegistry["files"] & TOtherRegistry["files"]>;
+		folders: Prettify<TServerRegistry["folders"] & TOtherRegistry["folders"]>;
+		requirements: Prettify<{
+			configuration: Prettify<TServerRegistry["requirements"]["configuration"] & TOtherRegistry["requirements"]["configuration"]>;
+			context: Prettify<TServerRegistry["requirements"]["context"] & TOtherRegistry["requirements"]["context"]>;
+			collections: Prettify<TServerRegistry["requirements"]["collections"] & TOtherRegistry["requirements"]["collections"]>;
+			documents: Prettify<TServerRegistry["requirements"]["documents"] & TOtherRegistry["requirements"]["documents"]>;
+			files: Prettify<TServerRegistry["requirements"]["files"] & TOtherRegistry["requirements"]["files"]>;
+			folders: Prettify<TServerRegistry["requirements"]["folders"] & TOtherRegistry["requirements"]["folders"]>;
+			services: Prettify<TServerRegistry["requirements"]["services"] & TOtherRegistry["requirements"]["services"]>;
+			tables: Prettify<TServerRegistry["requirements"]["tables"] & TOtherRegistry["requirements"]["tables"]>;
+			topics: Prettify<TServerRegistry["requirements"]["topics"] & TOtherRegistry["requirements"]["topics"]>;
+		}>;
+		services: Prettify<TServerRegistry["services"] & TOtherRegistry["services"]>;
+		tables: Prettify<TServerRegistry["tables"] & TOtherRegistry["tables"]>;
+		topics: Prettify<TServerRegistry["topics"] & TOtherRegistry["topics"]>;
+	}, {
+		endpoints: Prettify<TPublicRegistry["endpoints"] & Prefixed<TOtherPublicRegistry["endpoints"], TPrefix>>;
+		collections: Prettify<TPublicRegistry["collections"] & TOtherPublicRegistry["collections"]>;
+		documents: Prettify<TPublicRegistry["documents"] & TOtherPublicRegistry["documents"]>;
+		files: Prettify<TPublicRegistry["files"] & TOtherPublicRegistry["files"]>;
+		folders: Prettify<TPublicRegistry["folders"] & TOtherPublicRegistry["folders"]>;
+		tables: Prettify<TPublicRegistry["tables"] & TOtherPublicRegistry["tables"]>;
+		topics: Prettify<TPublicRegistry["topics"] & TOtherPublicRegistry["topics"]>;
+	}>;
+	extend<TOtherRegistry extends AppRegistry, TOtherPublicRegistry extends PublicAppRegistry>(
+		prefix_or_other: string | AppBuilder<TOtherRegistry, TOtherPublicRegistry>,
+		other?: AppBuilder<TOtherRegistry, TOtherPublicRegistry>,
+	): AppBuilder<AppRegistry, PublicAppRegistry> {
+		const prefix = typeof prefix_or_other === "string" ? prefix_or_other : "";
+		other ??= typeof prefix_or_other === "string" ? other! : prefix_or_other;
+		const prefixedEndpoints = Object.fromEntries(
+			Object.entries(other.#app.endpoints).map(([path, def]) => [prefix + path, def]),
+		);
 		return new AppBuilder<any, any>({
 			collections: { ...this.#app.collections, ...other.#app.collections },
 			decorators: [...this.#app.decorators, ...other.#app.decorators],
 			documents: { ...this.#app.documents, ...other.#app.documents },
-			endpoints: { ...this.#app.endpoints, ...other.#app.endpoints },
+			endpoints: { ...this.#app.endpoints, ...prefixedEndpoints },
 			files: { ...this.#app.files, ...other.#app.files },
 			folders: { ...this.#app.folders, ...other.#app.folders },
 			onDocumentSetting: [...this.#app.onDocumentSetting, ...other.#app.onDocumentSetting],

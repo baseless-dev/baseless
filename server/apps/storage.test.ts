@@ -48,13 +48,13 @@ Deno.test("Storage application", async (t) => {
 
 	await t.step("get-metadata for missing file returns not-found error", async () => {
 		await assertRejects(
-			() => mock.fetch("/core/storage/get-metadata", { data: { path: "avatar" } }),
+			() => mock.fetch("/storage/get-metadata", { data: { path: "avatar" } }),
 			StorageObjectNotFoundError,
 		);
 	});
 
 	await t.step("upload-url returns a signed URL", async () => {
-		const resp = await mock.fetch("/core/storage/upload-url", {
+		const resp = await mock.fetch("/storage/upload-url", {
 			data: { path: "avatar", options: { contentType: "image/png", metadata: { userId: "u1" } } },
 			schema: z.object({ url: StorageSignedUrl() }),
 		});
@@ -63,7 +63,7 @@ Deno.test("Storage application", async (t) => {
 	});
 
 	await t.step("get-metadata succeeds after upload-url", async () => {
-		const resp = await mock.fetch("/core/storage/get-metadata", {
+		const resp = await mock.fetch("/storage/get-metadata", {
 			data: { path: "avatar" },
 			schema: z.object({ object: StorageObject() }),
 		});
@@ -72,7 +72,7 @@ Deno.test("Storage application", async (t) => {
 	});
 
 	await t.step("download-url returns a signed URL", async () => {
-		const resp = await mock.fetch("/core/storage/download-url", {
+		const resp = await mock.fetch("/storage/download-url", {
 			data: { path: "avatar" },
 			schema: z.object({ url: StorageSignedUrl() }),
 		});
@@ -80,20 +80,20 @@ Deno.test("Storage application", async (t) => {
 	});
 
 	await t.step("delete removes the file", async () => {
-		const resp = await mock.fetch("/core/storage/delete", {
+		const resp = await mock.fetch("/storage/delete", {
 			data: { path: "avatar" },
 			schema: z.object({ result: z.boolean() }),
 		});
 		assertEquals(resp.result, true);
 
 		await assertRejects(
-			() => mock.fetch("/core/storage/get-metadata", { data: { path: "avatar" } }),
+			() => mock.fetch("/storage/get-metadata", { data: { path: "avatar" } }),
 			StorageObjectNotFoundError,
 		);
 	});
 
 	await t.step("upload-url for folder file", async () => {
-		const resp = await mock.fetch("/core/storage/upload-url", {
+		const resp = await mock.fetch("/storage/upload-url", {
 			data: { path: "uploads/photo1.jpg", options: { contentType: "image/jpeg" } },
 			schema: z.object({ url: StorageSignedUrl() }),
 		});
@@ -101,14 +101,14 @@ Deno.test("Storage application", async (t) => {
 	});
 
 	await t.step("upload-url for another folder file", async () => {
-		await mock.fetch("/core/storage/upload-url", {
+		await mock.fetch("/storage/upload-url", {
 			data: { path: "uploads/photo2.jpg", options: { contentType: "image/jpeg" } },
 			schema: z.object({ url: StorageSignedUrl() }),
 		});
 	});
 
 	await t.step("list files in folder", async () => {
-		const resp = await mock.fetch("/core/storage/list", {
+		const resp = await mock.fetch("/storage/list", {
 			data: { options: { prefix: "uploads" } },
 			schema: z.object({ entries: z.array(StorageListEntry()) }),
 		});
@@ -117,14 +117,14 @@ Deno.test("Storage application", async (t) => {
 
 	await t.step("list on undefined folder returns not-found", async () => {
 		await assertRejects(
-			() => mock.fetch("/core/storage/list", { data: { options: { prefix: "nonexistent" } } }),
+			() => mock.fetch("/storage/list", { data: { options: { prefix: "nonexistent" } } }),
 			StorageFolderNotFoundError,
 		);
 	});
 
 	await t.step("get-metadata on unregistered path returns not-found", async () => {
 		await assertRejects(
-			() => mock.fetch("/core/storage/get-metadata", { data: { path: "random/file" } }),
+			() => mock.fetch("/storage/get-metadata", { data: { path: "random/file" } }),
 			StorageObjectNotFoundError,
 		);
 	});
@@ -138,20 +138,20 @@ Deno.test("Storage application", async (t) => {
 		);
 
 		await assertRejects(
-			() => mock.fetch("/core/storage/delete", { data: { path: "readonly/secret.txt" } }),
+			() => mock.fetch("/storage/delete", { data: { path: "readonly/secret.txt" } }),
 			ForbiddenError,
 		);
 	});
 
 	await t.step("upload-url on readonly folder is forbidden", async () => {
 		await assertRejects(
-			() => mock.fetch("/core/storage/upload-url", { data: { path: "readonly/new.txt" } }),
+			() => mock.fetch("/storage/upload-url", { data: { path: "readonly/new.txt" } }),
 			ForbiddenError,
 		);
 	});
 
 	await t.step("download-url on readonly folder succeeds", async () => {
-		const resp = await mock.fetch("/core/storage/download-url", {
+		const resp = await mock.fetch("/storage/download-url", {
 			data: { path: "readonly/secret.txt" },
 			schema: z.object({ url: StorageSignedUrl() }),
 		});
@@ -159,7 +159,7 @@ Deno.test("Storage application", async (t) => {
 	});
 
 	await t.step("upload-url on constrained file returns a signed URL", async () => {
-		const resp = await mock.fetch("/core/storage/upload-url", {
+		const resp = await mock.fetch("/storage/upload-url", {
 			data: { path: "constrained", options: { contentType: "image/png" } },
 			schema: z.object({ url: StorageSignedUrl() }),
 		});
@@ -168,7 +168,7 @@ Deno.test("Storage application", async (t) => {
 	});
 
 	await t.step("upload-url on constrained folder file returns a signed URL", async () => {
-		const resp = await mock.fetch("/core/storage/upload-url", {
+		const resp = await mock.fetch("/storage/upload-url", {
 			data: { path: "constrained-folder/doc.pdf", options: { contentType: "application/pdf" } },
 			schema: z.object({ url: StorageSignedUrl() }),
 		});

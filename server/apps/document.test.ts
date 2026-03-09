@@ -42,13 +42,13 @@ Deno.test("Document application", async (t) => {
 		.commit();
 
 	await t.step("get document", async () => {
-		const resp = await mock.fetch("/core/document/get", { data: { path: "post/a" }, schema: z.object({ document: Document() }) });
+		const resp = await mock.fetch("/document/get", { data: { path: "post/a" }, schema: z.object({ document: Document() }) });
 		assertEquals(resp.document.key, "post/a");
 		assertEquals(resp.document.data, "A");
 	});
 
 	await t.step("get many documents", async () => {
-		const resp = await mock.fetch("/core/document/get-many", {
+		const resp = await mock.fetch("/document/get-many", {
 			data: { paths: ["post/a", "post/b", "post/c"] },
 			schema: z.object({ documents: z.array(Document()) }),
 		});
@@ -62,7 +62,7 @@ Deno.test("Document application", async (t) => {
 	});
 
 	await t.step("list documents", async () => {
-		const resp = await mock.fetch("/core/document/list", {
+		const resp = await mock.fetch("/document/list", {
 			data: { options: { prefix: "post", limit: 2 } },
 			schema: z.object({ documents: z.array(DocumentListEntry()) }),
 		});
@@ -84,7 +84,7 @@ Deno.test("Document application", async (t) => {
 
 		await ws.send(JSON.stringify({ type: "subscribe", key: "post" }));
 
-		await mock.fetch("/core/document/commit", {
+		await mock.fetch("/document/commit", {
 			data: { atomic: { checks: [], operations: [{ type: "set", key: "post/d", data: "D" }] } },
 		});
 		await stream.next();

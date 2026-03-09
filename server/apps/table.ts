@@ -283,7 +283,7 @@ function resolveValueFromRow(
 
 const tableApp = app()
 	.endpoint({
-		path: "core/table/execute",
+		path: "table/execute",
 		request: z.jsonRequest({
 			statement: TStatement,
 			params: z.record(z.string(), z.unknown()),

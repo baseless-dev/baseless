@@ -14,7 +14,7 @@ import { Response } from "@baseless/core/response";
 
 const storageApp = app()
 	.endpoint({
-		path: "core/storage/get-metadata",
+		path: "storage/get-metadata",
 		request: z.jsonRequest({
 			path: z.string(),
 		}),
@@ -51,7 +51,7 @@ const storageApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/storage/upload-url",
+		path: "storage/upload-url",
 		request: z.jsonRequest({
 			path: z.string(),
 			options: z.optional(StorageSignedUploadUrlOptions),
@@ -94,7 +94,7 @@ const storageApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/storage/download-url",
+		path: "storage/download-url",
 		request: z.jsonRequest({
 			path: z.string(),
 			options: z.optional(StorageSignedDownloadUrlOptions),
@@ -132,7 +132,7 @@ const storageApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/storage/delete",
+		path: "storage/delete",
 		request: z.jsonRequest({
 			path: z.string(),
 		}),
@@ -169,7 +169,7 @@ const storageApp = app()
 		},
 	})
 	.endpoint({
-		path: "core/storage/list",
+		path: "storage/list",
 		request: z.jsonRequest({
 			options: StorageListOptions,
 		}),

@@ -26,7 +26,7 @@ Deno.test("PubSub application", async (t) => {
 
 	await t.step("publish and onTopicMessage", async () => {
 		await using stream = pubsub(mock);
-		await mock.fetch("/core/pubsub/publish", { data: { key: "ping", payload: "from request" } });
+		await mock.fetch("/pubsub/publish", { data: { key: "ping", payload: "from request" } });
 		await stream.next();
 		assertEquals(messages, ["from request"]);
 	});
@@ -43,7 +43,7 @@ Deno.test("PubSub application", async (t) => {
 		await ws.send(JSON.stringify({ type: "subscribe", key: "ping" }));
 
 		{
-			await mock.fetch("/core/pubsub/publish", { data: { key: "ping", payload: "from request" } });
+			await mock.fetch("/pubsub/publish", { data: { key: "ping", payload: "from request" } });
 			await stream.next();
 			const { data } = await ws.message();
 			assertEquals(data, JSON.stringify({ key: "ping", payload: "from request" }));

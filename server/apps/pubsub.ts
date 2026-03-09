@@ -6,7 +6,7 @@ import { Response } from "@baseless/core/response";
 
 const pubsubApp = app()
 	.endpoint({
-		path: "core/pubsub/publish",
+		path: "pubsub/publish",
 		request: z.jsonRequest({
 			key: z.string(),
 			payload: z.unknown(),

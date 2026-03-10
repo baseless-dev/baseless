@@ -11,6 +11,8 @@ import type { Prettify } from "@baseless/core/prettify";
 import { KeyLike } from "jose";
 import { StorageObject } from "@baseless/core/storage";
 
+export const INTERNAL_HIDE_ENDPOINT = Symbol();
+
 // deno-fmt-ignore
 /** Bit-field flags for access control on endpoints, documents, collections, topics, and tables. */
 export const Permission = {
@@ -754,6 +756,23 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 			...this.#app,
 			endpoints,
 		});
+	}
+
+	/**
+	 * Hides a public endpoint from the registry.
+	 * @returns A new builder with the endpoint removed from the public registry, but still available in the server registry for internal use and composition.
+	 * @internal
+	 */
+	[INTERNAL_HIDE_ENDPOINT]<TPath extends keyof TPublicRegistry["endpoints"]>(path: TPath): AppBuilder<TServerRegistry, {
+		endpoints: Prettify<Omit<TPublicRegistry["endpoints"], TPath>>;
+		collections: TPublicRegistry["collections"];
+		documents: TPublicRegistry["documents"];
+		files: TPublicRegistry["files"];
+		folders: TPublicRegistry["folders"];
+		tables: TPublicRegistry["tables"];
+		topics: TPublicRegistry["topics"];
+	}> {
+		return this;
 	}
 
 	/**

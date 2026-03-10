@@ -1,4 +1,4 @@
-import { app, Permission } from "../app.ts";
+import { app, INTERNAL_HIDE_ENDPOINT, Permission } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import { first } from "@baseless/core/iter";
 import { ForbiddenError, TopicNotFoundError } from "@baseless/core/errors";
@@ -43,7 +43,8 @@ const pubsubApp = app()
 
 			return Response.json({ sent: true });
 		},
-	});
+	})
+	[INTERNAL_HIDE_ENDPOINT]("pubsub/publish");
 
 export default pubsubApp;
 

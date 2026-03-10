@@ -1,4 +1,4 @@
-import { app, Permission } from "../app.ts";
+import { app, INTERNAL_HIDE_ENDPOINT, Permission } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import { first } from "@baseless/core/iter";
 import {
@@ -50,6 +50,7 @@ const storageApp = app()
 			return Response.json({ object });
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("storage/get-metadata")
 	.endpoint({
 		path: "storage/upload-url",
 		request: z.jsonRequest({
@@ -93,6 +94,7 @@ const storageApp = app()
 			return Response.json({ url });
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("storage/upload-url")
 	.endpoint({
 		path: "storage/download-url",
 		request: z.jsonRequest({
@@ -131,6 +133,7 @@ const storageApp = app()
 			return Response.json({ url });
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("storage/download-url")
 	.endpoint({
 		path: "storage/delete",
 		request: z.jsonRequest({
@@ -168,6 +171,7 @@ const storageApp = app()
 			return Response.json({ result: true });
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("storage/delete")
 	.endpoint({
 		path: "storage/list",
 		request: z.jsonRequest({
@@ -205,7 +209,8 @@ const storageApp = app()
 			const entries = await Array.fromAsync(stream);
 			return Response.json({ entries });
 		},
-	});
+	})
+	[INTERNAL_HIDE_ENDPOINT]("storage/list");
 
 export default storageApp;
 

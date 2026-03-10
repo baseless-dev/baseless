@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { app, Permission, type PublicTableDefinition, TableDefinition } from "../app.ts";
+import { app, INTERNAL_HIDE_ENDPOINT, Permission, type PublicTableDefinition, TableDefinition } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import {
 	ExpressionBuilder,
@@ -366,7 +366,8 @@ const tableApp = app()
 			const result = await service.table.execute(resolved as never, params as never, signal);
 			return Response.json({ result });
 		},
-	});
+	})
+	[INTERNAL_HIDE_ENDPOINT]("table/execute");
 
 export default tableApp;
 

@@ -1,9 +1,9 @@
 import { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/identity";
-import { app, Permission } from "../app.ts";
+import { app, INTERNAL_HIDE_ENDPOINT } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import { ref } from "@baseless/core/ref";
-import { EncryptJWT, jwtDecrypt, jwtVerify, type KeyLike, SignJWT } from "jose";
-import { assertID, ID, id, isID } from "@baseless/core/id";
+import { EncryptJWT, jwtDecrypt, type KeyLike } from "jose";
+import { ID, id } from "@baseless/core/id";
 import {
 	AuthenticationRefreshTokenError,
 	AuthenticationSendPromptError,
@@ -16,7 +16,6 @@ import {
 	UnknownIdentityComponentError,
 } from "@baseless/core/errors";
 import { AuthenticationTokens } from "@baseless/core/authentication-tokens";
-import { Session } from "@baseless/core/session";
 import { AuthenticationResponse } from "@baseless/core/authentication-response";
 import { AppRegistry, IdentityComponentProvider, ServiceCollection } from "@baseless/server";
 import {
@@ -140,6 +139,7 @@ const authApp = app()
 			return Response.json({ result: false });
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("auth/sign-out")
 	.endpoint({
 		path: "auth/refresh-token",
 		request: z.jsonRequest({
@@ -158,6 +158,7 @@ const authApp = app()
 			}
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("auth/refresh-token")
 	.endpoint({
 		path: "auth/begin",
 		request: z.jsonRequest({
@@ -215,6 +216,7 @@ const authApp = app()
 			return Response.json({ result: { step, state, expireAt, validating: false } });
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("auth/begin")
 	.endpoint({
 		path: "auth/submit-prompt",
 		request: z.jsonRequest({
@@ -372,6 +374,7 @@ const authApp = app()
 			}
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("auth/submit-prompt")
 	.endpoint({
 		path: "auth/send-prompt",
 		request: z.jsonRequest({
@@ -425,6 +428,7 @@ const authApp = app()
 			}
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("auth/send-prompt")
 	.endpoint({
 		path: "auth/send-validation-code",
 		request: z.jsonRequest({
@@ -478,6 +482,7 @@ const authApp = app()
 			}
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("auth/send-validation-code")
 	.endpoint({
 		path: "auth/submit-validation-code",
 		request: z.jsonRequest({
@@ -582,7 +587,8 @@ const authApp = app()
 			});
 			return Response.json({ result: { step, state: newState, expireAt, validating: !identityComponent.confirmed } });
 		},
-	});
+	})
+	[INTERNAL_HIDE_ENDPOINT]("auth/submit-validation-code");
 
 export default authApp;
 

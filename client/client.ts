@@ -983,7 +983,7 @@ export interface TypedClient<TPublicAppRegistry extends PublicAppRegistry> exten
 	 * @param init Optional request options (headers, signal, etc.).
 	 * @returns The typed response produced by the endpoint.
 	 */
-	fetch<TPath extends keyof RemoveBuiltinEndpoints<TPublicAppRegistry["endpoints"]>>(
+	fetch<TPath extends keyof TPublicAppRegistry["endpoints"]>(
 		// @ts-expect-error: request parameter is expected
 		// deno-fmt-ignore
 		path: MinimalRequestInitFromRequest<TPublicAppRegistry["endpoints"][TPath]["request"]> extends Record<PropertyKey, never> ? Reference<TPath> : never,
@@ -1002,7 +1002,7 @@ export interface TypedClient<TPublicAppRegistry extends PublicAppRegistry> exten
 	 *   by the endpoint's request type.
 	 * @returns The typed response produced by the endpoint.
 	 */
-	fetch<TPath extends keyof RemoveBuiltinEndpoints<TPublicAppRegistry["endpoints"]>>(
+	fetch<TPath extends keyof TPublicAppRegistry["endpoints"]>(
 		path: Reference<TPath>,
 		init: Prettify<
 			// @ts-expect-error: request parameter is expected
@@ -1253,14 +1253,3 @@ type MinimalRequestInitFromRequest<T> = T extends Request<infer TMethod, infer T
 		(TBody extends null ? {} : { body: TBody; })
 	)>
 	: {};
-
-type ApplicationEndpoints<T> = T extends App<any, infer TRegistry> ? TRegistry["endpoints"] : never;
-
-type BuiltinEndpointPaths =
-	| keyof ApplicationEndpoints<AuthenticationApplication>
-	| keyof ApplicationEndpoints<DocumentApplication>
-	| keyof ApplicationEndpoints<PubsubApplication>
-	| keyof ApplicationEndpoints<StorageApplication>
-	| keyof ApplicationEndpoints<TableApplication>;
-
-type RemoveBuiltinEndpoints<TEndpoints> = Omit<TEndpoints, BuiltinEndpointPaths>;

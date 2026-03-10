@@ -1,4 +1,4 @@
-import { app, Permission } from "../app.ts";
+import { app, INTERNAL_HIDE_ENDPOINT, Permission } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import { first } from "@baseless/core/iter";
 import { Document, DocumentAtomic, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
@@ -44,6 +44,7 @@ const documentApp = app()
 			return Response.json({ document });
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("document/get")
 	.endpoint({
 		path: "document/get-many",
 		request: z.jsonRequest({
@@ -84,6 +85,7 @@ const documentApp = app()
 			return Response.json({ documents });
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("document/get-many")
 	.endpoint({
 		path: "document/commit",
 		request: z.jsonRequest({
@@ -150,6 +152,7 @@ const documentApp = app()
 			return Response.json({ result: true });
 		},
 	})
+	[INTERNAL_HIDE_ENDPOINT]("document/commit")
 	.endpoint({
 		path: "document/list",
 		request: z.jsonRequest({
@@ -189,7 +192,8 @@ const documentApp = app()
 			const documents = await Array.fromAsync(stream);
 			return Response.json({ documents });
 		},
-	});
+	})
+	[INTERNAL_HIDE_ENDPOINT]("document/list");
 
 export default documentApp;
 

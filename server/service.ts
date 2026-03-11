@@ -4,13 +4,13 @@ import type {
 	StorageListEntry,
 	StorageObject,
 	StorageSignedDownloadUrlOptions,
-	StorageSignedUploadUrl,
+	StorageSignedUploadUrlOptions,
 	StorageSignedUrl,
 } from "@baseless/core/storage";
 import type { KVProvider, RateLimiterProvider } from "./provider.ts";
 import type { Identity, IdentityChannel } from "@baseless/core/identity";
 import type { Notification } from "@baseless/core/notification";
-import type { Reference } from "@baseless/core/ref";
+import type { PathToParams } from "@baseless/core/path";
 import type { AuthenticationTokens } from "@baseless/core/authentication-tokens";
 import type { TStatement } from "@baseless/core/query";
 
@@ -38,16 +38,6 @@ export interface AuthService {
 }
 
 /**
- * Options for {@link DocumentService.list}, extending the core
- * {@link DocumentListOptions} with a typed reference prefix.
- */
-export interface DocumentServiceListOptions<TPrefix = string> {
-	readonly prefix: Reference<TPrefix>;
-	readonly cursor?: string;
-	readonly limit?: number;
-}
-
-/**
  * Typed document store service available inside every request handler.
  * Wraps the raw {@link DocumentProvider} with identity-aware authorization.
  *
@@ -55,18 +45,21 @@ export interface DocumentServiceListOptions<TPrefix = string> {
  * @template TCollections Map of collection paths to document types.
  */
 export interface DocumentService<TDocuments, TCollections> {
-	get<TPath extends keyof TDocuments>(
-		ref: Reference<TPath>,
+	get<TPath extends keyof TDocuments & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		options?: DocumentGetOptions,
 		signal?: AbortSignal,
 	): Promise<Document<TDocuments[TPath]>>;
-	getMany<TPath extends keyof TDocuments>(
-		refs: Array<Reference<TPath>>,
+	getMany<TPath extends keyof TDocuments & string>(
+		keys: Array<[path: TPath, params: PathToParams<TPath>]>,
 		options?: DocumentGetOptions,
 		signal?: AbortSignal,
 	): Promise<Array<Document<TDocuments[TPath]>>>;
-	list<TPath extends keyof TCollections>(
-		options: DocumentServiceListOptions<TPath>,
+	list<TPath extends keyof TCollections & string>(
+		prefix: TPath,
+		params: PathToParams<TPath>,
+		options?: { cursor?: string; limit?: number },
 		signal?: AbortSignal,
 	): ReadableStream<DocumentListEntry<TCollections[TPath]>>;
 	atomic(): DocumentServiceAtomic<TDocuments>;
@@ -75,16 +68,16 @@ export interface DocumentService<TDocuments, TCollections> {
 /** A single pre-condition check inside a {@link DocumentServiceAtomic} operation. */
 export type DocumentServiceAtomicCheck = {
 	type: "check";
-	readonly ref: Reference<string>;
+	readonly key: string;
 	readonly versionstamp: string | null;
 };
 
 /** A single mutation inside a {@link DocumentServiceAtomic} batch: either `"set"` or `"delete"`. */
 export type DocumentServiceAtomicOperation =
-	| { type: "delete"; readonly ref: Reference<string> }
+	| { type: "delete"; readonly key: string }
 	| {
 		type: "set";
-		readonly ref: Reference<string>;
+		readonly key: string;
 		readonly data: unknown;
 	};
 
@@ -97,9 +90,9 @@ export type DocumentServiceAtomicOperation =
 export interface DocumentServiceAtomic<TDocuments> {
 	checks: DocumentServiceAtomicCheck[];
 	operations: DocumentServiceAtomicOperation[];
-	check<TPath extends keyof TDocuments>(ref: Reference<TPath>, versionstamp: string | null): DocumentServiceAtomic<TDocuments>;
-	set<TPath extends keyof TDocuments>(ref: Reference<TPath>, value: TDocuments[TPath]): DocumentServiceAtomic<TDocuments>;
-	delete<TPath extends keyof TDocuments>(ref: Reference<TPath>): DocumentServiceAtomic<TDocuments>;
+	check<TPath extends keyof TDocuments & string>(path: TPath, params: PathToParams<TPath>, versionstamp: string | null): DocumentServiceAtomic<TDocuments>;
+	set<TPath extends keyof TDocuments & string>(path: TPath, params: PathToParams<TPath>, value: TDocuments[TPath]): DocumentServiceAtomic<TDocuments>;
+	delete<TPath extends keyof TDocuments & string>(path: TPath, params: PathToParams<TPath>): DocumentServiceAtomic<TDocuments>;
 	commit(signal?: AbortSignal): Promise<void>;
 }
 
@@ -121,8 +114,9 @@ export interface NotificationService {
  * @template TTopics Map of topic paths to their payload types.
  */
 export interface PubSubService<TTopics> {
-	publish<TTopic extends keyof TTopics>(
-		ref: Reference<TTopic>,
+	publish<TTopic extends keyof TTopics & string>(
+		path: TTopic,
+		params: PathToParams<TTopic>,
 		payload: TTopics[TTopic],
 		signal?: AbortSignal,
 	): Promise<void>;
@@ -161,16 +155,6 @@ export interface TableService<TTables> {
 }
 
 /**
- * Options for {@link StorageService.list}, extending the core
- * {@link StorageListOptions} with a typed reference prefix.
- */
-export interface StorageServiceListOptions<TPrefix = string> {
-	readonly prefix: Reference<TPrefix>;
-	readonly cursor?: string;
-	readonly limit?: number;
-}
-
-/**
  * Typed storage service available inside every request handler.
  * Wraps the raw {@link StorageProvider} with identity-aware authorization.
  *
@@ -180,78 +164,94 @@ export interface StorageServiceListOptions<TPrefix = string> {
 export interface StorageService<TFiles, TFolders> {
 	/**
 	 * Retrieves metadata for a stored file.
-	 * @param ref Reference to the file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param signal Optional abort signal.
 	 * @returns The {@link StorageObject} metadata.
 	 */
-	getMetadata<TPath extends keyof TFiles>(
-		ref: Reference<TPath>,
+	getMetadata<TPath extends keyof TFiles & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		signal?: AbortSignal,
 	): Promise<StorageObject>;
 	/**
 	 * Generates a pre-signed URL for uploading a file.
-	 * @param ref Reference to the file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param options Optional upload options (content-type, metadata, expiry).
 	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} for the upload.
 	 */
-	getSignedUploadUrl<TPath extends keyof TFiles>(
-		ref: Reference<TPath>,
-		options?: StorageSignedUploadUrl,
+	getSignedUploadUrl<TPath extends keyof TFiles & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
+		options?: StorageSignedUploadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 	/**
 	 * Generates a pre-signed URL for downloading a file.
-	 * @param ref Reference to the file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param options Optional download options (expiry).
 	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} for the download.
 	 */
-	getSignedDownloadUrl<TPath extends keyof TFiles>(
-		ref: Reference<TPath>,
+	getSignedDownloadUrl<TPath extends keyof TFiles & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		options?: StorageSignedDownloadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 	/**
 	 * Stores a file with the given content.
-	 * @param ref Reference to the file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param content The file content as a `ReadableStream`, `ArrayBuffer`, or `Blob`.
 	 * @param options Optional upload options (content-type, metadata).
 	 * @param signal Optional abort signal.
 	 */
-	put<TPath extends keyof TFiles>(
-		ref: Reference<TPath>,
+	put<TPath extends keyof TFiles & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		content: ReadableStream<Uint8Array> | ArrayBuffer | Blob,
-		options?: StorageSignedUploadUrl,
+		options?: StorageSignedUploadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<void>;
 	/**
 	 * Retrieves the content of a stored file as a `ReadableStream`.
-	 * @param ref Reference to the file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param signal Optional abort signal.
 	 * @returns A `ReadableStream` of the file content.
 	 */
-	get<TPath extends keyof TFiles>(
-		ref: Reference<TPath>,
+	get<TPath extends keyof TFiles & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		signal?: AbortSignal,
 	): Promise<ReadableStream<Uint8Array>>;
 	/**
 	 * Deletes a file.
-	 * @param ref Reference to the file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param signal Optional abort signal.
 	 */
-	delete<TPath extends keyof TFiles>(
-		ref: Reference<TPath>,
+	delete<TPath extends keyof TFiles & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		signal?: AbortSignal,
 	): Promise<void>;
 	/**
 	 * Lists files within a folder.
-	 * @param options Listing options (prefix, cursor, limit).
+	 * @param prefix The folder path template.
+	 * @param params Path parameters.
+	 * @param options Optional listing options (cursor, limit).
 	 * @param signal Optional abort signal.
 	 * @returns A `ReadableStream` of {@link StorageListEntry} values.
 	 */
-	list<TPath extends keyof TFolders>(
-		options: StorageServiceListOptions<TPath>,
+	list<TPath extends keyof TFolders & string>(
+		prefix: TPath,
+		params: PathToParams<TPath>,
+		options?: { cursor?: string; limit?: number },
 		signal?: AbortSignal,
 	): ReadableStream<StorageListEntry>;
 }

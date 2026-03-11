@@ -39,7 +39,7 @@ const pubsubApp = app()
 				}
 			}
 
-			await service.pubsub.publish(key as never, payload as never, signal);
+			await service.pubsub.publish(key as never, {} as never, payload as never, signal);
 
 			return Response.json({ sent: true });
 		},

@@ -14,7 +14,6 @@ import { OtpComponentProvider } from "../auth/otp.ts";
 import { Notification } from "@baseless/core/notification";
 import { PolicyIdentityComponentProvider } from "../auth/policy.ts";
 import { assertRejects } from "@std/assert/rejects";
-import { ref } from "@baseless/core/ref";
 
 Deno.test("Simple authentication", async (t) => {
 	const keyPair = await generateKeyPair("PS512");
@@ -73,13 +72,15 @@ Deno.test("Simple authentication", async (t) => {
 	} satisfies IdentityComponent;
 
 	await mock.service.document.atomic()
-		.set(ref("auth/identity/:key", { key: identity.id }) as never, identity as never)
+		.set("auth/identity/:key" as never, { key: identity.id } as never, identity as never)
 		.set(
-			ref("auth/identity/:id/component/:component", { id: identity.id, component: identityComponentEmail.componentId }) as never,
+			"auth/identity/:id/component/:component" as never,
+			{ id: identity.id, component: identityComponentEmail.componentId } as never,
 			identityComponentEmail as never,
 		)
 		.set(
-			ref("auth/identity/:id/component/:component", { id: identity.id, component: identityComponentPassword.componentId }) as never,
+			"auth/identity/:id/component/:component" as never,
+			{ id: identity.id, component: identityComponentPassword.componentId } as never,
 			identityComponentPassword as never,
 		)
 		.commit();
@@ -303,25 +304,30 @@ Deno.test("Two factor authentication", async (t) => {
 	} satisfies IdentityChannel;
 
 	await mock.service.document.atomic()
-		.set(ref("auth/identity/:key", { key: identity.id }) as never, identity as never)
+		.set("auth/identity/:key" as never, { key: identity.id } as never, identity as never)
 		.set(
-			ref("auth/identity/:id/component/:component", { id: identity.id, component: identityComponentEmail.componentId }) as never,
+			"auth/identity/:id/component/:component" as never,
+			{ id: identity.id, component: identityComponentEmail.componentId } as never,
 			identityComponentEmail as never,
 		)
 		.set(
-			ref("auth/identity/:id/component/:component", { id: identity.id, component: identityComponentPassword.componentId }) as never,
+			"auth/identity/:id/component/:component" as never,
+			{ id: identity.id, component: identityComponentPassword.componentId } as never,
 			identityComponentPassword as never,
 		)
 		.set(
-			ref("auth/identity/:id/component/:component", { id: identity.id, component: identityComponentOtp.componentId }) as never,
+			"auth/identity/:id/component/:component" as never,
+			{ id: identity.id, component: identityComponentOtp.componentId } as never,
 			identityComponentOtp as never,
 		)
 		.set(
-			ref("auth/identity/:id/component/:component", { id: identity.id, component: identityComponentPolicy.componentId }) as never,
+			"auth/identity/:id/component/:component" as never,
+			{ id: identity.id, component: identityComponentPolicy.componentId } as never,
 			identityComponentPolicy as never,
 		)
 		.set(
-			ref("auth/identity/:id/channel/:channel", { id: identity.id, channel: identityChannelEmail.channelId }) as never,
+			"auth/identity/:id/channel/:channel" as never,
+			{ id: identity.id, channel: identityChannelEmail.channelId } as never,
 			identityChannelEmail as never,
 		)
 		.commit();

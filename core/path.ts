@@ -27,6 +27,33 @@ export type PathToTemplate<TPath extends string> =
 	: TPath;
 
 /**
+ * Resolves a path template by replacing `:param` placeholders with the
+ * corresponding values from `params`.
+ *
+ * @example
+ * ```ts
+ * resolvePath("/users/:id", { id: "usr_123" }); // "/users/usr_123"
+ * resolvePath("hello", {}); // "hello"
+ * ```
+ *
+ * @param path The path template string.
+ * @param params A record of parameter values to substitute.
+ * @returns The resolved path string.
+ * @throws {Error} When a required parameter is missing from `params`.
+ */
+export function resolvePath<TPath extends string>(
+	path: TPath,
+	params: PathToParams<TPath>,
+): string {
+	return path.replace(/:([a-zA-Z0-9_]+)/g, (_: unknown, key: string) => {
+		if (!(key in (params as Record<string, unknown>))) {
+			throw new Error(`Missing parameter "${key}" in path "${path}"`);
+		}
+		return `${(params as Record<string, unknown>)[key]}`;
+	});
+}
+
+/**
  * Returns a TypeScript type-expression string representing the params record
  * for the given path template (used for code generation).
  * @param path The path template string (e.g. `"/users/:id"`).

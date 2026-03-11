@@ -9,7 +9,6 @@ import { generateKeyPair } from "jose/key/generate/keypair";
 import createMemoryServer, { pubsub, serve, sleep } from "../server/server.test.ts";
 import * as z from "@baseless/core/schema";
 import { Response } from "@baseless/core/response";
-import { ref } from "@baseless/core/ref";
 import { id, ksuid } from "@baseless/core/id";
 import { assert } from "@std/assert/assert";
 import { assertEquals } from "@std/assert/equals";
@@ -154,12 +153,20 @@ Deno.test("Client", async (ctx) => {
 	};
 
 	mock.service.document.atomic()
-		.set(`auth/identity/${identity.id}` as never, identity as never)
-		.set(`auth/identity/${identity.id}/component/${identityComponentEmail.componentId}` as never, identityComponentEmail as never)
-		.set(`auth/identity/${identity.id}/component/${identityComponentPassword.componentId}` as never, identityComponentPassword as never)
-		.set("users/foo/preferences" as never, prefFoo as never)
-		.set(`posts/${postA.postId}` as never, postA as never)
-		.set(`posts/${postB.postId}` as never, postB as never)
+		.set(`auth/identity/${identity.id}` as never, {} as never, identity as never)
+		.set(
+			`auth/identity/${identity.id}/component/${identityComponentEmail.componentId}` as never,
+			{} as never,
+			identityComponentEmail as never,
+		)
+		.set(
+			`auth/identity/${identity.id}/component/${identityComponentPassword.componentId}` as never,
+			{} as never,
+			identityComponentPassword as never,
+		)
+		.set("users/foo/preferences" as never, {} as never, prefFoo as never)
+		.set(`posts/${postA.postId}` as never, {} as never, postA as never)
+		.set(`posts/${postB.postId}` as never, {} as never, postB as never)
 		.commit();
 
 	await ctx.step("auth", async () => {
@@ -193,9 +200,9 @@ Deno.test("Client", async (ctx) => {
 	});
 
 	await ctx.step("fetch", async () => {
-		const result1 = await client.fetch(ref("hello"));
+		const result1 = await client.fetch("hello");
 		assertEquals(result1.body, "Hello World");
-		const result2 = await client.fetch(ref("hello-world"), {
+		const result2 = await client.fetch("hello-world", {
 			method: "POST",
 			headers: { "content-type": "text/plain" },
 			body: "Bar",
@@ -204,21 +211,21 @@ Deno.test("Client", async (ctx) => {
 	});
 
 	await ctx.step("document", async () => {
-		const result1 = await client.document.get(ref("users/:userid/preferences", { userid: "foo" }));
+		const result1 = await client.document.get("users/:userid/preferences", { userid: "foo" });
 		assertEquals(result1.data, { foo: true });
 		const result2 = await client.document.getMany([
-			ref("users/:userid/preferences", { userid: "foo" }),
-			ref("users/:userid/preferences", { userid: "bar" }),
+			["users/:userid/preferences", { userid: "foo" }],
+			["users/:userid/preferences", { userid: "bar" }],
 		]);
 		assertEquals(result2.length, 1);
 		assertObjectMatch(result2[0], { data: { foo: true } });
-		const result3 = await Array.fromAsync(client.document.list({ prefix: ref("posts") }));
+		const result3 = await Array.fromAsync(client.document.list("posts", {}));
 		assertObjectMatch(result3[0].document.data, postA);
 		assertObjectMatch(result3[1].document.data, postB);
 		await client.document.atomic()
-			.check(ref("users/:userid/preferences", { userid: "baz" }), null)
-			.set(ref("users/:userid/preferences", { userid: "baz" }), { foo: false, bar: "baz" })
-			.delete(ref("users/:userid/preferences", { userid: "foo" }))
+			.check("users/:userid/preferences", { userid: "baz" }, null)
+			.set("users/:userid/preferences", { userid: "baz" }, { foo: false, bar: "baz" })
+			.delete("users/:userid/preferences", { userid: "foo" })
 			.commit();
 	});
 
@@ -270,33 +277,33 @@ Deno.test("Client", async (ctx) => {
 		});
 
 		// getMetadata
-		const meta = await client.storage.getMetadata(ref("avatar"));
+		const meta = await client.storage.getMetadata("avatar", {});
 		assertEquals(meta.key, "avatar");
 		assertEquals(meta.contentType, "image/png");
 		assertExists(meta.etag);
 
 		// getSignedUploadUrl
-		const uploadUrl = await client.storage.getSignedUploadUrl(ref("avatar"), {
+		const uploadUrl = await client.storage.getSignedUploadUrl("avatar", {}, {
 			contentType: "image/png",
 		});
 		assert(typeof uploadUrl.url === "string" && uploadUrl.url.length > 0);
 		assertExists(uploadUrl.expiresAt);
 
 		// getSignedDownloadUrl
-		const downloadUrl = await client.storage.getSignedDownloadUrl(ref("avatar"));
+		const downloadUrl = await client.storage.getSignedDownloadUrl("avatar", {});
 		assert(typeof downloadUrl.url === "string" && downloadUrl.url.length > 0);
 		assertExists(downloadUrl.expiresAt);
 
 		// list folder
-		const entries = await Array.fromAsync(client.storage.list({ prefix: ref("uploads") }));
+		const entries = await Array.fromAsync(client.storage.list("uploads", {}));
 		assertEquals(entries.length, 2);
 		assert(entries[0].object.key.startsWith("uploads/"));
 		assert(entries[1].object.key.startsWith("uploads/"));
 
 		// delete
-		await client.storage.delete(ref("avatar"));
+		await client.storage.delete("avatar", {});
 		await assertRejects(
-			() => client.storage.getMetadata(ref("avatar")),
+			() => client.storage.getMetadata("avatar", {}),
 			StorageObjectNotFoundError,
 		);
 	});
@@ -306,10 +313,10 @@ Deno.test("Client", async (ctx) => {
 		await using stream = pubsub(mock);
 		stream.drain();
 		await client.connect(new URL(server.url));
-		const presence = client.pubsub.subscribe(ref("presence")).values();
+		const presence = client.pubsub.subscribe("presence", {}).values();
 		await sleep(10);
 		const userId = id("u_");
-		await client.pubsub.publish(ref("presence"), { userId });
+		await client.pubsub.publish("presence", {}, { userId });
 		await sleep(10);
 		const msg = await presence.next();
 		assertEquals(msg.value, { userId });

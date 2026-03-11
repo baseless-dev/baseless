@@ -46,7 +46,7 @@ const storageApp = app()
 				}
 			}
 
-			const object = await service.storage.getMetadata(path as never, signal);
+			const object = await service.storage.getMetadata(path as never, {} as never, signal);
 			return Response.json({ object });
 		},
 	})
@@ -90,7 +90,7 @@ const storageApp = app()
 				? { ...options, conditions: { ...options?.conditions, ...definition.conditions } }
 				: options;
 
-			const url = await service.storage.getSignedUploadUrl(path as never, mergedOptions, signal);
+			const url = await service.storage.getSignedUploadUrl(path as never, {} as never, mergedOptions, signal);
 			return Response.json({ url });
 		},
 	})
@@ -129,7 +129,7 @@ const storageApp = app()
 				}
 			}
 
-			const url = await service.storage.getSignedDownloadUrl(path as never, options, signal);
+			const url = await service.storage.getSignedDownloadUrl(path as never, {} as never, options, signal);
 			return Response.json({ url });
 		},
 	})
@@ -167,7 +167,7 @@ const storageApp = app()
 				}
 			}
 
-			await service.storage.delete(path as never, signal);
+			await service.storage.delete(path as never, {} as never, signal);
 			return Response.json({ result: true });
 		},
 	})
@@ -205,7 +205,7 @@ const storageApp = app()
 				}
 			}
 
-			const stream = service.storage.list({ prefix: prefix as never, cursor, limit }, signal);
+			const stream = service.storage.list(prefix as never, {} as never, { cursor, limit }, signal);
 			const entries = await Array.fromAsync(stream);
 			return Response.json({ entries });
 		},

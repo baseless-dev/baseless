@@ -40,7 +40,7 @@ const documentApp = app()
 				}
 			}
 
-			const document = await service.document.get(path as never, options);
+			const document = await service.document.get(path as never, {} as never, options);
 			return Response.json({ document });
 		},
 	})
@@ -81,7 +81,7 @@ const documentApp = app()
 				}
 			}
 
-			const documents = await service.document.getMany(paths as never, options);
+			const documents = await service.document.getMany(paths.map(p => [p, {}]) as never, options);
 			return Response.json({ documents });
 		},
 	})
@@ -115,7 +115,7 @@ const documentApp = app()
 							throw new ForbiddenError();
 						}
 					}
-					atomic.check(check.key as never, check.versionstamp ?? null);
+					atomic.check(check.key as never, {} as never, check.versionstamp ?? null);
 				} catch (cause) {
 					throw new DocumentAtomicCommitError(undefined, { cause });
 				}
@@ -138,9 +138,9 @@ const documentApp = app()
 							throw new ForbiddenError();
 						}
 						if (op.type === "set") {
-							atomic.set(op.key as never, op.data as never);
+							atomic.set(op.key as never, {} as never, op.data as never);
 						} else {
-							atomic.delete(op.key as never);
+							atomic.delete(op.key as never, {} as never);
 						}
 					}
 				} catch (cause) {
@@ -188,7 +188,7 @@ const documentApp = app()
 				}
 			}
 
-			const stream = await service.document.list({ prefix: prefix as never, cursor, limit });
+			const stream = await service.document.list(prefix as never, {} as never, { cursor, limit });
 			const documents = await Array.fromAsync(stream);
 			return Response.json({ documents });
 		},

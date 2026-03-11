@@ -5,19 +5,13 @@ import type { DocumentApplication } from "@baseless/server/apps/document";
 import type { PubsubApplication } from "@baseless/server/apps/pubsub";
 import type { StorageApplication } from "@baseless/server/apps/storage";
 import type { TableApplication } from "@baseless/server/apps/table";
-import type { Reference } from "@baseless/core/ref";
+import type { PathToParams } from "@baseless/core/path";
+import { resolvePath } from "@baseless/core/path";
 import type { Request } from "@baseless/core/request";
 import { Response } from "@baseless/core/response";
 import type { Prettify } from "@baseless/core/prettify";
 import { Credentials, MemoryCredentialsStore } from "./credentials.ts";
-import {
-	Document,
-	DocumentAtomicCheck,
-	DocumentAtomicOperation,
-	DocumentGetOptions,
-	DocumentListEntry,
-	DocumentListOptions,
-} from "@baseless/core/document";
+import { Document, DocumentAtomicCheck, DocumentAtomicOperation, DocumentGetOptions, DocumentListEntry } from "@baseless/core/document";
 import { AuthenticationStep } from "@baseless/core/authentication-step";
 import { AuthenticationResponse } from "@baseless/core/authentication-response";
 import * as z from "@baseless/core/schema";
@@ -29,7 +23,6 @@ import { AuthenticationCeremonyInvalidPromptError, AuthenticationCeremonyInvalid
 import { BatchableStatementBuilder, type IStatementBuilder, type TStatement } from "@baseless/core/query";
 import {
 	StorageListEntry,
-	type StorageListOptions,
 	StorageObject,
 	type StorageSignedDownloadUrlOptions,
 	type StorageSignedUploadUrlOptions,
@@ -610,17 +603,18 @@ export class ClientDocument {
 
 	/**
 	 * Fetches a single document by path.
-	 * @param path The document path.
+	 * @param path The document path template.
+	 * @param params Path parameters to resolve.
 	 * @param options Optional consistency / read options.
 	 * @param signal Optional abort signal.
 	 * @returns The {@link Document} at the given path.
 	 */
-	async get(path: string, options?: DocumentGetOptions, signal?: AbortSignal): Promise<Document<unknown>> {
+	async get(path: string, params: Record<string, unknown>, options?: DocumentGetOptions, signal?: AbortSignal): Promise<Document<unknown>> {
 		const response = await this.#client.fetch(`${this.#endpoint}/get`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ path, options }),
+			body: JSON.stringify({ path: resolvePath(path, params as never), options }),
 		});
 		z.assert(z.object({ document: Document() }), response.body);
 		return response.body.document;
@@ -628,12 +622,17 @@ export class ClientDocument {
 
 	/**
 	 * Fetches multiple documents in a single request.
-	 * @param paths Array of document paths to retrieve.
+	 * @param keys Array of [path, params] tuples to retrieve.
 	 * @param options Optional consistency / read options.
 	 * @param signal Optional abort signal.
-	 * @returns An array of {@link Document} values in the same order as `paths`.
+	 * @returns An array of {@link Document} values.
 	 */
-	async getMany(paths: Array<string>, options?: DocumentGetOptions, signal?: AbortSignal): Promise<Array<Document<unknown>>> {
+	async getMany(
+		keys: Array<[string, Record<string, unknown>]>,
+		options?: DocumentGetOptions,
+		signal?: AbortSignal,
+	): Promise<Array<Document<unknown>>> {
+		const paths = keys.map(([path, params]) => resolvePath(path, params as never));
 		const response = await this.#client.fetch(`${this.#endpoint}/get-many`, {
 			signal,
 			method: "POST",
@@ -647,11 +646,19 @@ export class ClientDocument {
 	/**
 	 * Lists documents under a path prefix, streaming results as a
 	 * `ReadableStream`.
-	 * @param options Listing options (prefix, cursor, limit, etc.).
+	 * @param prefix The collection path template.
+	 * @param params Path parameters.
+	 * @param options Optional listing options (cursor, limit).
 	 * @param signal Optional abort signal to cancel the stream.
 	 * @returns A stream of {@link DocumentListEntry} values.
 	 */
-	list(options: DocumentListOptions, signal?: AbortSignal): ReadableStream<DocumentListEntry<unknown>> {
+	list(
+		prefix: string,
+		params: Record<string, unknown>,
+		options?: { cursor?: string; limit?: number },
+		signal?: AbortSignal,
+	): ReadableStream<DocumentListEntry<unknown>> {
+		const resolvedPrefix = resolvePath(prefix, params as never);
 		const abortController = new AbortController();
 		signal?.addEventListener("abort", () => abortController.abort(), { once: true });
 		return new ReadableStream<DocumentListEntry>({
@@ -660,7 +667,7 @@ export class ClientDocument {
 					signal,
 					method: "POST",
 					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ options }),
+					body: JSON.stringify({ options: { prefix: resolvedPrefix, cursor: options?.cursor, limit: options?.limit } }),
 				});
 				z.assert(z.object({ documents: z.array(DocumentListEntry()) }), response.body);
 				for (const result of response.body.documents) {
@@ -700,33 +707,36 @@ export class ClientDocumentAtomic {
 
 	/**
 	 * Adds a version-stamp pre-condition to the atomic operation.
-	 * @param path The document path.
+	 * @param path The document path template.
+	 * @param params Path parameters.
 	 * @param versionstamp The expected versionstamp, or `null` to check absence.
 	 * @returns `this` for chaining.
 	 */
-	check(path: string, versionstamp: string | null): ClientDocumentAtomic {
-		this.#checks.push({ type: "check", key: path, versionstamp });
+	check(path: string, params: Record<string, unknown>, versionstamp: string | null): ClientDocumentAtomic {
+		this.#checks.push({ type: "check", key: resolvePath(path, params as never), versionstamp });
 		return this;
 	}
 
 	/**
 	 * Adds a set operation to the atomic batch.
-	 * @param path The document path.
+	 * @param path The document path template.
+	 * @param params Path parameters.
 	 * @param value The value to write.
 	 * @returns `this` for chaining.
 	 */
-	set(path: string, value: unknown): ClientDocumentAtomic {
-		this.#operations.push({ type: "set", key: path, data: value });
+	set(path: string, params: Record<string, unknown>, value: unknown): ClientDocumentAtomic {
+		this.#operations.push({ type: "set", key: resolvePath(path, params as never), data: value });
 		return this;
 	}
 
 	/**
 	 * Adds a delete operation to the atomic batch.
-	 * @param path The document path to delete.
+	 * @param path The document path template.
+	 * @param params Path parameters.
 	 * @returns `this` for chaining.
 	 */
-	delete(path: string): ClientDocumentAtomic {
-		this.#operations.push({ type: "delete", key: path });
+	delete(path: string, params: Record<string, unknown>): ClientDocumentAtomic {
+		this.#operations.push({ type: "delete", key: resolvePath(path, params as never) });
 		return this;
 	}
 
@@ -766,11 +776,13 @@ export class ClientPubsub {
 
 	/**
 	 * Publishes a `payload` to all subscribers of `key`.
-	 * @param key The topic key.
+	 * @param path The topic path template.
+	 * @param params Path parameters.
 	 * @param payload The payload to broadcast.
 	 * @param signal Optional abort signal.
 	 */
-	async publish(key: string, payload: unknown, signal?: AbortSignal): Promise<void> {
+	async publish(path: string, params: Record<string, unknown>, payload: unknown, signal?: AbortSignal): Promise<void> {
+		const key = resolvePath(path, params as never);
 		const response = await this.#client.fetch(`${this.#endpoint}/publish`, {
 			signal,
 			method: "POST",
@@ -785,11 +797,13 @@ export class ClientPubsub {
 	 * Returns a `ReadableStream` that emits payloads published to `key`.
 	 * Opens a WebSocket connection if one is not already active.
 	 * The stream unsubscribes automatically when cancelled.
-	 * @param key The topic key to subscribe to.
+	 * @param path The topic path template.
+	 * @param params Path parameters.
 	 * @param signal Optional abort signal to cancel the stream.
 	 * @returns A stream of incoming payloads.
 	 */
-	subscribe(key: string, signal?: AbortSignal): ReadableStream<unknown> {
+	subscribe(path: string, params: Record<string, unknown>, signal?: AbortSignal): ReadableStream<unknown> {
+		const key = resolvePath(path, params as never);
 		let listener: Disposable;
 		let socket: WebSocket;
 		const stream = new ReadableStream<unknown>({
@@ -867,16 +881,17 @@ export class ClientStorage {
 
 	/**
 	 * Fetches metadata for a single storage object.
-	 * @param path The file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param signal Optional abort signal.
 	 * @returns The {@link StorageObject} metadata.
 	 */
-	async getMetadata(path: string, signal?: AbortSignal): Promise<StorageObject> {
+	async getMetadata(path: string, params: Record<string, unknown>, signal?: AbortSignal): Promise<StorageObject> {
 		const response = await this.#client.fetch(`${this.#endpoint}/get-metadata`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ path }),
+			body: JSON.stringify({ path: resolvePath(path, params as never) }),
 		});
 		z.assert(z.object({ object: StorageObject() }), response.body);
 		return response.body.object;
@@ -884,17 +899,23 @@ export class ClientStorage {
 
 	/**
 	 * Gets a signed upload URL for a file.
-	 * @param path The file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param options Optional upload options (contentType, metadata, expirySeconds).
 	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} with the upload URL and expiry.
 	 */
-	async getSignedUploadUrl(path: string, options?: StorageSignedUploadUrlOptions, signal?: AbortSignal): Promise<StorageSignedUrl> {
+	async getSignedUploadUrl(
+		path: string,
+		params: Record<string, unknown>,
+		options?: StorageSignedUploadUrlOptions,
+		signal?: AbortSignal,
+	): Promise<StorageSignedUrl> {
 		const response = await this.#client.fetch(`${this.#endpoint}/upload-url`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ path, options }),
+			body: JSON.stringify({ path: resolvePath(path, params as never), options }),
 		});
 		z.assert(z.object({ url: StorageSignedUrl() }), response.body);
 		return response.body.url;
@@ -902,17 +923,23 @@ export class ClientStorage {
 
 	/**
 	 * Gets a signed download URL for a file.
-	 * @param path The file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param options Optional download options (expirySeconds).
 	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} with the download URL and expiry.
 	 */
-	async getSignedDownloadUrl(path: string, options?: StorageSignedDownloadUrlOptions, signal?: AbortSignal): Promise<StorageSignedUrl> {
+	async getSignedDownloadUrl(
+		path: string,
+		params: Record<string, unknown>,
+		options?: StorageSignedDownloadUrlOptions,
+		signal?: AbortSignal,
+	): Promise<StorageSignedUrl> {
 		const response = await this.#client.fetch(`${this.#endpoint}/download-url`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ path, options }),
+			body: JSON.stringify({ path: resolvePath(path, params as never), options }),
 		});
 		z.assert(z.object({ url: StorageSignedUrl() }), response.body);
 		return response.body.url;
@@ -920,25 +947,34 @@ export class ClientStorage {
 
 	/**
 	 * Deletes a file from storage.
-	 * @param path The file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param signal Optional abort signal.
 	 */
-	async delete(path: string, signal?: AbortSignal): Promise<void> {
+	async delete(path: string, params: Record<string, unknown>, signal?: AbortSignal): Promise<void> {
 		await this.#client.fetch(`${this.#endpoint}/delete`, {
 			signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ path }),
+			body: JSON.stringify({ path: resolvePath(path, params as never) }),
 		});
 	}
 
 	/**
 	 * Lists files in a folder, streaming results as a `ReadableStream`.
-	 * @param options Listing options (prefix, cursor, limit).
+	 * @param prefix The folder path template.
+	 * @param params Path parameters.
+	 * @param options Optional listing options (cursor, limit).
 	 * @param signal Optional abort signal.
 	 * @returns A stream of {@link StorageListEntry} values.
 	 */
-	list(options: StorageListOptions, signal?: AbortSignal): ReadableStream<StorageListEntry> {
+	list(
+		prefix: string,
+		params: Record<string, unknown>,
+		options?: { cursor?: string; limit?: number },
+		signal?: AbortSignal,
+	): ReadableStream<StorageListEntry> {
+		const resolvedPrefix = resolvePath(prefix, params as never);
 		const abortController = new AbortController();
 		signal?.addEventListener("abort", () => abortController.abort(), { once: true });
 		return new ReadableStream<StorageListEntry>({
@@ -947,7 +983,7 @@ export class ClientStorage {
 					signal,
 					method: "POST",
 					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ options }),
+					body: JSON.stringify({ options: { prefix: resolvedPrefix, cursor: options?.cursor, limit: options?.limit } }),
 				});
 				z.assert(z.object({ entries: z.array(StorageListEntry()) }), response.body);
 				for (const entry of response.body.entries) {
@@ -983,10 +1019,10 @@ export interface TypedClient<TPublicAppRegistry extends PublicAppRegistry> exten
 	 * @param init Optional request options (headers, signal, etc.).
 	 * @returns The typed response produced by the endpoint.
 	 */
-	fetch<TPath extends keyof TPublicAppRegistry["endpoints"]>(
+	fetch<TPath extends keyof TPublicAppRegistry["endpoints"] & string>(
 		// @ts-expect-error: request parameter is expected
 		// deno-fmt-ignore
-		path: MinimalRequestInitFromRequest<TPublicAppRegistry["endpoints"][TPath]["request"]> extends Record<PropertyKey, never> ? Reference<TPath> : never,
+		path: MinimalRequestInitFromRequest<TPublicAppRegistry["endpoints"][TPath]["request"]> extends Record<PropertyKey, never> ? TPath : never,
 		init?: Prettify<
 			// @ts-expect-error: request parameter is expected
 			& RequestInitFromRequest<TPublicAppRegistry["endpoints"][TPath]["request"]>
@@ -997,13 +1033,13 @@ export interface TypedClient<TPublicAppRegistry extends PublicAppRegistry> exten
 	/**
 	 * Makes an authenticated HTTP request to a typed endpoint. Automatically
 	 * attaches the bearer token and throws if the server returns an error payload.
-	 * @param path Reference to the endpoint path.
+	 * @param path The endpoint path.
 	 * @param init Request options including method, headers, and body as required
 	 *   by the endpoint's request type.
 	 * @returns The typed response produced by the endpoint.
 	 */
-	fetch<TPath extends keyof TPublicAppRegistry["endpoints"]>(
-		path: Reference<TPath>,
+	fetch<TPath extends keyof TPublicAppRegistry["endpoints"] & string>(
+		path: TPath,
 		init: Prettify<
 			// @ts-expect-error: request parameter is expected
 			& RequestInitFromRequest<TPublicAppRegistry["endpoints"][TPath]["request"]>
@@ -1043,37 +1079,43 @@ export interface TypedClientDocument<
 > {
 	/**
 	 * Fetches a single document by path.
-	 * @param ref Reference to the document path.
+	 * @param path The document path template.
+	 * @param params Path parameters.
 	 * @param options Optional consistency / read options.
 	 * @param signal Optional abort signal.
 	 * @returns The {@link Document} at the given path.
 	 */
-	get<TPath extends keyof TDocuments>(
-		ref: Reference<TPath>,
+	get<TPath extends keyof TDocuments & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		options?: DocumentGetOptions,
 		signal?: AbortSignal,
 	): Promise<Document<TDocuments[TPath]>>;
 	/**
 	 * Fetches multiple documents in a single request.
-	 * @param refs Array of document path references to retrieve.
+	 * @param keys Array of [path, params] tuples to retrieve.
 	 * @param options Optional consistency / read options.
 	 * @param signal Optional abort signal.
-	 * @returns An array of {@link Document} values in the same order as `refs`.
+	 * @returns An array of {@link Document} values.
 	 */
-	getMany<TPath extends keyof TDocuments>(
-		refs: Array<Reference<TPath>>,
+	getMany<TPath extends keyof TDocuments & string>(
+		keys: Array<[path: TPath, params: PathToParams<TPath>]>,
 		options?: DocumentGetOptions,
 		signal?: AbortSignal,
 	): Promise<Array<Document<TDocuments[TPath]>>>;
 	/**
 	 * Lists documents under a path prefix, streaming results as a
 	 * `ReadableStream`.
-	 * @param options Listing options (prefix, cursor, limit, etc.).
+	 * @param prefix The collection path template.
+	 * @param params Path parameters.
+	 * @param options Optional listing options (cursor, limit).
 	 * @param signal Optional abort signal to cancel the stream.
 	 * @returns A stream of {@link DocumentListEntry} values.
 	 */
-	list<TPath extends keyof TCollections>(
-		options: DocumentListOptions<Reference<TPath>>,
+	list<TPath extends keyof TCollections & string>(
+		prefix: TPath,
+		params: PathToParams<TPath>,
+		options?: { cursor?: string; limit?: number },
 		signal?: AbortSignal,
 	): ReadableStream<DocumentListEntry<TCollections[TPath]>>;
 	/**
@@ -1095,27 +1137,38 @@ export interface TypedClientDocumentAtomic<
 > {
 	/**
 	 * Adds a version-stamp pre-condition to the atomic operation.
-	 * @param ref Reference to the document path.
+	 * @param path The document path template.
+	 * @param params Path parameters.
 	 * @param versionstamp The expected versionstamp, or `null` to check absence.
 	 * @returns `this` for chaining.
 	 */
-	check<TPath extends keyof TDocuments>(
-		ref: Reference<TPath>,
+	check<TPath extends keyof TDocuments & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		versionstamp: string | null,
 	): TypedClientDocumentAtomic<TCollections, TDocuments>;
 	/**
 	 * Adds a set operation to the atomic batch.
-	 * @param ref Reference to the document path.
+	 * @param path The document path template.
+	 * @param params Path parameters.
 	 * @param value The value to write.
 	 * @returns `this` for chaining.
 	 */
-	set<TPath extends keyof TDocuments>(ref: Reference<TPath>, value: TDocuments[TPath]): TypedClientDocumentAtomic<TCollections, TDocuments>;
+	set<TPath extends keyof TDocuments & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
+		value: TDocuments[TPath],
+	): TypedClientDocumentAtomic<TCollections, TDocuments>;
 	/**
 	 * Adds a delete operation to the atomic batch.
-	 * @param ref Reference to the document path to delete.
+	 * @param path The document path template.
+	 * @param params Path parameters.
 	 * @returns `this` for chaining.
 	 */
-	delete<TPath extends keyof TDocuments>(ref: Reference<TPath>): TypedClientDocumentAtomic<TCollections, TDocuments>;
+	delete<TPath extends keyof TDocuments & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
+	): TypedClientDocumentAtomic<TCollections, TDocuments>;
 	/**
 	 * Commits the atomic batch to the server.
 	 * @param signal Optional abort signal.
@@ -1132,21 +1185,32 @@ export interface TypedClientPubsub<
 	TTopics extends PublicAppRegistry["topics"],
 > {
 	/**
-	 * Publishes a `payload` to all subscribers of `ref`.
-	 * @param ref Reference to the topic key.
+	 * Publishes a `payload` to all subscribers of the topic.
+	 * @param path The topic path template.
+	 * @param params Path parameters.
 	 * @param payload The payload to broadcast.
 	 * @param signal Optional abort signal.
 	 */
-	publish<TPath extends keyof TTopics>(ref: Reference<TPath>, payload: TTopics[TPath], signal?: AbortSignal): Promise<void>;
+	publish<TPath extends keyof TTopics & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
+		payload: TTopics[TPath],
+		signal?: AbortSignal,
+	): Promise<void>;
 	/**
-	 * Returns a `ReadableStream` that emits payloads published to `ref`.
+	 * Returns a `ReadableStream` that emits payloads published to the topic.
 	 * Opens a WebSocket connection if one is not already active.
 	 * The stream unsubscribes automatically when cancelled.
-	 * @param ref Reference to the topic key to subscribe to.
+	 * @param path The topic path template.
+	 * @param params Path parameters.
 	 * @param abortSignal Optional abort signal to cancel the stream.
 	 * @returns A stream of incoming payloads.
 	 */
-	subscribe<TPath extends keyof TTopics>(ref: Reference<TPath>, abortSignal?: AbortSignal): ReadableStream<TTopics[TPath]>;
+	subscribe<TPath extends keyof TTopics & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
+		abortSignal?: AbortSignal,
+	): ReadableStream<TTopics[TPath]>;
 }
 
 /**
@@ -1183,55 +1247,67 @@ export interface TypedClientStorage<
 > {
 	/**
 	 * Fetches metadata for a single storage file.
-	 * @param ref Reference to the file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param signal Optional abort signal.
 	 * @returns The {@link StorageObject} metadata.
 	 */
-	getMetadata<TPath extends keyof TFiles>(
-		ref: Reference<TPath>,
+	getMetadata<TPath extends keyof TFiles & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		signal?: AbortSignal,
 	): Promise<StorageObject>;
 	/**
 	 * Gets a signed upload URL for the given file.
-	 * @param ref Reference to the file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param options Optional upload options.
 	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} with the upload URL and expiry.
 	 */
-	getSignedUploadUrl<TPath extends keyof TFiles>(
-		ref: Reference<TPath>,
+	getSignedUploadUrl<TPath extends keyof TFiles & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		options?: StorageSignedUploadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 	/**
 	 * Gets a signed download URL for the given file.
-	 * @param ref Reference to the file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param options Optional download options.
 	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} with the download URL and expiry.
 	 */
-	getSignedDownloadUrl<TPath extends keyof TFiles>(
-		ref: Reference<TPath>,
+	getSignedDownloadUrl<TPath extends keyof TFiles & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		options?: StorageSignedDownloadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 	/**
 	 * Deletes a file from storage.
-	 * @param ref Reference to the file path.
+	 * @param path The file path template.
+	 * @param params Path parameters.
 	 * @param signal Optional abort signal.
 	 */
-	delete<TPath extends keyof TFiles>(
-		ref: Reference<TPath>,
+	delete<TPath extends keyof TFiles & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		signal?: AbortSignal,
 	): Promise<void>;
 	/**
 	 * Lists files under a folder prefix, streaming results.
-	 * @param options Listing options with typed prefix.
+	 * @param prefix The folder path template.
+	 * @param params Path parameters.
+	 * @param options Optional listing options (cursor, limit).
 	 * @param signal Optional abort signal.
 	 * @returns A stream of {@link StorageListEntry} values.
 	 */
-	list<TPath extends keyof TFolders>(
-		options: StorageListOptions<Reference<TPath>>,
+	list<TPath extends keyof TFolders & string>(
+		prefix: TPath,
+		params: PathToParams<TPath>,
+		options?: { cursor?: string; limit?: number },
 		signal?: AbortSignal,
 	): ReadableStream<StorageListEntry>;
 }

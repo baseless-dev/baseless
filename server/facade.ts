@@ -19,13 +19,11 @@ import type {
 	DocumentServiceAtomic,
 	DocumentServiceAtomicCheck,
 	DocumentServiceAtomicOperation,
-	DocumentServiceListOptions,
 	KVService,
 	NotificationService,
 	PubSubService,
 	ServiceCollection,
 	StorageService,
-	StorageServiceListOptions,
 	TableService,
 } from "./service.ts";
 import { first } from "@baseless/core/iter";
@@ -39,7 +37,7 @@ import {
 	StorageObjectNotFoundError,
 	TopicNotFoundError,
 } from "@baseless/core/errors";
-import { ref, Reference } from "@baseless/core/ref";
+import { type PathToParams, resolvePath } from "@baseless/core/path";
 import type { Session } from "@baseless/core/session";
 import type { AuthenticationTokens } from "@baseless/core/authentication-tokens";
 import { jwtVerify } from "jose/jwt/verify";
@@ -211,7 +209,7 @@ export class AuthFacade {
 		assertID("ses_", sid);
 		const session = await this.#options.kv.get(`auth/identity/${sub}/session/${sid}`, undefined, signal)
 			.then((v) => v.value as Session);
-		const identity = await this.#options.document.get(ref("auth/identity/:key", { key: sub }), undefined, signal)
+		const identity = await this.#options.document.get(resolvePath("auth/identity/:key", { key: sub }), undefined, signal)
 			.then((d) => d as Document<Identity>);
 		const tokens = await this.#createTokens(
 			identity.data,
@@ -245,53 +243,59 @@ export class DocumentFacade implements DocumentService<any, any> {
 		this.#options = options;
 	}
 
-	get<TPath extends keyof any>(
-		ref: Reference<TPath>,
+	get<TPath extends keyof any & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		options?: DocumentGetOptions,
 		signal?: AbortSignal,
 	): Promise<Document<any>> {
+		const key = resolvePath(path, params);
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#options.app.match("document", ref));
+			var _ = first(this.#options.app.match("document", key));
 		} catch (cause) {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
 
-		return this.#options.provider.get(ref, options, signal);
+		return this.#options.provider.get(key, options, signal);
 	}
 
-	getMany<TPath extends keyof any>(
-		refs: Array<Reference<TPath>>,
+	getMany<TPath extends keyof any & string>(
+		keys: Array<[path: TPath, params: PathToParams<TPath>]>,
 		options?: DocumentGetOptions,
 		signal?: AbortSignal,
 	): Promise<Array<Document<any>>> {
+		const resolvedKeys = keys.map(([path, params]) => resolvePath(path, params));
 		try {
-			for (const ref of refs) {
+			for (const key of resolvedKeys) {
 				// deno-lint-ignore no-var no-inner-declarations
-				var _ = first(this.#options.app.match("document", ref));
+				var _ = first(this.#options.app.match("document", key));
 			}
 		} catch (cause) {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
 
-		return this.#options.provider.getMany(refs, options, signal);
+		return this.#options.provider.getMany(resolvedKeys, options, signal);
 	}
 
-	list<TPath extends keyof any>(
-		options: DocumentServiceListOptions<TPath>,
+	list<TPath extends keyof any & string>(
+		prefix: TPath,
+		params: PathToParams<TPath>,
+		options?: { cursor?: string; limit?: number },
 		signal?: AbortSignal,
 	): ReadableStream<DocumentListEntry<any>> {
+		const key = resolvePath(prefix, params);
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#options.app.match("collection", options.prefix));
+			var _ = first(this.#options.app.match("collection", key));
 		} catch (cause) {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
 
 		return this.#options.provider.list({
-			prefix: options.prefix,
-			cursor: options.cursor,
-			limit: options.limit,
+			prefix: key,
+			cursor: options?.cursor,
+			limit: options?.limit,
 		}, signal);
 	}
 
@@ -313,61 +317,64 @@ export class DocumentFacadeAtomic implements DocumentServiceAtomic<any> {
 		this.#options = options;
 	}
 
-	check<TPath extends keyof any>(ref: Reference<TPath>, versionstamp: string | null): DocumentServiceAtomic<any> {
+	check<TPath extends keyof any & string>(path: TPath, params: PathToParams<TPath>, versionstamp: string | null): DocumentServiceAtomic<any> {
+		const key = resolvePath(path, params);
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#options.app.match("document", ref));
+			var _ = first(this.#options.app.match("document", key));
 		} catch (cause) {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
-		this.checks.push({ type: "check", ref: ref as any, versionstamp });
+		this.checks.push({ type: "check", key, versionstamp });
 		return this;
 	}
 
-	set<TPath extends keyof any>(ref: Reference<TPath>, value: any): DocumentServiceAtomic<any> {
+	set<TPath extends keyof any & string>(path: TPath, params: PathToParams<TPath>, value: any): DocumentServiceAtomic<any> {
+		const key = resolvePath(path, params);
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
-			var [_, definition] = first(this.#options.app.match("document", ref));
+			var [_, definition] = first(this.#options.app.match("document", key));
 		} catch (cause) {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
 		assert(definition.schema, value);
-		this.operations.push({ type: "set", ref: ref as any, data: value });
+		this.operations.push({ type: "set", key, data: value });
 		return this;
 	}
 
-	delete<TPath extends keyof any>(ref: Reference<TPath>): DocumentServiceAtomic<any> {
+	delete<TPath extends keyof any & string>(path: TPath, params: PathToParams<TPath>): DocumentServiceAtomic<any> {
+		const key = resolvePath(path, params);
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#options.app.match("document", ref));
+			var _ = first(this.#options.app.match("document", key));
 		} catch (cause) {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
-		this.operations.push({ type: "delete", ref: ref as any });
+		this.operations.push({ type: "delete", key });
 		return this;
 	}
 
 	async commit(signal?: AbortSignal): Promise<void> {
 		const atomic = this.#options.provider.atomic();
-		const messages = [] as Array<{ key: Reference<never>; payload: never }>;
+		const messages = [] as Array<{ key: string; payload: never }>;
 		for (const check of this.checks) {
-			atomic.check(check.ref, check.versionstamp);
+			atomic.check(check.key, check.versionstamp);
 		}
 		for (const op of this.operations) {
 			if (op.type === "set") {
-				atomic.set(op.ref, op.data);
-				const document = { key: op.ref, data: op.data, versionstamp: "" };
-				messages.push({ key: op.ref as never, payload: { type: "set", document } as never });
+				atomic.set(op.key, op.data);
+				const document = { key: op.key, data: op.data, versionstamp: "" };
+				messages.push({ key: op.key, payload: { type: "set", document } as never });
 				try {
-					const collectionRef = op.ref.split("/").slice(0, -1).join("/");
-					const [_, definition] = first(this.#options.app.match("collection", collectionRef));
+					const collectionKey = op.key.split("/").slice(0, -1).join("/");
+					const [_, definition] = first(this.#options.app.match("collection", collectionKey));
 					messages.push({
-						key: collectionRef as never,
+						key: collectionKey,
 						payload: { type: "set", document } as never,
 					});
 				} catch (_cause) {}
 				for (
-					const [params, definition] of this.#options.app.match("onDocumentSetting", op.ref)
+					const [params, definition] of this.#options.app.match("onDocumentSetting", op.key)
 				) {
 					await definition.handler({
 						app: this.#options.app,
@@ -383,10 +390,10 @@ export class DocumentFacadeAtomic implements DocumentServiceAtomic<any> {
 					});
 				}
 			} else {
-				atomic.delete(op.ref);
-				messages.push({ key: op.ref as never, payload: { type: "deleted" } as never });
+				atomic.delete(op.key);
+				messages.push({ key: op.key, payload: { type: "deleted" } as never });
 				for (
-					const [params, definition] of this.#options.app.match("onDocumentDeleting", op.ref)
+					const [params, definition] of this.#options.app.match("onDocumentDeleting", op.key)
 				) {
 					await definition.handler({
 						app: this.#options.app,
@@ -405,7 +412,7 @@ export class DocumentFacadeAtomic implements DocumentServiceAtomic<any> {
 		await atomic.commit(signal);
 
 		for (const { key, payload } of messages) {
-			this.#options.waitUntil(this.#options.service.pubsub.publish(key, payload, signal));
+			this.#options.waitUntil(this.#options.service.pubsub.publish(key as never, {} as never, payload, signal));
 		}
 	}
 }
@@ -427,12 +434,13 @@ export class PubSubFacade implements PubSubService<any> {
 		this.#options = options;
 	}
 
-	async publish<TTopic extends keyof any>(
-		ref: Reference<TTopic>,
+	async publish<TTopic extends keyof any & string>(
+		path: TTopic,
+		params: PathToParams<TTopic>,
 		payload: any,
 		signal?: AbortSignal,
 	): Promise<void> {
-		const key = ref;
+		const key = resolvePath(path, params);
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
 			var [_, definition] = first(this.#options.app.match("topic", key));
@@ -442,7 +450,7 @@ export class PubSubFacade implements PubSubService<any> {
 		assert(definition.schema, payload);
 
 		await this.#options.provider.enqueue(
-			{ type: "topic_publish", key: ref, payload },
+			{ type: "topic_publish", key, payload },
 			signal,
 		);
 	}
@@ -468,7 +476,7 @@ export class NotificationFacade implements NotificationService {
 	async notify(identityId: Identity["id"], notification: Notification, signal?: AbortSignal): Promise<boolean> {
 		let notified = false;
 		for await (
-			const entry of this.#options.service.document.list({ prefix: ref(`auth/identity/:identityId/channel`, { identityId }) as any })
+			const entry of this.#options.service.document.list(`auth/identity/:identityId/channel` as never, { identityId } as never, undefined, undefined)
 		) {
 			const identityChannel = entry.document.data as IdentityChannel;
 			if (identityChannel.confirmed) {
@@ -482,7 +490,7 @@ export class NotificationFacade implements NotificationService {
 	async notifyChannel(identityId: Identity["id"], channel: string, notification: Notification, signal?: AbortSignal): Promise<boolean> {
 		try {
 			const identityChannel = await this.#options.service.document
-				.get(ref(`auth/identity/:identityId/channel/:channel`, { identityId, channel }) as any, undefined, signal)
+				.get(`auth/identity/:identityId/channel/:channel` as never, { identityId, channel } as never, undefined, signal)
 				.then((d) => d.data as IdentityChannel);
 			if (identityChannel.confirmed) {
 				const notificationChannelProvider = this.#options.providers[identityChannel.channelId];
@@ -562,101 +570,116 @@ export class StorageFacade implements StorageService<any, any> {
 		this.#options = options;
 	}
 
-	getMetadata<TPath extends keyof any>(
-		fileRef: Reference<TPath>,
+	getMetadata<TPath extends keyof any & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		signal?: AbortSignal,
 	): Promise<StorageObject> {
+		const key = resolvePath(path, params);
 		try {
-			const _ = first(this.#options.app.match("file", fileRef));
+			const _ = first(this.#options.app.match("file", key));
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.storageProvider.getMetadata(fileRef, signal);
+		return this.#options.storageProvider.getMetadata(key, signal);
 	}
 
-	getSignedUploadUrl<TPath extends keyof any>(
-		fileRef: Reference<TPath>,
+	getSignedUploadUrl<TPath extends keyof any & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		options?: StorageSignedUploadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl> {
+		const key = resolvePath(path, params);
 		try {
-			const _ = first(this.#options.app.match("file", fileRef));
+			const _ = first(this.#options.app.match("file", key));
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.storageProvider.getSignedUploadUrl(fileRef, options, signal);
+		return this.#options.storageProvider.getSignedUploadUrl(key, options, signal);
 	}
 
-	getSignedDownloadUrl<TPath extends keyof any>(
-		fileRef: Reference<TPath>,
+	getSignedDownloadUrl<TPath extends keyof any & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		options?: StorageSignedDownloadUrlOptions,
 		signal?: AbortSignal,
 	): Promise<StorageSignedUrl> {
+		const key = resolvePath(path, params);
 		try {
-			const _ = first(this.#options.app.match("file", fileRef));
+			const _ = first(this.#options.app.match("file", key));
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.storageProvider.getSignedDownloadUrl(fileRef, options, signal);
+		return this.#options.storageProvider.getSignedDownloadUrl(key, options, signal);
 	}
 
-	async put<TPath extends keyof any>(
-		fileRef: Reference<TPath>,
+	async put<TPath extends keyof any & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		content: ReadableStream<Uint8Array> | ArrayBuffer | Blob,
 		options?: StoragePutOptions,
 		signal?: AbortSignal,
 	): Promise<void> {
+		const key = resolvePath(path, params);
 		try {
-			const _ = first(this.#options.app.match("file", fileRef));
+			const _ = first(this.#options.app.match("file", key));
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		await this.#options.storageProvider.put(fileRef, content, options, signal);
-		const file = await this.#options.storageProvider.getMetadata(fileRef, signal);
-		this.#options.waitUntil(this.#options.queueProvider.enqueue({ type: "file_uploaded", key: fileRef as never, file }, signal));
+		await this.#options.storageProvider.put(key, content, options, signal);
+		const file = await this.#options.storageProvider.getMetadata(key, signal);
+		this.#options.waitUntil(this.#options.queueProvider.enqueue({ type: "file_uploaded", key: key as never, file }, signal));
 	}
 
-	get<TPath extends keyof any>(
-		fileRef: Reference<TPath>,
+	get<TPath extends keyof any & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		signal?: AbortSignal,
 	): Promise<ReadableStream<Uint8Array>> {
+		const key = resolvePath(path, params);
 		try {
-			const _ = first(this.#options.app.match("file", fileRef));
+			const _ = first(this.#options.app.match("file", key));
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.storageProvider.get(fileRef, signal);
+		return this.#options.storageProvider.get(key, signal);
 	}
 
-	async delete<TPath extends keyof any>(
-		fileRef: Reference<TPath>,
+	async delete<TPath extends keyof any & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
 		signal?: AbortSignal,
 	): Promise<void> {
+		const key = resolvePath(path, params);
 		try {
-			const _ = first(this.#options.app.match("file", fileRef));
+			const _ = first(this.#options.app.match("file", key));
 			// deno-lint-ignore no-var no-inner-declarations
-			var file = await this.#options.storageProvider.getMetadata(fileRef, signal);
+			var file = await this.#options.storageProvider.getMetadata(key, signal);
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
 
-		await this.#options.storageProvider.delete(fileRef, signal);
+		await this.#options.storageProvider.delete(key, signal);
 
-		this.#options.waitUntil(this.#options.queueProvider.enqueue({ type: "file_deleted", key: fileRef as never, file }, signal));
+		this.#options.waitUntil(this.#options.queueProvider.enqueue({ type: "file_deleted", key: key as never, file }, signal));
 	}
 
-	list<TPath extends keyof any>(
-		options: StorageServiceListOptions<TPath>,
+	list<TPath extends keyof any & string>(
+		prefix: TPath,
+		params: PathToParams<TPath>,
+		options?: { cursor?: string; limit?: number },
 		signal?: AbortSignal,
 	): ReadableStream<StorageListEntry> {
+		const key = resolvePath(prefix, params);
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
-			var _ = first(this.#options.app.match("folder", options.prefix));
+			var _ = first(this.#options.app.match("folder", key));
 		} catch (cause) {
 			throw new StorageFolderNotFoundError(undefined, { cause });
 		}
 		return this.#options.storageProvider.list(
-			{ prefix: options.prefix as string, cursor: options.cursor, limit: options.limit },
+			{ prefix: key, cursor: options?.cursor, limit: options?.limit },
 			signal,
 		);
 	}

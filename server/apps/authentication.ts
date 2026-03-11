@@ -1,7 +1,7 @@
 import { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/identity";
 import { app, INTERNAL_HIDE_ENDPOINT } from "../app.ts";
 import * as z from "@baseless/core/schema";
-import { ref } from "@baseless/core/ref";
+import type { Document } from "@baseless/core/document";
 import { EncryptJWT, jwtDecrypt, type KeyLike } from "jose";
 import { ID, id } from "@baseless/core/id";
 import {
@@ -85,17 +85,22 @@ const authApp = app()
 		handler: async ({ atomic, document, service }) => {
 			// If component is confirmed and is identification
 			if (document.data.identification && document.data.confirmed) {
-				const ibiRef = ref("auth/identity-by-identification/:component/:identification", {
-					component: document.data.componentId,
-					identification: document.data.identification,
-				});
 				const identification = await service.document
-					.get(ibiRef)
+					.get("auth/identity-by-identification/:component/:identification", {
+						component: document.data.componentId,
+						identification: document.data.identification,
+					})
 					.catch((_) => null);
 				if (!identification) {
 					atomic
-						.check(ibiRef, null)
-						.set(ibiRef, document.data.identityId);
+						.check("auth/identity-by-identification/:component/:identification", {
+							component: document.data.componentId,
+							identification: document.data.identification,
+						}, null)
+						.set("auth/identity-by-identification/:component/:identification", {
+							component: document.data.componentId,
+							identification: document.data.identification,
+						}, document.data.identityId as never);
 				}
 			}
 		},
@@ -103,15 +108,15 @@ const authApp = app()
 	.onDocumentDeleting({
 		path: "auth/identity/:id/component/:key",
 		handler: async ({ atomic, params, service }) => {
-			const document = await service.document.get(ref("auth/identity/:id/component/:key", {
+			const document = await service.document.get("auth/identity/:id/component/:key", {
 				id: params.id,
 				key: params.key,
-			}));
+			}) as Document<IdentityComponent>;
 			if (document.data.identification && document.data.confirmed) {
-				atomic.delete(ref("auth/identity-by-identification/:component/:identification", {
+				atomic.delete("auth/identity-by-identification/:component/:identification", {
 					component: document.data.componentId,
 					identification: document.data.identification,
-				}));
+				});
 			}
 		},
 	})
@@ -243,7 +248,7 @@ const authApp = app()
 			}
 			if (stateObj.kind === "authentication") {
 				const identityComponent = await service.document
-					.get(ref("auth/identity/:id/component/:key", { id: stateObj.id!, key: currentComponent.component }))
+					.get("auth/identity/:id/component/:key", { id: stateObj.id!, key: currentComponent.component })
 					.catch((_) => undefined);
 				if (identityComponent && identityComponent.data.confirmed === false) {
 					throw new AuthenticationSubmitPromptError();
@@ -281,7 +286,7 @@ const authApp = app()
 				if (component === true) {
 					const identity = await service.document
 						//.get(`auth/identity/${stateObj.id}`);
-						.get(ref("auth/identity/:key", { key: stateObj.id! }));
+						.get("auth/identity/:key", { key: stateObj.id! });
 					const tokens = await service.auth.createSession(
 						identity.data,
 						Date.now() / 1000 >> 0,
@@ -401,7 +406,7 @@ const authApp = app()
 
 			const identityComponent = stateObj.kind === "authentication"
 				? await service.document
-					.get(ref("auth/identity/:id/component/:key", { id: stateObj.id!, key: currentComponent.component }))
+					.get("auth/identity/:id/component/:key", { id: stateObj.id!, key: currentComponent.component })
 					.then((d) => d.data as IdentityComponent)
 				: stateObj.components.find((c) => c.componentId === currentComponent.component);
 			if (!identityComponent) {
@@ -455,7 +460,7 @@ const authApp = app()
 
 			const identityComponent = stateObj.kind === "authentication"
 				? await service.document
-					.get(ref("auth/identity/:id/component/:key", { id: stateObj.id!, key: currentComponent.component }))
+					.get("auth/identity/:id/component/:key", { id: stateObj.id!, key: currentComponent.component })
 					.then((d) => d.data)
 				: stateObj.components.find((c) => c.componentId === currentComponent.component);
 			if (!identityComponent) {
@@ -515,7 +520,7 @@ const authApp = app()
 
 			const identityComponent = stateObj.kind === "authentication"
 				? await service.document
-					.get(ref("auth/identity/:id/component/:key", { id: stateObj.id!, key: currentComponent.component }))
+					.get("auth/identity/:id/component/:key", { id: stateObj.id!, key: currentComponent.component })
 					.then((d) => d.data)
 				: stateObj.components.find((c) => c.componentId === currentComponent.component);
 			if (!identityComponent) {
@@ -559,7 +564,7 @@ const authApp = app()
 			});
 			if (component === true) {
 				const identity = await service.document
-					.get(ref("auth/identity/:key", { key: stateObj.id! }));
+					.get("auth/identity/:key", { key: stateObj.id! });
 				const tokens = await service.auth.createSession(
 					identity.data,
 					Date.now() / 1000 >> 0,
@@ -689,16 +694,18 @@ async function createIdentity(
 	channels: IdentityChannel[],
 ): Promise<ID<"id_">> {
 	const atomic = service.document.atomic()
-		.set(ref("auth/identity/:key", { key: identityId }) as never, { id: identityId, data: {} } as never);
+		.set("auth/identity/:key" as never, { key: identityId } as never, { id: identityId, data: {} } as never);
 	for (const component of components) {
 		atomic.set(
-			ref("auth/identity/:id/component/:key", { id: identityId, key: component.componentId }) as never,
+			"auth/identity/:id/component/:key" as never,
+			{ id: identityId, key: component.componentId } as never,
 			component as never,
 		);
 	}
 	for (const channel of channels) {
 		atomic.set(
-			ref("auth/identity/:id/channel/:key", { id: identityId, key: channel.channelId }) as never,
+			"auth/identity/:id/channel/:key" as never,
+			{ id: identityId, key: channel.channelId } as never,
 			channel as never,
 		);
 	}
@@ -751,7 +758,7 @@ async function getAuthenticationCeremonyComponent(
 						throw new UnknownIdentityComponentError();
 					}
 					const identityComponent = await service.document
-						.get(ref("auth/identity/:id/component/:key", { id: state.id!, key: component.component }) as never)
+						.get("auth/identity/:id/component/:key" as never, { id: state.id!, key: component.component } as never)
 						.then((d) => d.data as IdentityComponent)
 						.catch((_) => undefined);
 					if (identityComponent && identityComponent.confirmed === false) {
@@ -794,7 +801,7 @@ async function mapCeremonyToComponent({ ceremony, state, configuration, context,
 		const identityComponentProvider = options.components[componentId];
 		const identityComponent: IdentityComponent | undefined = state.kind === "authentication"
 			? await service.document
-				.get(ref("auth/identity/:id/component/:key", { id: state.id!, key: componentId }) as never)
+				.get("auth/identity/:id/component/:key" as never, { id: state.id!, key: componentId } as never)
 				.then((d) => d.data as IdentityComponent)
 				.catch((_) => undefined)
 			: state.components.find((c) => c.componentId === componentId);

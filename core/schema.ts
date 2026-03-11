@@ -1,7 +1,6 @@
 // deno-lint-ignore-file ban-types no-explicit-any
 import * as z from "zod";
 import { ID, isID } from "./id.ts";
-import { isReference, Reference } from "./ref.ts";
 import type { TypedFormData } from "./typed.ts";
 import { Request } from "./request.ts";
 import { Response } from "./response.ts";
@@ -83,22 +82,6 @@ export function readableStream(): ZodReadableStream {
 	return z.custom<ReadableStream>(
 		(val) => val instanceof ReadableStream,
 		"invalid ReadableStream",
-	);
-}
-
-/** Zod type for a typed {@link Reference} string. */
-export type ZodReference<Path extends string> = z.ZodCustom<Reference<Path>, unknown>;
-
-/**
- * Creates a Zod schema that validates {@link Reference} strings matching
- * the given `path` template.
- * @param path A path template string (e.g. `"/users/:id"`).
- * @returns A Zod schema accepting matching reference strings.
- */
-export function reference<const Path extends string>(path: Path): ZodReference<Path> {
-	return z.custom<Reference<Path>>(
-		(val) => isReference(path as never, val),
-		"invalid Reference",
 	);
 }
 

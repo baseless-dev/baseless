@@ -11,7 +11,6 @@ import type {
 	IdentityComponentProviderSkipSignInPromptOptions,
 	IdentityComponentProviderVerifySignInPromptOptions,
 } from "../provider.ts";
-import { ref } from "@baseless/core/ref";
 
 /** Options for constructing a {@link PolicyIdentityComponentProvider}. */
 export interface PolicyIdentityComponentProviderOptions {
@@ -61,7 +60,8 @@ export class PolicyIdentityComponentProvider implements IdentityComponentProvide
 			};
 			await options.service.document.atomic()
 				.set(
-					ref("auth/identity/:id/component/:key", { id: options.identityComponent!.identityId, key: options.componentId }) as never,
+					"auth/identity/:id/component/:key" as never,
+					{ id: options.identityComponent!.identityId, key: options.componentId } as never,
 					identityComponent as never,
 				)
 				.commit();

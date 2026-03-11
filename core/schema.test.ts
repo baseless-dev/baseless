@@ -10,11 +10,6 @@ Deno.test("schema", async (ctx) => {
 		assertThrows(() => z.id("usr_").parse(id("prd_")));
 	});
 
-	await ctx.step("Reference", () => {
-		const _a = z.reference("post/:postId").parse("post/1234");
-		assertThrows(() => z.reference("post/:postId").parse("file/1234"));
-	});
-
 	await ctx.step("FormData", () => {
 		const f = new FormData();
 		f.append("foo", "bar");

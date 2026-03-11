@@ -15,7 +15,6 @@ import { OtpComponentProvider } from "../auth/otp.ts";
 import { Notification } from "@baseless/core/notification";
 import { PolicyIdentityComponentProvider } from "../auth/policy.ts";
 import { assertRejects } from "@std/assert/rejects";
-import { ref } from "@baseless/core/ref";
 
 Deno.test("OpenAPI", async (t) => {
 	const keyPair = await generateKeyPair("PS512");

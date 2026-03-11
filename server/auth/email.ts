@@ -1,4 +1,3 @@
-import { ref } from "@baseless/core/ref";
 import type {
 	AuthenticationComponentPrompt,
 	ID,
@@ -54,7 +53,7 @@ export class EmailIdentityComponentProvider implements IdentityComponentProvider
 		}
 		// deno-fmt-ignore
 		const doc = await options.service.document
-			.get(ref("auth/identity-by-identification/:component/:identification", { component: options.componentId, identification: options.value }) as never)
+			.get("auth/identity-by-identification/:component/:identification" as never, { component: options.componentId, identification: options.value } as never)
 			.catch((_) => undefined);
 		return doc ? doc.data as Identity["id"] : false;
 	}

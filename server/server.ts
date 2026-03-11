@@ -360,7 +360,7 @@ export class Server<TRegistry extends AppRegistry> {
 					throw new ForbiddenError();
 				}
 
-				await service.pubsub.publish(key as never, payload as never, abortController.signal);
+				await service.pubsub.publish(key as never, {} as never, payload as never, abortController.signal);
 			}
 		}
 

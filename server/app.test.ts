@@ -1,4 +1,3 @@
-import { ref } from "@baseless/core/ref";
 import { App, app, Permission } from "./app.ts";
 import * as z from "@baseless/core/schema";
 import { Response } from "@baseless/core/response";
@@ -45,7 +44,7 @@ Deno.test("app", async (t) => {
 				response: z.jsonResponse(),
 				handler: async ({ configuration, service, request }) => {
 					const _stripe = configuration.stripe;
-					const _prefs = await service.document.get(ref(`users/:userid/preferences`, { userid: "123" }));
+					const _prefs = await service.document.get(`users/:userid/preferences`, { userid: "123" });
 					return Response.json({});
 				},
 			})

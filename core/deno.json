@@ -21,7 +21,6 @@
 		"./prettify": "./prettify.ts",
 		"./query": "./query/prelude.ts",
 		"./queue": "./queue.ts",
-		"./ref": "./ref.ts",
 		"./request": "./request.ts",
 		"./response": "./response.ts",
 		"./schema": "./schema.ts",

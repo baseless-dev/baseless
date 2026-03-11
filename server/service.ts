@@ -31,10 +31,10 @@ export type ServiceCollection<TRegistry extends AppRegistry = AppRegistry> = {
 } & TRegistry["services"];
 
 export interface AuthService {
-	authenticate(authorization: string, signal?: AbortSignal): Promise<Auth>;
-	revoke(authorization: string, signal?: AbortSignal): Promise<void>;
-	createSession(identity: Identity, issuedAt: number, scope: string[], signal?: AbortSignal): Promise<AuthenticationTokens>;
-	refreshSession(refreshToken: string, signal?: AbortSignal): Promise<AuthenticationTokens>;
+	authenticate(authorization: string, options?: { signal?: AbortSignal }): Promise<Auth>;
+	revoke(authorization: string, options?: { signal?: AbortSignal }): Promise<void>;
+	createSession(identity: Identity, issuedAt: number, scope: string[], options?: { signal?: AbortSignal }): Promise<AuthenticationTokens>;
+	refreshSession(refreshToken: string, options?: { signal?: AbortSignal }): Promise<AuthenticationTokens>;
 }
 
 /**
@@ -49,18 +49,15 @@ export interface DocumentService<TDocuments, TCollections> {
 		path: TPath,
 		params: PathToParams<TPath>,
 		options?: DocumentGetOptions,
-		signal?: AbortSignal,
 	): Promise<Document<TDocuments[TPath]>>;
 	getMany<TPath extends keyof TDocuments & string>(
 		keys: Array<[path: TPath, params: PathToParams<TPath>]>,
 		options?: DocumentGetOptions,
-		signal?: AbortSignal,
 	): Promise<Array<Document<TDocuments[TPath]>>>;
 	list<TPath extends keyof TCollections & string>(
 		prefix: TPath,
 		params: PathToParams<TPath>,
-		options?: { cursor?: string; limit?: number },
-		signal?: AbortSignal,
+		options?: { cursor?: string; limit?: number; signal?: AbortSignal },
 	): ReadableStream<DocumentListEntry<TCollections[TPath]>>;
 	atomic(): DocumentServiceAtomic<TDocuments>;
 }
@@ -90,10 +87,18 @@ export type DocumentServiceAtomicOperation =
 export interface DocumentServiceAtomic<TDocuments> {
 	checks: DocumentServiceAtomicCheck[];
 	operations: DocumentServiceAtomicOperation[];
-	check<TPath extends keyof TDocuments & string>(path: TPath, params: PathToParams<TPath>, versionstamp: string | null): DocumentServiceAtomic<TDocuments>;
-	set<TPath extends keyof TDocuments & string>(path: TPath, params: PathToParams<TPath>, value: TDocuments[TPath]): DocumentServiceAtomic<TDocuments>;
+	check<TPath extends keyof TDocuments & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
+		versionstamp: string | null,
+	): DocumentServiceAtomic<TDocuments>;
+	set<TPath extends keyof TDocuments & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
+		value: TDocuments[TPath],
+	): DocumentServiceAtomic<TDocuments>;
 	delete<TPath extends keyof TDocuments & string>(path: TPath, params: PathToParams<TPath>): DocumentServiceAtomic<TDocuments>;
-	commit(signal?: AbortSignal): Promise<void>;
+	commit(options?: { signal?: AbortSignal }): Promise<void>;
 }
 
 /** KV key-value store service, alias for {@link KVProvider}. */
@@ -103,9 +108,14 @@ export interface KVService extends KVProvider {}
  * Notification delivery service. Sends notifications via identity channels.
  */
 export interface NotificationService {
-	notify(identityId: Identity["id"], notification: Notification, signal?: AbortSignal): Promise<boolean>;
-	notifyChannel(identityId: Identity["id"], channel: string, notification: Notification, signal?: AbortSignal): Promise<boolean>;
-	unsafeNotifyChannel(identityChannel: IdentityChannel, notification: Notification, signal?: AbortSignal): Promise<boolean>;
+	notify(identityId: Identity["id"], notification: Notification, options?: { signal?: AbortSignal }): Promise<boolean>;
+	notifyChannel(
+		identityId: Identity["id"],
+		channel: string,
+		notification: Notification,
+		options?: { signal?: AbortSignal },
+	): Promise<boolean>;
+	unsafeNotifyChannel(identityChannel: IdentityChannel, notification: Notification, options?: { signal?: AbortSignal }): Promise<boolean>;
 }
 
 /**
@@ -118,7 +128,7 @@ export interface PubSubService<TTopics> {
 		path: TTopic,
 		params: PathToParams<TTopic>,
 		payload: TTopics[TTopic],
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<void>;
 }
 
@@ -150,7 +160,7 @@ export interface TableService<TTables> {
 	execute<TParams extends Record<string, unknown>, TOutput>(
 		statement: TStatement<TParams, TOutput>,
 		params: TParams,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<TOutput>;
 }
 
@@ -172,35 +182,31 @@ export interface StorageService<TFiles, TFolders> {
 	getMetadata<TPath extends keyof TFiles & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<StorageObject>;
 	/**
 	 * Generates a pre-signed URL for uploading a file.
 	 * @param path The file path template.
 	 * @param params Path parameters.
 	 * @param options Optional upload options (content-type, metadata, expiry).
-	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} for the upload.
 	 */
 	getSignedUploadUrl<TPath extends keyof TFiles & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
 		options?: StorageSignedUploadUrlOptions,
-		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 	/**
 	 * Generates a pre-signed URL for downloading a file.
 	 * @param path The file path template.
 	 * @param params Path parameters.
 	 * @param options Optional download options (expiry).
-	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} for the download.
 	 */
 	getSignedDownloadUrl<TPath extends keyof TFiles & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
 		options?: StorageSignedDownloadUrlOptions,
-		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 	/**
 	 * Stores a file with the given content.
@@ -208,50 +214,46 @@ export interface StorageService<TFiles, TFolders> {
 	 * @param params Path parameters.
 	 * @param content The file content as a `ReadableStream`, `ArrayBuffer`, or `Blob`.
 	 * @param options Optional upload options (content-type, metadata).
-	 * @param signal Optional abort signal.
 	 */
 	put<TPath extends keyof TFiles & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
 		content: ReadableStream<Uint8Array> | ArrayBuffer | Blob,
 		options?: StorageSignedUploadUrlOptions,
-		signal?: AbortSignal,
 	): Promise<void>;
 	/**
 	 * Retrieves the content of a stored file as a `ReadableStream`.
 	 * @param path The file path template.
 	 * @param params Path parameters.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 * @returns A `ReadableStream` of the file content.
 	 */
 	get<TPath extends keyof TFiles & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<ReadableStream<Uint8Array>>;
 	/**
 	 * Deletes a file.
 	 * @param path The file path template.
 	 * @param params Path parameters.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
 	delete<TPath extends keyof TFiles & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<void>;
 	/**
 	 * Lists files within a folder.
 	 * @param prefix The folder path template.
 	 * @param params Path parameters.
 	 * @param options Optional listing options (cursor, limit).
-	 * @param signal Optional abort signal.
 	 * @returns A `ReadableStream` of {@link StorageListEntry} values.
 	 */
 	list<TPath extends keyof TFolders & string>(
 		prefix: TPath,
 		params: PathToParams<TPath>,
-		options?: { cursor?: string; limit?: number },
-		signal?: AbortSignal,
+		options?: { cursor?: string; limit?: number; signal?: AbortSignal },
 	): ReadableStream<StorageListEntry>;
 }

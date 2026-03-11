@@ -363,7 +363,7 @@ const tableApp = app()
 
 			// 5. Delegate to the table service (facade → provider)
 			const resolved = { type: "statement" as const, statement: ast };
-			const result = await service.table.execute(resolved as never, params as never, signal);
+			const result = await service.table.execute(resolved as never, params as never, { signal });
 			return Response.json({ result });
 		},
 	})

@@ -107,7 +107,7 @@ export class MemoryStorageProvider extends StorageProvider {
 	// deno-lint-ignore require-await
 	async getMetadata(
 		key: string,
-		_signal?: AbortSignal,
+		_options?: { signal?: AbortSignal },
 	): Promise<StorageObject> {
 		const object = this.#storage.get(key);
 		if (!object) {
@@ -120,7 +120,6 @@ export class MemoryStorageProvider extends StorageProvider {
 	async getSignedUploadUrl(
 		key: string,
 		options?: StorageUploadOptions,
-		_signal?: AbortSignal,
 	): Promise<StorageSignedUrl> {
 		const expirySeconds = options?.expirySeconds ?? this.#defaultExpirySeconds;
 		const expiresAt = new Date(Date.now() + expirySeconds * 1000).toISOString();
@@ -143,7 +142,6 @@ export class MemoryStorageProvider extends StorageProvider {
 	async getSignedDownloadUrl(
 		key: string,
 		options?: StorageDownloadOptions,
-		_signal?: AbortSignal,
 	): Promise<StorageSignedUrl> {
 		const object = this.#storage.get(key);
 		if (!object) {
@@ -158,7 +156,7 @@ export class MemoryStorageProvider extends StorageProvider {
 	// deno-lint-ignore require-await
 	async delete(
 		key: string,
-		_signal?: AbortSignal,
+		_options?: { signal?: AbortSignal },
 	): Promise<void> {
 		this.#storage.delete(key);
 		this.#content.delete(key);
@@ -166,7 +164,6 @@ export class MemoryStorageProvider extends StorageProvider {
 
 	list(
 		options: StorageListOptions,
-		_signal?: AbortSignal,
 	): ReadableStream<StorageListEntry> {
 		const prefix = options.prefix;
 		const cursor = options.cursor;

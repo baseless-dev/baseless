@@ -606,12 +606,11 @@ export class ClientDocument {
 	 * @param path The document path template.
 	 * @param params Path parameters to resolve.
 	 * @param options Optional consistency / read options.
-	 * @param signal Optional abort signal.
 	 * @returns The {@link Document} at the given path.
 	 */
-	async get(path: string, params: Record<string, unknown>, options?: DocumentGetOptions, signal?: AbortSignal): Promise<Document<unknown>> {
+	async get(path: string, params: Record<string, unknown>, options?: DocumentGetOptions): Promise<Document<unknown>> {
 		const response = await this.#client.fetch(`${this.#endpoint}/get`, {
-			signal,
+			signal: options?.signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ path: resolvePath(path, params as never), options }),
@@ -624,17 +623,15 @@ export class ClientDocument {
 	 * Fetches multiple documents in a single request.
 	 * @param keys Array of [path, params] tuples to retrieve.
 	 * @param options Optional consistency / read options.
-	 * @param signal Optional abort signal.
 	 * @returns An array of {@link Document} values.
 	 */
 	async getMany(
 		keys: Array<[string, Record<string, unknown>]>,
 		options?: DocumentGetOptions,
-		signal?: AbortSignal,
 	): Promise<Array<Document<unknown>>> {
 		const paths = keys.map(([path, params]) => resolvePath(path, params as never));
 		const response = await this.#client.fetch(`${this.#endpoint}/get-many`, {
-			signal,
+			signal: options?.signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ paths, options }),
@@ -648,23 +645,21 @@ export class ClientDocument {
 	 * `ReadableStream`.
 	 * @param prefix The collection path template.
 	 * @param params Path parameters.
-	 * @param options Optional listing options (cursor, limit).
-	 * @param signal Optional abort signal to cancel the stream.
+	 * @param options Optional listing options (cursor, limit, signal).
 	 * @returns A stream of {@link DocumentListEntry} values.
 	 */
 	list(
 		prefix: string,
 		params: Record<string, unknown>,
-		options?: { cursor?: string; limit?: number },
-		signal?: AbortSignal,
+		options?: { cursor?: string; limit?: number; signal?: AbortSignal },
 	): ReadableStream<DocumentListEntry<unknown>> {
 		const resolvedPrefix = resolvePath(prefix, params as never);
 		const abortController = new AbortController();
-		signal?.addEventListener("abort", () => abortController.abort(), { once: true });
+		options?.signal?.addEventListener("abort", () => abortController.abort(), { once: true });
 		return new ReadableStream<DocumentListEntry>({
 			start: async (controller): Promise<void> => {
 				const response = await this.#client.fetch(`${this.#endpoint}/list`, {
-					signal,
+					signal: options?.signal,
 					method: "POST",
 					headers: { "content-type": "application/json" },
 					body: JSON.stringify({ options: { prefix: resolvedPrefix, cursor: options?.cursor, limit: options?.limit } }),
@@ -742,11 +737,11 @@ export class ClientDocumentAtomic {
 
 	/**
 	 * Commits the atomic batch to the server.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
-	async commit(signal?: AbortSignal): Promise<void> {
+	async commit(options?: { signal?: AbortSignal }): Promise<void> {
 		const response = await this.#client.fetch(`${this.#endpoint}/commit`, {
-			signal,
+			signal: options?.signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({
@@ -779,12 +774,12 @@ export class ClientPubsub {
 	 * @param path The topic path template.
 	 * @param params Path parameters.
 	 * @param payload The payload to broadcast.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
-	async publish(path: string, params: Record<string, unknown>, payload: unknown, signal?: AbortSignal): Promise<void> {
+	async publish(path: string, params: Record<string, unknown>, payload: unknown, options?: { signal?: AbortSignal }): Promise<void> {
 		const key = resolvePath(path, params as never);
 		const response = await this.#client.fetch(`${this.#endpoint}/publish`, {
-			signal,
+			signal: options?.signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ key, payload }),
@@ -846,17 +841,17 @@ export class ClientTable {
 	 * Executes a query statement against the server's registered tables.
 	 * @param fn A callback receiving a {@link BatchableStatementBuilder} and returning the statement to execute.
 	 * @param params A record of named parameter values to bind.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 * @returns The query result.
 	 */
 	async execute<TParams extends Record<string, unknown>, TOutput>(
 		fn: (q: BatchableStatementBuilder<{}, {}>) => IStatementBuilder<TParams, TOutput>,
 		params: TParams,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<TOutput> {
 		const statement = fn(new BatchableStatementBuilder()).toStatement();
 		const response = await this.#client.fetch(`${this.#endpoint}/execute`, {
-			signal,
+			signal: options?.signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ statement, params }),
@@ -883,12 +878,12 @@ export class ClientStorage {
 	 * Fetches metadata for a single storage object.
 	 * @param path The file path template.
 	 * @param params Path parameters.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 * @returns The {@link StorageObject} metadata.
 	 */
-	async getMetadata(path: string, params: Record<string, unknown>, signal?: AbortSignal): Promise<StorageObject> {
+	async getMetadata(path: string, params: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<StorageObject> {
 		const response = await this.#client.fetch(`${this.#endpoint}/get-metadata`, {
-			signal,
+			signal: options?.signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ path: resolvePath(path, params as never) }),
@@ -901,18 +896,16 @@ export class ClientStorage {
 	 * Gets a signed upload URL for a file.
 	 * @param path The file path template.
 	 * @param params Path parameters.
-	 * @param options Optional upload options (contentType, metadata, expirySeconds).
-	 * @param signal Optional abort signal.
+	 * @param options Optional upload options (contentType, metadata, expirySeconds, signal).
 	 * @returns A {@link StorageSignedUrl} with the upload URL and expiry.
 	 */
 	async getSignedUploadUrl(
 		path: string,
 		params: Record<string, unknown>,
 		options?: StorageSignedUploadUrlOptions,
-		signal?: AbortSignal,
 	): Promise<StorageSignedUrl> {
 		const response = await this.#client.fetch(`${this.#endpoint}/upload-url`, {
-			signal,
+			signal: options?.signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ path: resolvePath(path, params as never), options }),
@@ -925,18 +918,16 @@ export class ClientStorage {
 	 * Gets a signed download URL for a file.
 	 * @param path The file path template.
 	 * @param params Path parameters.
-	 * @param options Optional download options (expirySeconds).
-	 * @param signal Optional abort signal.
+	 * @param options Optional download options (expirySeconds, signal).
 	 * @returns A {@link StorageSignedUrl} with the download URL and expiry.
 	 */
 	async getSignedDownloadUrl(
 		path: string,
 		params: Record<string, unknown>,
 		options?: StorageSignedDownloadUrlOptions,
-		signal?: AbortSignal,
 	): Promise<StorageSignedUrl> {
 		const response = await this.#client.fetch(`${this.#endpoint}/download-url`, {
-			signal,
+			signal: options?.signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ path: resolvePath(path, params as never), options }),
@@ -949,11 +940,11 @@ export class ClientStorage {
 	 * Deletes a file from storage.
 	 * @param path The file path template.
 	 * @param params Path parameters.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
-	async delete(path: string, params: Record<string, unknown>, signal?: AbortSignal): Promise<void> {
+	async delete(path: string, params: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<void> {
 		await this.#client.fetch(`${this.#endpoint}/delete`, {
-			signal,
+			signal: options?.signal,
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ path: resolvePath(path, params as never) }),
@@ -964,23 +955,21 @@ export class ClientStorage {
 	 * Lists files in a folder, streaming results as a `ReadableStream`.
 	 * @param prefix The folder path template.
 	 * @param params Path parameters.
-	 * @param options Optional listing options (cursor, limit).
-	 * @param signal Optional abort signal.
+	 * @param options Optional listing options (cursor, limit, signal).
 	 * @returns A stream of {@link StorageListEntry} values.
 	 */
 	list(
 		prefix: string,
 		params: Record<string, unknown>,
-		options?: { cursor?: string; limit?: number },
-		signal?: AbortSignal,
+		options?: { cursor?: string; limit?: number; signal?: AbortSignal },
 	): ReadableStream<StorageListEntry> {
 		const resolvedPrefix = resolvePath(prefix, params as never);
 		const abortController = new AbortController();
-		signal?.addEventListener("abort", () => abortController.abort(), { once: true });
+		options?.signal?.addEventListener("abort", () => abortController.abort(), { once: true });
 		return new ReadableStream<StorageListEntry>({
 			start: async (controller): Promise<void> => {
 				const response = await this.#client.fetch(`${this.#endpoint}/list`, {
-					signal,
+					signal: options?.signal,
 					method: "POST",
 					headers: { "content-type": "application/json" },
 					body: JSON.stringify({ options: { prefix: resolvedPrefix, cursor: options?.cursor, limit: options?.limit } }),
@@ -1082,41 +1071,35 @@ export interface TypedClientDocument<
 	 * @param path The document path template.
 	 * @param params Path parameters.
 	 * @param options Optional consistency / read options.
-	 * @param signal Optional abort signal.
 	 * @returns The {@link Document} at the given path.
 	 */
 	get<TPath extends keyof TDocuments & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
 		options?: DocumentGetOptions,
-		signal?: AbortSignal,
 	): Promise<Document<TDocuments[TPath]>>;
 	/**
 	 * Fetches multiple documents in a single request.
 	 * @param keys Array of [path, params] tuples to retrieve.
 	 * @param options Optional consistency / read options.
-	 * @param signal Optional abort signal.
 	 * @returns An array of {@link Document} values.
 	 */
 	getMany<TPath extends keyof TDocuments & string>(
 		keys: Array<[path: TPath, params: PathToParams<TPath>]>,
 		options?: DocumentGetOptions,
-		signal?: AbortSignal,
 	): Promise<Array<Document<TDocuments[TPath]>>>;
 	/**
 	 * Lists documents under a path prefix, streaming results as a
 	 * `ReadableStream`.
 	 * @param prefix The collection path template.
 	 * @param params Path parameters.
-	 * @param options Optional listing options (cursor, limit).
-	 * @param signal Optional abort signal to cancel the stream.
+	 * @param options Optional listing options (cursor, limit, signal).
 	 * @returns A stream of {@link DocumentListEntry} values.
 	 */
 	list<TPath extends keyof TCollections & string>(
 		prefix: TPath,
 		params: PathToParams<TPath>,
-		options?: { cursor?: string; limit?: number },
-		signal?: AbortSignal,
+		options?: { cursor?: string; limit?: number; signal?: AbortSignal },
 	): ReadableStream<DocumentListEntry<TCollections[TPath]>>;
 	/**
 	 * Returns a builder for atomic document operations.
@@ -1171,9 +1154,9 @@ export interface TypedClientDocumentAtomic<
 	): TypedClientDocumentAtomic<TCollections, TDocuments>;
 	/**
 	 * Commits the atomic batch to the server.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
-	commit(signal?: AbortSignal): Promise<void>;
+	commit(options?: { signal?: AbortSignal }): Promise<void>;
 }
 
 /**
@@ -1189,13 +1172,13 @@ export interface TypedClientPubsub<
 	 * @param path The topic path template.
 	 * @param params Path parameters.
 	 * @param payload The payload to broadcast.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
 	publish<TPath extends keyof TTopics & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
 		payload: TTopics[TPath],
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<void>;
 	/**
 	 * Returns a `ReadableStream` that emits payloads published to the topic.
@@ -1225,13 +1208,13 @@ export interface TypedClientTable<
 	 * Executes a query statement against the server's registered tables.
 	 * @param fn A callback receiving a {@link BatchableStatementBuilder} typed to the registered tables and returning the statement to execute.
 	 * @param params A record of named parameter values to bind.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 * @returns The query result.
 	 */
 	execute<TParams extends Record<string, unknown>, TOutput>(
 		fn: (q: BatchableStatementBuilder<TTables, TTables>) => IStatementBuilder<TParams, TOutput>,
 		params: TParams,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<TOutput>;
 }
 
@@ -1249,66 +1232,60 @@ export interface TypedClientStorage<
 	 * Fetches metadata for a single storage file.
 	 * @param path The file path template.
 	 * @param params Path parameters.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 * @returns The {@link StorageObject} metadata.
 	 */
 	getMetadata<TPath extends keyof TFiles & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<StorageObject>;
 	/**
 	 * Gets a signed upload URL for the given file.
 	 * @param path The file path template.
 	 * @param params Path parameters.
 	 * @param options Optional upload options.
-	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} with the upload URL and expiry.
 	 */
 	getSignedUploadUrl<TPath extends keyof TFiles & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
 		options?: StorageSignedUploadUrlOptions,
-		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 	/**
 	 * Gets a signed download URL for the given file.
 	 * @param path The file path template.
 	 * @param params Path parameters.
 	 * @param options Optional download options.
-	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} with the download URL and expiry.
 	 */
 	getSignedDownloadUrl<TPath extends keyof TFiles & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
 		options?: StorageSignedDownloadUrlOptions,
-		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 	/**
 	 * Deletes a file from storage.
 	 * @param path The file path template.
 	 * @param params Path parameters.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
 	delete<TPath extends keyof TFiles & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<void>;
 	/**
 	 * Lists files under a folder prefix, streaming results.
 	 * @param prefix The folder path template.
 	 * @param params Path parameters.
-	 * @param options Optional listing options (cursor, limit).
-	 * @param signal Optional abort signal.
+	 * @param options Optional listing options (cursor, limit, signal).
 	 * @returns A stream of {@link StorageListEntry} values.
 	 */
 	list<TPath extends keyof TFolders & string>(
 		prefix: TPath,
 		params: PathToParams<TPath>,
-		options?: { cursor?: string; limit?: number },
-		signal?: AbortSignal,
+		options?: { cursor?: string; limit?: number; signal?: AbortSignal },
 	): ReadableStream<StorageListEntry>;
 }
 

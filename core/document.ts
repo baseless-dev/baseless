@@ -45,12 +45,14 @@ export function Document(data?: z.ZodType): z.ZodObject<{
  * Options controlling the consistency level used when reading a document.
  */
 export interface DocumentGetOptions {
-	readonly consistency: "strong" | "eventual";
+	readonly consistency?: "strong" | "eventual";
+	readonly signal?: AbortSignal;
 }
 
 /** Zod schema for {@link DocumentGetOptions}. */
 export const DocumentGetOptions = z.strictObject({
 	consistency: z.union([z.literal("strong"), z.literal("eventual")]),
+	signal: z.optional(z.instanceof(AbortSignal)),
 });
 
 /**
@@ -62,6 +64,7 @@ export interface DocumentListOptions<TPrefix = string> {
 	readonly prefix: TPrefix;
 	readonly cursor?: string;
 	readonly limit?: number;
+	readonly signal?: AbortSignal;
 }
 
 /** Zod schema for {@link DocumentListOptions}. */
@@ -69,6 +72,7 @@ export const DocumentListOptions = z.strictObject({
 	prefix: z.string(),
 	cursor: z.optional(z.string()),
 	limit: z.optional(z.number()),
+	signal: z.optional(z.instanceof(AbortSignal)),
 });
 
 /**

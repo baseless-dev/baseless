@@ -2,7 +2,8 @@
  * Options for a KV `get` operation.
  */
 export interface KVGetOptions {
-	readonly cacheTtl: number;
+	readonly cacheTtl?: number;
+	readonly signal?: AbortSignal;
 }
 
 /**
@@ -12,6 +13,7 @@ export interface KVListOptions {
 	readonly prefix: string;
 	readonly cursor?: string;
 	readonly limit?: number;
+	readonly signal?: AbortSignal;
 }
 
 /**
@@ -22,6 +24,7 @@ export type KVPutOptions = {
 	 * Document will expire at specified date
 	 */
 	readonly expiration?: number | Date;
+	readonly signal?: AbortSignal;
 };
 
 /**

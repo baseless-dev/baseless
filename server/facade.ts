@@ -67,26 +67,24 @@ export class KVFacade implements KVService {
 	get(
 		key: string,
 		options?: KVGetOptions,
-		signal?: AbortSignal,
 	): Promise<KVKey> {
-		return this.#provider.get(key, options, signal);
+		return this.#provider.get(key, options);
 	}
 
 	put(
 		key: string,
 		value: unknown,
 		options?: KVPutOptions,
-		signal?: AbortSignal,
 	): Promise<void> {
-		return this.#provider.put(key, value, options, signal);
+		return this.#provider.put(key, value, options);
 	}
 
-	list(options: KVListOptions, signal?: AbortSignal): Promise<KVListResult> {
-		return this.#provider.list(options, signal);
+	list(options: KVListOptions): Promise<KVListResult> {
+		return this.#provider.list(options);
 	}
 
-	delete(key: string, signal?: AbortSignal): Promise<void> {
-		return this.#provider.delete(key, signal);
+	delete(key: string, options?: { signal?: AbortSignal }): Promise<void> {
+		return this.#provider.delete(key, options);
 	}
 }
 
@@ -104,7 +102,7 @@ export class AuthFacade {
 		this.#options = options;
 	}
 
-	async authenticate(authorization: string, signal?: AbortSignal): Promise<Auth> {
+	async authenticate(authorization: string, options?: { signal?: AbortSignal }): Promise<Auth> {
 		if (this.#options.configuration?.keyPublic === undefined) {
 			return undefined;
 		} else if (authorization.startsWith("Bearer ")) {
@@ -124,14 +122,14 @@ export class AuthFacade {
 		return undefined;
 	}
 
-	async revoke(authorization: string, signal?: AbortSignal): Promise<void> {
+	async revoke(authorization: string, options?: { signal?: AbortSignal }): Promise<void> {
 		if (this.#options.configuration?.keyPublic === undefined) {
 			return undefined;
 		} else if (authorization.startsWith("Bearer ")) {
 			const { payload } = await jwtVerify(authorization.slice("Bearer ".length), this.#options.configuration?.keyPublic);
 			const { sub, sid } = payload;
 			if (isID("id_", sub) && isID("ses_", sid)) {
-				await this.#options.kv.delete(`auth/identity/${sub}/session/${sid}`, signal);
+				await this.#options.kv.delete(`auth/identity/${sub}/session/${sid}`, options);
 			}
 		} else if (authorization.startsWith("Token ")) {
 			throw "TODO!";
@@ -174,7 +172,12 @@ export class AuthFacade {
 		return { accessToken, idToken, refreshToken };
 	}
 
-	async createSession(identity: Identity, issuedAt: number, scope: string[], signal?: AbortSignal): Promise<AuthenticationTokens> {
+	async createSession(
+		identity: Identity,
+		issuedAt: number,
+		scope: string[],
+		options?: { signal?: AbortSignal },
+	): Promise<AuthenticationTokens> {
 		if (
 			this.#options.configuration?.keyPublic === undefined ||
 			this.#options.configuration === undefined ||
@@ -195,7 +198,7 @@ export class AuthFacade {
 		return tokens;
 	}
 
-	async refreshSession(refreshToken: string, signal?: AbortSignal): Promise<AuthenticationTokens> {
+	async refreshSession(refreshToken: string, options?: { signal?: AbortSignal }): Promise<AuthenticationTokens> {
 		if (
 			this.#options.configuration?.keyPublic === undefined ||
 			this.#options.configuration === undefined ||
@@ -207,9 +210,9 @@ export class AuthFacade {
 		const { sub, sid } = payload;
 		assertID("id_", sub);
 		assertID("ses_", sid);
-		const session = await this.#options.kv.get(`auth/identity/${sub}/session/${sid}`, undefined, signal)
+		const session = await this.#options.kv.get(`auth/identity/${sub}/session/${sid}`, { signal: options?.signal })
 			.then((v) => v.value as Session);
-		const identity = await this.#options.document.get(resolvePath("auth/identity/:key", { key: sub }), undefined, signal)
+		const identity = await this.#options.document.get(resolvePath("auth/identity/:key", { key: sub }), { signal: options?.signal })
 			.then((d) => d as Document<Identity>);
 		const tokens = await this.#createTokens(
 			identity.data,
@@ -247,7 +250,6 @@ export class DocumentFacade implements DocumentService<any, any> {
 		path: TPath,
 		params: PathToParams<TPath>,
 		options?: DocumentGetOptions,
-		signal?: AbortSignal,
 	): Promise<Document<any>> {
 		const key = resolvePath(path, params);
 		try {
@@ -257,13 +259,12 @@ export class DocumentFacade implements DocumentService<any, any> {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
 
-		return this.#options.provider.get(key, options, signal);
+		return this.#options.provider.get(key, options);
 	}
 
 	getMany<TPath extends keyof any & string>(
 		keys: Array<[path: TPath, params: PathToParams<TPath>]>,
 		options?: DocumentGetOptions,
-		signal?: AbortSignal,
 	): Promise<Array<Document<any>>> {
 		const resolvedKeys = keys.map(([path, params]) => resolvePath(path, params));
 		try {
@@ -275,14 +276,13 @@ export class DocumentFacade implements DocumentService<any, any> {
 			throw new DocumentNotFoundError(undefined, { cause });
 		}
 
-		return this.#options.provider.getMany(resolvedKeys, options, signal);
+		return this.#options.provider.getMany(resolvedKeys, options);
 	}
 
 	list<TPath extends keyof any & string>(
 		prefix: TPath,
 		params: PathToParams<TPath>,
-		options?: { cursor?: string; limit?: number },
-		signal?: AbortSignal,
+		options?: { cursor?: string; limit?: number; signal?: AbortSignal },
 	): ReadableStream<DocumentListEntry<any>> {
 		const key = resolvePath(prefix, params);
 		try {
@@ -296,7 +296,8 @@ export class DocumentFacade implements DocumentService<any, any> {
 			prefix: key,
 			cursor: options?.cursor,
 			limit: options?.limit,
-		}, signal);
+			signal: options?.signal,
+		});
 	}
 
 	atomic(): DocumentServiceAtomic<any> {
@@ -317,7 +318,11 @@ export class DocumentFacadeAtomic implements DocumentServiceAtomic<any> {
 		this.#options = options;
 	}
 
-	check<TPath extends keyof any & string>(path: TPath, params: PathToParams<TPath>, versionstamp: string | null): DocumentServiceAtomic<any> {
+	check<TPath extends keyof any & string>(
+		path: TPath,
+		params: PathToParams<TPath>,
+		versionstamp: string | null,
+	): DocumentServiceAtomic<any> {
 		const key = resolvePath(path, params);
 		try {
 			// deno-lint-ignore no-var no-inner-declarations
@@ -354,7 +359,8 @@ export class DocumentFacadeAtomic implements DocumentServiceAtomic<any> {
 		return this;
 	}
 
-	async commit(signal?: AbortSignal): Promise<void> {
+	async commit(options?: { signal?: AbortSignal }): Promise<void> {
+		const signal = options?.signal;
 		const atomic = this.#options.provider.atomic();
 		const messages = [] as Array<{ key: string; payload: never }>;
 		for (const check of this.checks) {
@@ -409,10 +415,10 @@ export class DocumentFacadeAtomic implements DocumentServiceAtomic<any> {
 				}
 			}
 		}
-		await atomic.commit(signal);
+		await atomic.commit(options);
 
 		for (const { key, payload } of messages) {
-			this.#options.waitUntil(this.#options.service.pubsub.publish(key as never, {} as never, payload, signal));
+			this.#options.waitUntil(this.#options.service.pubsub.publish(key as never, {} as never, payload, { signal }));
 		}
 	}
 }
@@ -438,7 +444,7 @@ export class PubSubFacade implements PubSubService<any> {
 		path: TTopic,
 		params: PathToParams<TTopic>,
 		payload: any,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<void> {
 		const key = resolvePath(path, params);
 		try {
@@ -451,7 +457,7 @@ export class PubSubFacade implements PubSubService<any> {
 
 		await this.#options.provider.enqueue(
 			{ type: "topic_publish", key, payload },
-			signal,
+			options,
 		);
 	}
 }
@@ -473,28 +479,33 @@ export class NotificationFacade implements NotificationService {
 		this.#options = options;
 	}
 
-	async notify(identityId: Identity["id"], notification: Notification, signal?: AbortSignal): Promise<boolean> {
+	async notify(identityId: Identity["id"], notification: Notification, options?: { signal?: AbortSignal }): Promise<boolean> {
 		let notified = false;
 		for await (
-			const entry of this.#options.service.document.list(`auth/identity/:identityId/channel` as never, { identityId } as never, undefined, undefined)
+			const entry of this.#options.service.document.list(`auth/identity/:identityId/channel` as never, { identityId } as never)
 		) {
 			const identityChannel = entry.document.data as IdentityChannel;
 			if (identityChannel.confirmed) {
 				const notificationChannelProvider = this.#options.providers[identityChannel.channelId];
-				notified ||= await notificationChannelProvider?.send(identityChannel, notification, signal) ?? false;
+				notified ||= await notificationChannelProvider?.send(identityChannel, notification, options) ?? false;
 			}
 		}
 		return notified;
 	}
 
-	async notifyChannel(identityId: Identity["id"], channel: string, notification: Notification, signal?: AbortSignal): Promise<boolean> {
+	async notifyChannel(
+		identityId: Identity["id"],
+		channel: string,
+		notification: Notification,
+		options?: { signal?: AbortSignal },
+	): Promise<boolean> {
 		try {
 			const identityChannel = await this.#options.service.document
-				.get(`auth/identity/:identityId/channel/:channel` as never, { identityId, channel } as never, undefined, signal)
+				.get(`auth/identity/:identityId/channel/:channel` as never, { identityId, channel } as never, { signal: options?.signal })
 				.then((d) => d.data as IdentityChannel);
 			if (identityChannel.confirmed) {
 				const notificationChannelProvider = this.#options.providers[identityChannel.channelId];
-				return await notificationChannelProvider?.send(identityChannel, notification, signal) ?? false;
+				return await notificationChannelProvider?.send(identityChannel, notification, options) ?? false;
 			}
 			return false;
 		} catch (cause) {
@@ -502,10 +513,10 @@ export class NotificationFacade implements NotificationService {
 		}
 	}
 
-	unsafeNotifyChannel(identityChannel: IdentityChannel, notification: Notification, signal?: AbortSignal): Promise<boolean> {
+	unsafeNotifyChannel(identityChannel: IdentityChannel, notification: Notification, options?: { signal?: AbortSignal }): Promise<boolean> {
 		if (identityChannel.confirmed) {
 			const channel = this.#options.providers[identityChannel.channelId];
-			return channel?.send(identityChannel, notification, signal) ?? true;
+			return channel?.send(identityChannel, notification, options) ?? true;
 		}
 		return Promise.resolve(false);
 	}
@@ -544,9 +555,9 @@ export class TableFacade implements TableService<any> {
 	async execute<TParams extends Record<string, unknown>, TOutput>(
 		statement: TStatement<TParams, TOutput>,
 		params: TParams,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<TOutput> {
-		const result = await this.#provider.execute(statement as TStatement<Record<string, unknown>, unknown>, params, signal);
+		const result = await this.#provider.execute(statement as TStatement<Record<string, unknown>, unknown>, params, options);
 		return result as TOutput;
 	}
 }
@@ -573,7 +584,7 @@ export class StorageFacade implements StorageService<any, any> {
 	getMetadata<TPath extends keyof any & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<StorageObject> {
 		const key = resolvePath(path, params);
 		try {
@@ -581,14 +592,13 @@ export class StorageFacade implements StorageService<any, any> {
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.storageProvider.getMetadata(key, signal);
+		return this.#options.storageProvider.getMetadata(key, options);
 	}
 
 	getSignedUploadUrl<TPath extends keyof any & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
 		options?: StorageSignedUploadUrlOptions,
-		signal?: AbortSignal,
 	): Promise<StorageSignedUrl> {
 		const key = resolvePath(path, params);
 		try {
@@ -596,14 +606,13 @@ export class StorageFacade implements StorageService<any, any> {
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.storageProvider.getSignedUploadUrl(key, options, signal);
+		return this.#options.storageProvider.getSignedUploadUrl(key, options);
 	}
 
 	getSignedDownloadUrl<TPath extends keyof any & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
 		options?: StorageSignedDownloadUrlOptions,
-		signal?: AbortSignal,
 	): Promise<StorageSignedUrl> {
 		const key = resolvePath(path, params);
 		try {
@@ -611,7 +620,7 @@ export class StorageFacade implements StorageService<any, any> {
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.storageProvider.getSignedDownloadUrl(key, options, signal);
+		return this.#options.storageProvider.getSignedDownloadUrl(key, options);
 	}
 
 	async put<TPath extends keyof any & string>(
@@ -619,7 +628,6 @@ export class StorageFacade implements StorageService<any, any> {
 		params: PathToParams<TPath>,
 		content: ReadableStream<Uint8Array> | ArrayBuffer | Blob,
 		options?: StoragePutOptions,
-		signal?: AbortSignal,
 	): Promise<void> {
 		const key = resolvePath(path, params);
 		try {
@@ -627,15 +635,15 @@ export class StorageFacade implements StorageService<any, any> {
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		await this.#options.storageProvider.put(key, content, options, signal);
-		const file = await this.#options.storageProvider.getMetadata(key, signal);
-		this.#options.waitUntil(this.#options.queueProvider.enqueue({ type: "file_uploaded", key: key as never, file }, signal));
+		await this.#options.storageProvider.put(key, content, options);
+		const file = await this.#options.storageProvider.getMetadata(key);
+		this.#options.waitUntil(this.#options.queueProvider.enqueue({ type: "file_uploaded", key: key as never, file }));
 	}
 
 	get<TPath extends keyof any & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<ReadableStream<Uint8Array>> {
 		const key = resolvePath(path, params);
 		try {
@@ -643,33 +651,32 @@ export class StorageFacade implements StorageService<any, any> {
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
-		return this.#options.storageProvider.get(key, signal);
+		return this.#options.storageProvider.get(key, options);
 	}
 
 	async delete<TPath extends keyof any & string>(
 		path: TPath,
 		params: PathToParams<TPath>,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<void> {
 		const key = resolvePath(path, params);
 		try {
 			const _ = first(this.#options.app.match("file", key));
 			// deno-lint-ignore no-var no-inner-declarations
-			var file = await this.#options.storageProvider.getMetadata(key, signal);
+			var file = await this.#options.storageProvider.getMetadata(key, options);
 		} catch (cause) {
 			throw new StorageObjectNotFoundError(undefined, { cause });
 		}
 
-		await this.#options.storageProvider.delete(key, signal);
+		await this.#options.storageProvider.delete(key, options);
 
-		this.#options.waitUntil(this.#options.queueProvider.enqueue({ type: "file_deleted", key: key as never, file }, signal));
+		this.#options.waitUntil(this.#options.queueProvider.enqueue({ type: "file_deleted", key: key as never, file }));
 	}
 
 	list<TPath extends keyof any & string>(
 		prefix: TPath,
 		params: PathToParams<TPath>,
-		options?: { cursor?: string; limit?: number },
-		signal?: AbortSignal,
+		options?: { cursor?: string; limit?: number; signal?: AbortSignal },
 	): ReadableStream<StorageListEntry> {
 		const key = resolvePath(prefix, params);
 		try {
@@ -679,8 +686,7 @@ export class StorageFacade implements StorageService<any, any> {
 			throw new StorageFolderNotFoundError(undefined, { cause });
 		}
 		return this.#options.storageProvider.list(
-			{ prefix: key, cursor: options?.cursor, limit: options?.limit },
-			signal,
+			{ prefix: key, cursor: options?.cursor, limit: options?.limit, signal: options?.signal },
 		);
 	}
 }

@@ -22,7 +22,7 @@ export type {
 	StorageListOptions,
 	StorageObject,
 	StorageSignedDownloadUrlOptions as StorageDownloadOptions,
-	StorageSignedUploadUrl as StorageUploadOptions,
+	StorageSignedUploadUrlOptions as StorageUploadOptions,
 	StorageSignedUrl,
 } from "@baseless/core/storage";
 export { choice, component, sequence } from "@baseless/core/authentication-ceremony";

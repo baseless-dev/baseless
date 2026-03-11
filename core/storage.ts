@@ -42,6 +42,7 @@ export interface StorageListOptions<TPrefix = string> {
 	readonly prefix: TPrefix;
 	readonly cursor?: string;
 	readonly limit?: number;
+	readonly signal?: AbortSignal;
 }
 
 /** Zod schema for {@link StorageListOptions}. */
@@ -49,6 +50,7 @@ export const StorageListOptions = z.strictObject({
 	prefix: z.string(),
 	cursor: z.optional(z.string()),
 	limit: z.optional(z.number()),
+	signal: z.optional(z.instanceof(AbortSignal)),
 });
 
 /**
@@ -115,6 +117,7 @@ export interface StorageSignedUploadUrlOptions {
 		accept?: string[];
 		contentLengthRange?: { min?: number; max?: number };
 	};
+	readonly signal?: AbortSignal;
 }
 
 /** Zod schema for {@link StorageSignedUploadUrlOptions}. */
@@ -123,6 +126,7 @@ export const StorageSignedUploadUrlOptions = z.strictObject({
 	metadata: z.optional(z.record(z.string(), z.string())),
 	expirySeconds: z.optional(z.number()),
 	conditions: z.optional(z.record(z.string(), z.string())),
+	signal: z.optional(z.instanceof(AbortSignal)),
 });
 
 /**
@@ -132,6 +136,7 @@ export interface StoragePutOptions {
 	contentType: string;
 	metadata: Record<string, string>;
 	etag: string;
+	signal?: AbortSignal;
 }
 
 /**
@@ -141,11 +146,13 @@ export function StoragePutOptions(): z.ZodObject<{
 	contentType: z.ZodString;
 	metadata: z.ZodRecord<z.ZodString, z.ZodString>;
 	etag: z.ZodString;
+	signal: z.ZodOptional<z.ZodCustom<AbortSignal>>;
 }> {
 	return z.strictObject({
 		contentType: z.string(),
 		metadata: z.record(z.string(), z.string()),
 		etag: z.string(),
+		signal: z.optional(z.instanceof(AbortSignal)),
 	});
 }
 
@@ -154,6 +161,7 @@ export function StoragePutOptions(): z.ZodObject<{
  */
 export interface StorageSignedDownloadUrlOptions {
 	readonly expirySeconds?: number;
+	readonly signal?: AbortSignal;
 }
 
 /** Zod schema for {@link StorageSignedDownloadUrlOptions}. */

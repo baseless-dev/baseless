@@ -48,9 +48,9 @@ export class LibSQLTableProvider extends TableProvider {
 	async execute(
 		statement: TStatement<Record<string, unknown>, unknown>,
 		params: Record<string, unknown>,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<unknown> {
-		signal?.throwIfAborted();
+		options?.signal?.throwIfAborted();
 
 		const ast = statement.statement;
 		switch (ast.type) {

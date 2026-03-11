@@ -29,9 +29,9 @@ export class MemoryQueueProvider extends QueueProvider {
 	 * If no stream is currently dequeuing, the item is buffered and will be
 	 * flushed to the next caller of {@link dequeue}.
 	 * @param item The item to enqueue.
-	 * @param _signal Ignored; present for interface compatibility.
+	 * @param _options Ignored; present for interface compatibility.
 	 */
-	enqueue(item: QueueItem, _signal?: AbortSignal): Promise<void> {
+	enqueue(item: QueueItem, _options?: { signal?: AbortSignal }): Promise<void> {
 		// If no writer, buffer items
 		if (this.#writers.size === 0) {
 			this.#queue.push(item);
@@ -48,10 +48,11 @@ export class MemoryQueueProvider extends QueueProvider {
 	 *
 	 * Any items buffered before this call are flushed immediately.  Multiple
 	 * concurrent streams each receive every enqueued item.
-	 * @param signal Optional abort signal to close the stream.
+	 * @param options Optional options including abort signal to close the stream.
 	 * @returns A `ReadableStream` of {@link QueueItem} values.
 	 */
-	dequeue(signal?: AbortSignal): ReadableStream<QueueItem> {
+	dequeue(options?: { signal?: AbortSignal }): ReadableStream<QueueItem> {
+		const signal = options?.signal;
 		const _this = this;
 		const id = this.#id++;
 		const { readable, writable } = new TransformStream<QueueItem>({

@@ -54,9 +54,9 @@ export class DenoHubProvider extends HubProvider {
 	 * Subscribes the hub connection identified by `hubId` to pub/sub `path`.
 	 * @param path The topic path.
 	 * @param hubId The hub connection ID.
-	 * @param _signal Ignored; present for interface compatibility.
+	 * @param _options Ignored; present for interface compatibility.
 	 */
-	override subscribe(path: string, hubId: ID<"hub_">, _signal?: AbortSignal): Promise<void> {
+	override subscribe(path: string, hubId: ID<"hub_">, _options?: { signal?: AbortSignal }): Promise<void> {
 		const subscriptions = this.#subscriptions.get(path) ?? new Set();
 		subscriptions.add(hubId);
 		this.#subscriptions.set(path, subscriptions);
@@ -67,9 +67,9 @@ export class DenoHubProvider extends HubProvider {
 	 * Removes the subscription of `hubId` from pub/sub `path`.
 	 * @param path The topic path.
 	 * @param hubId The hub connection ID.
-	 * @param _signal Ignored; present for interface compatibility.
+	 * @param _options Ignored; present for interface compatibility.
 	 */
-	override unsubscribe(path: string, hubId: ID<"hub_">, _signal?: AbortSignal): Promise<void> {
+	override unsubscribe(path: string, hubId: ID<"hub_">, _options?: { signal?: AbortSignal }): Promise<void> {
 		const subscriptions = this.#subscriptions.get(path);
 		if (subscriptions) {
 			subscriptions.delete(hubId);
@@ -84,9 +84,9 @@ export class DenoHubProvider extends HubProvider {
 	 * Broadcasts `payload` to all hub connections subscribed to `path`.
 	 * @param path The topic path.
 	 * @param payload The payload to broadcast.
-	 * @param _signal Ignored; present for interface compatibility.
+	 * @param _options Ignored; present for interface compatibility.
 	 */
-	override publish(path: string, payload: unknown, _signal?: AbortSignal): Promise<void> {
+	override publish(path: string, payload: unknown, _options?: { signal?: AbortSignal }): Promise<void> {
 		const subscriptions = this.#subscriptions.get(path);
 		if (subscriptions) {
 			for (const hubId of subscriptions) {

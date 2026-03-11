@@ -97,9 +97,9 @@ export abstract class DocumentAtomic {
 
 	/**
 	 * Flushes the accumulated checks and operations to the underlying store.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
-	abstract commit(signal?: AbortSignal): Promise<void>;
+	abstract commit(options?: { signal?: AbortSignal }): Promise<void>;
 }
 
 /**
@@ -111,27 +111,24 @@ export abstract class DocumentProvider {
 	 * Retrieves a single document by key.
 	 * @param key The document path.
 	 * @param options Optional read options.
-	 * @param signal Optional abort signal.
 	 * @returns The {@link Document} stored at `key`.
 	 */
-	abstract get(key: string, options?: DocumentGetOptions, signal?: AbortSignal): Promise<Document>;
+	abstract get(key: string, options?: DocumentGetOptions): Promise<Document>;
 
 	/**
 	 * Retrieves multiple documents in a single operation.
 	 * @param keys Array of document paths to retrieve.
 	 * @param options Optional read options.
-	 * @param signal Optional abort signal.
 	 * @returns An array of {@link Document} values in the same order as `keys`.
 	 */
-	abstract getMany(keys: Array<string>, options?: DocumentGetOptions, signal?: AbortSignal): Promise<Array<Document>>;
+	abstract getMany(keys: Array<string>, options?: DocumentGetOptions): Promise<Array<Document>>;
 
 	/**
 	 * Lists documents matching the given options as a stream.
 	 * @param options Listing options (prefix, cursor, limit, etc.).
-	 * @param signal Optional abort signal.
 	 * @returns A `ReadableStream` of {@link DocumentListEntry} values.
 	 */
-	abstract list(options: DocumentListOptions, signal?: AbortSignal): ReadableStream<DocumentListEntry>;
+	abstract list(options: DocumentListOptions): ReadableStream<DocumentListEntry>;
 
 	/**
 	 * Creates a new {@link DocumentAtomic} batch builder for this provider.
@@ -149,31 +146,28 @@ export abstract class KVProvider {
 	 * Retrieves the value stored at `key`.
 	 * @param key The KV key.
 	 * @param options Optional read options.
-	 * @param signal Optional abort signal.
 	 * @returns The {@link KVKey} entry at the given key.
 	 */
-	abstract get(key: string, options?: KVGetOptions, signal?: AbortSignal): Promise<KVKey>;
+	abstract get(key: string, options?: KVGetOptions): Promise<KVKey>;
 	/**
 	 * Stores `value` at `key` with optional TTL and expiration options.
 	 * @param key The KV key.
 	 * @param value The value to store.
 	 * @param options Optional put options (e.g. `expireIn`).
-	 * @param signal Optional abort signal.
 	 */
-	abstract put(key: string, value: unknown, options?: KVPutOptions, signal?: AbortSignal): Promise<void>;
+	abstract put(key: string, value: unknown, options?: KVPutOptions): Promise<void>;
 	/**
 	 * Lists entries matching the given options.
 	 * @param options Listing options (prefix, cursor, limit, etc.).
-	 * @param signal Optional abort signal.
 	 * @returns A {@link KVListResult} page of matching entries.
 	 */
-	abstract list(options: KVListOptions, signal?: AbortSignal): Promise<KVListResult>;
+	abstract list(options: KVListOptions): Promise<KVListResult>;
 	/**
 	 * Removes the entry at `key`.
 	 * @param key The KV key to delete.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
-	abstract delete(key: string, signal?: AbortSignal): Promise<void>;
+	abstract delete(key: string, options?: { signal?: AbortSignal }): Promise<void>;
 }
 
 /**
@@ -183,15 +177,15 @@ export abstract class QueueProvider {
 	/**
 	 * Adds `item` to the queue for later processing.
 	 * @param item The item to enqueue.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
-	abstract enqueue(item: QueueItem, signal?: AbortSignal): Promise<void>;
+	abstract enqueue(item: QueueItem, options?: { signal?: AbortSignal }): Promise<void>;
 	/**
 	 * Returns a stream that emits dequeued items as they become available.
-	 * @param signal Optional abort signal to close the stream.
+	 * @param options Optional options including abort signal.
 	 * @returns A `ReadableStream` of {@link QueueItem} values.
 	 */
-	abstract dequeue(signal?: AbortSignal): ReadableStream<QueueItem>;
+	abstract dequeue(options?: { signal?: AbortSignal }): ReadableStream<QueueItem>;
 }
 
 /** Options passed to {@link HubProvider.transfer} for each WebSocket upgrade request. */
@@ -230,23 +224,23 @@ export abstract class HubProvider {
 	 * Subscribes the hub connection identified by `hubId` to pub/sub `path`.
 	 * @param path The topic path.
 	 * @param hubId The hub connection ID.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
-	abstract subscribe(path: string, hubId: ID<"hub_">, signal?: AbortSignal): Promise<void>;
+	abstract subscribe(path: string, hubId: ID<"hub_">, options?: { signal?: AbortSignal }): Promise<void>;
 	/**
 	 * Removes the subscription of `hubId` from pub/sub `path`.
 	 * @param path The topic path.
 	 * @param hubId The hub connection ID.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
-	abstract unsubscribe(path: string, hubId: ID<"hub_">, signal?: AbortSignal): Promise<void>;
+	abstract unsubscribe(path: string, hubId: ID<"hub_">, options?: { signal?: AbortSignal }): Promise<void>;
 	/**
 	 * Broadcasts `payload` to all hub connections subscribed to `path`.
 	 * @param path The topic path.
 	 * @param payload The payload to broadcast.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
-	abstract publish(path: string, payload: unknown, signal?: AbortSignal): Promise<void>;
+	abstract publish(path: string, payload: unknown, options?: { signal?: AbortSignal }): Promise<void>;
 }
 
 /** Options passed to {@link IdentityComponentProvider.skipSignInPrompt}. */
@@ -458,10 +452,10 @@ export abstract class NotificationChannelProvider {
 	 * Sends `notification` to the identity channel.
 	 * @param identityChannel The channel to deliver the notification to.
 	 * @param notification The notification payload to send.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 * @returns `true` if the notification was delivered successfully.
 	 */
-	abstract send(identityChannel: IdentityChannel, notification: Notification, signal?: AbortSignal): Promise<boolean>;
+	abstract send(identityChannel: IdentityChannel, notification: Notification, options?: { signal?: AbortSignal }): Promise<boolean>;
 }
 
 /** Options passed to {@link RateLimiterProvider.limit}. */
@@ -513,7 +507,7 @@ export abstract class TableProvider {
 	abstract execute(
 		statement: TStatement<Record<string, unknown>, unknown>,
 		params: Record<string, unknown>,
-		signal?: AbortSignal,
+		options?: { signal?: AbortSignal },
 	): Promise<unknown>;
 }
 
@@ -526,43 +520,38 @@ export abstract class StorageProvider {
 	/**
 	 * Lists objects matching the given prefix as a stream.
 	 * @param options Listing options (prefix, cursor, limit).
-	 * @param signal Optional abort signal.
 	 * @returns A `ReadableStream` of {@link StorageListEntry} values.
 	 */
-	abstract list(options: StorageListOptions, signal?: AbortSignal): ReadableStream<StorageListEntry>;
+	abstract list(options: StorageListOptions): ReadableStream<StorageListEntry>;
 
 	/**
 	 * Retrieves metadata for a single stored object.
 	 * @param key The object key/path.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 * @returns The {@link StorageObject} metadata.
 	 */
-	abstract getMetadata(key: string, signal?: AbortSignal): Promise<StorageObject>;
+	abstract getMetadata(key: string, options?: { signal?: AbortSignal }): Promise<StorageObject>;
 
 	/**
 	 * Generates a pre-signed URL that allows a client to upload (PUT) a file.
 	 * @param key The object key/path.
 	 * @param options Optional upload options (content-type, metadata, expiry).
-	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} the client can use to upload.
 	 */
 	abstract getSignedUploadUrl(
 		key: string,
 		options?: StorageSignedUploadUrlOptions,
-		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 
 	/**
 	 * Generates a pre-signed URL that allows a client to download (GET) a file.
 	 * @param key The object key/path.
 	 * @param options Optional download options (expiry).
-	 * @param signal Optional abort signal.
 	 * @returns A {@link StorageSignedUrl} the client can use to download.
 	 */
 	abstract getSignedDownloadUrl(
 		key: string,
 		options?: StorageSignedDownloadUrlOptions,
-		signal?: AbortSignal,
 	): Promise<StorageSignedUrl>;
 
 	/**
@@ -570,27 +559,25 @@ export abstract class StorageProvider {
 	 * @param key The object key/path.
 	 * @param content The file content as a `ReadableStream`, `ArrayBuffer`, or `Blob`.
 	 * @param options Optional upload options (content-type, metadata).
-	 * @param signal Optional abort signal.
 	 */
 	abstract put(
 		key: string,
 		content: ReadableStream<Uint8Array> | ArrayBuffer | Blob,
 		options?: StoragePutOptions,
-		signal?: AbortSignal,
 	): Promise<void>;
 
 	/**
 	 * Retrieves the content of a stored object as a `ReadableStream`.
 	 * @param key The object key/path.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 * @returns A `ReadableStream` of the file content.
 	 */
-	abstract get(key: string, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>>;
+	abstract get(key: string, options?: { signal?: AbortSignal }): Promise<ReadableStream<Uint8Array>>;
 
 	/**
 	 * Deletes the object at the given key.
 	 * @param key The object key/path to delete.
-	 * @param signal Optional abort signal.
+	 * @param options Optional options including abort signal.
 	 */
-	abstract delete(key: string, signal?: AbortSignal): Promise<void>;
+	abstract delete(key: string, options?: { signal?: AbortSignal }): Promise<void>;
 }

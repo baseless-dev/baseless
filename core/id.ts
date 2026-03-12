@@ -5,9 +5,8 @@ declare const BRAND: unique symbol;
  */
 export type ID<Prefix extends string = ""> = string & { [BRAND]: Prefix };
 
-const buffer1 = new Uint8Array(17);
-const buffer2 = new Uint8Array(8);
-const dataview = new DataView(buffer2.buffer);
+const buffer1 = new Uint8Array(20);
+const dataview = new DataView(buffer1.buffer);
 
 /**
  * Generate a random ID.
@@ -15,16 +14,15 @@ const dataview = new DataView(buffer2.buffer);
  * @returns A random ID.
  *
  * ```ts
- * const userID = id("usr_");   // usr_GRALowatjy5YUXZhpqqfJ2
- * const secretKey = id("sk_"); // sk_eC7a3Iv8bozeQ6QGPLlCBg
+ * const userID = id("usr_");   // evt_60ornyZ7eZnVqIjbDftHdBU3ek
+ * const secretKey = id("sk_"); //  sk_yYdTEPtz5S2w9JzdDPp36lW01T
  * ```
  */
 export function id(): ID;
 export function id<const Prefix extends string>(prefix: Prefix): ID<Prefix>;
 export function id(prefix?: string): ID {
 	crypto.getRandomValues(buffer1);
-	const id = (prefix ?? "") +
-		base62(buffer1);
+	const id = (prefix ?? "") + base62(buffer1);
 	return id as ID;
 }
 
@@ -45,8 +43,7 @@ export function isID<const Prefix extends string>(
 export function isID(id_or_prefix: unknown | string, id?: unknown): boolean {
 	const prefix = typeof id !== "undefined" ? `${id_or_prefix}` : "";
 	id = typeof id !== "undefined" ? id : id_or_prefix;
-	return typeof id === "string" && id.startsWith(prefix) &&
-		(id.length === prefix.length + 22 || id.length === prefix.length + 32);
+	return typeof id === "string" && id.startsWith(prefix) && id.length === prefix.length + 26;
 }
 
 /**
@@ -92,7 +89,7 @@ export class InvalidIDError extends Error {
 /**
  * The KSUID epoch.
  */
-export const KSUID_EPOCH = 1545753300000;
+export const KSUID_EPOCH = 1545753300;
 
 /**
  * Generate a K-sorted random ID.
@@ -101,7 +98,7 @@ export const KSUID_EPOCH = 1545753300000;
  * @returns A random ID.
  *
  * ```ts
- * const eventID = ksuid("evt_"); // evt_00035qBXKZKWXBq9fxECJKqyGVbbKNgJ
+ * const eventID = ksuid("evt_"); // evt_vyKDsWuwgntny5mrX7RUYNwj1t
  * ```
  */
 export function ksuid(): ID;
@@ -113,7 +110,7 @@ export function ksuid<const Prefix extends string>(
 ): ID<Prefix>;
 export function ksuid(
 	counter_or_prefix?: string | number,
-	counter = Date.now() - KSUID_EPOCH,
+	counter = Date.now() / 1000 - KSUID_EPOCH,
 ): ID {
 	let prefix = "";
 	if (typeof counter_or_prefix === "number") {
@@ -121,15 +118,17 @@ export function ksuid(
 		counter = counter_or_prefix;
 	} else if (typeof counter_or_prefix === "string") {
 		prefix = counter_or_prefix;
-		counter = typeof counter === "number" ? counter : Date.now() - KSUID_EPOCH;
+		counter = typeof counter === "number" ? counter : Date.now() / 1000 - KSUID_EPOCH;
 	}
-	if (counter > Number.MAX_SAFE_INTEGER || counter < 0) {
+	if (counter > 0xFFFFFFFF || counter < 0) {
 		throw new RangeError(
-			`Expected counter must be between 0 and ${Number.MAX_SAFE_INTEGER}.`,
+			`Expected counter must be between 0 and ${0xFFFFFFFF}, got ${counter}.`,
 		);
 	}
-	dataview.setBigInt64(0, BigInt(counter), false);
-	return id(prefix + base62(buffer2)) as ID;
+	crypto.getRandomValues(buffer1);
+	dataview.setUint32(0, counter, false);
+	const id = (prefix ?? "") + base62(buffer1);
+	return id as ID;
 }
 
 /**
@@ -139,7 +138,7 @@ export function ksuid(
  * @returns A random ID.
  *
  * ```ts
- * const eventID = ksuid("evt_"); // evt_000UJ6EpPTEbBqkGSXWr7IDP7XCul9CC
+ * const eventID = ksuid("evt_"); // evt_E5Fts43txZn160upPKXKPNEsdE
  * ```
  */
 export function rksuid(): ID;
@@ -151,16 +150,15 @@ export function rksuid<const Prefix extends string>(
 ): ID<Prefix>;
 export function rksuid(
 	counter_or_prefix?: string | number,
-	counter = Number.MAX_SAFE_INTEGER - Date.now(),
+	counter = 0xFFFFFFFF - Date.now() / 1000 - KSUID_EPOCH,
 ): ID {
 	let prefix = "";
 	if (typeof counter_or_prefix === "number") {
 		prefix = "";
-		counter = Number.MAX_SAFE_INTEGER - counter_or_prefix;
+		counter = 0xFFFFFFFF - counter_or_prefix;
 	} else if (typeof counter_or_prefix === "string") {
 		prefix = counter_or_prefix;
-		counter = Number.MAX_SAFE_INTEGER -
-			(typeof counter === "number" ? counter : Date.now());
+		counter = 0xFFFFFFFF - (typeof counter === "number" ? counter : Date.now() / 1000 - KSUID_EPOCH);
 	}
 	return ksuid(prefix, counter) as ID;
 }

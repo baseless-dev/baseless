@@ -64,7 +64,7 @@ Deno.test("Client", async (ctx) => {
 		})
 		.table({
 			path: "users",
-			schema: z.object({ id: z.string() }),
+			schema: z.object({ id: z.id("id_"), name: z.string(), age: z.optional(z.number()) }),
 			tableSecurity: () => Permission.All,
 			rowSecurity: ({ q, auth }) => q.equal(q.ref("users", "id"), q.literal(auth?.identityId ?? "")),
 		})
@@ -114,7 +114,7 @@ Deno.test("Client", async (ctx) => {
 	});
 
 	// Create the table used by the table test step
-	await mock.provider.libsql.execute(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY)`);
+	await mock.provider.libsql.execute(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT, age INTEGER NULL)`);
 
 	await using client = new Client({
 		baseUrl: new URL("http://localhost"),
@@ -239,14 +239,14 @@ Deno.test("Client", async (ctx) => {
 
 		// Insert a row matching our identity (allowed by row security)
 		await client.table.execute(
-			(q) => q.insert("users").values((q) => ({ id: q.literal(identity.id) })),
+			(q) => q.insert("users").values((q) => ({ id: q.literal(identity.id), name: q.literal("Foobar") })),
 			{},
 		);
 
 		// Insert another row (should be blocked by row security)
 		await assertRejects(() =>
 			client.table.execute(
-				(q) => q.insert("users").values((q) => ({ id: q.literal("someone_else") })),
+				(q) => q.insert("users").values((q) => ({ id: q.literal(id("id_")), name: q.literal("Someone Else") })),
 				{},
 			)
 		);

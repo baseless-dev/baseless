@@ -143,12 +143,22 @@ function resolveTableAlias(ref: { table: string; alias?: string }): string {
 	return ref.alias ?? ref.table;
 }
 
+function inlineLiteral(data: unknown): string {
+	if (data === null || data === undefined) return "NULL";
+	if (typeof data === "boolean") return data ? "1" : "0";
+	if (typeof data === "number") return String(data);
+	if (data instanceof Date) return `'${data.toISOString().replace(/'/g, "''")}'`;
+	if (typeof data === "string") return `'${data.replace(/'/g, "''")}'`;
+	// Fallback: bind as parameter (handled separately, should not occur with literals)
+	return "?";
+}
+
 function compileExpression(expr: TExpression, params: Record<string, unknown>): SqlFragment {
 	switch (expr.type) {
 		case "literal": {
-			if (expr.data === null) return { sql: "NULL", args: [] };
-			if (expr.data instanceof Date) return { sql: "?", args: [expr.data.toISOString()] };
-			return { sql: "?", args: [expr.data as InValue] };
+			const literalSql = inlineLiteral(expr.data);
+			if (literalSql === "?") return { sql: "?", args: [expr.data as InValue] };
+			return { sql: literalSql, args: [] };
 		}
 		case "paramref": {
 			const val = params[expr.param];
@@ -335,16 +345,8 @@ function compileSelect(
 	}
 
 	// LIMIT / OFFSET
-	let limitClause = "";
-	if (stmt.limit !== undefined) {
-		limitClause = ` LIMIT ?`;
-		args.push(stmt.limit);
-	}
-	let offsetClause = "";
-	if (stmt.offset !== undefined) {
-		offsetClause = ` OFFSET ?`;
-		args.push(stmt.offset);
-	}
+	const limitClause = stmt.limit !== undefined ? ` LIMIT ${stmt.limit}` : "";
+	const offsetClause = stmt.offset !== undefined ? ` OFFSET ${stmt.offset}` : "";
 
 	const sql =
 		`SELECT ${selectClause} FROM ${fromClause}${joinFrag.sql}${whereFrag.sql}${groupByClause}${orderByClause}${limitClause}${offsetClause}`;
@@ -427,11 +429,7 @@ function compileUpdate(
 	args.push(...whereFrag.args);
 
 	// LIMIT
-	let limitClause = "";
-	if (stmt.limit !== undefined) {
-		limitClause = ` LIMIT ?`;
-		args.push(stmt.limit);
-	}
+	const limitClause = stmt.limit !== undefined ? ` LIMIT ${stmt.limit}` : "";
 
 	const sql = `UPDATE ${tableClause}${joinFrag.sql} SET ${setClauses.join(", ")}${whereFrag.sql}${limitClause}`;
 	return { sql, args };
@@ -454,11 +452,7 @@ function compileDelete(
 	args.push(...whereFrag.args);
 
 	// LIMIT
-	let limitClause = "";
-	if (stmt.limit !== undefined) {
-		limitClause = ` LIMIT ?`;
-		args.push(stmt.limit);
-	}
+	const limitClause = stmt.limit !== undefined ? ` LIMIT ${stmt.limit}` : "";
 
 	const sql = `DELETE FROM ${tableClause}${joinFrag.sql}${whereFrag.sql}${limitClause}`;
 	return { sql, args };

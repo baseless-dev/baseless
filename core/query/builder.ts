@@ -18,6 +18,7 @@ import {
 	TUpdateStatement,
 } from "./schema.ts";
 import type { Prettify } from "../prettify.ts";
+import { ID } from "@baseless/core/id";
 
 /**
  * Maps a {@link TReferenceOrLiteral} (or a record of them) to the
@@ -27,7 +28,7 @@ import type { Prettify } from "../prettify.ts";
 export type InferModelFromTReferenceOrLiteral<T> =
 	T extends TNamedColumnReference<any, infer TData> ? TData
 	: T extends TNamedFunctionReference<any, any, infer TOutput> ? TOutput
-	: T extends TNamedParamReference<any> ? any
+	: T extends TNamedParamReference<any, infer TData> ? TData
 	: T extends TLiteral<infer TData> ? TData
 	: T extends Record<string, TReferenceOrLiteral> ? { [K in keyof T]: InferModelFromTReferenceOrLiteral<T[K]> }
 	: never;
@@ -61,7 +62,7 @@ export type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) ex
 export class ReferenceOrLiteralBuilder<
 	TTables extends {},
 > {
-	literal<TData extends null | string | number | boolean | Date>(value: TData): TLiteral<TData> {
+	literal<TData extends null | string | number | boolean | Date | ID>(value: TData): TLiteral<TData> {
 		return { type: "literal", data: value };
 	}
 	ref<TTableName extends keyof TTables, TColumnName extends keyof TTables[TTableName]>(
@@ -134,11 +135,11 @@ export class BooleanExpressionBuilder<
 			right,
 		};
 	}
-	equal<TParam extends string, TData extends null | string | number | boolean | Date>(
+	equal<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedParamReference<TParam>,
 		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	equal<TParam extends string, TData extends null | string | number | boolean | Date>(
+	equal<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
 		right: TNamedParamReference<TParam>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
@@ -146,11 +147,11 @@ export class BooleanExpressionBuilder<
 		left: TNamedParamReference<TParamLeft>,
 		right: TNamedParamReference<TParamRight>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	equal<TDataLeft extends null | string | number | boolean | Date, TDataRight>(
+	equal<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
 		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
 		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
 	): TBooleanComparisonExpression<{}>;
-	equal<TDataLeft extends null | string | number | boolean | Date, TDataRight extends null | string | number | boolean | Date>(
+	equal<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight extends null | string | number | boolean | Date | ID>(
 		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
 		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
 	): TBooleanComparisonExpression<{}>;
@@ -163,11 +164,11 @@ export class BooleanExpressionBuilder<
 		};
 	}
 
-	notEqual<TParam extends string, TData extends null | string | number | boolean | Date>(
+	notEqual<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedParamReference<TParam>,
 		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	notEqual<TParam extends string, TData extends null | string | number | boolean | Date>(
+	notEqual<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
 		right: TNamedParamReference<TParam>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
@@ -175,11 +176,11 @@ export class BooleanExpressionBuilder<
 		left: TNamedParamReference<TParamLeft>,
 		right: TNamedParamReference<TParamRight>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	notEqual<TDataLeft extends null | string | number | boolean | Date, TDataRight>(
+	notEqual<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
 		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
 		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
 	): TBooleanComparisonExpression<{}>;
-	notEqual<TDataLeft extends null | string | number | boolean | Date, TDataRight extends null | string | number | boolean | Date>(
+	notEqual<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight extends null | string | number | boolean | Date | ID>(
 		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
 		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
 	): TBooleanComparisonExpression<{}>;
@@ -192,11 +193,11 @@ export class BooleanExpressionBuilder<
 		};
 	}
 
-	greaterThan<TParam extends string, TData extends null | string | number | boolean | Date>(
+	greaterThan<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedParamReference<TParam>,
 		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	greaterThan<TParam extends string, TData extends null | string | number | boolean | Date>(
+	greaterThan<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
 		right: TNamedParamReference<TParam>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
@@ -204,11 +205,14 @@ export class BooleanExpressionBuilder<
 		left: TNamedParamReference<TParamLeft>,
 		right: TNamedParamReference<TParamRight>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	greaterThan<TDataLeft extends null | string | number | boolean | Date, TDataRight>(
+	greaterThan<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
 		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
 		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
 	): TBooleanComparisonExpression<{}>;
-	greaterThan<TDataLeft extends null | string | number | boolean | Date, TDataRight extends null | string | number | boolean | Date>(
+	greaterThan<
+		TDataLeft extends null | string | number | boolean | Date | ID,
+		TDataRight extends null | string | number | boolean | Date | ID,
+	>(
 		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
 		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
 	): TBooleanComparisonExpression<{}>;
@@ -221,11 +225,11 @@ export class BooleanExpressionBuilder<
 		};
 	}
 
-	greaterThanOrEqual<TParam extends string, TData extends null | string | number | boolean | Date>(
+	greaterThanOrEqual<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedParamReference<TParam>,
 		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	greaterThanOrEqual<TParam extends string, TData extends null | string | number | boolean | Date>(
+	greaterThanOrEqual<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
 		right: TNamedParamReference<TParam>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
@@ -233,11 +237,14 @@ export class BooleanExpressionBuilder<
 		left: TNamedParamReference<TParamLeft>,
 		right: TNamedParamReference<TParamRight>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	greaterThanOrEqual<TDataLeft extends null | string | number | boolean | Date, TDataRight>(
+	greaterThanOrEqual<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
 		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
 		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
 	): TBooleanComparisonExpression<{}>;
-	greaterThanOrEqual<TDataLeft extends null | string | number | boolean | Date, TDataRight extends null | string | number | boolean | Date>(
+	greaterThanOrEqual<
+		TDataLeft extends null | string | number | boolean | Date | ID,
+		TDataRight extends null | string | number | boolean | Date | ID,
+	>(
 		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
 		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
 	): TBooleanComparisonExpression<{}>;
@@ -250,11 +257,11 @@ export class BooleanExpressionBuilder<
 		};
 	}
 
-	lessThan<TParam extends string, TData extends null | string | number | boolean | Date>(
+	lessThan<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedParamReference<TParam>,
 		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	lessThan<TParam extends string, TData extends null | string | number | boolean | Date>(
+	lessThan<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
 		right: TNamedParamReference<TParam>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
@@ -262,11 +269,11 @@ export class BooleanExpressionBuilder<
 		left: TNamedParamReference<TParamLeft>,
 		right: TNamedParamReference<TParamRight>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	lessThan<TDataLeft extends null | string | number | boolean | Date, TDataRight>(
+	lessThan<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
 		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
 		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
 	): TBooleanComparisonExpression<{}>;
-	lessThan<TDataLeft extends null | string | number | boolean | Date, TDataRight extends null | string | number | boolean | Date>(
+	lessThan<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight extends null | string | number | boolean | Date | ID>(
 		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
 		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
 	): TBooleanComparisonExpression<{}>;
@@ -279,11 +286,11 @@ export class BooleanExpressionBuilder<
 		};
 	}
 
-	lessThanOrEqual<TParam extends string, TData extends null | string | number | boolean | Date>(
+	lessThanOrEqual<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedParamReference<TParam>,
 		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	lessThanOrEqual<TParam extends string, TData extends null | string | number | boolean | Date>(
+	lessThanOrEqual<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
 		right: TNamedParamReference<TParam>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
@@ -291,11 +298,14 @@ export class BooleanExpressionBuilder<
 		left: TNamedParamReference<TParamLeft>,
 		right: TNamedParamReference<TParamRight>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	lessThanOrEqual<TDataLeft extends null | string | number | boolean | Date, TDataRight>(
+	lessThanOrEqual<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
 		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
 		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
 	): TBooleanComparisonExpression<{}>;
-	lessThanOrEqual<TDataLeft extends null | string | number | boolean | Date, TDataRight extends null | string | number | boolean | Date>(
+	lessThanOrEqual<
+		TDataLeft extends null | string | number | boolean | Date | ID,
+		TDataRight extends null | string | number | boolean | Date | ID,
+	>(
 		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
 		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
 	): TBooleanComparisonExpression<{}>;
@@ -308,11 +318,11 @@ export class BooleanExpressionBuilder<
 		};
 	}
 
-	in<TParam extends string, TData extends null | string | number | boolean | Date>(
+	in<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedParamReference<TParam>,
 		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	in<TParam extends string, TData extends null | string | number | boolean | Date>(
+	in<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
 		right: TNamedParamReference<TParam>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
@@ -320,11 +330,11 @@ export class BooleanExpressionBuilder<
 		left: TNamedParamReference<TParamLeft>,
 		right: TNamedParamReference<TParamRight>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	in<TDataLeft extends null | string | number | boolean | Date, TDataRight>(
+	in<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
 		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
 		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
 	): TBooleanComparisonExpression<{}>;
-	in<TDataLeft extends null | string | number | boolean | Date, TDataRight extends null | string | number | boolean | Date>(
+	in<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight extends null | string | number | boolean | Date | ID>(
 		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
 		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
 	): TBooleanComparisonExpression<{}>;
@@ -337,11 +347,11 @@ export class BooleanExpressionBuilder<
 		};
 	}
 
-	notIn<TParam extends string, TData extends null | string | number | boolean | Date>(
+	notIn<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedParamReference<TParam>,
 		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	notIn<TParam extends string, TData extends null | string | number | boolean | Date>(
+	notIn<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
 		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
 		right: TNamedParamReference<TParam>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
@@ -349,11 +359,11 @@ export class BooleanExpressionBuilder<
 		left: TNamedParamReference<TParamLeft>,
 		right: TNamedParamReference<TParamRight>,
 	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	notIn<TDataLeft extends null | string | number | boolean | Date, TDataRight>(
+	notIn<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
 		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
 		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
 	): TBooleanComparisonExpression<{}>;
-	notIn<TDataLeft extends null | string | number | boolean | Date, TDataRight extends null | string | number | boolean | Date>(
+	notIn<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight extends null | string | number | boolean | Date | ID>(
 		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
 		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
 	): TBooleanComparisonExpression<{}>;

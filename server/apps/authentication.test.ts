@@ -2,7 +2,7 @@ import createMemoryServer from "../server.test.ts";
 import { app } from "../app.ts";
 import authApp from "./authentication.ts";
 import { generateKeyPair } from "jose";
-import { id } from "@baseless/core/id";
+import { ksuid } from "@baseless/core/id";
 import * as z from "@baseless/core/schema";
 import { assert } from "@std/assert/assert";
 import { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/identity";
@@ -49,7 +49,7 @@ Deno.test("Simple authentication", async (t) => {
 	});
 
 	const identity = {
-		id: id("id_"),
+		id: ksuid("id_"),
 		data: {
 			firstName: "Foo",
 			lastName: "Bar",
@@ -264,7 +264,7 @@ Deno.test("Two factor authentication", async (t) => {
 	});
 
 	const identity = {
-		id: id("id_"),
+		id: ksuid("id_"),
 		data: {},
 	} satisfies Identity;
 	const identityComponentEmail = {

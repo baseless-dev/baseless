@@ -3,7 +3,7 @@ import { app, INTERNAL_HIDE_ENDPOINT } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import type { Document } from "@baseless/core/document";
 import { EncryptJWT, jwtDecrypt, type KeyLike } from "jose";
-import { ID, id } from "@baseless/core/id";
+import { ID, id, ksuid } from "@baseless/core/id";
 import {
 	AuthenticationRefreshTokenError,
 	AuthenticationSendPromptError,
@@ -183,7 +183,7 @@ const authApp = app()
 				}
 				: {
 					kind: "registration",
-					id: id("id_"),
+					id: ksuid("id_"),
 					components: [],
 					channels: [],
 					scopes: scopes ?? [],

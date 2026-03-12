@@ -789,7 +789,7 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
-		files: Prettify<TServerRegistry["files"] & { [k in TPath]: true }>;
+		files: Prettify<TServerRegistry["files"] & { [k in TPath]: void }>;
 		folders: TServerRegistry["folders"];
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
@@ -799,7 +799,7 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		endpoints: TPublicRegistry["endpoints"];
 		collections: TPublicRegistry["collections"];
 		documents: TPublicRegistry["documents"];
-		files: Prettify<TPublicRegistry["files"] & { [k in TPath]: true }>;
+		files: Prettify<TPublicRegistry["files"] & { [k in TPath]: void }>;
 		folders: TPublicRegistry["folders"];
 		tables: TPublicRegistry["tables"];
 		topics: TPublicRegistry["topics"];
@@ -811,7 +811,7 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
-		files: Prettify<TServerRegistry["files"] & { [k in TPath]: true }>;
+		files: Prettify<TServerRegistry["files"] & { [k in TPath]: void }>;
 		folders: TServerRegistry["folders"];
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
@@ -844,7 +844,7 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
 		files: Prettify<TServerRegistry["files"] & { [k in `${TPath}/:key`]: true }>;
-		folders: Prettify<TServerRegistry["folders"] & { [k in TPath]: true }>;
+		folders: Prettify<TServerRegistry["folders"] & { [k in TPath]: void }>;
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
 		tables: TServerRegistry["tables"];
@@ -854,7 +854,7 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		collections: TPublicRegistry["collections"];
 		documents: TPublicRegistry["documents"];
 		files: Prettify<TPublicRegistry["files"] & { [k in `${TPath}/:key`]: true }>;
-		folders: Prettify<TPublicRegistry["folders"] & { [k in TPath]: true }>;
+		folders: Prettify<TPublicRegistry["folders"] & { [k in TPath]: void }>;
 		tables: TPublicRegistry["tables"];
 		topics: TPublicRegistry["topics"];
 	}>;
@@ -866,7 +866,7 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
 		files: Prettify<TServerRegistry["files"] & { [k in `${TPath}/:key`]: true }>;
-		folders: Prettify<TServerRegistry["folders"] & { [k in TPath]: true }>;
+		folders: Prettify<TServerRegistry["folders"] & { [k in TPath]: void }>;
 		requirements: TServerRegistry["requirements"];
 		services: TServerRegistry["services"];
 		tables: TServerRegistry["tables"];
@@ -1393,14 +1393,14 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		configuration: TServerRegistry["configuration"];
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
-		files: Prettify<TServerRegistry["files"] & { [k in TPath]: true }>;
+		files: Prettify<TServerRegistry["files"] & { [k in TPath]: void }>;
 		folders: TServerRegistry["folders"];
 		requirements: {
 			configuration: TServerRegistry["requirements"]["configuration"];
 			context: TServerRegistry["requirements"]["context"];
 			collections: TServerRegistry["requirements"]["collections"];
 			documents: TServerRegistry["requirements"]["documents"];
-			files: Prettify<TServerRegistry["requirements"]["files"] & { [k in TPath]: true }>;
+			files: Prettify<TServerRegistry["requirements"]["files"] & { [k in TPath]: void }>;
 			folders: TServerRegistry["requirements"]["folders"];
 			services: TServerRegistry["requirements"]["services"];
 			tables: TServerRegistry["requirements"]["tables"];
@@ -1437,14 +1437,14 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		context: TServerRegistry["context"];
 		documents: TServerRegistry["documents"];
 		files: Prettify<TServerRegistry["files"] & { [k in `${TPath}/:key`]: true }>;
-		folders: Prettify<TServerRegistry["folders"] & { [k in TPath]: true }>;
+		folders: Prettify<TServerRegistry["folders"] & { [k in TPath]: void }>;
 		requirements: {
 			configuration: TServerRegistry["requirements"]["configuration"];
 			context: TServerRegistry["requirements"]["context"];
 			collections: TServerRegistry["requirements"]["collections"];
 			documents: TServerRegistry["requirements"]["documents"];
 			files: Prettify<TServerRegistry["requirements"]["files"] & { [k in `${TPath}/:key`]: true }>;
-			folders: Prettify<TServerRegistry["requirements"]["folders"] & { [k in TPath]: true }>;
+			folders: Prettify<TServerRegistry["requirements"]["folders"] & { [k in TPath]: void }>;
 			services: TServerRegistry["requirements"]["services"];
 			tables: TServerRegistry["requirements"]["tables"];
 			topics: TServerRegistry["requirements"]["topics"];

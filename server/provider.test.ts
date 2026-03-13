@@ -6,7 +6,7 @@ import { assertFalse } from "@std/assert/false";
 import { DocumentProvider, KVProvider, QueueProvider, RateLimiterProvider, StorageProvider, TableProvider } from "./provider.ts";
 import { StorageObjectNotFoundError } from "@baseless/core/errors";
 import { BatchableStatementBuilder } from "@baseless/core/query";
-import type { TStatement } from "@baseless/core/query";
+import type { InferModelFromTReferenceOrLiteral, TNamedParamReference, TStatement } from "@baseless/core/query";
 
 export async function testDocumentProvider(
 	provider: DocumentProvider,
@@ -257,22 +257,24 @@ type InsertTables = {
 const q = new BatchableStatementBuilder<Tables, InsertTables>();
 
 async function seedUsers(provider: TableProvider): Promise<void> {
-	const insertStmt = q.insert("users").values((q) => ({
-		display: q.param("display"),
-		email: q.param("email"),
-		age: q.param("age"),
-	})).toStatement();
+	const insertStmt = q.insert("users")
+		.values((q) => ({
+			display: q.param("display").as<string>(),
+			email: q.param("email").as<string>(),
+			age: q.param("age").as<number>(),
+		}))
+		.toStatement();
 
 	await provider.execute(
-		insertStmt as TStatement<Record<string, unknown>, unknown>,
+		insertStmt,
 		{ display: "Alice", email: "alice@example.com", age: 30 },
 	);
 	await provider.execute(
-		insertStmt as TStatement<Record<string, unknown>, unknown>,
+		insertStmt,
 		{ display: "Bob", email: "bob@example.com", age: 25 },
 	);
 	await provider.execute(
-		insertStmt as TStatement<Record<string, unknown>, unknown>,
+		insertStmt,
 		{ display: "Charlie", email: "charlie@example.com", age: 35 },
 	);
 }
@@ -294,9 +296,9 @@ export async function testTableProvider(
 			.toStatement();
 
 		const rows = await provider.execute(
-			selectStmt as TStatement<Record<string, unknown>, unknown>,
+			selectStmt,
 			{},
-		) as Record<string, unknown>[];
+		);
 
 		assertEquals(rows.length, 3);
 		assertEquals(rows[0].display, "Alice");
@@ -314,9 +316,9 @@ export async function testTableProvider(
 			.toStatement();
 
 		const rows = await provider.execute(
-			stmt as TStatement<Record<string, unknown>, unknown>,
+			stmt,
 			{ minAge: 28 },
-		) as Record<string, unknown>[];
+		);
 
 		assertEquals(rows.length, 2);
 		assertEquals(rows[0].display, "Alice");
@@ -324,19 +326,16 @@ export async function testTableProvider(
 	});
 
 	await t.step("SELECT with ORDER BY and LIMIT", async () => {
-		const builder = q.select("users")
+		const stmt = q.select("users")
 			.map((q) => ({
 				display: q.ref("users", "display"),
 				age: q.ref("users", "age"),
 			}))
-			.limit(2);
+			.orderBy((q) => [[q.ref("users", "age"), "DESC"]])
+			.limit(2)
+			.toStatement();
 
-		// Manually inject orderBy since the builder doesn't expose a chainable method yet
-		const built = builder.build();
-		built.orderBy = [{ column: { type: "columnref", table: "users", column: "age" }, order: "DESC" }];
-		const stmt: TStatement<Record<string, unknown>, unknown> = { type: "statement", statement: built };
-
-		const rows = await provider.execute(stmt, {}) as Record<string, unknown>[];
+		const rows = await provider.execute(stmt, {});
 
 		assertEquals(rows.length, 2);
 		assertEquals(rows[0].display, "Charlie");
@@ -345,14 +344,16 @@ export async function testTableProvider(
 
 	await t.step("SELECT with JOIN", async () => {
 		// Insert a post for Alice (user_id = 1)
-		const insertPost = q.insert("posts").values((q) => ({
-			title: q.param("title"),
-			content: q.param("content"),
-			author_id: q.param("author_id"),
-		})).toStatement();
+		const insertPost = q.insert("posts")
+			.values((q) => ({
+				title: q.param("title").as<string>(),
+				content: q.param("content").as<string>(),
+				author_id: q.param("author_id").as<number>(),
+			}))
+			.toStatement();
 
 		await provider.execute(
-			insertPost as TStatement<Record<string, unknown>, unknown>,
+			insertPost,
 			{ title: "Hello World", content: "My first post!", author_id: 1 },
 		);
 
@@ -365,9 +366,9 @@ export async function testTableProvider(
 			.toStatement();
 
 		const rows = await provider.execute(
-			stmt as TStatement<Record<string, unknown>, unknown>,
+			stmt,
 			{},
-		) as Record<string, unknown>[];
+		);
 
 		assertEquals(rows.length, 1);
 		assertEquals(rows[0].post_title, "Hello World");
@@ -383,7 +384,7 @@ export async function testTableProvider(
 			.toStatement();
 
 		await provider.execute(
-			updateStmt as TStatement<Record<string, unknown>, unknown>,
+			updateStmt,
 			{ newAge: 31, name: "Alice" },
 		);
 
@@ -396,9 +397,9 @@ export async function testTableProvider(
 			.toStatement();
 
 		const rows = await provider.execute(
-			selectStmt as TStatement<Record<string, unknown>, unknown>,
+			selectStmt,
 			{ name: "Alice" },
-		) as Record<string, unknown>[];
+		);
 
 		assertEquals(rows.length, 1);
 		assertEquals(rows[0].age, 31);
@@ -410,7 +411,7 @@ export async function testTableProvider(
 			.toStatement();
 
 		await provider.execute(
-			deleteStmt as TStatement<Record<string, unknown>, unknown>,
+			deleteStmt,
 			{ name: "Bob" },
 		);
 
@@ -421,9 +422,9 @@ export async function testTableProvider(
 			.toStatement();
 
 		const rows = await provider.execute(
-			selectStmt as TStatement<Record<string, unknown>, unknown>,
+			selectStmt,
 			{},
-		) as Record<string, unknown>[];
+		);
 
 		assertEquals(rows.length, 2);
 		assertEquals(rows[0].display, "Alice");
@@ -445,7 +446,7 @@ export async function testTableProvider(
 			.toStatement();
 
 		await provider.execute(
-			batch as TStatement<Record<string, unknown>, unknown>,
+			batch,
 			{ name: "Dave", email: "dave@example.com", age: 40 },
 		);
 
@@ -456,9 +457,9 @@ export async function testTableProvider(
 			.toStatement();
 
 		const rows = await provider.execute(
-			selectStmt as TStatement<Record<string, unknown>, unknown>,
+			selectStmt,
 			{},
-		) as Record<string, unknown>[];
+		);
 
 		// After seedUsers (3) - delete Bob (2) + insert Dave (3)
 		assertEquals(rows.length, 3);
@@ -481,7 +482,7 @@ export async function testTableProvider(
 		await assertRejects(
 			() =>
 				provider.execute(
-					batch as TStatement<Record<string, unknown>, unknown>,
+					batch,
 					{ name: "Alice", email: "alice2@example.com", age: 99 },
 				),
 			Error,
@@ -496,9 +497,9 @@ export async function testTableProvider(
 			.toStatement();
 
 		const rows = await provider.execute(
-			selectStmt as TStatement<Record<string, unknown>, unknown>,
+			selectStmt,
 			{},
-		) as Record<string, unknown>[];
+		);
 
 		assertEquals(rows.length, 3);
 	});
@@ -513,28 +514,25 @@ export async function testTableProvider(
 			.toStatement();
 
 		const rows = await provider.execute(
-			stmt as TStatement<Record<string, unknown>, unknown>,
+			stmt,
 			{},
-		) as Record<string, unknown>[];
+		);
 
 		assertEquals(rows.length, 1);
 		assertEquals(rows[0].display, "Dave");
 	});
 
 	await t.step("SELECT with OFFSET", async () => {
-		const builder = q.select("users")
+		const stmt = q.select("users")
 			.map((q) => ({
 				display: q.ref("users", "display"),
 			}))
+			.orderBy((q) => [q.ref("users", "user_id")])
 			.limit(2)
-			.offset(1);
+			.offset(1)
+			.toStatement();
 
-		// Manually inject orderBy
-		const built = builder.build();
-		built.orderBy = [{ column: { type: "columnref", table: "users", column: "user_id" }, order: "ASC" }];
-		const stmt: TStatement<Record<string, unknown>, unknown> = { type: "statement", statement: built };
-
-		const rows = await provider.execute(stmt, {}) as Record<string, unknown>[];
+		const rows = await provider.execute(stmt, {});
 
 		assertEquals(rows.length, 2);
 	});
@@ -556,7 +554,7 @@ export async function testTableProvider(
 			.toStatement();
 
 		await provider.execute(
-			insertFrom as TStatement<Record<string, unknown>, unknown>,
+			insertFrom,
 			{ source_author: 1, target_author: 3 },
 		);
 
@@ -568,9 +566,9 @@ export async function testTableProvider(
 			.toStatement();
 
 		const rows = await provider.execute(
-			selectPosts as TStatement<Record<string, unknown>, unknown>,
+			selectPosts,
 			{},
-		) as Record<string, unknown>[];
+		);
 
 		assertEquals(rows.length, 2);
 		assertEquals(rows[0].author_id, 1);

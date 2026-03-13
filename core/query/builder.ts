@@ -28,6 +28,7 @@ import { ID } from "@baseless/core/id";
 export type InferModelFromTReferenceOrLiteral<T> =
 	T extends TNamedColumnReference<any, infer TData> ? TData
 	: T extends TNamedFunctionReference<any, any, infer TOutput> ? TOutput
+	: T extends ParameterReferenceBuilder<any, infer TData> ? TData
 	: T extends TNamedParamReference<any, infer TData> ? TData
 	: T extends TLiteral<infer TData> ? TData
 	: T extends Record<string, TReferenceOrLiteral> ? { [K in keyof T]: InferModelFromTReferenceOrLiteral<T[K]> }
@@ -38,6 +39,7 @@ type _ExtractNamedParamReference<TExpr, M extends any[]> =
 	M["length"] extends 8 ? never
 	: TExpr extends TNamedParamReference<infer TName, infer TData> ? { [K in TName]: TData }
 	: TExpr extends Record<string, TReferenceOrLiteral> ? { [K in keyof TExpr]: _ExtractNamedParamReference<TExpr[K], [1, ...M]> }[keyof TExpr]
+	: TExpr extends Array<infer TItem> ? _ExtractNamedParamReference<TItem, [1, ...M]>
 	: TExpr extends TNamedFunctionReference<infer TName, infer TParams, infer TOutput> ? { [K in keyof TParams]: _ExtractNamedParamReference<TParams[K], [1, ...M]> }[number]
 	: never;
 /**
@@ -75,13 +77,9 @@ export class ReferenceOrLiteralBuilder<
 			column: column,
 		};
 	}
-	// param<TName extends string>(name: TName): TNamedParamReference<TName>;
-	param<TName extends string, TData = any>(name: TName): TNamedParamReference<TName, TData>;
-	param(name: string): TNamedParamReference<any> {
-		return {
-			type: "paramref",
-			param: name,
-		};
+	param<TName extends string>(name: TName): ParameterReferenceBuilder<TName, any>;
+	param(name: string): ParameterReferenceBuilder<any, any> {
+		return new ParameterReferenceBuilder(name);
 	}
 	concat<TParams extends TReferenceOrLiteral[]>(...params: TParams): TNamedFunctionReference<"concat", TParams, string> {
 		return {
@@ -98,6 +96,26 @@ export class ReferenceOrLiteralBuilder<
 			type: "functionref",
 			name,
 			params,
+		};
+	}
+}
+
+export class ParameterReferenceBuilder<TName extends string, TData> implements TNamedParamReference<TName, TData> {
+	type = "paramref" as const;
+	param: TName = "" as any;
+
+	constructor(name: TName) {
+		this.param = name;
+	}
+
+	as<TData>(): TNamedParamReference<TName, TData> {
+		return this;
+	}
+
+	toJSON(): TNamedParamReference<TName, TData> {
+		return {
+			type: this.type,
+			param: this.param,
 		};
 	}
 }
@@ -1025,15 +1043,26 @@ export class SelectStatementBuilder<
 		);
 	}
 
-	// TODO Params in order by and group by
-	// orderBy<TTableName extends keyof TTables, TColumnName extends keyof TTables[TTableName]>(
-	// 	builder: (expr: ExpressionBuilder<TTables>) => Expression,
-	// 	order?: "ASC" | "DESC",
-	// ): SelectQueryBuilder<TTables, TModel, TParams>;
-	// groupBy<TTableName extends keyof TTables, TColumnName extends keyof TTables[TTableName]>(
+	orderBy<TOrderBy extends TReferenceOrLiteral | [ref: TReferenceOrLiteral, order: "ASC" | "DESC"]>(
+		builder: (expr: ReferenceOrLiteralBuilder<TFrom>) => Array<TOrderBy>,
+	): SelectStatementBuilder<TTables, TFrom, TModel, Prettify<TParams & ExtractNamedParamReference<TOrderBy>>, TSingleResult> {
+		return new SelectStatementBuilder<TTables, TFrom, TModel, TParams, false>(
+			this.#from,
+			this.#join,
+			this.#select,
+			this.#where,
+			this.#groupBy,
+			builder(new ReferenceOrLiteralBuilder<TFrom>())
+				.map((item) => Array.isArray(item) ? { column: item[0], order: item[1] } : { column: item as TReferenceOrLiteral, order: "ASC" }),
+			this.#limit,
+			this.#offset,
+		);
+	}
+
+	// 	groupBy<TTableName extends keyof TTables, TColumnName extends keyof TTables[TTableName]>(
 	// 	table: TTableName,
 	// 	column: TColumnName,
-	// ): SelectQueryBuilder<TTables, TModel, TParams>;
+	// ): SelectQueryBuilder<TTables, TModel, TParams>
 
 	limit<TLimit extends number>(
 		limit: TLimit,

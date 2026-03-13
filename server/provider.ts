@@ -458,7 +458,7 @@ export abstract class NotificationChannelProvider {
 	abstract send(identityChannel: IdentityChannel, notification: Notification, options?: { signal?: AbortSignal }): Promise<boolean>;
 }
 
-/** Options passed to {@link RateLimiterProvider.limit}. */
+/** Options passed to {@link RateLimiterProvider["limit"]}. */
 export interface RateLimiterProviderLimitOptions {
 	/** The rate-limit bucket key (e.g. an IP address or user ID). */
 	key: string;
@@ -504,11 +504,11 @@ export abstract class TableProvider {
 	 * @param signal Optional abort signal.
 	 * @returns The query result (shape depends on the statement type).
 	 */
-	abstract execute(
-		statement: TStatement<Record<string, unknown>, unknown>,
-		params: Record<string, unknown>,
+	abstract execute<TParams extends Record<string, unknown>, TOutput>(
+		statement: TStatement<TParams, TOutput>,
+		params: TParams,
 		options?: { signal?: AbortSignal },
-	): Promise<unknown>;
+	): Promise<TOutput>;
 }
 
 /**

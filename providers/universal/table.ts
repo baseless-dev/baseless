@@ -243,11 +243,11 @@ export class LibSQLTableProvider extends TableProvider {
 		this.#client = client;
 	}
 
-	async execute(
-		statement: TStatement<Record<string, unknown>, unknown>,
-		params: Record<string, unknown>,
+	async execute<TParams extends Record<string, unknown>, TOutput>(
+		statement: TStatement<TParams, TOutput>,
+		params: TParams,
 		options?: { signal?: AbortSignal },
-	): Promise<unknown> {
+	): Promise<TOutput> {
 		options?.signal?.throwIfAborted();
 
 		const ast = statement.statement;
@@ -261,14 +261,14 @@ export class LibSQLTableProvider extends TableProvider {
 						obj[rs.columns[i]] = r[i];
 					}
 					return obj;
-				});
+				}) as TOutput;
 			}
 			case "insert":
 			case "update":
 			case "delete": {
 				const frag = compileSql(ast, params);
 				await this.#client.execute({ sql: frag.sql, args: frag.args });
-				return undefined;
+				return undefined as TOutput;
 			}
 			case "batch": {
 				// Phase 1: Validate pre-condition checks.
@@ -295,7 +295,7 @@ export class LibSQLTableProvider extends TableProvider {
 					await this.#client.batch(batchStmts, "write");
 				}
 
-				return undefined;
+				return undefined as TOutput;
 			}
 			default:
 				throw new Error(`Unknown statement type: ${(ast as any).type}`);

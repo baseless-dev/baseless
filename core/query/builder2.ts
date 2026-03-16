@@ -138,10 +138,10 @@ class SelectQueryBuilder<TTables, TFrom, TOutput, TSingle> {
 	innerJoin(...args: any[]): SelectQueryBuilder<any, any, any, any> {
 		return new SelectQueryBuilder();
 	}
-	where<TIdentifier extends keyof Flatten<TTables>>(
+	where<TIdentifier extends keyof Flatten<TFrom>>(
 		column: TIdentifier,
 		op: BinaryOperator,
-		value: Flatten<TTables>[TIdentifier],
+		value: Flatten<TFrom>[TIdentifier],
 	): SelectQueryBuilder<TTables, TFrom, TOutput, TSingle>;
 	where(
 		builder: (
@@ -269,7 +269,7 @@ const a = q
 	.select("u.id")
 	.select("u.name")
 	.select("title", (q) => q.column("p.title"))
-	.where("users.id", "=", 123)
+	.where("u.id", "=", 123)
 	.groupBy("u.id")
 	.having(".id", ">", 10)
 	.having((q) => q.eq(".title", "Hello World"))

@@ -93,9 +93,17 @@ Deno.test("Authentication", async (ctx) => {
 		};
 
 		await server.service.document.atomic()
-			.set(`auth/identity/${identity.id}` as never, identity as never)
-			.set(`auth/identity/${identity.id}/component/${identityComponentEmail.componentId}` as never, identityComponentEmail as never)
-			.set(`auth/identity/${identity.id}/component/${identityComponentPassword.componentId}` as never, identityComponentPassword as never)
+			.set(`auth/identity/${identity.id}` as never, {} as never, identity as never)
+			.set(
+				`auth/identity/${identity.id}/component/${identityComponentEmail.componentId}` as never,
+				{} as never,
+				identityComponentEmail as never,
+			)
+			.set(
+				`auth/identity/${identity.id}/component/${identityComponentPassword.componentId}` as never,
+				{} as never,
+				identityComponentPassword as never,
+			)
 			.commit();
 
 		return {

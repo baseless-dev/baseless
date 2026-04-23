@@ -28,6 +28,17 @@ export function replace(search: TAnyFragment, replacer: <T extends TAnyFragment>
 	return visit<TAnyFragment, void>(search, {
 		visitLiteral: (node) => replacer(node) ?? node,
 		visitNamedFunctionReference: (node) => replacer(node) ?? node,
+		visitSubqueryExpression: (node, visit) => {
+			node = replacer(node) ?? node;
+			const replaced = {
+				type: "subquery" as const,
+				select: visit(node.select) as never,
+			};
+			if (isFragmentEquals(node, replaced)) {
+				return node;
+			}
+			return replaced;
+		},
 		visitTableReference: (node) => replacer(node) ?? node,
 		visitColumnReference: (node) => replacer(node) ?? node,
 		visitNamedParamReference: (node) => replacer(node) ?? node,
@@ -43,6 +54,7 @@ export function replace(search: TAnyFragment, replacer: <T extends TAnyFragment>
 					Object.entries(node.select).map(([key, value]) => [key, visit(value)]),
 				) as never,
 				where: node.where ? visit(node.where) as never : undefined,
+				having: node.having ? visit(node.having) as never : undefined,
 				groupBy: node.groupBy.map((g) => ({
 					column: visit(g.column),
 				})) as never,
@@ -119,6 +131,7 @@ export function replace(search: TAnyFragment, replacer: <T extends TAnyFragment>
 			node = replacer(node) ?? node;
 			const replaced = {
 				type: "join",
+				joinType: node.joinType,
 				table: node.table,
 				alias: node.alias,
 				on: node.on ? visit(node.on) as never : undefined,

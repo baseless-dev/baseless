@@ -13,6 +13,7 @@ import type {
 	TNamedParamReference,
 	TNamedTableReference,
 	TSelectStatement,
+	TSubqueryExpression,
 	TUpdateStatement,
 } from "./schema.ts";
 
@@ -47,6 +48,8 @@ export function visit<TReturn, TContext>(
 			return visitor.visitLiteral(node, _visit, defaultContext!);
 		case "functionref":
 			return visitor.visitNamedFunctionReference(node, _visit, defaultContext!);
+		case "subquery":
+			return visitor.visitSubqueryExpression(node, _visit, defaultContext!);
 		case "tableref":
 			return visitor.visitTableReference(node, _visit, defaultContext!);
 		case "columnref":
@@ -92,6 +95,11 @@ export interface Visitor<TReturn, TContext> {
 	visitLiteral(node: TLiteral<any>, visit: (node: TAnyFragment, ctx: TContext) => TReturn, ctx: TContext): TReturn;
 	visitNamedFunctionReference(
 		node: TNamedFunctionReference<any, any, any>,
+		visit: (node: TAnyFragment, ctx: TContext) => TReturn,
+		ctx: TContext,
+	): TReturn;
+	visitSubqueryExpression(
+		node: TSubqueryExpression,
 		visit: (node: TAnyFragment, ctx: TContext) => TReturn,
 		ctx: TContext,
 	): TReturn;

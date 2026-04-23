@@ -1,5 +1,5 @@
-import { BatchableStatementBuilder } from "./builder.ts";
-import { assert, assertEquals } from "@std/assert";
+import { RootQueryBuilder } from "./builder.ts";
+import { assertEquals } from "@std/assert";
 import { replace } from "./replace.ts";
 import { queryToString } from "./visit.test.ts";
 
@@ -32,13 +32,11 @@ type InsertTables = {
 	posts: InsertPost;
 };
 
-const q = new BatchableStatementBuilder<Tables, InsertTables>();
+const q = new RootQueryBuilder<Tables, InsertTables>();
 
 Deno.test("replace", () => {
-	const a1 = q.select("posts", "p")
-		.map((q) => ({
-			title: q.ref("p", "title"),
-		}))
+	const a1 = q.selectFrom("posts", "p")
+		.select(["p.title"])
 		.build();
 
 	const r1 = replace(a1, (node) => {

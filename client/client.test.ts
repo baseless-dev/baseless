@@ -239,21 +239,21 @@ Deno.test("Client", async (ctx) => {
 
 		// Insert a row matching our identity (allowed by row security)
 		await client.table.execute(
-			(q) => q.insert("users").values((q) => ({ id: q.literal(identity.id), name: q.literal("Foobar") })),
+			(q) => q.insertInto("users").values((q) => ({ id: q.literal(identity.id), name: q.literal("Foobar") })),
 			{},
 		);
 
 		// Insert another row (should be blocked by row security)
 		await assertRejects(() =>
 			client.table.execute(
-				(q) => q.insert("users").values((q) => ({ id: q.literal(id("id_")), name: q.literal("Someone Else") })),
+				(q) => q.insertInto("users").values((q) => ({ id: q.literal(id("id_")), name: q.literal("Someone Else") })),
 				{},
 			)
 		);
 
 		// SELECT – row security injects WHERE users.id = identity.id
 		const rows = await client.table.execute(
-			(q) => q.select("users").map((q) => ({ id: q.ref("users", "id") })),
+			(q) => q.selectFrom("users").select(["users.id"]),
 			{},
 		);
 		assertEquals(rows.length, 1);

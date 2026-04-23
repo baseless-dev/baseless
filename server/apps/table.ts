@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { app, INTERNAL_HIDE_ENDPOINT, Permission, type PublicTableDefinition, TableDefinition } from "../app.ts";
+import { app, INTERNAL_HIDE_ENDPOINT, Permission, TableDefinition } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import {
 	ExpressionBuilder,
@@ -19,10 +19,6 @@ import { Response } from "@baseless/core/response";
 import { ForbiddenError, TableNotFoundError } from "@baseless/core/errors";
 import { first } from "@baseless/core/iter";
 
-// ---------------------------------------------------------------------------
-// Security helpers — applied only to client-facing requests
-// ---------------------------------------------------------------------------
-
 /**
  * Collects all table names referenced by the given AST statement.
  */
@@ -33,6 +29,9 @@ function collectTableNames(statement: TAnyStatement): Set<string> {
 		visitLiteral: noop,
 		visitNamedFunctionReference: (_node, v) => {
 			for (const p of _node.params) v(p, void 0);
+		},
+		visitSubqueryExpression: (node, v) => {
+			v(node.select, void 0);
 		},
 		visitTableReference: (node) => {
 			tables.add(node.table);
@@ -51,6 +50,9 @@ function collectTableNames(statement: TAnyStatement): Set<string> {
 			for (const j of node.join) v(j as any, void 0);
 			for (const s of Object.values(node.select)) v(s, void 0);
 			if (node.where) v(node.where, void 0);
+			if (node.having) v(node.having, void 0);
+			for (const group of node.groupBy) v(group.column, void 0);
+			for (const order of node.orderBy) v(order.column, void 0);
 		},
 		visitInsertStatement: (node, v) => {
 			v(node.into, void 0);

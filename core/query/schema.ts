@@ -83,6 +83,23 @@ export const TNamedFunctionReference = z.strictObject({
 }).meta({ id: "NamedFunctionReference" });
 
 /**
+ * AST node representing a scalar subquery used where an expression is
+ * expected.
+ */
+export interface TSubqueryExpression {
+	type: "subquery";
+	select: TSelectStatement;
+}
+
+/** Zod schema for {@link TSubqueryExpression}. */
+export const TSubqueryExpression: z.ZodType<TSubqueryExpression> = z.lazy((): z.ZodType<TSubqueryExpression> =>
+	z.strictObject({
+		type: z.literal("subquery"),
+		select: TSelectStatement,
+	}).meta({ id: "SubqueryExpression" })
+);
+
+/**
  * AST node for a binary comparison expression (e.g. `=`, `!=`, `>`, `IN`).
  * `TParams` maps the named parameters referenced in this comparison to their
  * expected types.
@@ -127,19 +144,22 @@ export const TBooleanExpression = z.strictObject({
 
 /**
  * Union of all AST nodes that can appear as operands in expressions:
- * function references, table/column/param references, or literal values.
+ * function references, table/column/param references, literal values, or
+ * scalar subqueries.
  */
 export type TReferenceOrLiteral<TData = any> =
 	| TNamedFunctionReference<string, TReferenceOrLiteral<TData>[], any>
+	| TSubqueryExpression
 	| TNamedTableReference
 	| TNamedColumnReference<string, TData>
 	| TNamedParamReference<string, TData>
 	| TLiteral<TData>;
 
 /** Zod schema for {@link TReferenceOrLiteral}. */
-export const TReferenceOrLiteral = z.lazy(() =>
+export const TReferenceOrLiteral: z.ZodType<TReferenceOrLiteral> = z.lazy((): z.ZodType<TReferenceOrLiteral> =>
 	z.union([
 		TNamedFunctionReference,
+		TSubqueryExpression,
 		TNamedTableReference,
 		TNamedColumnReference,
 		TNamedParamReference,
@@ -153,6 +173,7 @@ export const TReferenceOrLiteral = z.lazy(() =>
  */
 export type TExpression =
 	| TNamedFunctionReference<string, any, any>
+	| TSubqueryExpression
 	| TNamedTableReference
 	| TNamedColumnReference<string, any>
 	| TNamedParamReference<string>
@@ -163,6 +184,7 @@ export type TExpression =
 /** Zod schema for {@link TExpression}. */
 export const TExpression = z.union([
 	TNamedFunctionReference,
+	TSubqueryExpression,
 	TNamedTableReference,
 	TNamedColumnReference,
 	TNamedParamReference,
@@ -176,6 +198,7 @@ export const TExpression = z.union([
  */
 export interface TJoinFragment {
 	type: "join";
+	joinType?: "inner" | "left" | "right";
 	table: string;
 	alias?: string;
 	on?: TBooleanComparisonExpression<any> | TBooleanExpression<any>;
@@ -184,6 +207,7 @@ export interface TJoinFragment {
 /** Zod schema for {@link TJoinFragment}. */
 export const TJoinFragment = z.strictObject({
 	type: z.literal("join"),
+	joinType: z.optional(z.union([z.literal("inner"), z.literal("left"), z.literal("right")])),
 	table: z.string(),
 	alias: z.optional(z.string()),
 	on: z.optional(z.union([TBooleanComparisonExpression, TBooleanExpression])),
@@ -198,6 +222,7 @@ export interface TSelectStatement {
 	join: Array<TJoinFragment>;
 	select: Record<string, TReferenceOrLiteral>;
 	where?: TBooleanExpression<any> | TExpression;
+	having?: TBooleanExpression<any> | TExpression;
 	groupBy: Array<{
 		column: TReferenceOrLiteral;
 	}>;
@@ -210,12 +235,13 @@ export interface TSelectStatement {
 }
 
 /** Zod schema for {@link TSelectStatement}. */
-export const TSelectStatement = z.strictObject({
+export const TSelectStatement: z.ZodType<TSelectStatement> = z.strictObject({
 	type: z.literal("select"),
 	from: TNamedTableReference,
 	join: z.array(TJoinFragment),
 	select: z.record(z.string(), TReferenceOrLiteral),
 	where: z.optional(z.union([TBooleanExpression, TExpression])),
+	having: z.optional(z.union([TBooleanExpression, TExpression])),
 	groupBy: z.array(z.strictObject({
 		column: TReferenceOrLiteral,
 	})),
@@ -383,6 +409,9 @@ export function isFragmentEquals(node: TAnyFragment | undefined | null, other: T
 		return node.name === other.name && node.params.length === other.params.length &&
 			node.params.every((param: TReferenceOrLiteral, index: number) => isFragmentEquals(param, other.params[index]));
 	}
+	if (node.type === "subquery" && other.type === "subquery") {
+		return isFragmentEquals(node.select, other.select);
+	}
 	if (node.type === "tableref" && other.type === "tableref") {
 		return node.table === other.table && node.alias === other.alias;
 	}
@@ -405,15 +434,16 @@ export function isFragmentEquals(node: TAnyFragment | undefined | null, other: T
 		return node.from.table === other.from.table && node.from.alias === other.from.alias &&
 			Object.keys(node.select).length === Object.keys(other.select).length &&
 			Object.keys(node.select).every((key) => isFragmentEquals(node.select[key], other.select[key])) &&
-			(!node.where || !other.where || isFragmentEquals(node.where, other.where)) &&
+			optionalFragmentEquals(node.where, other.where) &&
+			optionalFragmentEquals(node.having, other.having) &&
 			node.groupBy.length === other.groupBy.length &&
 			node.groupBy.every((group, index) => isFragmentEquals(group.column, other.groupBy[index].column)) &&
 			node.orderBy.length === other.orderBy.length &&
 			node.orderBy.every((order, index) =>
 				isFragmentEquals(order.column, other.orderBy[index].column) && order.order === other.orderBy[index].order
 			) &&
-			(node.limit === other.limit || (node.limit === undefined && other.limit === undefined)) &&
-			(node.offset === other.offset || (node.offset === undefined && other.offset === undefined)) &&
+			optionalValueEquals(node.limit, other.limit) &&
+			optionalValueEquals(node.offset, other.offset) &&
 			node.join.length === other.join.length &&
 			node.join.every((join, index) => isFragmentEquals(join, other.join[index]));
 	}
@@ -421,12 +451,13 @@ export function isFragmentEquals(node: TAnyFragment | undefined | null, other: T
 		return node.into.table === other.into.table && node.into.alias === other.into.alias &&
 			node.columns.length === other.columns.length &&
 			node.columns.every((column, index) => column === other.columns[index]) &&
-			(!node.values || !other.values || node.values.length === other.values.length &&
-					node.values.every((value, index) =>
-						Object.keys(value).length === Object.keys(other.values?.[index] ?? {}).length &&
-						Object.keys(value).every((key) => isFragmentEquals(value[key], other.values?.[index]?.[key]))
-					)) &&
-			(!node.from || !other.from || isFragmentEquals(node.from, other.from));
+			optionalArrayEquals(node.values, other.values, (left, right) =>
+				left.length === right.length &&
+				left.every((value, index) =>
+					Object.keys(value).length === Object.keys(right[index] ?? {}).length &&
+					Object.keys(value).every((key) => isFragmentEquals(value[key], right[index]?.[key]))
+				)) &&
+			optionalFragmentEquals(node.from, other.from);
 	}
 	if (node.type === "update" && other.type === "update") {
 		return node.table.table === other.table.table && node.table.alias === other.table.alias &&
@@ -434,15 +465,15 @@ export function isFragmentEquals(node: TAnyFragment | undefined | null, other: T
 			Object.keys(node.set).every((key) => isFragmentEquals(node.set[key], other.set[key])) &&
 			node.join.length === other.join.length &&
 			node.join.every((join, index) => isFragmentEquals(join, other.join[index])) &&
-			(!node.where || !other.where || isFragmentEquals(node.where, other.where)) &&
-			(node.limit === other.limit || (node.limit === undefined && other.limit === undefined));
+			optionalFragmentEquals(node.where, other.where) &&
+			optionalValueEquals(node.limit, other.limit);
 	}
 	if (node.type === "delete" && other.type === "delete") {
 		return node.table.table === other.table.table && node.table.alias === other.table.alias &&
 			node.join.length === other.join.length &&
 			node.join.every((join, index) => isFragmentEquals(join, other.join[index])) &&
-			(!node.where || !other.where || isFragmentEquals(node.where, other.where)) &&
-			(node.limit === other.limit || (node.limit === undefined && other.limit === undefined));
+			optionalFragmentEquals(node.where, other.where) &&
+			optionalValueEquals(node.limit, other.limit);
 	}
 	if (node.type === "batch" && other.type === "batch") {
 		return node.checks.length === other.checks.length &&
@@ -454,8 +485,8 @@ export function isFragmentEquals(node: TAnyFragment | undefined | null, other: T
 			node.statements.every((statement, index) => isFragmentEquals(statement, other.statements[index]));
 	}
 	if (node.type === "join" && other.type === "join") {
-		return node.table === other.table && node.alias === other.alias &&
-			(!node.on || !other.on || isFragmentEquals(node.on, other.on));
+		return node.joinType === other.joinType && node.table === other.table && node.alias === other.alias &&
+			optionalFragmentEquals(node.on, other.on);
 	}
 	if (node.type === "exists" && other.type === "exists") {
 		return isFragmentEquals(node.select, other.select);
@@ -464,4 +495,29 @@ export function isFragmentEquals(node: TAnyFragment | undefined | null, other: T
 		return isFragmentEquals(node.select, other.select);
 	}
 	return false;
+}
+
+function optionalFragmentEquals(
+	node: TAnyFragment | undefined | null,
+	other: TAnyFragment | undefined | null,
+): boolean {
+	if (!node || !other) {
+		return node === other;
+	}
+	return isFragmentEquals(node, other);
+}
+
+function optionalValueEquals<T>(node: T | undefined, other: T | undefined): boolean {
+	return node === other;
+}
+
+function optionalArrayEquals<T>(
+	node: T[] | undefined,
+	other: T[] | undefined,
+	compare: (node: T[], other: T[]) => boolean,
+): boolean {
+	if (!node || !other) {
+		return node === other;
+	}
+	return compare(node, other);
 }

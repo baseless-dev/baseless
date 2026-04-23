@@ -209,7 +209,7 @@ export const pubsub = (
 	mock: Awaited<ReturnType<typeof createMemoryServer>>,
 ): { next: () => Promise<void>; drain: () => Promise<void> } & AsyncDisposable => {
 	const abortController = new AbortController();
-	const stream = mock.provider.queue.dequeue(abortController.signal);
+	const stream = mock.provider.queue.dequeue({ signal: abortController.signal });
 	const reader = stream.getReader();
 	return {
 		async next(): Promise<void> {

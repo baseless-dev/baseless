@@ -1,4 +1,4 @@
-import { BatchableStatementBuilder } from "./builder.ts";
+import { RootQueryBuilder } from "./builder.ts";
 import { assertEquals } from "@std/assert";
 import { visit } from "./visit.ts";
 
@@ -31,25 +31,20 @@ type InsertTables = {
 	posts: InsertPost;
 };
 
-const q = new BatchableStatementBuilder<Tables, InsertTables>();
+const q = new RootQueryBuilder<Tables, InsertTables>();
 
 Deno.test("queryToString", () => {
 	const a3 = q
-		.insert("posts")
+		.insertInto("posts")
 		.columns("title", "content", "postDate", "author_id")
 		.from((q) =>
-			q.select("posts", "p")
-				.where((q) => q.equal(q.ref("p", "author_id"), q.param("author_id")))
-				.map((q) => ({
-					title: q.ref("p", "title"),
-					content: q.ref("p", "content"),
-					postDate: q.ref("p", "postDate"),
-					author_id: q.ref("p", "author_id"),
-				}))
+			q.selectFrom("posts", "p")
+				.where((q) => q.eq("p.author_id", q.param("author_id")))
+				.select(["p.title", "p.content", "p.postDate", "p.author_id"])
 		);
 
 	const a4 = q
-		.insert("posts")
+		.insertInto("posts")
 		.columns("title", "content", "postDate", "author_id")
 		.values((q) => ({
 			title: q.param("title"),
@@ -60,7 +55,7 @@ Deno.test("queryToString", () => {
 
 	const a5 = q
 		.batch()
-		.checkIfNotExists(q.select("posts", "p").where((q) => q.equal(q.ref("p", "title"), q.param("title"))))
+		.checkIfNotExists(q.selectFrom("posts", "p").where((q) => q.eq("p.title", q.param("title"))))
 		.execute(a3)
 		.execute(a4);
 	const sql = queryToString(a5.build());
@@ -74,15 +69,23 @@ export function queryToString(query: any): string {
 	return visit<string>(query, {
 		visitLiteral: (node) => JSON.stringify(node.data),
 		visitNamedFunctionReference: (node, visit) => `${node.name}(${node.params.map(visit).join(", ")})`,
+		visitSubqueryExpression: (node, visit) => `(${visit(node.select)})`,
 		visitTableReference: (node) => `${node.table}${node.alias ? ` AS ${node.alias}` : ""}`,
-		visitColumnReference: (node) => `${node.table}.${node.column}`,
+		visitColumnReference: (node) => node.table ? `${node.table}.${node.column}` : `${node.column}`,
 		visitNamedParamReference: (node) => `:${node.param}`,
-		visitBooleanExpression: (node, visit) => node.operands.map((o) => visit(o)).join(` ${node.operator} `),
+		visitBooleanExpression: (node, visit) => {
+			if (node.operator === "not") {
+				return `NOT (${node.operands.map((o) => visit(o)).join(", ")})`;
+			}
+			return node.operands.map((o) => visit(o)).join(` ${node.operator} `);
+		},
 		visitBooleanComparisonExpression: (node, visit) => `${visit(node.left)} ${node.operator} ${visit(node.right)}`,
 		visitSelectStatement: (node, visit) =>
 			`SELECT ${Object.entries(node.select).map(([key, value]) => `${visit(value)} AS ${key}`).join(", ")} FROM ${visit(node.from)}${
-				node.where ? ` WHERE ${visit(node.where)}` : ""
-			}${node.groupBy.length ? ` GROUP BY ${node.groupBy.map((g) => visit(g.column)).join(", ")}` : ""}${
+				node.join.length ? ` ${node.join.map((join) => visit(join)).join(" ")}` : ""
+			}${node.where ? ` WHERE ${visit(node.where)}` : ""}${
+				node.groupBy.length ? ` GROUP BY ${node.groupBy.map((g) => visit(g.column)).join(", ")}` : ""
+			}${node.having ? ` HAVING ${visit(node.having)}` : ""}${
 				node.orderBy.length ? ` ORDER BY ${node.orderBy.map((o) => `${visit(o.column)} ${o.order}`).join(", ")}` : ""
 			}${node.limit ? ` LIMIT ${node.limit}` : ""}${node.offset ? ` OFFSET ${node.offset}` : ""}`,
 		visitInsertStatement: (node, visit) => {
@@ -105,7 +108,9 @@ export function queryToString(query: any): string {
 		visitBatchStatement: (node, visit) =>
 			`BATCH (${node.checks.map((c) => visit(c)).join(" AND ")} THEN ${node.statements.map((s) => visit(s)).join("; ")})`,
 		visitJoinFragment: (node, visit) =>
-			`JOIN ${node.table}${node.alias ? ` AS ${node.alias}` : ""}${node.on ? `ON ${visit(node.on)}` : ""}`,
+			`${node.joinType ? `${node.joinType.toUpperCase()} ` : ""}JOIN ${node.table}${node.alias ? ` AS ${node.alias}` : ""}${
+				node.on ? ` ON ${visit(node.on)}` : ""
+			}`,
 		visitCheck: (node, visit) => `CHECK (${visit(node.select)})`,
 	}) ?? "";
 }

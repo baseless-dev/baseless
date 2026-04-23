@@ -1,6 +1,5 @@
-// deno-lint-ignore-file ban-types no-explicit-any
-
-import {
+// deno-lint-ignore-file no-explicit-any ban-types
+import type {
 	TAnyStatement,
 	TBatchStatement,
 	TBooleanComparisonExpression,
@@ -12,583 +11,659 @@ import {
 	TNamedColumnReference,
 	TNamedFunctionReference,
 	TNamedParamReference,
+	TNamedTableReference,
 	TReferenceOrLiteral,
 	TSelectStatement,
 	TStatement,
+	TSubqueryExpression,
 	TUpdateStatement,
 } from "./schema.ts";
 import type { Prettify } from "../prettify.ts";
-import { ID } from "@baseless/core/id";
-
-/**
- * Maps a {@link TReferenceOrLiteral} (or a record of them) to the
- * TypeScript type they represent at runtime.
- */
-// deno-fmt-ignore
-export type InferModelFromTReferenceOrLiteral<T> =
-	T extends TNamedColumnReference<any, infer TData> ? TData
-	: T extends TNamedFunctionReference<any, any, infer TOutput> ? TOutput
-	: T extends ParameterReferenceBuilder<any, infer TData> ? TData
-	: T extends TNamedParamReference<any, infer TData> ? TData
-	: T extends TLiteral<infer TData> ? TData
-	: T extends Record<string, TReferenceOrLiteral> ? { [K in keyof T]: InferModelFromTReferenceOrLiteral<T[K]> }
-	: never;
 
 // deno-fmt-ignore
-type _ExtractNamedParamReference<TExpr, M extends any[]> =
-	M["length"] extends 8 ? never
-	: TExpr extends TNamedParamReference<infer TName, infer TData> ? { [K in TName]: TData }
-	: TExpr extends Record<string, TReferenceOrLiteral> ? { [K in keyof TExpr]: _ExtractNamedParamReference<TExpr[K], [1, ...M]> }[keyof TExpr]
-	: TExpr extends Array<infer TItem> ? _ExtractNamedParamReference<TItem, [1, ...M]>
-	: TExpr extends TNamedFunctionReference<infer TName, infer TParams, infer TOutput> ? { [K in keyof TParams]: _ExtractNamedParamReference<TParams[K], [1, ...M]> }[number]
-	: never;
-/**
- * Extracts all {@link TNamedParamReference} bindings from an expression tree
- * and merges them into a single intersection object type.
- */
-export type ExtractNamedParamReference<T> = Prettify<UnionToIntersection<_ExtractNamedParamReference<T, []>>>;
+type Flatten<T> = {
+	[DK in {[K in keyof T & string]: `${K}.${keyof T[K] & string}`;}[keyof T & string]]: DK extends `${infer K}.${infer F}`
+		? K extends keyof T
+			? F extends keyof T[K]
+				? T[K][F]
+				: never
+			: never
+		: never;
+};
 
-/**
- * Converts a union type `U` into the intersection of all its members.
- * Used internally to merge named query parameter maps.
- */
+type LastIdentifier<T extends string> = T extends `${infer _}.${infer Rest}` ? LastIdentifier<Rest> : T;
+
+type SelectableExpression = TReferenceOrLiteral | TSubqueryExpression;
+type PredicateExpression = TBooleanComparisonExpression<any> | TBooleanExpression<any>;
+
+// deno-fmt-ignore
+type ColumnsToOutput<TFrom, TColumns extends any[]> =
+	Prettify<
+		{ [P in TColumns[number] as P extends (keyof Flatten<TFrom>) ? LastIdentifier<P> : never]: Flatten<TFrom>[P]; }
+		& { [P in TColumns[number] as P extends IdentifierExpression<any, infer A> ? A & string : never]: P extends IdentifierExpression<infer T, any> ? T : unknown; }
+		& { [P in TColumns[number] as P extends LiteralExpression<any, infer A> ? A & string : never]: P extends LiteralExpression<infer T, any> ? T : unknown; }
+		& { [P in TColumns[number] as P extends ParameterExpression<any, infer A, any> ? A & string : never]: P extends ParameterExpression<infer T, any, any> ? T : unknown; }
+		& { [P in TColumns[number] as P extends SubqueryExpression<any, infer A, any> ? A & string : never]: P extends SubqueryExpression<infer T, any, any> ? T : unknown; }
+		& { [P in TColumns[number] as P extends FunctionExpression<any, infer A, any> ? A & string : never]: P extends FunctionExpression<infer T, any, any> ? T : unknown; }
+	>;
+
 export type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends ((x: infer I) => void) ? I : never;
 
-/**
- * Builder for scalar operands in query expressions: column references, table
- * references, parameter references, literal values, string concatenation, and
- * function invocations.
- *
- * @template TTables The map of table names to their row models.
- */
-export class ReferenceOrLiteralBuilder<
-	TTables extends {},
-> {
-	literal<TData extends null | string | number | boolean | Date | ID>(value: TData): TLiteral<TData> {
-		return { type: "literal", data: value };
-	}
-	ref<TTableName extends keyof TTables, TColumnName extends keyof TTables[TTableName]>(
-		table: TTableName,
-		column: TColumnName,
-	): TNamedColumnReference<TColumnName, TTables[TTableName][TColumnName]> {
-		return {
-			type: "columnref",
-			table: table as string,
-			column: column,
-		};
-	}
-	param<TName extends string>(name: TName): ParameterReferenceBuilder<TName, any>;
-	param(name: string): ParameterReferenceBuilder<any, any> {
-		return new ParameterReferenceBuilder(name);
-	}
-	concat<TParams extends TReferenceOrLiteral[]>(...params: TParams): TNamedFunctionReference<"concat", TParams, string> {
-		return {
-			type: "functionref",
-			name: "concat",
-			params,
-		};
-	}
-	invoke<TName extends string, TParams extends TReferenceOrLiteral[], TOutput>(
-		name: TName,
-		params: TParams,
-	): TNamedFunctionReference<TName, TParams, TOutput> {
-		return {
-			type: "functionref",
-			name,
-			params,
-		};
-	}
-}
+type WritableValueExpression =
+	| Expression<any, any, any>
+	| TReferenceOrLiteral
+	| TSubqueryExpression
+	| null
+	| string
+	| number
+	| boolean
+	| Date;
 
-export class ParameterReferenceBuilder<TName extends string, TData> implements TNamedParamReference<TName, TData> {
-	type = "paramref" as const;
-	param: TName = "" as any;
+// deno-fmt-ignore
+type InferModelFromWritableValue<T> =
+	T extends IdentifierExpression<infer TData, any> ? TData
+	: T extends LiteralExpression<infer TData, any> ? TData
+	: T extends ParameterExpression<infer TData, any, any> ? TData
+	: T extends SubqueryExpression<infer TData, any, any> ? TData
+	: T extends FunctionExpression<infer TData, any, any> ? TData
+	: T extends TNamedColumnReference<any, infer TData> ? TData
+	: T extends TNamedFunctionReference<any, any, infer TData> ? TData
+	: T extends TNamedParamReference<any, infer TData> ? TData
+	: T extends TLiteral<infer TData> ? TData
+	: T extends null | string | number | boolean | Date ? T
+	: T extends Record<string, WritableValueExpression> ? { [K in keyof T]: InferModelFromWritableValue<T[K]> }
+	: never;
 
-	constructor(name: TName) {
-		this.param = name;
-	}
+// deno-fmt-ignore
+type _ExtractParamsFromWritableValue<TExpr, M extends any[]> =
+	M["length"] extends 8 ? never
+	: TExpr extends ParameterExpression<any, any, infer TParams> ? TParams
+	: TExpr extends SubqueryExpression<any, any, infer TParams> ? TParams
+	: TExpr extends FunctionExpression<any, any, infer TParams> ? TParams
+	: TExpr extends TNamedParamReference<infer TName, infer TData> ? { [K in TName & string]: TData }
+	: TExpr extends TNamedFunctionReference<any, infer TParams, any> ? { [K in keyof TParams]: _ExtractParamsFromWritableValue<TParams[K], [1, ...M]> }[number]
+	: TExpr extends TNamedColumnReference<any, any> ? never
+	: TExpr extends TLiteral<any> ? never
+	: TExpr extends TSubqueryExpression ? never
+	: TExpr extends Array<infer TItem> ? _ExtractParamsFromWritableValue<TItem, [1, ...M]>
+	: TExpr extends Record<string, WritableValueExpression> ? { [K in keyof TExpr]: _ExtractParamsFromWritableValue<TExpr[K], [1, ...M]> }[keyof TExpr]
+	: never;
 
-	as<TData>(): TNamedParamReference<TName, TData> {
-		return this;
-	}
+export type ExtractParamsFromWritableValue<T> = Prettify<UnionToIntersection<_ExtractParamsFromWritableValue<T, []>>>;
 
-	toJSON(): TNamedParamReference<TName, TData> {
-		return {
-			type: this.type,
-			param: this.param,
-		};
-	}
-}
-
-/**
- * Builder for boolean predicate expressions (`AND`, `OR`, and binary
- * comparisons such as `=`, `!=`, `>`, `>=`, `<`, `<=`, `IN`, `NOT IN`).
- *
- * @template TTables The map of table names to their row models.
- * @template TParams Accumulated named parameter types.
- */
-export class BooleanExpressionBuilder<
-	TTables extends {},
-	TParams extends {},
-> {
-	and<TLeftParams extends {}, TRightParams extends {}>(
-		left: TBooleanComparisonExpression<TLeftParams>,
-		right: TBooleanComparisonExpression<TRightParams>,
-	): TBooleanComparisonExpression<Prettify<TParams & TLeftParams & TRightParams>> {
-		return {
-			type: "booleancomparison",
-			operator: "and",
-			left,
-			right,
-		};
-	}
-	or<TLeftParams extends {}, TRightParams extends {}>(
-		left: TBooleanComparisonExpression<TLeftParams>,
-		right: TBooleanComparisonExpression<TRightParams>,
-	): TBooleanComparisonExpression<Prettify<TParams & TLeftParams & TRightParams>> {
-		return {
-			type: "booleancomparison",
-			operator: "or",
-			left,
-			right,
-		};
-	}
-	equal<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedParamReference<TParam>,
-		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	equal<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
-		right: TNamedParamReference<TParam>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	equal<TParamLeft extends string, TParamRight extends string>(
-		left: TNamedParamReference<TParamLeft>,
-		right: TNamedParamReference<TParamRight>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	equal<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
-		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
-		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
-	): TBooleanComparisonExpression<{}>;
-	equal<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight extends null | string | number | boolean | Date | ID>(
-		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
-		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
-	): TBooleanComparisonExpression<{}>;
-	equal(left: any, right: any): TBooleanComparisonExpression<{}> {
-		return {
-			type: "booleancomparison",
-			operator: "eq",
-			left,
-			right,
-		};
-	}
-
-	notEqual<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedParamReference<TParam>,
-		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	notEqual<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
-		right: TNamedParamReference<TParam>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	notEqual<TParamLeft extends string, TParamRight extends string>(
-		left: TNamedParamReference<TParamLeft>,
-		right: TNamedParamReference<TParamRight>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	notEqual<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
-		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
-		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
-	): TBooleanComparisonExpression<{}>;
-	notEqual<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight extends null | string | number | boolean | Date | ID>(
-		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
-		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
-	): TBooleanComparisonExpression<{}>;
-	notEqual(left: any, right: any): TBooleanComparisonExpression<{}> {
-		return {
-			type: "booleancomparison",
-			operator: "ne",
-			left,
-			right,
-		};
-	}
-
-	greaterThan<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedParamReference<TParam>,
-		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	greaterThan<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
-		right: TNamedParamReference<TParam>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	greaterThan<TParamLeft extends string, TParamRight extends string>(
-		left: TNamedParamReference<TParamLeft>,
-		right: TNamedParamReference<TParamRight>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	greaterThan<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
-		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
-		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
-	): TBooleanComparisonExpression<{}>;
-	greaterThan<
-		TDataLeft extends null | string | number | boolean | Date | ID,
-		TDataRight extends null | string | number | boolean | Date | ID,
-	>(
-		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
-		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
-	): TBooleanComparisonExpression<{}>;
-	greaterThan(left: any, right: any): TBooleanComparisonExpression<{}> {
-		return {
-			type: "booleancomparison",
-			operator: "gt",
-			left,
-			right,
-		};
-	}
-
-	greaterThanOrEqual<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedParamReference<TParam>,
-		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	greaterThanOrEqual<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
-		right: TNamedParamReference<TParam>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	greaterThanOrEqual<TParamLeft extends string, TParamRight extends string>(
-		left: TNamedParamReference<TParamLeft>,
-		right: TNamedParamReference<TParamRight>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	greaterThanOrEqual<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
-		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
-		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
-	): TBooleanComparisonExpression<{}>;
-	greaterThanOrEqual<
-		TDataLeft extends null | string | number | boolean | Date | ID,
-		TDataRight extends null | string | number | boolean | Date | ID,
-	>(
-		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
-		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
-	): TBooleanComparisonExpression<{}>;
-	greaterThanOrEqual(left: any, right: any): TBooleanComparisonExpression<{}> {
-		return {
-			type: "booleancomparison",
-			operator: "gte",
-			left,
-			right,
-		};
-	}
-
-	lessThan<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedParamReference<TParam>,
-		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	lessThan<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
-		right: TNamedParamReference<TParam>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	lessThan<TParamLeft extends string, TParamRight extends string>(
-		left: TNamedParamReference<TParamLeft>,
-		right: TNamedParamReference<TParamRight>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	lessThan<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
-		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
-		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
-	): TBooleanComparisonExpression<{}>;
-	lessThan<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight extends null | string | number | boolean | Date | ID>(
-		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
-		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
-	): TBooleanComparisonExpression<{}>;
-	lessThan(left: any, right: any): TBooleanComparisonExpression<{}> {
-		return {
-			type: "booleancomparison",
-			operator: "lt",
-			left,
-			right,
-		};
-	}
-
-	lessThanOrEqual<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedParamReference<TParam>,
-		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	lessThanOrEqual<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
-		right: TNamedParamReference<TParam>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	lessThanOrEqual<TParamLeft extends string, TParamRight extends string>(
-		left: TNamedParamReference<TParamLeft>,
-		right: TNamedParamReference<TParamRight>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	lessThanOrEqual<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
-		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
-		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
-	): TBooleanComparisonExpression<{}>;
-	lessThanOrEqual<
-		TDataLeft extends null | string | number | boolean | Date | ID,
-		TDataRight extends null | string | number | boolean | Date | ID,
-	>(
-		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
-		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
-	): TBooleanComparisonExpression<{}>;
-	lessThanOrEqual(left: any, right: any): TBooleanComparisonExpression<{}> {
-		return {
-			type: "booleancomparison",
-			operator: "lte",
-			left,
-			right,
-		};
-	}
-
-	in<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedParamReference<TParam>,
-		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	in<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
-		right: TNamedParamReference<TParam>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	in<TParamLeft extends string, TParamRight extends string>(
-		left: TNamedParamReference<TParamLeft>,
-		right: TNamedParamReference<TParamRight>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	in<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
-		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
-		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
-	): TBooleanComparisonExpression<{}>;
-	in<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight extends null | string | number | boolean | Date | ID>(
-		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
-		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
-	): TBooleanComparisonExpression<{}>;
-	in(left: any, right: any): TBooleanComparisonExpression<{}> {
-		return {
-			type: "booleancomparison",
-			operator: "in",
-			left,
-			right,
-		};
-	}
-
-	notIn<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedParamReference<TParam>,
-		right: TNamedColumnReference<any, TData> | TLiteral<TData>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	notIn<TParam extends string, TData extends null | string | number | boolean | Date | ID>(
-		left: TNamedColumnReference<any, TData> | TLiteral<TData>,
-		right: TNamedParamReference<TParam>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParam]: TData }>>;
-	notIn<TParamLeft extends string, TParamRight extends string>(
-		left: TNamedParamReference<TParamLeft>,
-		right: TNamedParamReference<TParamRight>,
-	): TBooleanComparisonExpression<Prettify<TParams & { [a in TParamLeft]: any } & { [a in TParamRight]: any }>>;
-	notIn<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight>(
-		left: TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft>,
-		right: TDataRight extends TDataLeft ? TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight> : never,
-	): TBooleanComparisonExpression<{}>;
-	notIn<TDataLeft extends null | string | number | boolean | Date | ID, TDataRight extends null | string | number | boolean | Date | ID>(
-		left: TDataLeft extends TDataRight ? TNamedColumnReference<any, TDataLeft> | TLiteral<TDataLeft> : never,
-		right: TNamedColumnReference<any, TDataRight> | TLiteral<TDataRight>,
-	): TBooleanComparisonExpression<{}>;
-	notIn(left: any, right: any): TBooleanComparisonExpression<{}> {
-		return {
-			type: "booleancomparison",
-			operator: "nin",
-			left,
-			right,
-		};
-	}
-}
-
-/**
- * Combined builder that exposes both {@link ReferenceOrLiteralBuilder} and
- * {@link BooleanExpressionBuilder} through mixin composition.
- *
- * @template TTables The map of table names to their row models.
- * @template TParams Accumulated named parameter types.
- */
-export interface ExpressionBuilder<
-	TTables extends {},
-	TParams extends {},
-> extends ReferenceOrLiteralBuilder<TTables>, BooleanExpressionBuilder<TTables, TParams> {}
-export class ExpressionBuilder<
-	TTables extends {},
-	TParams extends {},
-> {}
-
-applyMixin(ExpressionBuilder, [ReferenceOrLiteralBuilder, BooleanExpressionBuilder]);
-
-/**
- * Common interface implemented by all statement builder types.
- *
- * @template TParams Named parameter types required to execute the statement.
- * @template TOutput The TypeScript type returned when the statement executes.
- */
 export interface IStatementBuilder<TParams extends {}, TOutput> {
 	build(): TAnyStatement;
 	toStatement(): TStatement<TParams, TOutput>;
+	toJSON(): TAnyStatement;
 }
 
-/**
- * Base entry-point builder that starts a `SELECT`, `INSERT`, `UPDATE`, or `DELETE`
- * statement for the given table schema.
- *
- * @template TTables Tables available for reading.
- * @template TInsertTables Tables available for writing.
- */
-export class StatementBuilder<
-	TTables extends {},
-	TInsertTables extends {},
-> {
-	select<TName extends keyof TTables>(
-		table: TName,
-	): SelectStatementBuilder<TTables, { [a in TName]: TTables[TName] }, {}, {}, false>;
-	select<TName extends keyof TTables, TAlias extends string>(
+interface ISelectFromQueryRoot<TTables extends {}> {
+	selectFrom<TName extends keyof TTables>(table: TName): SelectQueryBuilder<TTables, { [K in TName]: TTables[K] }, {}, false, {}>;
+	selectFrom<TName extends keyof TTables, TAlias extends string>(
 		table: TName,
 		alias: TAlias,
-	): SelectStatementBuilder<TTables, { [a in TAlias]: TTables[TName] }, {}, {}, false>;
-	select(table: any, alias?: any): any {
-		return new SelectStatementBuilder<{}, {}, {}, {}>(
+	): SelectQueryBuilder<TTables, { [K in TAlias]: TTables[TName] }, {}, false, {}>;
+}
+
+export class RootQueryBuilder<TTables extends {}, TInsertTables extends {} = TTables> {
+	selectFrom<TName extends keyof TTables>(table: TName): SelectQueryBuilder<TTables, { [K in TName]: TTables[K] }, {}, false, {}>;
+	selectFrom<TName extends keyof TTables, TAlias extends string>(
+		table: TName,
+		alias: TAlias,
+	): SelectQueryBuilder<TTables, { [K in TAlias]: TTables[TName] }, {}, false, {}>;
+	selectFrom(table: string, alias?: string): SelectQueryBuilder<any, any, any, false, {}> {
+		return new SelectQueryBuilder(
 			{ type: "tableref", table, alias },
 			[],
 			{},
 			undefined,
+			undefined,
 			[],
 			[],
 			undefined,
 			undefined,
 		);
 	}
-
-	insert<TName extends keyof TInsertTables>(
+	insertInto<TName extends keyof TInsertTables>(
 		table: TName,
-	): InsertStatementBuilder<TTables, TInsertTables, { [a in TName]: TInsertTables[TName] }, TInsertTables[TName], {}>;
-	insert<TName extends keyof TInsertTables, TAlias extends string>(
-		table: TName,
-		alias: TAlias,
-	): InsertStatementBuilder<TTables, TInsertTables, { [a in TAlias]: TInsertTables[TName] }, TInsertTables[TName], {}>;
-	insert(table: any, alias?: any): any {
-		return new InsertStatementBuilder<{}, {}, {}, {}, {}>(
-			{ type: "tableref", table, alias },
-			[],
-			undefined,
-		);
-	}
-
-	update<TName extends keyof TTables>(
-		table: TName,
-	): UpdateStatementBuilder<TTables, { [a in TName]: TTables[TName] }, TTables[TName], {}>;
-	update<TName extends keyof TTables, TAlias extends string>(
+	): InsertQueryBuilder<TTables, TInsertTables, { [K in TName]: TInsertTables[TName] }, TInsertTables[TName], {}>;
+	insertInto<TName extends keyof TInsertTables, TAlias extends string>(
 		table: TName,
 		alias: TAlias,
-	): UpdateStatementBuilder<TTables, { [a in TAlias]: TTables[TName] }, TTables[TName], {}>;
-	update(table: any, alias?: any): any {
-		return new UpdateStatementBuilder<{}, {}, {}, {}>(
+	): InsertQueryBuilder<TTables, TInsertTables, { [K in TAlias]: TInsertTables[TName] }, TInsertTables[TName], {}>;
+	insertInto(table: string, alias?: string): InsertQueryBuilder<any, any, any, any, {}> {
+		return new InsertQueryBuilder(
 			{ type: "tableref", table, alias },
-			{},
 			[],
 			undefined,
 			undefined,
 		);
 	}
-
-	delete<TName extends keyof TTables>(table: TName): DeleteStatementBuilder<TTables, { [a in TName]: TTables[TName] }, {}>;
-	delete<TName extends keyof TTables, TAlias extends string>(
+	updateFrom<TName extends keyof TTables>(
+		table: TName,
+	): UpdateQueryBuilder<TTables, { [K in TName]: TTables[TName] }, TTables[TName], {}>;
+	updateFrom<TName extends keyof TTables, TAlias extends string>(
 		table: TName,
 		alias: TAlias,
-	): DeleteStatementBuilder<TTables, { [a in TAlias]: TTables[TName] }, {}>;
-	delete(table: any, alias?: any): any {
-		return new DeleteStatementBuilder<{}, {}, {}>(
+	): UpdateQueryBuilder<TTables, { [K in TAlias]: TTables[TName] }, TTables[TName], {}>;
+	updateFrom(table: string, alias?: string): UpdateQueryBuilder<any, any, any, {}> {
+		return new UpdateQueryBuilder(
+			{ type: "tableref", table, alias },
+			undefined,
+			[],
+			undefined,
+			undefined,
+		);
+	}
+	deleteFrom<TName extends keyof TTables>(table: TName): DeleteQueryBuilder<TTables, { [K in TName]: TTables[TName] }, {}>;
+	deleteFrom<TName extends keyof TTables, TAlias extends string>(
+		table: TName,
+		alias: TAlias,
+	): DeleteQueryBuilder<TTables, { [K in TAlias]: TTables[TName] }, {}>;
+	deleteFrom(table: string, alias?: string): DeleteQueryBuilder<any, any, {}> {
+		return new DeleteQueryBuilder(
 			{ type: "tableref", table, alias },
 			[],
 			undefined,
 			undefined,
 		);
+	}
+	batch(): BatchQueryBuilder<TTables, TInsertTables, {}> {
+		return new BatchQueryBuilder([], []);
 	}
 }
 
-/**
- * Extends {@link StatementBuilder} with a `batch()` factory method that
- * begins a {@link BatchStatementBuilder}.
- *
- * @template TTables Tables available for reading.
- * @template TInsertTables Tables available for writing.
- */
-export class BatchableStatementBuilder<
-	TTables extends {},
-	TInsertTables extends {},
-> extends StatementBuilder<TTables, TInsertTables> {
-	batch(): BatchStatementBuilder<TTables, TInsertTables, {}> {
-		return new BatchStatementBuilder<any, any, {}>([], []);
+export class IdentifierExpression<TOutput, TAlias> {
+	#kind!: "identifier";
+	#column: TNamedColumnReference<string, TOutput>;
+	#alias?: string;
+	#order?: "ASC" | "DESC";
+
+	constructor(column: TNamedColumnReference<string, TOutput>, alias?: string, order?: "ASC" | "DESC") {
+		this.#column = column;
+		this.#alias = alias;
+		this.#order = order;
+	}
+
+	as<TNewAlias extends string>(alias: TNewAlias): IdentifierExpression<TOutput, TNewAlias> {
+		return new IdentifierExpression(this.#column, alias, this.#order);
+	}
+	asc(): IdentifierExpression<TOutput, TAlias> {
+		return new IdentifierExpression(this.#column, this.#alias, "ASC");
+	}
+	desc(): IdentifierExpression<TOutput, TAlias> {
+		return new IdentifierExpression(this.#column, this.#alias, "DESC");
+	}
+	toJSON(): TNamedColumnReference<string, TOutput> {
+		return this.#column;
+	}
+	get alias(): string | undefined {
+		return this.#alias;
+	}
+	get order(): "ASC" | "DESC" | undefined {
+		return this.#order;
 	}
 }
 
-/**
- * Builds a {@link TBatchStatement} that atomically executes multiple
- * write statements with optional pre-condition checks.
- *
- * @template TTables Tables available for reading.
- * @template TInsertTables Tables available for writing.
- * @template TParams Accumulated named parameter types.
- */
-export class BatchStatementBuilder<TTables extends {}, TInsertTables extends {}, TParams extends {}>
-	implements IStatementBuilder<TParams, void> {
-	#statements: TAnyStatement[];
-	#check: TCheck[];
+export class LiteralExpression<TOutput, TAlias> {
+	#kind!: "literal";
+	#literal: TLiteral<TOutput>;
+	#alias?: string;
 
-	constructor(statements: TAnyStatement[], checks: TCheck[]) {
-		this.#statements = statements;
-		this.#check = checks;
+	constructor(literal: TLiteral<TOutput>, alias?: string) {
+		this.#literal = literal;
+		this.#alias = alias;
 	}
 
-	build(): TBatchStatement {
+	as<TNewAlias extends string>(alias: TNewAlias): LiteralExpression<TOutput, TNewAlias> {
+		return new LiteralExpression(this.#literal, alias);
+	}
+	toJSON(): TLiteral<TOutput> {
+		return this.#literal;
+	}
+	get alias(): string | undefined {
+		return this.#alias;
+	}
+}
+
+export class ParameterExpression<TOutput, TName, TParams> {
+	#kind!: "parameter";
+	#param: TNamedParamReference<string, TOutput>;
+	#alias?: string;
+
+	constructor(name: string, alias?: string) {
+		this.#param = { type: "paramref", param: name };
+		this.#alias = alias;
+	}
+	as<TNewOutput>(): ParameterExpression<TNewOutput, TName, { [N in TName & string]: TNewOutput }>;
+	as<TNewAlias extends string>(alias: TNewAlias): ParameterExpression<TOutput, TNewAlias, TParams>;
+	as(alias?: string): ParameterExpression<any, any, any> {
+		if (typeof alias === "string") {
+			return new ParameterExpression(this.#param.param, alias);
+		}
+		return new ParameterExpression(this.#param.param, this.#alias);
+	}
+	toJSON(): TNamedParamReference<string, TOutput> {
+		return this.#param;
+	}
+	get name(): string {
+		return this.#param.param;
+	}
+	get alias(): string | undefined {
+		return this.#alias;
+	}
+}
+
+export class SubqueryExpression<TOutput, TAlias, TParams> {
+	#kind!: "subquery";
+	#subquery: TSubqueryExpression;
+	#alias?: string;
+
+	constructor(select: TSelectStatement, alias?: string) {
+		this.#subquery = { type: "subquery", select };
+		this.#alias = alias;
+	}
+
+	as<TNewAlias extends string>(alias: TNewAlias): SubqueryExpression<TOutput, TNewAlias, TParams> {
+		return new SubqueryExpression(this.#subquery.select, alias);
+	}
+	toJSON(): TSubqueryExpression {
+		return this.#subquery;
+	}
+	get alias(): string | undefined {
+		return this.#alias;
+	}
+}
+
+export class FunctionExpression<TOutput, TAlias, TParams> {
+	#kind!: "function";
+	#fn: TNamedFunctionReference<string, TReferenceOrLiteral[], TOutput>;
+	#alias?: string;
+
+	constructor(name: string, params: TReferenceOrLiteral[], alias?: string) {
+		this.#fn = { type: "functionref", name, params };
+		this.#alias = alias;
+	}
+	as<TNewAlias extends string>(alias: TNewAlias): FunctionExpression<TOutput, TNewAlias, TParams> {
+		return new FunctionExpression(this.#fn.name, this.#fn.params, alias);
+	}
+	toJSON(): TNamedFunctionReference<string, TReferenceOrLiteral[], TOutput> {
+		return this.#fn;
+	}
+	get alias(): string | undefined {
+		return this.#alias;
+	}
+}
+
+export type Expression<TOutput, TAlias, TParams> =
+	| IdentifierExpression<TOutput, TAlias>
+	| LiteralExpression<TOutput, TAlias>
+	| ParameterExpression<TOutput, TAlias, TParams>
+	| SubqueryExpression<TOutput, TAlias, TParams>
+	| FunctionExpression<TOutput, TAlias, TParams>;
+
+export class ExpressionBuilder<TTables extends {} = {}, TFrom extends {} = {}, TOutput = never, TParams extends {} = {}> {
+	literal<TLiteral extends string | number | boolean | Date | null>(value: TLiteral): LiteralExpression<TLiteral, never> {
+		return new LiteralExpression({ type: "literal", data: value });
+	}
+	ref<TTable extends keyof TTables & string, TColumn extends keyof TTables[TTable] & string>(
+		table: TTable,
+		column: TColumn,
+	): IdentifierExpression<TTables[TTable][TColumn], TColumn> {
+		return new IdentifierExpression(parseIdentifier(`${table}.${column}`));
+	}
+	column<TIdentifier extends keyof Flatten<TFrom>>(
+		column: TIdentifier,
+	): IdentifierExpression<Flatten<TFrom>[TIdentifier], LastIdentifier<TIdentifier>> {
+		return new IdentifierExpression(parseIdentifier(column as string));
+	}
+	param<TName extends string, TValue>(name: TName): ParameterExpression<TValue, TName, { [N in TName]: TValue }> {
+		return new ParameterExpression(name);
+	}
+	select<TSelectOutput, TNewParams extends {}>(
+		builder: (q: ISelectFromQueryRoot<TTables>) => SelectQueryBuilder<TTables, any, TSelectOutput, any, TNewParams>,
+	): SubqueryExpression<TSelectOutput, never, TNewParams> {
+		return new SubqueryExpression(builder(new RootQueryBuilder<TTables>()).build());
+	}
+	fn<TReturn, TNewParams>(name: string, ...args: Expression<any, never, TNewParams>[]): FunctionExpression<TReturn, never, TNewParams> {
+		return new FunctionExpression<TReturn, never, TNewParams>(name, args.map((arg) => serializeSelectable(arg)) as TReferenceOrLiteral[]);
+	}
+	equal<TValue, TLeftParams, TRightParams>(
+		left: Expression<TValue, any, TLeftParams>,
+		right: Expression<TValue, any, TRightParams>,
+	): TBooleanComparisonExpression<Prettify<TLeftParams & TRightParams>> {
 		return {
-			type: "batch",
-			checks: [...this.#check],
-			statements: [...this.#statements],
+			type: "booleancomparison",
+			operator: "eq",
+			left: serializeExpressionOperand(left),
+			right: serializeExpressionOperand(right),
+		};
+	}
+}
+
+export class SelectQueryBuilder<TTables extends {}, TFrom extends {}, TOutput, TSingle, TParams extends {}> {
+	#from: TNamedTableReference;
+	#join: TSelectStatement["join"];
+	#select: TSelectStatement["select"];
+	#where?: TSelectStatement["where"];
+	#having?: TSelectStatement["having"];
+	#groupBy: TSelectStatement["groupBy"];
+	#orderBy: TSelectStatement["orderBy"];
+	#limit?: TSelectStatement["limit"];
+	#offset?: TSelectStatement["offset"];
+
+	constructor(
+		from: TNamedTableReference,
+		join: TSelectStatement["join"],
+		select: TSelectStatement["select"],
+		where: TSelectStatement["where"],
+		having: TSelectStatement["having"],
+		groupBy: TSelectStatement["groupBy"],
+		orderBy: TSelectStatement["orderBy"],
+		limit: TSelectStatement["limit"],
+		offset: TSelectStatement["offset"],
+	) {
+		this.#from = from;
+		this.#join = join;
+		this.#select = select;
+		this.#where = where;
+		this.#having = having;
+		this.#groupBy = groupBy;
+		this.#orderBy = orderBy;
+		this.#limit = limit;
+		this.#offset = offset;
+	}
+
+	build(): TSelectStatement {
+		return {
+			type: "select",
+			from: this.#from,
+			join: this.#join,
+			select: this.#select,
+			where: this.#where,
+			having: this.#having,
+			groupBy: this.#groupBy,
+			orderBy: this.#orderBy,
+			limit: this.#limit,
+			offset: this.#offset,
 		};
 	}
 
-	toStatement(): TStatement<TParams, void> {
+	toStatement(): TStatement<TParams, TSingle extends true ? TOutput : TOutput[]> {
 		return {
 			type: "statement",
 			statement: this.build(),
 		};
 	}
 
-	execute<TOtherParams extends {}>(
-		statement:
-			| InsertStatementBuilder<TTables, TInsertTables, any, any, TOtherParams>
-			| UpdateStatementBuilder<TTables, any, any, TOtherParams>
-			| DeleteStatementBuilder<TTables, any, TOtherParams>,
-	): BatchStatementBuilder<TTables, TInsertTables, Prettify<TParams & TOtherParams>> {
-		return new BatchStatementBuilder<any, any, any>([...this.#statements, statement.build()], this.#check);
+	toJSON(): TSelectStatement {
+		return this.build();
 	}
 
-	checkIfExists<TSelectParams extends {}>(
-		statement: SelectStatementBuilder<TTables, TInsertTables, any, TSelectParams>,
-	): BatchStatementBuilder<TTables, TInsertTables, Prettify<TParams & TSelectParams>> {
-		return new BatchStatementBuilder<any, any, any>(this.#statements, [...this.#check, {
-			type: "exists",
-			select: statement.build(),
-		}]);
+	select<const TColumns extends Array<keyof Flatten<TFrom>>>(
+		columns: TColumns,
+	): SelectQueryBuilder<
+		TTables,
+		TFrom,
+		Prettify<
+			& TOutput
+			& ColumnsToOutput<TFrom, TColumns>
+		>,
+		TSingle,
+		TParams
+	>;
+	select<const TColumns extends Array<(keyof Flatten<TFrom>) | Expression<any, any, any>>>(
+		builder: (q: ExpressionBuilder<TTables, TFrom, any, any>) => TColumns,
+	): SelectQueryBuilder<
+		TTables,
+		TFrom,
+		Prettify<
+			& TOutput
+			& ColumnsToOutput<TFrom, TColumns>
+		>,
+		TSingle,
+		Prettify<TParams & ExtractParamsFromWritableValue<TColumns>>
+	>;
+	select(...args: any[]): SelectQueryBuilder<any, any, any, any, any> {
+		const columns = typeof args[0] === "function" ? args[0](new ExpressionBuilder<TTables, TFrom, any, any>()) : args[0];
+		return new SelectQueryBuilder(
+			this.#from,
+			this.#join,
+			{ ...this.#select, ...buildSelectMap(columns) },
+			this.#where,
+			this.#having,
+			this.#groupBy,
+			this.#orderBy,
+			this.#limit,
+			this.#offset,
+		);
+	}
+	leftJoin<TName extends keyof TTables, TNewParams>(
+		table: TName,
+		on: (
+			q:
+				& BinaryExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TParams>
+				& BooleanExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TParams>
+				& ExpressionBuilder<TTables, Prettify<TFrom & { [K in TName]: TTables[TName] }>, any, TParams>,
+		) =>
+			| BinaryExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TNewParams>
+			| BooleanExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TNewParams>,
+	): SelectQueryBuilder<TTables, Prettify<TFrom & { [K in TName]: TTables[TName] }>, TOutput, TSingle, Prettify<TParams & TNewParams>>;
+	leftJoin<TName extends keyof TTables, TAlias extends string, TNewParams>(
+		table: TName,
+		alias: TAlias,
+		on: (
+			q:
+				& BinaryExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TParams>
+				& BooleanExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TParams>
+				& ExpressionBuilder<TTables, Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, any, TParams>,
+		) =>
+			| BinaryExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TNewParams>
+			| BooleanExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TNewParams>,
+	): SelectQueryBuilder<TTables, Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TOutput, TSingle, Prettify<TParams & TNewParams>>;
+	leftJoin(...args: any[]): SelectQueryBuilder<any, any, any, any, any> {
+		return this.#joinTable("left", args[0], args[1], args[2]);
+	}
+	rightJoin<TName extends keyof TTables, TNewParams>(
+		table: TName,
+		on: (
+			q:
+				& BinaryExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TParams>
+				& BooleanExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TParams>
+				& ExpressionBuilder<TTables, Prettify<TFrom & { [K in TName]: TTables[TName] }>, any, TParams>,
+		) =>
+			| BinaryExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TNewParams>
+			| BooleanExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TNewParams>,
+	): SelectQueryBuilder<TTables, Prettify<TFrom & { [K in TName]: TTables[TName] }>, TOutput, TSingle, Prettify<TParams & TNewParams>>;
+	rightJoin<TName extends keyof TTables, TAlias extends string, TNewParams>(
+		table: TName,
+		alias: TAlias,
+		on: (
+			q:
+				& BinaryExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TParams>
+				& BooleanExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TParams>
+				& ExpressionBuilder<TTables, Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, any, TParams>,
+		) =>
+			| BinaryExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TNewParams>
+			| BooleanExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TNewParams>,
+	): SelectQueryBuilder<TTables, Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TOutput, TSingle, Prettify<TParams & TNewParams>>;
+	rightJoin(...args: any[]): SelectQueryBuilder<any, any, any, any, any> {
+		return this.#joinTable("right", args[0], args[1], args[2]);
+	}
+	innerJoin<TName extends keyof TTables, TNewParams>(
+		table: TName,
+		on: (
+			q:
+				& BinaryExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TParams>
+				& BooleanExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TParams>
+				& ExpressionBuilder<TTables, Prettify<TFrom & { [K in TName]: TTables[TName] }>, any, TParams>,
+		) =>
+			| BinaryExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TNewParams>
+			| BooleanExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TNewParams>,
+	): SelectQueryBuilder<TTables, Prettify<TFrom & { [K in TName]: TTables[TName] }>, TOutput, TSingle, Prettify<TParams & TNewParams>>;
+	innerJoin<TName extends keyof TTables, TAlias extends string, TNewParams>(
+		table: TName,
+		alias: TAlias,
+		on: (
+			q:
+				& BinaryExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TParams>
+				& BooleanExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TParams>
+				& ExpressionBuilder<TTables, Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, any, TParams>,
+		) =>
+			| BinaryExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TNewParams>
+			| BooleanExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TNewParams>,
+	): SelectQueryBuilder<TTables, Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TOutput, TSingle, Prettify<TParams & TNewParams>>;
+	innerJoin(...args: any[]): SelectQueryBuilder<any, any, any, any, any> {
+		return this.#joinTable("inner", args[0], args[1], args[2]);
+	}
+	where<TIdentifier extends keyof Flatten<TFrom>>(
+		column: TIdentifier,
+		op: BinaryOperator,
+		value: Flatten<TFrom>[TIdentifier],
+	): SelectQueryBuilder<TTables, TFrom, TOutput, TSingle, TParams>;
+	where<TNewParams>(
+		builder: (
+			q:
+				& BinaryExpressionBuilder<TFrom, TParams>
+				& BooleanExpressionBuilder<TFrom, TParams>
+				& ExpressionBuilder<TTables, TFrom, any, TParams>,
+		) => BinaryExpressionBuilder<TFrom, TNewParams> | BooleanExpressionBuilder<TFrom, TNewParams>,
+	): SelectQueryBuilder<TTables, TFrom, TOutput, TSingle, Prettify<TParams & TNewParams>>;
+	where(...args: any[]): SelectQueryBuilder<any, any, any, any, any> {
+		return new SelectQueryBuilder(
+			this.#from,
+			this.#join,
+			this.#select,
+			buildPredicate(args, () => createQueryExpressionBuilder<TTables, TFrom, TParams>()),
+			this.#having,
+			this.#groupBy,
+			this.#orderBy,
+			this.#limit,
+			this.#offset,
+		);
+	}
+	groupBy(columns: Array<keyof Flatten<TFrom>>): SelectQueryBuilder<TTables, TFrom, TOutput, TSingle, TParams> {
+		return new SelectQueryBuilder(
+			this.#from,
+			this.#join,
+			this.#select,
+			this.#where,
+			this.#having,
+			[
+				...this.#groupBy,
+				...columns.map((column) => ({ column: parseIdentifier(column as string) as TReferenceOrLiteral })),
+			],
+			this.#orderBy,
+			this.#limit,
+			this.#offset,
+		);
+	}
+	having<TIdentifier extends keyof Flatten<{ "": TOutput }>>(
+		column: TIdentifier,
+		op: BinaryOperator,
+		value: Flatten<{ "": TOutput }>[TIdentifier],
+	): SelectQueryBuilder<TTables, TFrom, TOutput, TSingle, TParams>;
+	having<TNewParams>(
+		builder: (
+			q:
+				& BinaryExpressionBuilder<{ "": TOutput }, TParams>
+				& BooleanExpressionBuilder<{ "": TOutput }, TParams>
+				& ExpressionBuilder<TTables, { "": TOutput }, any, TParams>,
+		) => BinaryExpressionBuilder<{ "": TOutput }, TNewParams> | BooleanExpressionBuilder<{ "": TOutput }, TNewParams>,
+	): SelectQueryBuilder<TTables, TFrom, TOutput, TSingle, Prettify<TParams & TNewParams>>;
+	having(...args: any[]): SelectQueryBuilder<any, any, any, any, any> {
+		return new SelectQueryBuilder(
+			this.#from,
+			this.#join,
+			this.#select,
+			this.#where,
+			buildPredicate(args, () => createQueryExpressionBuilder<TTables, { "": TOutput }, TParams>()),
+			this.#groupBy,
+			this.#orderBy,
+			this.#limit,
+			this.#offset,
+		);
+	}
+	orderBy(columns: Array<keyof Flatten<TFrom>>): SelectQueryBuilder<TTables, TFrom, TOutput, TSingle, TParams>;
+	orderBy<TNewParams>(
+		builder: (q: ExpressionBuilder<TTables, TFrom, any, TParams>) => Array<(keyof Flatten<TFrom>) | Expression<any, any, any>>,
+	): SelectQueryBuilder<TTables, TFrom, TOutput, TSingle, Prettify<TParams & TNewParams>>;
+	orderBy(...args: any[]): SelectQueryBuilder<any, any, any, any, any> {
+		const items = typeof args[0] === "function" ? args[0](new ExpressionBuilder<TTables, TFrom, any, any>()) : args[0];
+		return new SelectQueryBuilder(
+			this.#from,
+			this.#join,
+			this.#select,
+			this.#where,
+			this.#having,
+			this.#groupBy,
+			[...this.#orderBy, ...buildOrderBy(items)],
+			this.#limit,
+			this.#offset,
+		);
+	}
+	limit<const TLimit extends number>(limit: TLimit): SelectQueryBuilder<TTables, TFrom, TOutput, TLimit extends 1 ? true : false, TParams> {
+		return new SelectQueryBuilder(
+			this.#from,
+			this.#join,
+			this.#select,
+			this.#where,
+			this.#having,
+			this.#groupBy,
+			this.#orderBy,
+			limit,
+			this.#offset,
+		);
 	}
 
-	checkIfNotExists<TSelectParams extends {}>(
-		statement: SelectStatementBuilder<TTables, TInsertTables, any, TSelectParams>,
-	): BatchStatementBuilder<TTables, TInsertTables, Prettify<TParams & TSelectParams>> {
-		return new BatchStatementBuilder<any, any, any>(this.#statements, [...this.#check, {
-			type: "not_exists",
-			select: statement.build(),
-		}]);
+	offset(offset: number): SelectQueryBuilder<TTables, TFrom, TOutput, TSingle, TParams> {
+		return new SelectQueryBuilder(
+			this.#from,
+			this.#join,
+			this.#select,
+			this.#where,
+			this.#having,
+			this.#groupBy,
+			this.#orderBy,
+			this.#limit,
+			offset,
+		);
+	}
+
+	#joinTable(
+		kind: "inner" | "left" | "right",
+		table: string,
+		aliasOrOn: unknown,
+		maybeOn?: unknown,
+	): SelectQueryBuilder<any, any, any, any, any> {
+		const alias = typeof aliasOrOn === "string" ? aliasOrOn : undefined;
+		const on = (typeof aliasOrOn === "function" ? aliasOrOn : maybeOn) as
+			| ((q: QueryExpressionBuilder<any, any, any>) => BinaryExpressionBuilder<any, any> | BooleanExpressionBuilder<any, any>)
+			| undefined;
+		return new SelectQueryBuilder(
+			this.#from,
+			[
+				...this.#join,
+				{
+					type: "join",
+					joinType: kind,
+					table,
+					alias,
+					on: on?.(createQueryExpressionBuilder<TTables, any, TParams>()).toJSON(),
+				},
+			],
+			this.#select,
+			this.#where,
+			this.#having,
+			this.#groupBy,
+			this.#orderBy,
+			this.#limit,
+			this.#offset,
+		);
 	}
 }
 
-/**
- * Builds a {@link TInsertStatement} for inserting rows into a table.
- *
- * @template TTables Tables available for reading (used in `FROM` sub-selects).
- * @template TInsertTables Tables available for writing.
- * @template TFrom The aliased table map for operand expressions.
- * @template TModel The row model of the target table.
- * @template TParams Accumulated named parameter types.
- */
-export class InsertStatementBuilder<
+export class InsertQueryBuilder<
 	TTables extends {},
 	TInsertTables extends {},
 	TFrom extends {},
@@ -629,10 +704,14 @@ export class InsertStatementBuilder<
 		};
 	}
 
-	columns<TColumns extends (keyof TModel)[]>(
+	toJSON(): TInsertStatement {
+		return this.build();
+	}
+
+	columns<TColumns extends Array<keyof TModel>>(
 		...columns: TColumns
-	): InsertStatementBuilder<TTables, TInsertTables, TFrom, TModel, Prettify<TParams & { [K in TColumns[number]]: TModel[K] }>> {
-		return new InsertStatementBuilder<any, any, any, any, any>(
+	): InsertQueryBuilder<TTables, TInsertTables, TFrom, TModel, Prettify<TParams & { [K in TColumns[number]]: TModel[K] }>> {
+		return new InsertQueryBuilder(
 			this.#into,
 			[...this.#columns, ...columns as string[]],
 			this.#values,
@@ -640,44 +719,37 @@ export class InsertStatementBuilder<
 		);
 	}
 
-	values<TValues extends Record<string, TReferenceOrLiteral>>(
+	values<TValues extends Record<string, WritableValueExpression>>(
 		builder: (
-			expr: ReferenceOrLiteralBuilder<TFrom>,
-		) => InferModelFromTReferenceOrLiteral<TValues> extends TModel ? TValues
-			: [InferModelFromTReferenceOrLiteral<TValues>, "should extends", TModel],
-	): InsertStatementBuilder<TTables, TInsertTables, TFrom, TModel, Prettify<TParams & ExtractNamedParamReference<TValues>>> {
-		return new InsertStatementBuilder<any, any, any, any, any>(
+			expr: ExpressionBuilder<TTables, TFrom, any, TParams>,
+		) => InferModelFromWritableValue<TValues> extends TModel ? TValues
+			: [InferModelFromWritableValue<TValues>, "should extends", TModel],
+	): InsertQueryBuilder<TTables, TInsertTables, TFrom, TModel, Prettify<TParams & ExtractParamsFromWritableValue<TValues>>> {
+		const values = serializeWritableRecord(builder(new ExpressionBuilder<TTables, TFrom, any, TParams>()) as TValues);
+		return new InsertQueryBuilder(
 			this.#into,
 			this.#columns,
-			[...(this.#values ?? []), builder(new ExpressionBuilder()) as never],
+			[...(this.#values ?? []), values],
 			undefined,
 		);
 	}
 
-	from<TSelectParams extends {}, TSelectModel>(
+	from<TSelectOutput, TSelectParams extends {}>(
 		builder: (
-			expr: StatementBuilder<TTables, TInsertTables>,
-		) => TSelectModel extends TModel ? SelectStatementBuilder<any, any, TSelectModel, TSelectParams, any>
-			: [TSelectModel, "should extends", TModel],
-	): InsertStatementBuilder<TTables, TInsertTables, TFrom, TModel, Prettify<TParams & TSelectParams>> {
-		return new InsertStatementBuilder<any, any, any, any, any>(
+			q: RootQueryBuilder<TTables, TInsertTables>,
+		) => TSelectOutput extends TModel ? SelectQueryBuilder<TTables, any, TSelectOutput, any, TSelectParams>
+			: [TSelectOutput, "should extends", TModel],
+	): InsertQueryBuilder<TTables, TInsertTables, TFrom, TModel, Prettify<TParams & TSelectParams>> {
+		return new InsertQueryBuilder(
 			this.#into,
 			this.#columns,
 			undefined,
-			(builder(new StatementBuilder<TTables, TInsertTables>()) as SelectStatementBuilder<any, any, any, any, boolean>).build(),
+			(builder(new RootQueryBuilder<TTables, TInsertTables>()) as SelectQueryBuilder<any, any, any, any, any>).build(),
 		);
 	}
 }
 
-/**
- * Builds a {@link TUpdateStatement} for modifying existing rows in a table.
- *
- * @template TTables Tables available for reading.
- * @template TFrom The aliased table map for operand expressions.
- * @template TModel The row model of the target table.
- * @template TParams Accumulated named parameter types.
- */
-export class UpdateStatementBuilder<
+export class UpdateQueryBuilder<
 	TTables extends {},
 	TFrom extends {},
 	TModel,
@@ -721,15 +793,19 @@ export class UpdateStatementBuilder<
 		};
 	}
 
-	set<TValues extends Record<string, TReferenceOrLiteral>>(
+	toJSON(): TUpdateStatement {
+		return this.build();
+	}
+
+	set<TValues extends Record<string, WritableValueExpression>>(
 		builder: (
-			expr: ReferenceOrLiteralBuilder<TFrom>,
-		) => InferModelFromTReferenceOrLiteral<TValues> extends Partial<TModel> ? TValues
-			: [InferModelFromTReferenceOrLiteral<TValues>, "should extends", Partial<TModel>],
-	): UpdateStatementBuilder<TTables, TFrom, TModel, Prettify<TParams & ExtractNamedParamReference<TValues>>> {
-		return new UpdateStatementBuilder<any, any, any, any>(
+			expr: ExpressionBuilder<TTables, TFrom, any, TParams>,
+		) => InferModelFromWritableValue<TValues> extends Partial<TModel> ? TValues
+			: [InferModelFromWritableValue<TValues>, "should extends", Partial<TModel>],
+	): UpdateQueryBuilder<TTables, TFrom, TModel, Prettify<TParams & ExtractParamsFromWritableValue<TValues>>> {
+		return new UpdateQueryBuilder(
 			this.#table,
-			builder(new ExpressionBuilder()) as never,
+			serializeWritableRecord(builder(new ExpressionBuilder<TTables, TFrom, any, TParams>()) as TValues),
 			this.#join,
 			this.#where,
 			this.#limit,
@@ -739,31 +815,32 @@ export class UpdateStatementBuilder<
 	join<TName extends keyof TTables, TOnParams extends {}>(
 		table: TName,
 		on: (
-			expr: ExpressionBuilder<Prettify<TFrom & { [a in TName]: TTables[TName] }>, TParams>,
-		) => TBooleanComparisonExpression<TOnParams> | TBooleanExpression<TOnParams>,
-	): UpdateStatementBuilder<
-		TTables,
-		Prettify<TFrom & { [a in TName]: TTables[TName] }>,
-		TModel,
-		Prettify<TParams & TOnParams>
-	>;
+			expr: QueryExpressionBuilder<TTables, Prettify<TFrom & { [K in TName]: TTables[TName] }>, TParams>,
+		) =>
+			| BinaryExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TOnParams>
+			| BooleanExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TOnParams>,
+	): UpdateQueryBuilder<TTables, Prettify<TFrom & { [K in TName]: TTables[TName] }>, TModel, Prettify<TParams & TOnParams>>;
 	join<TName extends keyof TTables, TAlias extends string, TOnParams extends {}>(
 		table: TName,
 		alias: TAlias,
 		on: (
-			expr: ExpressionBuilder<Prettify<TFrom & { [a in TAlias]: TTables[TName] }>, TParams>,
-		) => TBooleanComparisonExpression<TOnParams> | TBooleanExpression<TOnParams>,
-	): UpdateStatementBuilder<
-		TTables,
-		Prettify<TFrom & { [a in TAlias]: TTables[TName] }>,
-		TModel,
-		Prettify<TParams & TOnParams>
-	>;
-	join(table: any, alias: any, on?: any): UpdateStatementBuilder<{}, {}, {}, {}> {
-		return new UpdateStatementBuilder<{}, {}, {}, {}>(
+			expr: QueryExpressionBuilder<TTables, Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TParams>,
+		) =>
+			| BinaryExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TOnParams>
+			| BooleanExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TOnParams>,
+	): UpdateQueryBuilder<TTables, Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TModel, Prettify<TParams & TOnParams>>;
+	join(table: any, aliasOrOn: any, maybeOn?: any): UpdateQueryBuilder<any, any, any, any> {
+		const alias = typeof aliasOrOn === "string" ? aliasOrOn : undefined;
+		const on = (typeof aliasOrOn === "function" ? aliasOrOn : maybeOn) as
+			| ((expr: QueryExpressionBuilder<any, any, any>) => BinaryExpressionBuilder<any, any> | BooleanExpressionBuilder<any, any>)
+			| undefined;
+		return new UpdateQueryBuilder(
 			this.#table,
 			this.#set,
-			[...this.#join, { type: "join", table, alias, on: on(new ExpressionBuilder()) }],
+			[
+				...this.#join,
+				{ type: "join", table, alias, on: on?.(createQueryExpressionBuilder<TTables, any, TParams>()).toJSON() },
+			],
 			this.#where,
 			this.#limit,
 		);
@@ -771,20 +848,20 @@ export class UpdateStatementBuilder<
 
 	where<TWhereParams extends {}>(
 		builder: (
-			expr: ExpressionBuilder<TFrom, TParams>,
-		) => TBooleanComparisonExpression<TWhereParams> | TBooleanExpression<TWhereParams>,
-	): UpdateStatementBuilder<TTables, TFrom, TModel, Prettify<TParams & TWhereParams>> {
-		return new UpdateStatementBuilder<TTables, TFrom, TModel, Prettify<TParams & TWhereParams>>(
+			expr: QueryExpressionBuilder<TTables, TFrom, TParams>,
+		) => BinaryExpressionBuilder<TFrom, TWhereParams> | BooleanExpressionBuilder<TFrom, TWhereParams>,
+	): UpdateQueryBuilder<TTables, TFrom, TModel, Prettify<TParams & TWhereParams>> {
+		return new UpdateQueryBuilder(
 			this.#table,
 			this.#set,
 			this.#join,
-			builder(new ExpressionBuilder()),
+			builder(createQueryExpressionBuilder<TTables, TFrom, TParams>()).toJSON(),
 			this.#limit,
 		);
 	}
 
-	limit(limit: number): UpdateStatementBuilder<TTables, TFrom, TModel, TParams> {
-		return new UpdateStatementBuilder<TTables, TFrom, TModel, TParams>(
+	limit(limit: number): UpdateQueryBuilder<TTables, TFrom, TModel, TParams> {
+		return new UpdateQueryBuilder(
 			this.#table,
 			this.#set,
 			this.#join,
@@ -794,14 +871,7 @@ export class UpdateStatementBuilder<
 	}
 }
 
-/**
- * Builds a {@link TDeleteStatement} for removing rows from a table.
- *
- * @template TTables Tables available for reading.
- * @template TFrom The aliased table map for operand expressions.
- * @template TParams Accumulated named parameter types.
- */
-export class DeleteStatementBuilder<
+export class DeleteQueryBuilder<
 	TTables extends {},
 	TFrom extends {},
 	TParams extends {},
@@ -840,31 +910,38 @@ export class DeleteStatementBuilder<
 		};
 	}
 
+	toJSON(): TDeleteStatement {
+		return this.build();
+	}
+
 	join<TName extends keyof TTables, TOnParams extends {}>(
 		table: TName,
 		on: (
-			expr: ExpressionBuilder<Prettify<TFrom & { [a in TName]: TTables[TName] }>, TParams>,
-		) => TBooleanComparisonExpression<TOnParams> | TBooleanExpression<TOnParams>,
-	): DeleteStatementBuilder<
-		TTables,
-		Prettify<TFrom & { [a in TName]: TTables[TName] }>,
-		Prettify<TParams & TOnParams>
-	>;
+			expr: QueryExpressionBuilder<TTables, Prettify<TFrom & { [K in TName]: TTables[TName] }>, TParams>,
+		) =>
+			| BinaryExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TOnParams>
+			| BooleanExpressionBuilder<Prettify<TFrom & { [K in TName]: TTables[TName] }>, TOnParams>,
+	): DeleteQueryBuilder<TTables, Prettify<TFrom & { [K in TName]: TTables[TName] }>, Prettify<TParams & TOnParams>>;
 	join<TName extends keyof TTables, TAlias extends string, TOnParams extends {}>(
 		table: TName,
 		alias: TAlias,
 		on: (
-			expr: ExpressionBuilder<Prettify<TFrom & { [a in TAlias]: TTables[TName] }>, TParams>,
-		) => TBooleanComparisonExpression<TOnParams> | TBooleanExpression<TOnParams>,
-	): DeleteStatementBuilder<
-		TTables,
-		Prettify<TFrom & { [a in TAlias]: TTables[TName] }>,
-		Prettify<TParams & TOnParams>
-	>;
-	join(table: any, alias: any, on?: any): DeleteStatementBuilder<{}, {}, {}> {
-		return new DeleteStatementBuilder<{}, {}, {}>(
+			expr: QueryExpressionBuilder<TTables, Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TParams>,
+		) =>
+			| BinaryExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TOnParams>
+			| BooleanExpressionBuilder<Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, TOnParams>,
+	): DeleteQueryBuilder<TTables, Prettify<TFrom & { [K in TAlias]: TTables[TName] }>, Prettify<TParams & TOnParams>>;
+	join(table: any, aliasOrOn: any, maybeOn?: any): DeleteQueryBuilder<any, any, any> {
+		const alias = typeof aliasOrOn === "string" ? aliasOrOn : undefined;
+		const on = (typeof aliasOrOn === "function" ? aliasOrOn : maybeOn) as
+			| ((expr: QueryExpressionBuilder<any, any, any>) => BinaryExpressionBuilder<any, any> | BooleanExpressionBuilder<any, any>)
+			| undefined;
+		return new DeleteQueryBuilder(
 			this.#table,
-			[...this.#join, { type: "join", table, alias, on: on(new ExpressionBuilder()) }],
+			[
+				...this.#join,
+				{ type: "join", table, alias, on: on?.(createQueryExpressionBuilder<TTables, any, TParams>()).toJSON() },
+			],
 			this.#where,
 			this.#limit,
 		);
@@ -872,19 +949,19 @@ export class DeleteStatementBuilder<
 
 	where<TWhereParams extends {}>(
 		builder: (
-			expr: ExpressionBuilder<TFrom, TParams>,
-		) => TBooleanComparisonExpression<TWhereParams> | TBooleanExpression<TWhereParams>,
-	): DeleteStatementBuilder<TTables, TFrom, Prettify<TParams & TWhereParams>> {
-		return new DeleteStatementBuilder<TTables, TFrom, Prettify<TParams & TWhereParams>>(
+			expr: QueryExpressionBuilder<TTables, TFrom, TParams>,
+		) => BinaryExpressionBuilder<TFrom, TWhereParams> | BooleanExpressionBuilder<TFrom, TWhereParams>,
+	): DeleteQueryBuilder<TTables, TFrom, Prettify<TParams & TWhereParams>> {
+		return new DeleteQueryBuilder(
 			this.#table,
 			this.#join,
-			builder(new ExpressionBuilder()),
+			builder(createQueryExpressionBuilder<TTables, TFrom, TParams>()).toJSON(),
 			this.#limit,
 		);
 	}
 
-	limit(limit: number): DeleteStatementBuilder<TTables, TFrom, TParams> {
-		return new DeleteStatementBuilder<TTables, TFrom, TParams>(
+	limit(limit: number): DeleteQueryBuilder<TTables, TFrom, TParams> {
+		return new DeleteQueryBuilder(
 			this.#table,
 			this.#join,
 			this.#where,
@@ -893,216 +970,418 @@ export class DeleteStatementBuilder<
 	}
 }
 
-/**
- * Builds a {@link TSelectStatement} for querying rows from a table.
- * When `limit(1)` is called the return type narrows to a single `TModel`
- * instead of `TModel[]`.
- *
- * @template TTables Tables available for reading.
- * @template TFrom The aliased table map for operand expressions.
- * @template TModel The projected row model produced by `pick()`.
- * @template TParams Accumulated named parameter types.
- * @template TSingleResult `true` when `limit(1)` has been applied.
- */
-export class SelectStatementBuilder<
-	TTables extends {},
-	TFrom extends {},
-	TModel,
-	TParams extends {},
-	TSingleResult extends boolean = false,
-> implements IStatementBuilder<TParams, TSingleResult extends true ? TModel : TModel[]> {
-	#from: TSelectStatement["from"];
-	#join: TSelectStatement["join"];
-	#select: TSelectStatement["select"];
-	#where: TSelectStatement["where"];
-	#groupBy: TSelectStatement["groupBy"];
-	#orderBy: TSelectStatement["orderBy"];
-	#limit: TSelectStatement["limit"];
-	#offset: TSelectStatement["offset"];
+export class BatchQueryBuilder<TTables extends {}, TInsertTables extends {}, TParams extends {}>
+	extends RootQueryBuilder<TTables, TInsertTables>
+	implements IStatementBuilder<TParams, void> {
+	#statements: TAnyStatement[];
+	#checks: TCheck[];
 
-	constructor(
-		from: TSelectStatement["from"],
-		join: TSelectStatement["join"],
-		select: TSelectStatement["select"],
-		where: TSelectStatement["where"],
-		groupBy: TSelectStatement["groupBy"],
-		orderBy: TSelectStatement["orderBy"],
-		limit: TSelectStatement["limit"],
-		offset: TSelectStatement["offset"],
-	) {
-		this.#from = from;
-		this.#join = join;
-		this.#select = select;
-		this.#where = where;
-		this.#groupBy = groupBy;
-		this.#orderBy = orderBy;
-		this.#limit = limit;
-		this.#offset = offset;
+	constructor(statements: TAnyStatement[], checks: TCheck[]) {
+		super();
+		this.#statements = statements;
+		this.#checks = checks;
 	}
 
-	build(): TSelectStatement {
+	build(): TBatchStatement {
 		return {
-			type: "select",
-			from: this.#from,
-			join: this.#join,
-			select: this.#select,
-			where: this.#where,
-			groupBy: this.#groupBy,
-			orderBy: this.#orderBy,
-			limit: this.#limit,
-			offset: this.#offset,
+			type: "batch",
+			checks: [...this.#checks],
+			statements: [...this.#statements],
 		};
 	}
 
-	toStatement(): TStatement<TParams, TSingleResult extends true ? TModel : TModel[]> {
+	toStatement(): TStatement<TParams, void> {
 		return {
 			type: "statement",
 			statement: this.build(),
 		};
 	}
 
-	join<TName extends keyof TTables, TOnParams extends {}>(
-		table: TName,
-		on: (
-			expr: ExpressionBuilder<Prettify<TFrom & { [a in TName]: TTables[TName] }>, TParams>,
-		) => TBooleanComparisonExpression<TOnParams> | TBooleanExpression<TOnParams>,
-	): SelectStatementBuilder<
-		TTables,
-		Prettify<TFrom & { [a in TName]: TTables[TName] }>,
-		TModel,
-		Prettify<TParams & TOnParams>,
-		TSingleResult
-	>;
-	join<TName extends keyof TTables, TAlias extends string, TOnParams extends {}>(
-		table: TName,
-		alias: TAlias,
-		on: (
-			expr: ExpressionBuilder<Prettify<TFrom & { [a in TAlias]: TTables[TName] }>, TParams>,
-		) => TBooleanComparisonExpression<TOnParams> | TBooleanExpression<TOnParams>,
-	): SelectStatementBuilder<
-		TTables,
-		Prettify<TFrom & { [a in TAlias]: TTables[TName] }>,
-		TModel,
-		Prettify<TParams & TOnParams>,
-		TSingleResult
-	>;
-	join(table: any, alias: any, on?: any): SelectStatementBuilder<{}, {}, {}, {}> {
-		return new SelectStatementBuilder<{}, {}, {}, {}>(
-			this.#from,
-			[...this.#join, { type: "join", table, alias, on: on(new ExpressionBuilder()) }],
-			{},
-			this.#where,
-			this.#groupBy,
-			this.#orderBy,
-			this.#limit,
-			this.#offset,
+	toJSON(): TBatchStatement {
+		return this.build();
+	}
+
+	execute<TOtherParams extends {}>(
+		statement:
+			| InsertQueryBuilder<TTables, TInsertTables, any, any, TOtherParams>
+			| UpdateQueryBuilder<TTables, any, any, TOtherParams>
+			| DeleteQueryBuilder<TTables, any, TOtherParams>,
+	): BatchQueryBuilder<TTables, TInsertTables, Prettify<TParams & TOtherParams>> {
+		return new BatchQueryBuilder(
+			[...this.#statements, statement.build()],
+			this.#checks,
 		);
 	}
 
-	map<TSelect extends Record<string, TReferenceOrLiteral>>(
-		builder: (expr: ReferenceOrLiteralBuilder<TFrom>) => TSelect,
-	): SelectStatementBuilder<
-		TTables,
-		TFrom,
-		InferModelFromTReferenceOrLiteral<TSelect>,
-		Prettify<TParams & ExtractNamedParamReference<TSelect>>,
-		TSingleResult
-	> {
-		return new SelectStatementBuilder<
-			TTables,
-			TFrom,
-			InferModelFromTReferenceOrLiteral<TSelect>,
-			Prettify<TParams & ExtractNamedParamReference<TSelect>>,
-			TSingleResult
-		>(
-			this.#from,
-			this.#join,
-			builder(new ReferenceOrLiteralBuilder<TFrom>()),
-			this.#where,
-			this.#groupBy,
-			this.#orderBy,
-			this.#limit,
-			this.#offset,
+	checkIfExists<TSelectParams extends {}>(
+		statement: SelectQueryBuilder<TTables, any, any, any, TSelectParams>,
+	): BatchQueryBuilder<TTables, TInsertTables, Prettify<TParams & TSelectParams>> {
+		return new BatchQueryBuilder(
+			this.#statements,
+			[...this.#checks, { type: "exists", select: statement.build() }],
 		);
 	}
 
-	where<TWhereParams extends {}>(
-		builder: (
-			expr: ExpressionBuilder<TFrom, TParams>,
-		) => TBooleanComparisonExpression<TWhereParams> | TBooleanExpression<TWhereParams>,
-	): SelectStatementBuilder<TTables, TFrom, TModel, Prettify<TParams & TWhereParams>, TSingleResult> {
-		return new SelectStatementBuilder<TTables, TFrom, TModel, Prettify<TParams & TWhereParams>, TSingleResult>(
-			this.#from,
-			this.#join,
-			this.#select,
-			builder(new ExpressionBuilder()),
-			this.#groupBy,
-			this.#orderBy,
-			this.#limit,
-			this.#offset,
-		);
-	}
-
-	orderBy<TOrderBy extends TReferenceOrLiteral | [ref: TReferenceOrLiteral, order: "ASC" | "DESC"]>(
-		builder: (expr: ReferenceOrLiteralBuilder<TFrom>) => Array<TOrderBy>,
-	): SelectStatementBuilder<TTables, TFrom, TModel, Prettify<TParams & ExtractNamedParamReference<TOrderBy>>, TSingleResult> {
-		return new SelectStatementBuilder<TTables, TFrom, TModel, TParams, false>(
-			this.#from,
-			this.#join,
-			this.#select,
-			this.#where,
-			this.#groupBy,
-			builder(new ReferenceOrLiteralBuilder<TFrom>())
-				.map((item) => Array.isArray(item) ? { column: item[0], order: item[1] } : { column: item as TReferenceOrLiteral, order: "ASC" }),
-			this.#limit,
-			this.#offset,
-		);
-	}
-
-	// 	groupBy<TTableName extends keyof TTables, TColumnName extends keyof TTables[TTableName]>(
-	// 	table: TTableName,
-	// 	column: TColumnName,
-	// ): SelectQueryBuilder<TTables, TModel, TParams>
-
-	limit<TLimit extends number>(
-		limit: TLimit,
-	): TLimit extends 1 ? SelectStatementBuilder<TTables, TFrom, TModel, TParams, true>
-		: SelectStatementBuilder<TTables, TFrom, TModel, TParams, false> {
-		return new SelectStatementBuilder<TTables, TFrom, TModel, TParams, false>(
-			this.#from,
-			this.#join,
-			this.#select,
-			this.#where,
-			this.#groupBy,
-			this.#orderBy,
-			limit,
-			this.#offset,
-		);
-	}
-
-	offset(offset: number): SelectStatementBuilder<TTables, TFrom, TModel, TParams, TSingleResult> {
-		return new SelectStatementBuilder<TTables, TFrom, TModel, TParams, false>(
-			this.#from,
-			this.#join,
-			this.#select,
-			this.#where,
-			this.#groupBy,
-			this.#orderBy,
-			this.#limit,
-			offset,
+	checkIfNotExists<TSelectParams extends {}>(
+		statement: SelectQueryBuilder<TTables, any, any, any, TSelectParams>,
+	): BatchQueryBuilder<TTables, TInsertTables, Prettify<TParams & TSelectParams>> {
+		return new BatchQueryBuilder(
+			this.#statements,
+			[...this.#checks, { type: "not_exists", select: statement.build() }],
 		);
 	}
 }
 
-function applyMixin(ctor: any, constructors: any[]): void {
-	constructors.forEach((baseCtor) => {
-		Object.getOwnPropertyNames(baseCtor.prototype).forEach((name) => {
-			Object.defineProperty(
-				ctor.prototype,
-				name,
-				Object.getOwnPropertyDescriptor(baseCtor.prototype, name) ||
-					Object.create(null),
-			);
+type BinaryOperator = "=" | "!=" | "<>" | ">" | ">=" | "<" | "<=" | "in" | "notIn" | "like" | "notLike";
+
+export class BinaryExpressionBuilder<TTables extends {}, TParams> {
+	#node?: TBooleanComparisonExpression<any>;
+
+	constructor(node?: TBooleanComparisonExpression<any>) {
+		this.#node = node;
+	}
+
+	toJSON(): TBooleanComparisonExpression<any> {
+		if (!this.#node) {
+			throw new Error("Cannot serialize an empty binary expression.");
+		}
+		return this.#node;
+	}
+
+	eq<TLeftIdentifier extends keyof Flatten<TTables>, TRightIdentifier extends keyof Flatten<TTables>>(
+		left: TLeftIdentifier,
+		right: Flatten<TTables>[TRightIdentifier] extends Flatten<TTables>[TLeftIdentifier] ? TRightIdentifier : never,
+	): BinaryExpressionBuilder<TTables, TParams>;
+	eq<TIdentifier extends keyof Flatten<TTables>, TParameter>(
+		column: TIdentifier,
+		expr: ParameterExpression<Flatten<TTables>[TIdentifier], TParameter, any>,
+	): BinaryExpressionBuilder<TTables, Prettify<TParams & { [N in TParameter & string]: Flatten<TTables>[TIdentifier] }>>;
+	eq<TIdentifier extends keyof Flatten<TTables>, TNewParams>(
+		column: TIdentifier,
+		expr: Expression<Flatten<TTables>[TIdentifier], any, TNewParams>,
+	): BinaryExpressionBuilder<TTables, Prettify<TParams & TNewParams>>;
+	eq<TValue, TLeftParams, TRightParams>(
+		left: Expression<TValue, any, TLeftParams>,
+		right: Expression<TValue, any, TRightParams>,
+	): BinaryExpressionBuilder<TTables, Prettify<TParams & TLeftParams & TRightParams>>;
+	eq(...args: any[]): BinaryExpressionBuilder<TTables, TParams> {
+		return this.#compare("eq", args[0], args[1]);
+	}
+	ne(...args: any[]): BinaryExpressionBuilder<TTables, TParams> {
+		return this.#compare("ne", args[0], args[1]);
+	}
+	gt(...args: any[]): BinaryExpressionBuilder<TTables, TParams> {
+		return this.#compare("gt", args[0], args[1]);
+	}
+	gte(...args: any[]): BinaryExpressionBuilder<TTables, TParams> {
+		return this.#compare("gte", args[0], args[1]);
+	}
+	lt(...args: any[]): BinaryExpressionBuilder<TTables, TParams> {
+		return this.#compare("lt", args[0], args[1]);
+	}
+	lte(...args: any[]): BinaryExpressionBuilder<TTables, TParams> {
+		return this.#compare("lte", args[0], args[1]);
+	}
+	in(...args: any[]): BinaryExpressionBuilder<TTables, TParams> {
+		return this.#compare("in", args[0], args[1]);
+	}
+	notIn(...args: any[]): BinaryExpressionBuilder<TTables, TParams> {
+		return this.#compare("nin", args[0], args[1]);
+	}
+	like(...args: any[]): BinaryExpressionBuilder<TTables, TParams> {
+		return this.#compare("like", args[0], args[1]);
+	}
+	notLike(...args: any[]): BinaryExpressionBuilder<TTables, TParams> {
+		return this.#compare("notLike", args[0], args[1]);
+	}
+
+	#compare(operator: string, left: unknown, right: unknown): BinaryExpressionBuilder<TTables, TParams> {
+		return new BinaryExpressionBuilder({
+			type: "booleancomparison",
+			operator,
+			left: serializeExpressionOperand(left),
+			right: serializeExpressionOperand(right),
 		});
+	}
+}
+
+export class BooleanExpressionBuilder<TTables extends {}, TParams> {
+	#node?: TBooleanExpression<any>;
+
+	constructor(node?: TBooleanExpression<any>) {
+		this.#node = node;
+	}
+
+	toJSON(): TBooleanExpression<any> {
+		if (!this.#node) {
+			throw new Error("Cannot serialize an empty boolean expression.");
+		}
+		return this.#node;
+	}
+
+	and(
+		left: BinaryExpressionBuilder<TTables, TParams> | BooleanExpressionBuilder<TTables, TParams>,
+		right: BinaryExpressionBuilder<TTables, TParams> | BooleanExpressionBuilder<TTables, TParams>,
+	): BooleanExpressionBuilder<TTables, TParams> {
+		return new BooleanExpressionBuilder({
+			type: "booleanexpression",
+			operator: "and",
+			operands: [left.toJSON(), right.toJSON()],
+		});
+	}
+	or(
+		left: BinaryExpressionBuilder<TTables, TParams> | BooleanExpressionBuilder<TTables, TParams>,
+		right: BinaryExpressionBuilder<TTables, TParams> | BooleanExpressionBuilder<TTables, TParams>,
+	): BooleanExpressionBuilder<TTables, TParams> {
+		return new BooleanExpressionBuilder({
+			type: "booleanexpression",
+			operator: "or",
+			operands: [left.toJSON(), right.toJSON()],
+		});
+	}
+	not(
+		expr: BinaryExpressionBuilder<TTables, TParams> | BooleanExpressionBuilder<TTables, TParams>,
+	): BooleanExpressionBuilder<TTables, TParams> {
+		return new BooleanExpressionBuilder({
+			type: "booleanexpression",
+			operator: "not",
+			operands: [expr.toJSON()],
+		});
+	}
+}
+
+export class QueryExpressionBuilder<TTables extends {}, TFrom extends {}, TParams extends {}>
+	extends ExpressionBuilder<TTables, TFrom, any, TParams> {
+	eq<TLeftIdentifier extends keyof Flatten<TFrom>, TRightIdentifier extends keyof Flatten<TFrom>>(
+		left: TLeftIdentifier,
+		right: Flatten<TFrom>[TRightIdentifier] extends Flatten<TFrom>[TLeftIdentifier] ? TRightIdentifier : never,
+	): BinaryExpressionBuilder<TFrom, TParams>;
+	eq<TIdentifier extends keyof Flatten<TFrom>, TParameter>(
+		column: TIdentifier,
+		expr: ParameterExpression<Flatten<TFrom>[TIdentifier], TParameter, any>,
+	): BinaryExpressionBuilder<TFrom, Prettify<TParams & { [N in TParameter & string]: Flatten<TFrom>[TIdentifier] }>>;
+	eq<TIdentifier extends keyof Flatten<TFrom>, TNewParams>(
+		column: TIdentifier,
+		expr: Expression<Flatten<TFrom>[TIdentifier], any, TNewParams>,
+	): BinaryExpressionBuilder<TFrom, Prettify<TParams & TNewParams>>;
+	eq<TValue, TLeftParams, TRightParams>(
+		left: Expression<TValue, any, TLeftParams>,
+		right: Expression<TValue, any, TRightParams>,
+	): BinaryExpressionBuilder<TFrom, Prettify<TParams & TLeftParams & TRightParams>>;
+	eq(...args: any[]): BinaryExpressionBuilder<any, any> {
+		return new BinaryExpressionBuilder<TFrom, TParams>().eq(args[0], args[1]);
+	}
+	ne(...args: any[]): BinaryExpressionBuilder<TFrom, TParams> {
+		return new BinaryExpressionBuilder<TFrom, TParams>().ne(args[0], args[1]);
+	}
+	gt<TIdentifier extends keyof Flatten<TFrom>, TParameter>(
+		column: TIdentifier,
+		expr: ParameterExpression<Flatten<TFrom>[TIdentifier], TParameter, any>,
+	): BinaryExpressionBuilder<TFrom, Prettify<TParams & { [N in TParameter & string]: Flatten<TFrom>[TIdentifier] }>>;
+	gt<TIdentifier extends keyof Flatten<TFrom>, TNewParams>(
+		column: TIdentifier,
+		expr: Expression<Flatten<TFrom>[TIdentifier], any, TNewParams>,
+	): BinaryExpressionBuilder<TFrom, Prettify<TParams & TNewParams>>;
+	gt<TValue, TLeftParams, TRightParams>(
+		left: Expression<TValue, any, TLeftParams>,
+		right: Expression<TValue, any, TRightParams>,
+	): BinaryExpressionBuilder<TFrom, Prettify<TParams & TLeftParams & TRightParams>>;
+	gt(...args: any[]): BinaryExpressionBuilder<any, any> {
+		return new BinaryExpressionBuilder<TFrom, TParams>().gt(args[0], args[1]);
+	}
+	gte(...args: any[]): BinaryExpressionBuilder<TFrom, TParams> {
+		return new BinaryExpressionBuilder<TFrom, TParams>().gte(args[0], args[1]);
+	}
+	lt(...args: any[]): BinaryExpressionBuilder<TFrom, TParams> {
+		return new BinaryExpressionBuilder<TFrom, TParams>().lt(args[0], args[1]);
+	}
+	lte(...args: any[]): BinaryExpressionBuilder<TFrom, TParams> {
+		return new BinaryExpressionBuilder<TFrom, TParams>().lte(args[0], args[1]);
+	}
+	in(...args: any[]): BinaryExpressionBuilder<TFrom, TParams> {
+		return new BinaryExpressionBuilder<TFrom, TParams>().in(args[0], args[1]);
+	}
+	notIn(...args: any[]): BinaryExpressionBuilder<TFrom, TParams> {
+		return new BinaryExpressionBuilder<TFrom, TParams>().notIn(args[0], args[1]);
+	}
+	like(...args: any[]): BinaryExpressionBuilder<TFrom, TParams> {
+		return new BinaryExpressionBuilder<TFrom, TParams>().like(args[0], args[1]);
+	}
+	notLike(...args: any[]): BinaryExpressionBuilder<TFrom, TParams> {
+		return new BinaryExpressionBuilder<TFrom, TParams>().notLike(args[0], args[1]);
+	}
+	and(
+		left: BinaryExpressionBuilder<TFrom, TParams> | BooleanExpressionBuilder<TFrom, TParams>,
+		right: BinaryExpressionBuilder<TFrom, TParams> | BooleanExpressionBuilder<TFrom, TParams>,
+	): BooleanExpressionBuilder<TFrom, TParams> {
+		return new BooleanExpressionBuilder<TFrom, TParams>().and(left, right);
+	}
+	or(
+		left: BinaryExpressionBuilder<TFrom, TParams> | BooleanExpressionBuilder<TFrom, TParams>,
+		right: BinaryExpressionBuilder<TFrom, TParams> | BooleanExpressionBuilder<TFrom, TParams>,
+	): BooleanExpressionBuilder<TFrom, TParams> {
+		return new BooleanExpressionBuilder<TFrom, TParams>().or(left, right);
+	}
+	not(
+		expr: BinaryExpressionBuilder<TFrom, TParams> | BooleanExpressionBuilder<TFrom, TParams>,
+	): BooleanExpressionBuilder<TFrom, TParams> {
+		return new BooleanExpressionBuilder<TFrom, TParams>().not(expr);
+	}
+}
+
+function createQueryExpressionBuilder<TTables extends {}, TFrom extends {}, TParams extends {}>(): QueryExpressionBuilder<
+	TTables,
+	TFrom,
+	TParams
+> {
+	return new QueryExpressionBuilder<TTables, TFrom, TParams>();
+}
+
+function buildSelectMap(columns: Array<string | Expression<any, any, any>>): Record<string, TReferenceOrLiteral> {
+	return Object.fromEntries(columns.map((column) => {
+		if (typeof column === "string") {
+			return [lastIdentifier(column), parseIdentifier(column)];
+		}
+		const alias = resolveSelectionAlias(column);
+		const serialized = serializeSelectable(column);
+		if (serialized.type === "subquery") {
+			return [alias, serialized as unknown as TReferenceOrLiteral];
+		}
+		return [alias, serialized];
+	}));
+}
+
+function buildOrderBy(items: Array<string | Expression<any, any, any>>): TSelectStatement["orderBy"] {
+	return items.map((item) => {
+		if (typeof item === "string") {
+			return { column: parseIdentifier(item), order: "ASC" };
+		}
+		return {
+			column: serializeSelectable(item) as TReferenceOrLiteral,
+			order: item instanceof IdentifierExpression && item.order ? item.order : "ASC",
+		};
 	});
+}
+
+function buildPredicate<TTables extends {}, TFrom extends {}, TParams extends {}>(
+	args: any[],
+	createBuilder: () => QueryExpressionBuilder<TTables, TFrom, TParams>,
+): PredicateExpression {
+	if (typeof args[0] === "function") {
+		return args[0](createBuilder()).toJSON();
+	}
+	return {
+		type: "booleancomparison",
+		operator: normalizeBinaryOperator(args[1]),
+		left: parseIdentifier(args[0]),
+		right: { type: "literal", data: args[2] },
+	};
+}
+
+function serializeSelectable(value: Expression<any, any, any>): SelectableExpression;
+function serializeSelectable(value: string): TNamedColumnReference<string, unknown>;
+function serializeSelectable(value: string | Expression<any, any, any>): SelectableExpression {
+	if (typeof value === "string") {
+		return parseIdentifier(value);
+	}
+	return value.toJSON();
+}
+
+function serializeExpressionOperand(value: unknown): TReferenceOrLiteral | TSubqueryExpression {
+	if (isReferenceOrLiteralNode(value)) {
+		return value;
+	}
+	if (typeof value === "string") {
+		return value.includes(".") ? parseIdentifier(value) : { type: "literal", data: value };
+	}
+	if (
+		value instanceof IdentifierExpression || value instanceof LiteralExpression || value instanceof ParameterExpression ||
+		value instanceof SubqueryExpression || value instanceof FunctionExpression
+	) {
+		return value.toJSON();
+	}
+	return { type: "literal", data: value as string | number | boolean | Date | null };
+}
+
+function serializeWritableRecord<TValues extends Record<string, WritableValueExpression>>(
+	values: TValues,
+): Record<string, TReferenceOrLiteral> {
+	return Object.fromEntries(
+		Object.entries(values).map(([key, value]) => [key, serializeWritableValue(value)]),
+	);
+}
+
+function serializeWritableValue(value: WritableValueExpression): TReferenceOrLiteral {
+	if (isReferenceOrLiteralNode(value)) {
+		return value;
+	}
+	if (
+		value instanceof IdentifierExpression || value instanceof LiteralExpression || value instanceof ParameterExpression ||
+		value instanceof SubqueryExpression || value instanceof FunctionExpression
+	) {
+		return value.toJSON() as TReferenceOrLiteral;
+	}
+	return { type: "literal", data: value };
+}
+
+function isReferenceOrLiteralNode(value: unknown): value is TReferenceOrLiteral {
+	if (!value || typeof value !== "object" || !("type" in value)) {
+		return false;
+	}
+	return ["literal", "functionref", "subquery", "tableref", "columnref", "paramref"].includes((value as { type: string }).type);
+}
+
+function resolveSelectionAlias(column: Expression<any, any, any>): string {
+	if (column instanceof IdentifierExpression) {
+		return column.alias ?? (column.toJSON().column as string);
+	}
+	if (column instanceof ParameterExpression) {
+		return column.alias ?? column.name;
+	}
+	if (column instanceof LiteralExpression || column instanceof FunctionExpression || column instanceof SubqueryExpression) {
+		if (!column.alias) {
+			throw new Error("Selected expressions without a natural name must be aliased.");
+		}
+		return column.alias;
+	}
+	throw new Error("Unsupported selection expression.");
+}
+
+function parseIdentifier(identifier: string): TNamedColumnReference<string, unknown> {
+	const separator = identifier.indexOf(".");
+	if (separator === -1) {
+		throw new Error(`Expected a dotted identifier, received ${identifier}.`);
+	}
+	return {
+		type: "columnref",
+		table: identifier.slice(0, separator),
+		column: identifier.slice(separator + 1),
+	};
+}
+
+function lastIdentifier(identifier: string): string {
+	const separator = identifier.lastIndexOf(".");
+	return separator === -1 ? identifier : identifier.slice(separator + 1);
+}
+
+function normalizeBinaryOperator(operator: BinaryOperator): string {
+	switch (operator) {
+		case "=":
+			return "eq";
+		case "!=":
+		case "<>":
+			return "ne";
+		case ">":
+			return "gt";
+		case ">=":
+			return "gte";
+		case "<":
+			return "lt";
+		case "<=":
+			return "lte";
+		case "notIn":
+			return "nin";
+		default:
+			return operator;
+	}
 }

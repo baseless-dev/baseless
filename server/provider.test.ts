@@ -5,8 +5,7 @@ import { assert } from "@std/assert/assert";
 import { assertFalse } from "@std/assert/false";
 import { DocumentProvider, KVProvider, QueueProvider, RateLimiterProvider, StorageProvider, TableProvider } from "./provider.ts";
 import { StorageObjectNotFoundError } from "@baseless/core/errors";
-import { BatchableStatementBuilder } from "@baseless/core/query";
-import type { InferModelFromTReferenceOrLiteral, TNamedParamReference, TStatement } from "@baseless/core/query";
+import { RootQueryBuilder } from "@baseless/core/query";
 
 export async function testDocumentProvider(
 	provider: DocumentProvider,
@@ -254,10 +253,10 @@ type InsertTables = {
 	posts: Omit<Post, "post_id">;
 };
 
-const q = new BatchableStatementBuilder<Tables, InsertTables>();
+const q = new RootQueryBuilder<Tables, InsertTables>();
 
 async function seedUsers(provider: TableProvider): Promise<void> {
-	const insertStmt = q.insert("users")
+	const insertStmt = q.insertInto("users")
 		.values((q) => ({
 			display: q.param("display").as<string>(),
 			email: q.param("email").as<string>(),
@@ -286,13 +285,8 @@ export async function testTableProvider(
 	await t.step("INSERT VALUES and SELECT all rows", async () => {
 		await seedUsers(provider);
 
-		const selectStmt = q.select("users")
-			.map((q) => ({
-				user_id: q.ref("users", "user_id"),
-				display: q.ref("users", "display"),
-				email: q.ref("users", "email"),
-				age: q.ref("users", "age"),
-			}))
+		const selectStmt = q.selectFrom("users")
+			.select(["users.user_id", "users.display", "users.email", "users.age"])
 			.toStatement();
 
 		const rows = await provider.execute(
@@ -307,12 +301,9 @@ export async function testTableProvider(
 	});
 
 	await t.step("SELECT with WHERE clause", async () => {
-		const stmt = q.select("users")
-			.map((q) => ({
-				display: q.ref("users", "display"),
-				age: q.ref("users", "age"),
-			}))
-			.where((q) => q.greaterThan(q.ref("users", "age"), q.param("minAge")))
+		const stmt = q.selectFrom("users")
+			.select(["users.display", "users.age"])
+			.where((q) => q.gt("users.age", q.param("minAge").as<number>()))
 			.toStatement();
 
 		const rows = await provider.execute(
@@ -326,12 +317,9 @@ export async function testTableProvider(
 	});
 
 	await t.step("SELECT with ORDER BY and LIMIT", async () => {
-		const stmt = q.select("users")
-			.map((q) => ({
-				display: q.ref("users", "display"),
-				age: q.ref("users", "age"),
-			}))
-			.orderBy((q) => [[q.ref("users", "age"), "DESC"]])
+		const stmt = q.selectFrom("users")
+			.select(["users.display", "users.age"])
+			.orderBy((q) => [q.column("users.age").desc()])
 			.limit(2)
 			.toStatement();
 
@@ -344,7 +332,7 @@ export async function testTableProvider(
 
 	await t.step("SELECT with JOIN", async () => {
 		// Insert a post for Alice (user_id = 1)
-		const insertPost = q.insert("posts")
+		const insertPost = q.insertInto("posts")
 			.values((q) => ({
 				title: q.param("title").as<string>(),
 				content: q.param("content").as<string>(),
@@ -357,12 +345,12 @@ export async function testTableProvider(
 			{ title: "Hello World", content: "My first post!", author_id: 1 },
 		);
 
-		const stmt = q.select("posts", "p")
-			.join("users", "u", (q) => q.equal(q.ref("u", "user_id"), q.ref("p", "author_id")))
-			.map((q) => ({
-				post_title: q.ref("p", "title"),
-				author_display: q.ref("u", "display"),
-			}))
+		const stmt = q.selectFrom("posts", "p")
+			.innerJoin("users", "u", (q) => q.eq("u.user_id", "p.author_id"))
+			.select((q) => [
+				q.column("p.title").as("post_title"),
+				q.column("u.display").as("author_display"),
+			])
 			.toStatement();
 
 		const rows = await provider.execute(
@@ -376,29 +364,26 @@ export async function testTableProvider(
 	});
 
 	await t.step("UPDATE with WHERE", async () => {
-		const updateStmt = q.update("users")
+		const updateStmt = q.updateFrom("users")
 			.set((q) => ({
-				age: q.param("newAge"),
+				age: q.param("newAge").as<number>(),
 			}))
-			.where((q) => q.equal(q.ref("users", "display"), q.param("name")))
+			.where((q) => q.eq("users.display", q.literal("Alice")))
 			.toStatement();
 
 		await provider.execute(
 			updateStmt,
-			{ newAge: 31, name: "Alice" },
+			{ newAge: 31 },
 		);
 
-		const selectStmt = q.select("users")
-			.map((q) => ({
-				display: q.ref("users", "display"),
-				age: q.ref("users", "age"),
-			}))
-			.where((q) => q.equal(q.ref("users", "display"), q.param("name")))
+		const selectStmt = q.selectFrom("users")
+			.select(["users.display", "users.age"])
+			.where((q) => q.eq("users.display", q.literal("Alice")))
 			.toStatement();
 
 		const rows = await provider.execute(
 			selectStmt,
-			{ name: "Alice" },
+			{},
 		);
 
 		assertEquals(rows.length, 1);
@@ -406,8 +391,8 @@ export async function testTableProvider(
 	});
 
 	await t.step("DELETE with WHERE", async () => {
-		const deleteStmt = q.delete("users")
-			.where((q) => q.equal(q.ref("users", "display"), q.param("name")))
+		const deleteStmt = q.deleteFrom("users")
+			.where((q) => q.eq("users.display", q.param("name").as<string>()))
 			.toStatement();
 
 		await provider.execute(
@@ -415,10 +400,8 @@ export async function testTableProvider(
 			{ name: "Bob" },
 		);
 
-		const selectStmt = q.select("users")
-			.map((q) => ({
-				display: q.ref("users", "display"),
-			}))
+		const selectStmt = q.selectFrom("users")
+			.select(["users.display"])
 			.toStatement();
 
 		const rows = await provider.execute(
@@ -434,13 +417,13 @@ export async function testTableProvider(
 	await t.step("BATCH with pre-condition checks", async () => {
 		const batch = q.batch()
 			.checkIfNotExists(
-				q.select("users").where((q) => q.equal(q.ref("users", "display"), q.param("name"))),
+				q.selectFrom("users").where((q) => q.eq("users.display", q.param("name").as<string>())),
 			)
 			.execute(
-				q.insert("users").values((q) => ({
-					display: q.param("name"),
-					email: q.param("email"),
-					age: q.param("age"),
+				q.insertInto("users").values((q) => ({
+					display: q.param("name").as<string>(),
+					email: q.param("email").as<string>(),
+					age: q.param("age").as<number>(),
 				})),
 			)
 			.toStatement();
@@ -450,10 +433,8 @@ export async function testTableProvider(
 			{ name: "Dave", email: "dave@example.com", age: 40 },
 		);
 
-		const selectStmt = q.select("users")
-			.map((q) => ({
-				display: q.ref("users", "display"),
-			}))
+		const selectStmt = q.selectFrom("users")
+			.select(["users.display"])
 			.toStatement();
 
 		const rows = await provider.execute(
@@ -468,13 +449,13 @@ export async function testTableProvider(
 	await t.step("BATCH fails when pre-condition not met", async () => {
 		const batch = q.batch()
 			.checkIfNotExists(
-				q.select("users").where((q) => q.equal(q.ref("users", "display"), q.param("name"))),
+				q.selectFrom("users").where((q) => q.eq("users.display", q.param("name").as<string>())),
 			)
 			.execute(
-				q.insert("users").values((q) => ({
-					display: q.param("name"),
-					email: q.param("email"),
-					age: q.param("age"),
+				q.insertInto("users").values((q) => ({
+					display: q.param("name").as<string>(),
+					email: q.param("email").as<string>(),
+					age: q.param("age").as<number>(),
 				})),
 			)
 			.toStatement();
@@ -490,10 +471,8 @@ export async function testTableProvider(
 		);
 
 		// Verify no additional Alice was inserted
-		const selectStmt = q.select("users")
-			.map((q) => ({
-				display: q.ref("users", "display"),
-			}))
+		const selectStmt = q.selectFrom("users")
+			.select(["users.display"])
 			.toStatement();
 
 		const rows = await provider.execute(
@@ -506,11 +485,9 @@ export async function testTableProvider(
 
 	await t.step("SELECT with WHERE equality on literal", async () => {
 		// Dave has age 40 (inserted in batch step)
-		const stmt = q.select("users")
-			.map((q) => ({
-				display: q.ref("users", "display"),
-			}))
-			.where((q) => q.equal(q.ref("users", "age"), q.literal(40)))
+		const stmt = q.selectFrom("users")
+			.select(["users.display"])
+			.where((q) => q.eq("users.age", q.literal(40)))
 			.toStatement();
 
 		const rows = await provider.execute(
@@ -523,11 +500,9 @@ export async function testTableProvider(
 	});
 
 	await t.step("SELECT with OFFSET", async () => {
-		const stmt = q.select("users")
-			.map((q) => ({
-				display: q.ref("users", "display"),
-			}))
-			.orderBy((q) => [q.ref("users", "user_id")])
+		const stmt = q.selectFrom("users")
+			.select(["users.display"])
+			.orderBy(["users.user_id"])
 			.limit(2)
 			.offset(1)
 			.toStatement();
@@ -541,28 +516,25 @@ export async function testTableProvider(
 		// Insert from select: duplicate existing post for a different author
 		// After previous steps: Alice (1), Charlie (3), Dave (4) exist; Bob (2) was deleted
 		// The "Hello World" post belongs to author_id=1 (Alice)
-		const insertFrom = q.insert("posts")
+		const insertFrom = q.insertInto("posts")
 			.from((q) =>
-				q.select("posts", "p")
-					.where((q) => q.equal(q.ref("p", "author_id"), q.param("source_author")))
-					.map((q) => ({
-						title: q.ref("p", "title"),
-						content: q.ref("p", "content"),
-						author_id: q.param("target_author"),
-					}))
+				q.selectFrom("posts", "p")
+					.where((q) => q.eq("p.author_id", q.param("source_author").as<number>()))
+					.select((q) => [
+						"p.title",
+						"p.content",
+						q.literal(3).as("author_id"),
+					])
 			)
 			.toStatement();
 
 		await provider.execute(
 			insertFrom,
-			{ source_author: 1, target_author: 3 },
+			{ source_author: 1 },
 		);
 
-		const selectPosts = q.select("posts")
-			.map((q) => ({
-				title: q.ref("posts", "title"),
-				author_id: q.ref("posts", "author_id"),
-			}))
+		const selectPosts = q.selectFrom("posts")
+			.select(["posts.title", "posts.author_id"])
 			.toStatement();
 
 		const rows = await provider.execute(

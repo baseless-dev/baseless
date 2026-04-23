@@ -1,10 +1,5 @@
 // deno-lint-ignore-file ban-types no-explicit-any
 import type { App, PublicAppRegistry } from "@baseless/server";
-import type { AuthenticationApplication } from "@baseless/server/apps/authentication";
-import type { DocumentApplication } from "@baseless/server/apps/document";
-import type { PubsubApplication } from "@baseless/server/apps/pubsub";
-import type { StorageApplication } from "@baseless/server/apps/storage";
-import type { TableApplication } from "@baseless/server/apps/table";
 import type { PathToParams } from "@baseless/core/path";
 import { resolvePath } from "@baseless/core/path";
 import type { Request } from "@baseless/core/request";
@@ -20,7 +15,7 @@ import { AuthenticationTokens } from "@baseless/core/authentication-tokens";
 import { encodeBase64Url } from "@std/encoding/base64url";
 import { EventEmitter } from "./event_emitter.ts";
 import { AuthenticationCeremonyInvalidPromptError, AuthenticationCeremonyInvalidStateError } from "./errors.ts";
-import { BatchableStatementBuilder, type IStatementBuilder, type TStatement } from "@baseless/core/query";
+import { BatchQueryBuilder, type IStatementBuilder } from "@baseless/core/query";
 import {
 	StorageListEntry,
 	StorageObject,
@@ -845,11 +840,11 @@ export class ClientTable {
 	 * @returns The query result.
 	 */
 	async execute<TParams extends Record<string, unknown>, TOutput>(
-		fn: (q: BatchableStatementBuilder<{}, {}>) => IStatementBuilder<TParams, TOutput>,
+		fn: (q: BatchQueryBuilder<{}, {}, {}>) => IStatementBuilder<TParams, TOutput>,
 		params: TParams,
 		options?: { signal?: AbortSignal },
 	): Promise<TOutput> {
-		const statement = fn(new BatchableStatementBuilder()).toStatement();
+		const statement = fn(new BatchQueryBuilder([], [])).toStatement();
 		const response = await this.#client.fetch(`${this.#endpoint}/execute`, {
 			signal: options?.signal,
 			method: "POST",
@@ -1206,13 +1201,13 @@ export interface TypedClientTable<
 > {
 	/**
 	 * Executes a query statement against the server's registered tables.
-	 * @param fn A callback receiving a {@link BatchableStatementBuilder} typed to the registered tables and returning the statement to execute.
+	 * @param fn A callback receiving a {@link BatchQueryBuilder} typed to the registered tables and returning the statement to execute.
 	 * @param params A record of named parameter values to bind.
 	 * @param options Optional options including abort signal.
 	 * @returns The query result.
 	 */
 	execute<TParams extends Record<string, unknown>, TOutput>(
-		fn: (q: BatchableStatementBuilder<TTables, TTables>) => IStatementBuilder<TParams, TOutput>,
+		fn: (q: BatchQueryBuilder<TTables, TTables, {}>) => IStatementBuilder<TParams, TOutput>,
 		params: TParams,
 		options?: { signal?: AbortSignal },
 	): Promise<TOutput>;

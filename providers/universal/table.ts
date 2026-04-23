@@ -64,6 +64,9 @@ const libSQLVisitor: Visitor<string, SqlContext> = {
 	},
 
 	visitColumnReference(node, _visit, _ctx) {
+		if (!node.table) {
+			return quoteIdent(node.column as string);
+		}
 		return `${quoteIdent(node.table)}.${quoteIdent(node.column as string)}`;
 	},
 
@@ -75,6 +78,10 @@ const libSQLVisitor: Visitor<string, SqlContext> = {
 
 	visitNamedFunctionReference(node, visit, ctx) {
 		return `${node.name}(${node.params.map((p: any) => visit(p, ctx)).join(", ")})`;
+	},
+
+	visitSubqueryExpression(node, visit, ctx) {
+		return `(${visit(node.select, ctx)})`;
 	},
 
 	visitBooleanComparisonExpression(node, visit, ctx) {
@@ -99,6 +106,10 @@ const libSQLVisitor: Visitor<string, SqlContext> = {
 				return `${visit(node.left, ctx)} IN (${visit(node.right, ctx)})`;
 			case "nin":
 				return `${visit(node.left, ctx)} NOT IN (${visit(node.right, ctx)})`;
+			case "like":
+				return `${visit(node.left, ctx)} LIKE ${visit(node.right, ctx)}`;
+			case "notLike":
+				return `${visit(node.left, ctx)} NOT LIKE ${visit(node.right, ctx)}`;
 			case "and":
 				return `(${visit(node.left, ctx)} AND ${visit(node.right, ctx)})`;
 			case "or":
@@ -109,6 +120,10 @@ const libSQLVisitor: Visitor<string, SqlContext> = {
 	},
 
 	visitBooleanExpression(node, visit, ctx) {
+		if (node.operator === "not") {
+			const [operand] = node.operands;
+			return operand ? `(NOT ${visit(operand, ctx)})` : "(NOT)";
+		}
 		const op = node.operator === "and" ? " AND " : " OR ";
 		return `(${node.operands.map((o) => visit(o, ctx)).join(op)})`;
 	},
@@ -125,11 +140,12 @@ const libSQLVisitor: Visitor<string, SqlContext> = {
 		const joins = node.join.map((j) => visit(j, ctx)).join("");
 		const where = node.where ? ` WHERE ${visit(node.where, ctx)}` : "";
 		const groupBy = node.groupBy.length > 0 ? ` GROUP BY ${node.groupBy.map((g) => visit(g.column, ctx)).join(", ")}` : "";
+		const having = node.having ? ` HAVING ${visit(node.having, ctx)}` : "";
 		const orderBy = node.orderBy.length > 0 ? ` ORDER BY ${node.orderBy.map((o) => `${visit(o.column, ctx)} ${o.order}`).join(", ")}` : "";
 		const limit = node.limit !== undefined ? ` LIMIT ${node.limit}` : "";
 		const offset = node.offset !== undefined ? ` OFFSET ${node.offset}` : "";
 
-		return `SELECT ${selectClause} FROM ${fromClause}${joins}${where}${groupBy}${orderBy}${limit}${offset}`;
+		return `SELECT ${selectClause} FROM ${fromClause}${joins}${where}${groupBy}${having}${orderBy}${limit}${offset}`;
 	},
 
 	visitInsertStatement(node, visit, ctx) {
@@ -190,7 +206,8 @@ const libSQLVisitor: Visitor<string, SqlContext> = {
 	},
 
 	visitJoinFragment(node, visit, ctx) {
-		let sql = ` JOIN ${quoteIdent(node.table)}`;
+		const joinType = node.joinType?.toUpperCase();
+		let sql = ` ${joinType ? `${joinType} ` : ""}JOIN ${quoteIdent(node.table)}`;
 		if (node.alias) sql += ` AS ${quoteIdent(node.alias)}`;
 		if (node.on) sql += ` ON ${visit(node.on, ctx)}`;
 		return sql;

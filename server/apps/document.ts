@@ -81,7 +81,7 @@ const documentApp = app()
 				}
 			}
 
-			const documents = await service.document.getMany(paths.map(p => [p, {}]) as never, options);
+			const documents = await service.document.getMany(paths.map((p) => [p, {}]) as never, options);
 			return Response.json({ documents });
 		},
 	})

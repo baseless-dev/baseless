@@ -24,11 +24,32 @@ Deno.test("schema", async (ctx) => {
 
 	await ctx.step("Request", async () => {
 		const _a = z.jsonRequest({ foo: z.literal("bar") }).parse(await Request.json({ foo: "bar" }));
+		const _b = z.request({
+			method: "POST",
+			headers: { "content-type": z.literal("application/octet-stream") },
+			body: z.readableStream(),
+		}).parse(
+			await Request.from("http://local", {
+				method: "POST",
+				headers: { "content-type": "application/octet-stream" },
+				body: new ReadableStream(),
+			}),
+		);
 		assertRejects(async () => z.request({ method: "POST" }).parse(await Request.from("http://local", { method: "POST", body: "allo" })));
 	});
 
 	await ctx.step("Response", () => {
 		const _a = z.jsonResponse({ foo: z.literal("bar") }).parse(Response.json({ foo: "bar" }));
+		const _stream = z.response({
+			status: 200,
+			headers: { "content-type": z.literal("application/octet-stream") },
+			body: z.readableStream(),
+		}).parse(
+			new Response(new ReadableStream(), {
+				status: 200,
+				headers: { "content-type": "application/octet-stream" },
+			}),
+		);
 		const _b = z.union([
 			z.jsonResponse(),
 			z.response({

@@ -1,6 +1,6 @@
 // deno-lint-ignore-file ban-types no-explicit-any
 import * as z from "zod";
-import { ID, isID } from "./id.ts";
+import { ID } from "./id.ts";
 import type { TypedFormData } from "./typed.ts";
 import { Request } from "./request.ts";
 import { Response } from "./response.ts";
@@ -26,6 +26,8 @@ export type ZodFormData<TData extends Record<string, string | File> = Record<str
 	unknown
 >;
 
+type AnyZodFormData = ZodFormData<any>;
+
 /**
  * Creates a Zod validator for a {@link TypedFormData} value.
  * When `properties` is given, validates each field against the corresponding
@@ -39,8 +41,16 @@ export function formData<const Properties extends Record<string, z.ZodString | z
 	properties: Properties,
 ): ZodFormData<{ [k in keyof Properties]: z.infer<Properties[k]> }>;
 export function formData(properties?: Record<string, z.ZodString | z.ZodFile>): ZodFormData {
-	const schema = z.strictObject(properties ?? {});
-	return z.custom<TypedFormData>((val) => val instanceof FormData && schema.safeParse(Object.fromEntries(val)).success);
+	const schema = properties ? z.strictObject(properties) : z.looseObject({});
+	return z.custom<TypedFormData>(
+		(val) => val instanceof FormData && schema.safeParse(Object.fromEntries(val)).success,
+		{
+			error: "invalid FormData",
+			params: {
+				schema,
+			},
+		},
+	);
 }
 
 /**
@@ -55,7 +65,7 @@ export function guard<TSchema extends z.ZodType>(schema: TSchema, data: unknown)
 }
 
 /** Zod type for a branded {@link ID} string. */
-export type ZodId<Prefix extends string = ""> = z.ZodCustom<ID<Prefix>, unknown>;
+export type ZodId<Prefix extends string = ""> = z.ZodType<ID<Prefix>, string>;
 
 /**
  * Creates a Zod schema that validates branded {@link ID} strings.
@@ -65,10 +75,13 @@ export type ZodId<Prefix extends string = ""> = z.ZodCustom<ID<Prefix>, unknown>
 export function id(): ZodId;
 export function id<const Prefix extends string>(prefix: Prefix): ZodId<Prefix>;
 export function id(prefix?: string): ZodId {
-	return z.custom<ID>(
-		(val) => isID(prefix as never, val),
-		"invalid ID",
-	);
+	const normalizedPrefix = prefix ?? "";
+	const escapedPrefix = normalizedPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	return (
+		z.string()
+			.regex(new RegExp(`^${escapedPrefix}[0-9A-Za-z]{26}$`), "invalid ID")
+			.length(normalizedPrefix.length + 26)
+	) as unknown as ZodId;
 }
 
 /** Zod type for a {@link ReadableStream} value. */
@@ -81,7 +94,12 @@ export type ZodReadableStream = z.ZodCustom<ReadableStream, unknown>;
 export function readableStream(): ZodReadableStream {
 	return z.custom<ReadableStream>(
 		(val) => val instanceof ReadableStream,
-		"invalid ReadableStream",
+		{
+			error: "invalid ReadableStream",
+			params: {
+				kind: "readableStream",
+			},
+		},
 	);
 }
 
@@ -133,7 +151,8 @@ export function request<
 		| z.ZodObject
 		| z.ZodArray
 		| z.ZodJSONSchema
-		| ZodFormData
+		| AnyZodFormData
+		| ZodReadableStream
 		| z.ZodString
 		| z.ZodNull = z.ZodNull,
 >(info?: {
@@ -236,7 +255,8 @@ export function response<
 		| z.ZodObject
 		| z.ZodArray
 		| z.ZodUnknown
-		| ZodFormData
+		| AnyZodFormData
+		| ZodReadableStream
 		| z.ZodString
 		| z.ZodUndefined = z.ZodUndefined,
 >(info?: {

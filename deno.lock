@@ -17,6 +17,7 @@
     "npm:@types/react@19": "19.0.8",
     "npm:@types/react@19.0.8": "19.0.8",
     "npm:global-jsdom@*": "26.0.0_jsdom@26.0.0",
+    "npm:global-jsdom@26.0.0": "26.0.0_jsdom@26.0.0",
     "npm:jose@5.9.6": "5.9.6",
     "npm:openapi-types@12.1.3": "12.1.3",
     "npm:react-dom@19.0.0": "19.0.0_react@19.0.0",
@@ -666,7 +667,8 @@
       "integrity": "sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==",
       "dependencies": [
         "iconv-lite"
-      ]
+      ],
+      "deprecated": true
     },
     "whatwg-mimetype@4.0.0": {
       "integrity": "sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg=="

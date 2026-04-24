@@ -3,7 +3,7 @@ import { app, INTERNAL_HIDE_ENDPOINT } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import type { Document } from "@baseless/core/document";
 import { EncryptJWT, jwtDecrypt, type KeyLike } from "jose";
-import { ID, id, ksuid } from "@baseless/core/id";
+import { ID, ksuid } from "@baseless/core/id";
 import {
 	AuthenticationRefreshTokenError,
 	AuthenticationSendPromptError,
@@ -16,7 +16,7 @@ import {
 	UnknownIdentityComponentError,
 } from "@baseless/core/errors";
 import { AuthenticationTokens } from "@baseless/core/authentication-tokens";
-import { AuthenticationResponse } from "@baseless/core/authentication-response";
+import { type AuthenticationModificationResult, AuthenticationResponse } from "@baseless/core/authentication-response";
 import { AppRegistry, IdentityComponentProvider, ServiceCollection } from "@baseless/server";
 import {
 	AuthenticationCeremony,
@@ -28,14 +28,34 @@ import {
 import { AuthenticationComponent } from "@baseless/core/authentication-component";
 import { Response } from "@baseless/core/response";
 
+type AuthenticationFlow = "authentication" | "registration" | "modification";
+type AuthenticationModificationPhase =
+	| "verify-existing"
+	| "verify-existing-validation"
+	| "setup-new"
+	| "setup-new-validation";
+type JsonResponse<TBody> = Response<200, { "content-type": "application/json" }, TBody>;
+type AuthenticationStepResultBody = {
+	result: {
+		step: AuthenticationComponent;
+		state: string;
+		expireAt: number;
+		validating: boolean;
+	};
+};
+type AuthenticationBooleanResultBody = { result: boolean };
+type AuthenticationModificationResultBody = { result: AuthenticationModificationResult };
+
 /**
- * Async function or value that resolves the authentication / registration
+ * Async function or value that resolves the authentication / registration /
+ * modification
  * ceremony for the current request context.
  */
 export type AuthenticationCeremonyResolver = (
 	options: {
 		context: AppRegistry["context"];
-		flow: "authentication" | "registration";
+		flow: AuthenticationFlow;
+		componentId?: string;
 		identityId?: ID<"id_">;
 		service: ServiceCollection;
 	},
@@ -167,14 +187,46 @@ const authApp = app()
 	.endpoint({
 		path: "auth/begin",
 		request: z.jsonRequest({
-			kind: z.union([z.literal("authentication"), z.literal("registration")]),
+			kind: z.union([
+				z.literal("authentication"),
+				z.literal("registration"),
+				z.literal("modification"),
+			]),
+			componentId: z.optional(z.string()),
 			scopes: z.optional(z.array(z.string())),
 		}),
 		response: z.jsonResponse({
 			result: AuthenticationResponse,
 		}),
-		handler: async ({ configuration, context, request, service }) => {
-			const { kind, scopes } = request.body;
+		handler: async ({ auth, configuration, context, request, service }) => {
+			const { componentId, kind, scopes } = request.body;
+			if (kind === "modification") {
+				if (!auth?.identityId) {
+					throw new ForbiddenError();
+				}
+				if (!componentId) {
+					throw new InvalidAuthenticationStateError();
+				}
+				const identityComponent = await getIdentityComponent(service, auth.identityId, componentId);
+				const stateObj: AuthenticationState = {
+					kind: "modification",
+					id: auth.identityId,
+					componentId,
+					mode: identityComponent ? "replace" : "add",
+					phase: identityComponent ? "verify-existing" : "setup-new",
+					components: [],
+					channels: [],
+					scopes: scopes ?? [],
+				};
+				return createModificationStepResponse({
+					configuration,
+					context,
+					options: configuration.auth,
+					service,
+					state: stateObj,
+				});
+			}
+
 			const stateObj: AuthenticationState = kind === "authentication"
 				? {
 					kind: "authentication",
@@ -234,12 +286,24 @@ const authApp = app()
 		}),
 		handler: async ({ configuration, context, request, service }) => {
 			const { id, value, state } = request.body;
+			const decodedState = await decodeAuthenticationState(state, configuration.auth);
+			if (decodedState.kind === "modification") {
+				return handleModificationSubmitPrompt({
+					configuration,
+					context,
+					id,
+					options: configuration.auth,
+					service,
+					state: decodedState,
+					value,
+				});
+			}
 			const { currentComponent, identityComponentProvider, path, stateObj } = await unrollState({
 				configuration,
 				context,
 				id,
 				service,
-				state,
+				state: decodedState,
 				options: configuration.auth,
 			});
 			const rateLimit = configuration.auth.rateLimit ?? defaultRateLimiter;
@@ -392,13 +456,25 @@ const authApp = app()
 		}),
 		handler: async ({ configuration, context, request, service }) => {
 			const { id, locale, state } = request.body;
+			const decodedState = await decodeAuthenticationState(state, configuration.auth);
+			if (decodedState.kind === "modification") {
+				return handleModificationSendPrompt({
+					configuration,
+					context,
+					id,
+					locale,
+					options: configuration.auth,
+					service,
+					state: decodedState,
+				});
+			}
 			const { currentComponent, identityComponentProvider, stateObj } = await unrollState({
 				configuration,
 				context,
 				id,
 				options: configuration.auth,
 				service,
-				state,
+				state: decodedState,
 			});
 			if (!identityComponentProvider.sendSignInPrompt) {
 				throw new AuthenticationSendPromptError();
@@ -446,13 +522,25 @@ const authApp = app()
 		}),
 		handler: async ({ configuration, context, request, service }) => {
 			const { id, locale, state } = request.body;
+			const decodedState = await decodeAuthenticationState(state, configuration.auth);
+			if (decodedState.kind === "modification") {
+				return handleModificationSendValidationCode({
+					configuration,
+					context,
+					id,
+					locale,
+					options: configuration.auth,
+					service,
+					state: decodedState,
+				});
+			}
 			const { currentComponent, identityComponentProvider, stateObj } = await unrollState({
 				configuration,
 				context,
 				id,
 				options: configuration.auth,
 				service,
-				state,
+				state: decodedState,
 			});
 			if (!identityComponentProvider.sendValidationPrompt) {
 				throw new AuthenticationSendValidationCodeError();
@@ -500,13 +588,25 @@ const authApp = app()
 		}),
 		handler: async ({ configuration, context, request, service }) => {
 			const { id, code, state } = request.body;
+			const decodedState = await decodeAuthenticationState(state, configuration.auth);
+			if (decodedState.kind === "modification") {
+				return handleModificationSubmitValidationCode({
+					code,
+					configuration,
+					context,
+					id,
+					options: configuration.auth,
+					service,
+					state: decodedState,
+				});
+			}
 			const { path, currentComponent, identityComponentProvider, stateObj } = await unrollState({
 				configuration,
 				context,
 				id,
 				options: configuration.auth,
 				service,
-				state,
+				state: decodedState,
 			});
 
 			const rateLimit = configuration.auth.rateLimit ?? defaultRateLimiter;
@@ -612,7 +712,7 @@ async function unrollState({
 	context: AppRegistry["context"];
 	id: string;
 	service: ServiceCollection;
-	state: string;
+	state: string | AuthenticationState;
 	options: AuthOptions;
 }): Promise<{
 	stateObj: AuthenticationState;
@@ -621,11 +721,9 @@ async function unrollState({
 	currentComponent: AuthenticationCeremonyComponent;
 	identityComponentProvider: IdentityComponentProvider;
 }> {
-	let stateObj: AuthenticationState;
-	try {
-		stateObj = await decryptState(state, options);
-	} catch (cause) {
-		throw new InvalidAuthenticationStateError(undefined, { cause });
+	const stateObj = typeof state === "string" ? await decodeAuthenticationState(state, options) : state;
+	if (stateObj.kind === "modification") {
+		throw new InvalidAuthenticationStateError();
 	}
 	const ceremony = await getCeremonyFromFlow({
 		context,
@@ -714,16 +812,17 @@ async function createIdentity(
 }
 
 async function getCeremonyFromFlow(
-	{ context, flow, identityId, service, options }: {
+	{ componentId, context, flow, identityId, service, options }: {
+		componentId?: string;
 		context: AppRegistry["context"];
-		flow: "authentication" | "registration";
+		flow: AuthenticationFlow;
 		identityId?: ID<"id_">;
 		options: AuthOptions;
 		service: ServiceCollection;
 	},
 ): Promise<AuthenticationCeremony> {
 	if (typeof options.ceremony === "function") {
-		const ceremony = await options.ceremony({ context, flow, identityId, service });
+		const ceremony = await options.ceremony({ componentId, context, flow, identityId, service });
 		return simplifyAuthenticationCeremony(ceremony);
 	}
 	return simplifyAuthenticationCeremony(options.ceremony);
@@ -822,7 +921,7 @@ async function mapCeremonyToComponent({ ceremony, state, configuration, context,
 
 /**
  * Encrypted opaque state blob exchanged between the client and server during
- * a multi-step authentication or registration ceremony.
+ * a multi-step authentication, registration, or modification ceremony.
  */
 export type AuthenticationState =
 	| {
@@ -834,6 +933,16 @@ export type AuthenticationState =
 	| {
 		kind: "registration";
 		id: ID<"id_">;
+		components: IdentityComponent[];
+		channels: IdentityChannel[];
+		scopes: string[];
+	}
+	| {
+		kind: "modification";
+		id: ID<"id_">;
+		componentId: string;
+		mode: "add" | "replace";
+		phase: AuthenticationModificationPhase;
 		components: IdentityComponent[];
 		channels: IdentityChannel[];
 		scopes: string[];
@@ -854,4 +963,460 @@ export const AuthenticationState = z.union([
 		components: z.array(IdentityComponent),
 		scopes: z.array(z.string()),
 	}),
+	z.strictObject({
+		kind: z.literal("modification"),
+		id: z.id("id_"),
+		componentId: z.string(),
+		mode: z.union([z.literal("add"), z.literal("replace")]),
+		phase: z.union([
+			z.literal("verify-existing"),
+			z.literal("verify-existing-validation"),
+			z.literal("setup-new"),
+			z.literal("setup-new-validation"),
+		]),
+		channels: z.array(IdentityChannel),
+		components: z.array(IdentityComponent),
+		scopes: z.array(z.string()),
+	}),
 ]);
+
+type AuthenticationModificationState = Extract<AuthenticationState, { kind: "modification" }>;
+type ValidationIdentityComponentProvider =
+	& IdentityComponentProvider
+	& Required<
+		Pick<
+			IdentityComponentProvider,
+			"getValidationPrompt" | "sendValidationPrompt" | "verifyValidationPrompt"
+		>
+	>;
+
+function isValidationIdentityComponentProvider(
+	provider: IdentityComponentProvider,
+): provider is ValidationIdentityComponentProvider {
+	return !!provider.getValidationPrompt && !!provider.sendValidationPrompt &&
+		!!provider.verifyValidationPrompt;
+}
+
+async function decodeAuthenticationState(
+	encryptedState: string | undefined,
+	options: AuthOptions,
+): Promise<AuthenticationState> {
+	try {
+		return await decryptState(encryptedState, options);
+	} catch (cause) {
+		throw new InvalidAuthenticationStateError(undefined, { cause });
+	}
+}
+
+async function getIdentityComponent(
+	service: ServiceCollection,
+	identityId: ID<"id_">,
+	componentId: string,
+): Promise<IdentityComponent | undefined> {
+	return await service.document
+		.get("auth/identity/:id/component/:key" as never, { id: identityId, key: componentId } as never)
+		.then((document) => document.data as IdentityComponent)
+		.catch((_) => undefined);
+}
+
+function getModificationIdentityComponentProvider(
+	options: AuthOptions,
+	componentId: string,
+): IdentityComponentProvider {
+	const provider = options.components[componentId];
+	if (!provider) {
+		throw new UnknownIdentityComponentError();
+	}
+	return provider;
+}
+
+function getModificationStagedIdentityComponent(
+	state: AuthenticationModificationState,
+): IdentityComponent | undefined {
+	return state.components.find((component) => component.componentId === state.componentId);
+}
+
+async function createModificationStepResponse({
+	configuration,
+	context,
+	options,
+	service,
+	state,
+}: {
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
+	options: AuthOptions;
+	service: ServiceCollection;
+	state: AuthenticationModificationState;
+}): Promise<JsonResponse<AuthenticationStepResultBody>> {
+	const { step, validating } = await mapModificationToComponent({
+		configuration,
+		context,
+		options,
+		service,
+		state,
+	});
+	const [encryptedState, expireAt] = await encryptState({ options, state });
+	return Response.json({ result: { step, state: encryptedState, expireAt, validating } });
+}
+
+async function mapModificationToComponent({
+	configuration,
+	context,
+	options,
+	service,
+	state,
+}: {
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
+	options: AuthOptions;
+	service: ServiceCollection;
+	state: AuthenticationModificationState;
+}): Promise<{ step: AuthenticationComponent; validating: boolean }> {
+	const identityComponentProvider = getModificationIdentityComponentProvider(options, state.componentId);
+	const identityComponent = state.phase.startsWith("verify-existing")
+		? await getIdentityComponent(service, state.id, state.componentId)
+		: getModificationStagedIdentityComponent(state);
+	if (!identityComponent && state.phase !== "setup-new") {
+		throw new InvalidAuthenticationStateError();
+	}
+
+	switch (state.phase) {
+		case "verify-existing":
+			return {
+				step: await identityComponentProvider.getSignInPrompt({
+					componentId: state.componentId,
+					configuration,
+					context,
+					identityComponent,
+					service,
+				}),
+				validating: false,
+			};
+		case "verify-existing-validation":
+			if (!identityComponentProvider.getValidationPrompt) {
+				throw new InvalidAuthenticationStateError();
+			}
+			return {
+				step: await identityComponentProvider.getValidationPrompt({
+					componentId: state.componentId,
+					configuration,
+					context,
+					service,
+				}),
+				validating: true,
+			};
+		case "setup-new":
+			return {
+				step: await identityComponentProvider.getSetupPrompt({
+					componentId: state.componentId,
+					configuration,
+					context,
+					service,
+				}),
+				validating: false,
+			};
+		case "setup-new-validation":
+			if (!identityComponentProvider.getValidationPrompt) {
+				throw new InvalidAuthenticationStateError();
+			}
+			return {
+				step: await identityComponentProvider.getValidationPrompt({
+					componentId: state.componentId,
+					configuration,
+					context,
+					service,
+				}),
+				validating: true,
+			};
+	}
+}
+
+async function commitModification(
+	service: ServiceCollection,
+	state: AuthenticationModificationState,
+): Promise<AuthenticationModificationResult> {
+	const stagedComponent = getModificationStagedIdentityComponent(state);
+	if (!stagedComponent || stagedComponent.confirmed === false) {
+		throw new InvalidAuthenticationStateError();
+	}
+	const previousComponent = await getIdentityComponent(service, state.id, state.componentId);
+	const atomic = service.document.atomic();
+	if (
+		previousComponent?.confirmed && previousComponent.identification &&
+		previousComponent.identification !== stagedComponent.identification
+	) {
+		atomic.delete(
+			"auth/identity-by-identification/:component/:identification" as never,
+			{
+				component: previousComponent.componentId,
+				identification: previousComponent.identification,
+			} as never,
+		);
+	}
+	for (const component of state.components) {
+		atomic.set(
+			"auth/identity/:id/component/:key" as never,
+			{ id: state.id, key: component.componentId } as never,
+			component as never,
+		);
+	}
+	for (const channel of state.channels) {
+		atomic.set(
+			"auth/identity/:id/channel/:key" as never,
+			{ id: state.id, key: channel.channelId } as never,
+			channel as never,
+		);
+	}
+	await atomic.commit();
+	return { kind: "modification-complete", componentId: state.componentId };
+}
+
+async function handleModificationSubmitPrompt({
+	configuration,
+	context,
+	id,
+	options,
+	service,
+	state,
+	value,
+}: {
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
+	id: string;
+	options: AuthOptions;
+	service: ServiceCollection;
+	state: AuthenticationModificationState;
+	value: unknown;
+}): Promise<
+	JsonResponse<AuthenticationStepResultBody> | JsonResponse<AuthenticationModificationResultBody>
+> {
+	if (id !== state.componentId) {
+		throw new AuthenticationSubmitPromptError();
+	}
+	const rateLimit = options.rateLimit ?? defaultRateLimiter;
+	if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/submit-prompt/${state.id}` })) {
+		throw new RateLimitedError();
+	}
+	const identityComponentProvider = getModificationIdentityComponentProvider(options, state.componentId);
+	if (state.phase === "verify-existing") {
+		const identityComponent = await getIdentityComponent(service, state.id, state.componentId);
+		if (!identityComponent) {
+			throw new AuthenticationSubmitPromptError();
+		}
+		const result = await identityComponentProvider.verifySignInPrompt({
+			componentId: state.componentId,
+			configuration,
+			context,
+			identityComponent,
+			service,
+			value,
+		});
+		if (result === false || (result !== true && result !== state.id)) {
+			throw new AuthenticationSubmitPromptError();
+		}
+		state.phase = isValidationIdentityComponentProvider(identityComponentProvider) ? "verify-existing-validation" : "setup-new";
+		return createModificationStepResponse({ configuration, context, options, service, state });
+	}
+	if (state.phase !== "setup-new") {
+		throw new AuthenticationSubmitPromptError();
+	}
+	const [identityComponent, ...identityComponentsOrChannels] = await identityComponentProvider.setupIdentityComponent({
+		componentId: state.componentId,
+		configuration,
+		context,
+		service,
+		value,
+	});
+	state.components = [{ ...identityComponent, identityId: state.id, componentId: state.componentId }];
+	state.channels = [];
+	for (const identityComponentOrChannel of identityComponentsOrChannels) {
+		(identityComponentOrChannel as IdentityComponent | IdentityChannel).identityId = state.id;
+		if (z.guard(IdentityComponent, identityComponentOrChannel)) {
+			state.components.push(identityComponentOrChannel);
+		} else if (z.guard(IdentityChannel, identityComponentOrChannel)) {
+			state.channels.push(identityComponentOrChannel);
+		}
+	}
+	const stagedComponent = getModificationStagedIdentityComponent(state);
+	if (!stagedComponent) {
+		throw new InvalidAuthenticationStateError();
+	}
+	if (stagedComponent.confirmed === false) {
+		if (!isValidationIdentityComponentProvider(identityComponentProvider)) {
+			throw new InvalidAuthenticationStateError();
+		}
+		state.phase = "setup-new-validation";
+		return createModificationStepResponse({ configuration, context, options, service, state });
+	}
+	return Response.json({ result: await commitModification(service, state) });
+}
+
+async function handleModificationSendPrompt({
+	configuration,
+	context,
+	id,
+	locale,
+	options,
+	service,
+	state,
+}: {
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
+	id: string;
+	locale: string;
+	options: AuthOptions;
+	service: ServiceCollection;
+	state: AuthenticationModificationState;
+}): Promise<JsonResponse<AuthenticationBooleanResultBody>> {
+	if (id !== state.componentId || state.phase !== "verify-existing") {
+		throw new AuthenticationSendPromptError();
+	}
+	const identityComponentProvider = getModificationIdentityComponentProvider(options, state.componentId);
+	if (!identityComponentProvider.sendSignInPrompt) {
+		throw new AuthenticationSendPromptError();
+	}
+	const identityComponent = await getIdentityComponent(service, state.id, state.componentId);
+	if (!identityComponent) {
+		throw new AuthenticationSendPromptError();
+	}
+	const rateLimit = options.rateLimit ?? defaultRateLimiter;
+	if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/send-prompt/${state.id}` })) {
+		throw new RateLimitedError();
+	}
+	try {
+		const result = await identityComponentProvider.sendSignInPrompt({
+			componentId: state.componentId,
+			configuration,
+			context,
+			identityComponent,
+			locale,
+			service,
+		});
+		return Response.json({ result });
+	} catch (cause) {
+		throw new AuthenticationSendPromptError(undefined, { cause });
+	}
+}
+
+async function handleModificationSendValidationCode({
+	configuration,
+	context,
+	id,
+	locale,
+	options,
+	service,
+	state,
+}: {
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
+	id: string;
+	locale: string;
+	options: AuthOptions;
+	service: ServiceCollection;
+	state: AuthenticationModificationState;
+}): Promise<JsonResponse<AuthenticationBooleanResultBody>> {
+	if (id !== state.componentId) {
+		throw new AuthenticationSendValidationCodeError();
+	}
+	const identityComponentProvider = getModificationIdentityComponentProvider(options, state.componentId);
+	if (!isValidationIdentityComponentProvider(identityComponentProvider)) {
+		throw new AuthenticationSendValidationCodeError();
+	}
+	const identityComponent = state.phase === "verify-existing-validation"
+		? await getIdentityComponent(service, state.id, state.componentId)
+		: state.phase === "setup-new-validation"
+		? getModificationStagedIdentityComponent(state)
+		: undefined;
+	if (!identityComponent) {
+		throw new AuthenticationSendValidationCodeError();
+	}
+	const rateLimit = options.rateLimit ?? defaultRateLimiter;
+	if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/send-validation-code/${state.id}` })) {
+		throw new RateLimitedError();
+	}
+	try {
+		const result = await identityComponentProvider.sendValidationPrompt({
+			componentId: state.componentId,
+			configuration,
+			context,
+			identityComponent,
+			locale,
+			service,
+		});
+		return Response.json({ result });
+	} catch (cause) {
+		throw new AuthenticationSendValidationCodeError(undefined, { cause });
+	}
+}
+
+async function handleModificationSubmitValidationCode({
+	code,
+	configuration,
+	context,
+	id,
+	options,
+	service,
+	state,
+}: {
+	code: unknown;
+	configuration: AppRegistry["configuration"];
+	context: AppRegistry["context"];
+	id: string;
+	options: AuthOptions;
+	service: ServiceCollection;
+	state: AuthenticationModificationState;
+}): Promise<
+	JsonResponse<AuthenticationStepResultBody> | JsonResponse<AuthenticationModificationResultBody>
+> {
+	if (id !== state.componentId) {
+		throw new AuthenticationSubmitValidationCodeError();
+	}
+	const rateLimit = options.rateLimit ?? defaultRateLimiter;
+	if (!await service.rateLimiter.limit({ ...rateLimit, key: `auth/submit-validation-code/${state.id}` })) {
+		throw new RateLimitedError();
+	}
+	const identityComponentProvider = getModificationIdentityComponentProvider(options, state.componentId);
+	if (!isValidationIdentityComponentProvider(identityComponentProvider)) {
+		throw new AuthenticationSubmitValidationCodeError();
+	}
+	if (state.phase === "verify-existing-validation") {
+		const identityComponent = await getIdentityComponent(service, state.id, state.componentId);
+		if (!identityComponent) {
+			throw new AuthenticationSubmitValidationCodeError();
+		}
+		const result = await identityComponentProvider.verifyValidationPrompt({
+			componentId: state.componentId,
+			configuration,
+			context,
+			identityComponent,
+			service,
+			value: code,
+		});
+		if (!result) {
+			throw new AuthenticationSubmitValidationCodeError();
+		}
+		state.phase = "setup-new";
+		return createModificationStepResponse({ configuration, context, options, service, state });
+	}
+	if (state.phase !== "setup-new-validation") {
+		throw new AuthenticationSubmitValidationCodeError();
+	}
+	const identityComponent = getModificationStagedIdentityComponent(state);
+	if (!identityComponent) {
+		throw new AuthenticationSubmitValidationCodeError();
+	}
+	const result = await identityComponentProvider.verifyValidationPrompt({
+		componentId: state.componentId,
+		configuration,
+		context,
+		identityComponent,
+		service,
+		value: code,
+	});
+	if (!result) {
+		throw new AuthenticationSubmitValidationCodeError();
+	}
+	identityComponent.confirmed = true;
+	return Response.json({ result: await commitModification(service, state) });
+}

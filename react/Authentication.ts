@@ -48,27 +48,31 @@ const createStore: (key: string) => ClientAuthCeremonyStore = (key) => {
  *
  * @param props.children Child nodes or render-prop receiving the ceremony.
  * @param props.client The {@link Client} to use (defaults to context client).
- * @param props.flow `"authentication"` or `"registration"`.
+ * @param props.flow `"authentication"`, `"registration"`, or `"modification"`.
+ * @param props.componentId Target Ceremony Component id for modification flows.
  * @param props.identifier Cache key prefix for `localStorage`.
  * @param props.scopes OAuth2 scopes to request.
  */
 export function Authentication({
 	children,
 	client = useClient(),
+	componentId,
 	flow = "authentication",
 	identifier = "bls",
 	scopes = [],
 }: {
 	children: ReactNode | ((ceremony: ClientAuthCeremony) => ReactNode);
 	client?: Client;
-	flow?: "authentication" | "registration";
+	componentId?: string;
+	flow?: "authentication" | "registration" | "modification";
 	locale: string;
 	identifier?: string;
 	scopes?: string[];
 }): ReactNode {
+	const ceremonyKey = `${identifier}/${flow}/${componentId ?? ""}/${scopes}`;
 	const ceremony = useKeyedPromise(
-		`${identifier}/${flow}/${scopes}`,
-		() => client.auth.begin(flow, { scopes, store: createStore(`${identifier}/${flow}/${scopes}`) }),
+		ceremonyKey,
+		() => client.auth.begin(flow, { componentId, scopes, store: createStore(ceremonyKey) }),
 		1000 * 60 * 5,
 	);
 	const [hash, setHash] = useState("");

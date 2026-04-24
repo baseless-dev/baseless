@@ -2,7 +2,7 @@
 /// <reference lib="deno.ns" />
 /// <reference lib="esnext" />
 
-import "npm:global-jsdom/register";
+import "npm:global-jsdom@26.0.0/register";
 // deno-lint-ignore no-explicit-any
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -161,6 +161,55 @@ Deno.test("Authentication", async (ctx) => {
 
 		await waitFor(() => assert(mocked.client.credentials.tokens?.identity.id));
 	});
+
+	await ctx.step("modify email", async () => {
+		localStorage.clear();
+		await using mocked = await createMock();
+		const tokens = await mocked.server.service.auth.createSession(mocked.identity, Date.now() / 1000 >> 0, []);
+		await mocked.client.credentials.add(tokens);
+		const accessToken = mocked.client.credentials.tokens?.accessToken;
+		assert(accessToken);
+		using screen = render(<ModificationPage client={mocked.client} componentId="email" />);
+
+		const currentEmail = await screen.findByLabelText("Email");
+		await fireEvent.change(currentEmail, { target: { value: "foo@test.local" } });
+
+		const sendOldCode = await screen.findByRole("send");
+		await fireEvent.click(sendOldCode);
+
+		const oldCode = await waitFor(() => {
+			const code = mocked.server.provider.notification.notifications[0].content["text/x-code"];
+			assert(code);
+			return code;
+		});
+
+		const oldOtp = await screen.findByLabelText("OTP");
+		await fireEvent.change(oldOtp, { target: { value: oldCode } });
+
+		const newEmail = await screen.findByLabelText("Email");
+		await fireEvent.change(newEmail, { target: { value: "bar@test.local" } });
+
+		const sendNewCode = await screen.findByRole("send");
+		await fireEvent.click(sendNewCode);
+
+		const newCode = await waitFor(() => {
+			const code = mocked.server.provider.notification.notifications[1].content["text/x-code"];
+			assert(code);
+			return code;
+		});
+
+		const newOtp = await screen.findByLabelText("OTP");
+		await fireEvent.change(newOtp, { target: { value: newCode } });
+
+		await waitFor(async () => {
+			const component = await mocked.server.service.document.get(
+				"auth/identity/:id/component/:key" as never,
+				{ id: mocked.identity.id, key: "email" } as never,
+			);
+			assertEquals((component.data as { identification: string }).identification, "bar@test.local");
+		});
+		assertEquals(mocked.client.credentials.tokens?.accessToken, accessToken);
+	});
 });
 
 function render(ui: React.ReactNode, options?: RenderOptions): RenderResult & Disposable {
@@ -197,17 +246,30 @@ function RegistrationPage({ client }: { client: Client }): React.ReactNode {
 	);
 }
 
-function AuthSection(props: { flow: "authentication" | "registration" }): React.ReactNode {
-	const [error, setError] = React.useState<any>(null);
+function ModificationPage({ client, componentId }: { client: Client; componentId: string }): React.ReactNode {
 	return (
-		<Authentication identifier="bls-test" flow={props.flow} locale="en">
+		<ClientProvider value={client}>
+			<section>
+				<header>
+					<h1>Modify</h1>
+				</header>
+				<AuthSection flow="modification" componentId={componentId} />
+			</section>
+		</ClientProvider>
+	);
+}
+
+function AuthSection(props: { flow: "authentication" | "registration" | "modification"; componentId?: string }): React.ReactNode {
+	const [error, setError] = React.useState<unknown>(null);
+	return (
+		<Authentication identifier="bls-test" componentId={props.componentId} flow={props.flow} locale="en">
 			{(ceremony) => (
 				<>
 					<main>
-						{error && (
+						{error !== null && error !== undefined && (
 							<div>
 								<button role="clearerror" type="button" onClick={(e) => (e.preventDefault(), setError(null))}>Clear error</button>
-								<p>{error.name}</p>
+								<p>{error instanceof Error ? error.name : `${error}`}</p>
 							</div>
 						)}
 						<AuthenticationPrompt

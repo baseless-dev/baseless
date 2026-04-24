@@ -269,14 +269,14 @@ export class ClientAuth {
 	}
 
 	/**
-	 * Starts a new authentication or registration ceremony.
-	 * @param kind Whether to start an `"authentication"` or `"registration"` flow.
-	 * @param options Optional scopes, abort signal, and local ceremony store.
+	 * Starts a new authentication, registration, or modification ceremony.
+	 * @param kind Whether to start an `"authentication"`, `"registration"`, or `"modification"` flow.
+	 * @param options Optional component target, scopes, abort signal, and local ceremony store.
 	 * @returns A {@link ClientAuthCeremony} to drive the multi-step flow.
 	 */
 	begin(
-		kind: "authentication" | "registration",
-		options?: { scopes?: string[]; signal?: AbortSignal; store?: ClientAuthCeremonyStore },
+		kind: "authentication" | "registration" | "modification",
+		options?: { componentId?: string; scopes?: string[]; signal?: AbortSignal; store?: ClientAuthCeremonyStore },
 	): Promise<ClientAuthCeremony> {
 		return ClientAuthCeremony.init(this.#client, this.#endpoint, kind, options);
 	}
@@ -320,13 +320,14 @@ export interface AuthenticationComponentChoiceSelection {
 }
 
 /**
- * Drives a multi-step authentication or registration ceremony.
+ * Drives a multi-step authentication, registration, or modification ceremony.
  * Obtain an instance via {@link ClientAuth.begin}.
  */
 export class ClientAuthCeremony implements Disposable {
 	#client: Client;
 	#endpoint: string;
-	#kind: "authentication" | "registration";
+	#componentId?: string;
+	#kind: "authentication" | "registration" | "modification";
 	#scopes?: string[];
 	#steps: Array<AuthenticationStep | AuthenticationComponentChoiceSelection>;
 	#store?: ClientAuthCeremonyStore;
@@ -336,8 +337,8 @@ export class ClientAuthCeremony implements Disposable {
 	static async init(
 		client: Client,
 		endpoint: string,
-		kind: "authentication" | "registration",
-		options?: { scopes?: string[]; signal?: AbortSignal; store?: ClientAuthCeremonyStore },
+		kind: "authentication" | "registration" | "modification",
+		options?: { componentId?: string; scopes?: string[]; signal?: AbortSignal; store?: ClientAuthCeremonyStore },
 	): Promise<ClientAuthCeremony> {
 		let steps: Array<AuthenticationStep | AuthenticationComponentChoiceSelection> | null = await options?.store?.get() ?? null;
 		if (!steps) {
@@ -345,24 +346,34 @@ export class ClientAuthCeremony implements Disposable {
 				signal: options?.signal,
 				method: "POST",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ kind, scopes: options?.scopes }),
+				body: JSON.stringify({ componentId: options?.componentId, kind, scopes: options?.scopes }),
 			});
 			z.assert(z.object({ result: AuthenticationStep }), response.body);
 			steps = [response.body.result];
 		}
-		return new ClientAuthCeremony(client, endpoint, kind, options?.scopes ?? [], steps, options?.store);
+		return new ClientAuthCeremony(
+			client,
+			endpoint,
+			kind,
+			options?.componentId,
+			options?.scopes ?? [],
+			steps,
+			options?.store,
+		);
 	}
 
 	constructor(
 		client: Client,
 		endpoint: string,
-		kind: "authentication" | "registration",
+		kind: "authentication" | "registration" | "modification",
+		componentId: string | undefined,
 		scopes: string[],
 		steps: Array<AuthenticationStep | AuthenticationComponentChoiceSelection>,
 		store?: ClientAuthCeremonyStore,
 	) {
 		this.#client = client;
 		this.#endpoint = endpoint;
+		this.#componentId = componentId;
 		this.#kind = kind;
 		this.#scopes = scopes;
 		this.#store = store;
@@ -413,7 +424,7 @@ export class ClientAuthCeremony implements Disposable {
 		const response = await this.#client.fetch(`${this.#endpoint}/begin`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ kind: this.#kind, scopes: this.#scopes }),
+			body: JSON.stringify({ componentId: this.#componentId, kind: this.#kind, scopes: this.#scopes }),
 		});
 		z.assert(z.object({ result: AuthenticationStep }), response.body);
 		this.#steps = [response.body.result];
@@ -501,7 +512,7 @@ export class ClientAuthCeremony implements Disposable {
 	 * Submits the user's answer for the current prompt step.
 	 * @param value The prompt value to submit.
 	 * @param signal Optional abort signal.
-	 * @returns The next {@link AuthenticationResponse} (another step or tokens).
+	 * @returns The next {@link AuthenticationResponse} (another step, tokens, or a modification result).
 	 */
 	async submitPrompt(value: unknown, signal?: AbortSignal): Promise<AuthenticationResponse> {
 		const id = this.current?.step.kind === "component" ? this.current?.step.id : null;
@@ -520,7 +531,12 @@ export class ClientAuthCeremony implements Disposable {
 			this.#steps = [];
 			this.#updateTimer();
 			await this.#updateStore();
+		} else if ("kind" in response.body.result && response.body.result.kind === "modification-complete") {
+			this.#steps = [];
+			this.#updateTimer();
+			await this.#updateStore();
 		} else {
+			z.assert(AuthenticationStep, response.body.result);
 			this.#steps = [...this.#steps, response.body.result];
 			this.#updateTimer();
 			await this.#updateStore();
@@ -554,7 +570,7 @@ export class ClientAuthCeremony implements Disposable {
 	 * Submits a validation code received out-of-band (e.g. via email).
 	 * @param code The validation code to submit.
 	 * @param signal Optional abort signal.
-	 * @returns The next {@link AuthenticationResponse} (another step or tokens).
+	 * @returns The next {@link AuthenticationResponse} (another step, tokens, or a modification result).
 	 */
 	async submitValidationCode(code: unknown, signal?: AbortSignal): Promise<AuthenticationResponse> {
 		const id = this.current?.step.kind === "component" ? this.current?.step.id : null;
@@ -573,7 +589,12 @@ export class ClientAuthCeremony implements Disposable {
 			this.#steps = [];
 			this.#updateTimer();
 			await this.#updateStore();
+		} else if ("kind" in response.body.result && response.body.result.kind === "modification-complete") {
+			this.#steps = [];
+			this.#updateTimer();
+			await this.#updateStore();
 		} else {
+			z.assert(AuthenticationStep, response.body.result);
 			this.#steps = [...this.#steps, response.body.result];
 			this.#updateTimer();
 			await this.#updateStore();

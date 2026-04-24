@@ -136,6 +136,13 @@ Deno.test("Client", async (ctx) => {
 			lastName: "Bar",
 		},
 	};
+	const modifiableIdentity = {
+		id: id("id_"),
+		data: {
+			firstName: "Baz",
+			lastName: "Qux",
+		},
+	};
 	const identityComponentEmail = {
 		identityId: identity.id,
 		componentId: "email",
@@ -151,6 +158,21 @@ Deno.test("Client", async (ctx) => {
 			hash: await password.hashPassword("lepassword"),
 		},
 	};
+	const modifiableIdentityComponentEmail = {
+		identityId: modifiableIdentity.id,
+		componentId: "email",
+		identification: "modify@test.local",
+		confirmed: true,
+		data: {},
+	};
+	const modifiableIdentityComponentPassword = {
+		identityId: modifiableIdentity.id,
+		componentId: "password",
+		confirmed: true,
+		data: {
+			hash: await password.hashPassword("old-password"),
+		},
+	};
 
 	mock.service.document.atomic()
 		.set(`auth/identity/${identity.id}` as never, {} as never, identity as never)
@@ -163,6 +185,17 @@ Deno.test("Client", async (ctx) => {
 			`auth/identity/${identity.id}/component/${identityComponentPassword.componentId}` as never,
 			{} as never,
 			identityComponentPassword as never,
+		)
+		.set(`auth/identity/${modifiableIdentity.id}` as never, {} as never, modifiableIdentity as never)
+		.set(
+			`auth/identity/${modifiableIdentity.id}/component/${modifiableIdentityComponentEmail.componentId}` as never,
+			{} as never,
+			modifiableIdentityComponentEmail as never,
+		)
+		.set(
+			`auth/identity/${modifiableIdentity.id}/component/${modifiableIdentityComponentPassword.componentId}` as never,
+			{} as never,
+			modifiableIdentityComponentPassword as never,
 		)
 		.set("users/foo/preferences" as never, {} as never, prefFoo as never)
 		.set(`posts/${postA.postId}` as never, {} as never, postA as never)
@@ -320,5 +353,79 @@ Deno.test("Client", async (ctx) => {
 		await sleep(10);
 		const msg = await presence.next();
 		assertEquals(msg.value, { userId });
+	});
+
+	await ctx.step("modification", async () => {
+		const changes: Array<AuthenticationTokensObject | null> = [];
+		using _changes = client.credentials.onChange((tokens) => {
+			changes.push(tokens);
+		});
+
+		await client.credentials.add(await mock.service.auth.createSession(modifiableIdentity, Date.now() / 1000 >> 0, []));
+
+		const accessToken = client.credentials.tokens?.accessToken;
+		assert(accessToken);
+		assertEquals(changes.length, 1);
+
+		using passwordModification = await client.auth.begin("modification", { componentId: "password" });
+		assert(passwordModification.current?.step.kind === "component");
+		assertEquals(passwordModification.current.step.id, "password");
+
+		const oldPasswordHash = await mock.service.document
+			.get("auth/identity/:id/component/:key" as never, { id: modifiableIdentity.id, key: "password" } as never)
+			.then((document) => (document.data as typeof modifiableIdentityComponentPassword).data.hash);
+		await passwordModification.submitPrompt("old-password");
+		const unchangedPasswordHash = await mock.service.document
+			.get("auth/identity/:id/component/:key" as never, { id: modifiableIdentity.id, key: "password" } as never)
+			.then((document) => (document.data as typeof modifiableIdentityComponentPassword).data.hash);
+		assertEquals(unchangedPasswordHash, oldPasswordHash);
+
+		const passwordResult = await passwordModification.submitPrompt("new-password");
+		assert("kind" in passwordResult);
+		assertEquals(passwordResult.kind, "modification-complete");
+		assertEquals(client.credentials.tokens?.accessToken, accessToken);
+		assertEquals(changes.length, 1);
+		const newPasswordHash = await mock.service.document
+			.get("auth/identity/:id/component/:key" as never, { id: modifiableIdentity.id, key: "password" } as never)
+			.then((document) => (document.data as typeof modifiableIdentityComponentPassword).data.hash);
+		assertEquals(newPasswordHash, await password.hashPassword("new-password"));
+
+		using emailModification = await client.auth.begin("modification", { componentId: "email" });
+		assert(emailModification.current?.step.kind === "component");
+		assertEquals(emailModification.current.step.id, "email");
+
+		await emailModification.submitPrompt("modify@test.local");
+		assert(emailModification.current?.step.kind === "component");
+		assertEquals(emailModification.current.step.prompt, "otp");
+		assert(emailModification.current.validating);
+
+		await emailModification.sendValidationCode("en");
+		const oldEmailCode = mock.provider.notification.notifications[0].content["text/x-code"];
+		assert(oldEmailCode);
+		await emailModification.submitValidationCode(oldEmailCode);
+		assert(emailModification.current?.step.kind === "component");
+		assertEquals(emailModification.current.step.prompt, "email");
+
+		await emailModification.submitPrompt("modified@test.local");
+		assert(emailModification.current?.step.kind === "component");
+		assertEquals(emailModification.current.step.prompt, "otp");
+		assert(emailModification.current.validating);
+		const unchangedEmail = await mock.service.document
+			.get("auth/identity/:id/component/:key" as never, { id: modifiableIdentity.id, key: "email" } as never)
+			.then((document) => (document.data as typeof modifiableIdentityComponentEmail).identification);
+		assertEquals(unchangedEmail, "modify@test.local");
+
+		await emailModification.sendValidationCode("en");
+		const newEmailCode = mock.provider.notification.notifications[1].content["text/x-code"];
+		assert(newEmailCode);
+		const emailResult = await emailModification.submitValidationCode(newEmailCode);
+		assert("kind" in emailResult);
+		assertEquals(emailResult.kind, "modification-complete");
+		assertEquals(client.credentials.tokens?.accessToken, accessToken);
+		assertEquals(changes.length, 1);
+		const updatedEmail = await mock.service.document
+			.get("auth/identity/:id/component/:key" as never, { id: modifiableIdentity.id, key: "email" } as never)
+			.then((document) => (document.data as typeof modifiableIdentityComponentEmail).identification);
+		assertEquals(updatedEmail, "modified@test.local");
 	});
 });

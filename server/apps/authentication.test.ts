@@ -5,6 +5,7 @@ import { generateKeyPair } from "jose";
 import { ksuid } from "@baseless/core/id";
 import * as z from "@baseless/core/schema";
 import { assert } from "@std/assert/assert";
+import { assertEquals } from "@std/assert/equals";
 import { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/identity";
 import { AuthenticationResponse } from "@baseless/core/authentication-response";
 import { EmailIdentityComponentProvider } from "../auth/email.ts";
@@ -55,6 +56,17 @@ Deno.test("Simple authentication", async (t) => {
 			lastName: "Bar",
 		},
 	} satisfies Identity;
+	const modifiableIdentity = {
+		id: ksuid("id_"),
+		data: {
+			firstName: "Baz",
+			lastName: "Qux",
+		},
+	} satisfies Identity;
+	const passwordOnlyIdentity = {
+		id: ksuid("id_"),
+		data: {},
+	} satisfies Identity;
 	const identityComponentEmail = {
 		identityId: identity.id,
 		componentId: "email",
@@ -70,6 +82,29 @@ Deno.test("Simple authentication", async (t) => {
 			hash: await password.hashPassword("lepassword"),
 		},
 	} satisfies IdentityComponent;
+	const modifiableIdentityComponentEmail = {
+		identityId: modifiableIdentity.id,
+		componentId: "email",
+		identification: "modify@test.local",
+		confirmed: true,
+		data: {},
+	} satisfies IdentityComponent;
+	const modifiableIdentityComponentPassword = {
+		identityId: modifiableIdentity.id,
+		componentId: "password",
+		confirmed: true,
+		data: {
+			hash: await password.hashPassword("old-password"),
+		},
+	} satisfies IdentityComponent;
+	const passwordOnlyIdentityComponentPassword = {
+		identityId: passwordOnlyIdentity.id,
+		componentId: "password",
+		confirmed: true,
+		data: {
+			hash: await password.hashPassword("only-password"),
+		},
+	} satisfies IdentityComponent;
 
 	await mock.service.document.atomic()
 		.set("auth/identity/:key" as never, { key: identity.id } as never, identity as never)
@@ -83,7 +118,43 @@ Deno.test("Simple authentication", async (t) => {
 			{ id: identity.id, component: identityComponentPassword.componentId } as never,
 			identityComponentPassword as never,
 		)
+		.set("auth/identity/:key" as never, { key: modifiableIdentity.id } as never, modifiableIdentity as never)
+		.set(
+			"auth/identity/:id/component/:component" as never,
+			{ id: modifiableIdentity.id, component: modifiableIdentityComponentEmail.componentId } as never,
+			modifiableIdentityComponentEmail as never,
+		)
+		.set(
+			"auth/identity/:id/component/:component" as never,
+			{ id: modifiableIdentity.id, component: modifiableIdentityComponentPassword.componentId } as never,
+			modifiableIdentityComponentPassword as never,
+		)
+		.set("auth/identity/:key" as never, { key: passwordOnlyIdentity.id } as never, passwordOnlyIdentity as never)
+		.set(
+			"auth/identity/:id/component/:component" as never,
+			{ id: passwordOnlyIdentity.id, component: passwordOnlyIdentityComponentPassword.componentId } as never,
+			passwordOnlyIdentityComponentPassword as never,
+		)
 		.commit();
+
+	async function getComponent(identityId: Identity["id"], componentId: string): Promise<IdentityComponent | undefined> {
+		return await mock.service.document
+			.get("auth/identity/:id/component/:key" as never, { id: identityId, key: componentId } as never)
+			.then((document) => document.data as IdentityComponent)
+			.catch((_) => undefined);
+	}
+
+	async function getChannel(identityId: Identity["id"], channelId: string): Promise<IdentityChannel | undefined> {
+		return await mock.service.document
+			.get("auth/identity/:id/channel/:key" as never, { id: identityId, key: channelId } as never)
+			.then((document) => document.data as IdentityChannel)
+			.catch((_) => undefined);
+	}
+
+	async function createAccessToken(identity: Identity): Promise<string> {
+		const tokens = await mock.service.auth.createSession(identity, Date.now() / 1000 >> 0, []);
+		return tokens.accessToken;
+	}
 
 	await t.step("login", async () => {
 		const { result: begin } = await mock.fetch("/auth/begin", {
@@ -210,6 +281,164 @@ Deno.test("Simple authentication", async (t) => {
 			schema: z.object({ result: AuthenticationResponse }),
 		});
 		assert("accessToken" in password);
+	});
+
+	await t.step("modification requires authentication", async () => {
+		await assertRejects(() =>
+			mock.fetch("/auth/begin", {
+				data: { kind: "modification", componentId: "password", scopes: [] },
+				schema: z.object({ result: AuthenticationResponse }),
+			})
+		);
+	});
+
+	await t.step("modify password", async () => {
+		const accessToken = await createAccessToken(modifiableIdentity);
+		const { result: begin } = await mock.fetch("/auth/begin", {
+			data: { kind: "modification", componentId: "password", scopes: [] },
+			headers: { Authorization: `Bearer ${accessToken}` },
+			schema: z.object({ result: AuthenticationResponse }),
+		});
+		assert("state" in begin);
+		assert(begin.step.kind === "component");
+		assertEquals(begin.step.id, "password");
+
+		const { result: verify } = await mock.fetch("/auth/submit-prompt", {
+			data: { id: "password", value: "old-password", state: begin.state },
+			schema: z.object({ result: AuthenticationResponse }),
+		});
+		assert("state" in verify);
+		assert(verify.step.kind === "component");
+		assertEquals(verify.step.id, "password");
+		assertEquals(
+			(await getComponent(modifiableIdentity.id, "password"))?.data.hash,
+			modifiableIdentityComponentPassword.data.hash,
+		);
+
+		const { result: complete } = await mock.fetch("/auth/submit-prompt", {
+			data: { id: "password", value: "new-password", state: verify.state },
+			schema: z.object({ result: AuthenticationResponse }),
+		});
+		assert("kind" in complete);
+		assertEquals(complete.kind, "modification-complete");
+		assertEquals(complete.componentId, "password");
+		assertEquals(
+			(await getComponent(modifiableIdentity.id, "password"))?.data.hash,
+			await password.hashPassword("new-password"),
+		);
+	});
+
+	await t.step("modify email", async () => {
+		const accessToken = await createAccessToken(modifiableIdentity);
+		const { result: begin } = await mock.fetch("/auth/begin", {
+			data: { kind: "modification", componentId: "email", scopes: [] },
+			headers: { Authorization: `Bearer ${accessToken}` },
+			schema: z.object({ result: AuthenticationResponse }),
+		});
+		assert("state" in begin);
+		assert(begin.step.kind === "component");
+		assertEquals(begin.step.id, "email");
+
+		const { result: verifyOldEmail } = await mock.fetch("/auth/submit-prompt", {
+			data: { id: "email", value: "modify@test.local", state: begin.state },
+			schema: z.object({ result: AuthenticationResponse }),
+		});
+		assert("state" in verifyOldEmail);
+		assert(verifyOldEmail.validating);
+		assert(verifyOldEmail.step.kind === "component");
+		assertEquals(verifyOldEmail.step.prompt, "otp");
+		assertEquals((await getComponent(modifiableIdentity.id, "email"))?.identification, "modify@test.local");
+
+		const { result: sendOldCode } = await mock.fetch("/auth/send-validation-code", {
+			data: { id: "email", locale: "en", state: verifyOldEmail.state },
+			schema: z.object({ result: z.boolean() }),
+		});
+		assert(sendOldCode);
+		const oldCode = mock.provider.notification.notifications[1].content["text/x-code"];
+		assert(oldCode);
+
+		const { result: setupNewEmail } = await mock.fetch("/auth/submit-validation-code", {
+			data: { id: "email", code: oldCode, state: verifyOldEmail.state },
+			schema: z.object({ result: AuthenticationResponse }),
+		});
+		assert("state" in setupNewEmail);
+		assert(!setupNewEmail.validating);
+		assert(setupNewEmail.step.kind === "component");
+		assertEquals(setupNewEmail.step.prompt, "email");
+
+		const { result: verifyNewEmail } = await mock.fetch("/auth/submit-prompt", {
+			data: { id: "email", value: "modified@test.local", state: setupNewEmail.state },
+			schema: z.object({ result: AuthenticationResponse }),
+		});
+		assert("state" in verifyNewEmail);
+		assert(verifyNewEmail.validating);
+		assertEquals((await getComponent(modifiableIdentity.id, "email"))?.identification, "modify@test.local");
+
+		const { result: sendNewCode } = await mock.fetch("/auth/send-validation-code", {
+			data: { id: "email", locale: "en", state: verifyNewEmail.state },
+			schema: z.object({ result: z.boolean() }),
+		});
+		assert(sendNewCode);
+		const newCode = mock.provider.notification.notifications[2].content["text/x-code"];
+		assert(newCode);
+
+		const { result: complete } = await mock.fetch("/auth/submit-validation-code", {
+			data: { id: "email", code: newCode, state: verifyNewEmail.state },
+			schema: z.object({ result: AuthenticationResponse }),
+		});
+		assert("kind" in complete);
+		assertEquals(complete.kind, "modification-complete");
+		assertEquals((await getComponent(modifiableIdentity.id, "email"))?.identification, "modified@test.local");
+		assertEquals((await getChannel(modifiableIdentity.id, "email"))?.data.email, "modified@test.local");
+		const oldIndex = await mock.service.document
+			.get(
+				"auth/identity-by-identification/:component/:identification" as never,
+				{ component: "email", identification: "modify@test.local" } as never,
+			)
+			.catch((_) => undefined);
+		assertEquals(oldIndex, undefined);
+		const newIndex = await mock.service.document.get(
+			"auth/identity-by-identification/:component/:identification" as never,
+			{ component: "email", identification: "modified@test.local" } as never,
+		);
+		assertEquals(newIndex.data, modifiableIdentity.id);
+	});
+
+	await t.step("add missing email", async () => {
+		const accessToken = await createAccessToken(passwordOnlyIdentity);
+		const { result: begin } = await mock.fetch("/auth/begin", {
+			data: { kind: "modification", componentId: "email", scopes: [] },
+			headers: { Authorization: `Bearer ${accessToken}` },
+			schema: z.object({ result: AuthenticationResponse }),
+		});
+		assert("state" in begin);
+		assert(begin.step.kind === "component");
+		assertEquals(begin.step.prompt, "email");
+
+		const { result: verifyNewEmail } = await mock.fetch("/auth/submit-prompt", {
+			data: { id: "email", value: "new@test.local", state: begin.state },
+			schema: z.object({ result: AuthenticationResponse }),
+		});
+		assert("state" in verifyNewEmail);
+		assert(verifyNewEmail.validating);
+		assertEquals(await getComponent(passwordOnlyIdentity.id, "email"), undefined);
+
+		const { result: sendCode } = await mock.fetch("/auth/send-validation-code", {
+			data: { id: "email", locale: "en", state: verifyNewEmail.state },
+			schema: z.object({ result: z.boolean() }),
+		});
+		assert(sendCode);
+		const code = mock.provider.notification.notifications[3].content["text/x-code"];
+		assert(code);
+
+		const { result: complete } = await mock.fetch("/auth/submit-validation-code", {
+			data: { id: "email", code, state: verifyNewEmail.state },
+			schema: z.object({ result: AuthenticationResponse }),
+		});
+		assert("kind" in complete);
+		assertEquals(complete.kind, "modification-complete");
+		assertEquals((await getComponent(passwordOnlyIdentity.id, "email"))?.identification, "new@test.local");
+		assertEquals((await getChannel(passwordOnlyIdentity.id, "email"))?.data.email, "new@test.local");
 	});
 });
 

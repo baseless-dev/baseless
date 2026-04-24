@@ -1,7 +1,7 @@
 import app from "./app.ts";
 import { Server } from "@baseless/server";
 import { DenoHubProvider, DenoKVDocumentProvider, DenoKVProvider, DenoQueueProvider } from "@baseless/deno-provider";
-import { ConsoleNotificationProvider, MemoryRateLimiterProvider } from "@baseless/inmemory-provider";
+import { ConsoleNotificationProvider, MemoryRateLimiterProvider, MemoryStorageProvider } from "@baseless/inmemory-provider";
 import { LibSQLTableProvider } from "@baseless/universal-provider/table";
 import { createClient } from "npm:@libsql/client@0.14.0/node";
 
@@ -16,11 +16,13 @@ const hub = new DenoHubProvider();
 const kv = new DenoKVProvider(bd1);
 const notification = new ConsoleNotificationProvider();
 const rateLimiter = new MemoryRateLimiterProvider();
+const storage = new MemoryStorageProvider();
 const libsqlClient = createClient({ url: "file:./db/table.db" });
 const table = new LibSQLTableProvider(libsqlClient);
+const serverApp = app.build();
 
 const baseless = new Server({
-	app: app.build(),
+	app: serverApp,
 	providers: {
 		channels: { email: notification },
 		document,
@@ -28,6 +30,7 @@ const baseless = new Server({
 		hub,
 		kv,
 		rateLimiter,
+		storage,
 		table,
 	},
 	configuration: {

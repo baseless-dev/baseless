@@ -5,6 +5,7 @@
 		".": "./prelude.ts",
 		"./apps/authentication": "./apps/authentication.ts",
 		"./apps/document": "./apps/document.ts",
+		"./apps/openapi": "./apps/openapi.ts",
 		"./apps/pubsub": "./apps/pubsub.ts",
 		"./apps/storage": "./apps/storage.ts",
 		"./apps/table": "./apps/table.ts",

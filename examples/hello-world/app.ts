@@ -1,40 +1,36 @@
-import { app, Permission, Type } from "@baseless/server";
-import { authentication, document, openapi } from "@baseless/server/apps";
-import { Output } from "@baseless/core/output";
+import { app, Permission } from "@baseless/server";
+import docApp from "@baseless/server/apps/document";
+import openapiApp from "@baseless/server/apps/openapi";
+import * as z from "@baseless/core/schema";
+import { Response } from "@baseless/core/response";
 
 export default app()
-	// .extend(authentication)
-	.extend(document)
-	.extend(openapi)
+	.extend(docApp)
+	.extend(openapiApp)
 	.endpoint({
 		path: "hello",
-		input: Type.Input({
-			method: "POST",
-			searchParams: { world: Type.String() },
-		}),
-		output: Type.Output({
-			status: 200,
-			body: Type.String(),
-		}),
-		security: () => Permission.Fetch,
-		handler: ({ input }) => {
-			return new Output(`Hello ${input}`);
+		request: z.request(),
+		response: z.textResponse(),
+		handler: () => {
+			return Response.text("Hello World");
 		},
 	})
 	.collection({
 		path: "posts",
-		schema: Type.Object({
-			title: Type.String(),
-			content: Type.String(),
+		schema: z.object({
+			title: z.string(),
+			content: z.string(),
 		}),
 		collectionSecurity: () => Permission.All,
 		documentSecurity: () => Permission.All,
+		topicSecurity: () => Permission.All,
 	})
 	.document({
 		path: "features",
-		schema: Type.Object({
-			showCookieBanner: Type.Boolean(),
-			ignoreCookieConsent: Type.Boolean(),
+		schema: z.object({
+			showCookieBanner: z.boolean(),
+			ignoreCookieConsent: z.boolean(),
 		}),
 		documentSecurity: () => Permission.All,
+		topicSecurity: () => Permission.All,
 	});

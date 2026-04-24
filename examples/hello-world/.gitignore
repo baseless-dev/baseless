@@ -1,7 +1,1 @@
-*.gen.ts
-doc
-doc-shm
-doc-wal
-kv
-kv-shm
-kv-wal
+db

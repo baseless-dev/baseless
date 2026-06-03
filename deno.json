@@ -31,6 +31,7 @@
 		"lineWidth": 140
 	},
 	"imports": {
+		"@opentelemetry/api": "npm:@opentelemetry/api@1.9.1",
 		"@std/assert": "jsr:@std/assert@1.0.11",
 		"@std/cli": "jsr:@std/cli@1.0.11",
 		"@std/encoding": "jsr:@std/encoding@1.0.6",

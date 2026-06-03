@@ -38,6 +38,7 @@ import {
 } from "@baseless/core/errors";
 import { Request } from "@baseless/core/request";
 import { Response } from "@baseless/core/response";
+import tracer from "./tracer.ts";
 
 /**
  * Construction options for {@link Server}.
@@ -192,93 +193,101 @@ export class Server<TRegistry extends AppRegistry> {
 	 * @param nativeRequest The incoming native HTTP request.
 	 * @returns A tuple of `[response, waitUntil promises]`.
 	 */
-	async handleRequest(nativeRequest: globalThis.Request): Promise<[response: globalThis.Response, waitUntil: Array<PromiseLike<unknown>>]> {
-		const promises: Array<PromiseLike<unknown>> = [];
-		const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
-		const url = new URL(nativeRequest.url);
-		try {
-			const upgrade = nativeRequest.headers.get("Upgrade")?.toLowerCase();
-			if (upgrade === "websocket") {
-				// Request in a websocket upgrade might be special like in Deno, do not alter it
-				const protocols = nativeRequest.headers.get("Sec-WebSocket-Protocol")?.split(",") ?? [];
-				// Same method used in Kubernetes
-				// https://github.com/kubernetes/kubernetes/commit/714f97d7baf4975ad3aa47735a868a81a984d1f0
-				const encodedBearer = protocols.find((protocol) => protocol.startsWith("base64url.bearer.authorization.baseless.dev."));
-				let authorization: string | undefined;
-				if (encodedBearer) {
-					const base64Decoded = decodeBase64Url(encodedBearer.slice(44));
-					authorization = `Bearer ${new TextDecoder().decode(base64Decoded)}`;
-				} else {
-					authorization = nativeRequest.headers.get("Authorization") ?? undefined;
+	async handleRequest(
+		nativeRequest: globalThis.Request,
+	): Promise<Readonly<[response: globalThis.Response, waitUntil: Array<PromiseLike<unknown>>]>> {
+		return tracer.startActiveSpan("Server.handleRequest", async (span) => {
+			span.setAttribute("url", nativeRequest.url);
+			span.setAttribute("method", nativeRequest.method);
+			const promises: Array<PromiseLike<unknown>> = [];
+			const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
+			const url = new URL(nativeRequest.url);
+			try {
+				const upgrade = nativeRequest.headers.get("Upgrade")?.toLowerCase();
+				if (upgrade === "websocket") {
+					// Request in a websocket upgrade might be special like in Deno, do not alter it
+					const protocols = nativeRequest.headers.get("Sec-WebSocket-Protocol")?.split(",") ?? [];
+					// Same method used in Kubernetes
+					// https://github.com/kubernetes/kubernetes/commit/714f97d7baf4975ad3aa47735a868a81a984d1f0
+					const encodedBearer = protocols.find((protocol) => protocol.startsWith("base64url.bearer.authorization.baseless.dev."));
+					let authorization: string | undefined;
+					if (encodedBearer) {
+						const base64Decoded = decodeBase64Url(encodedBearer.slice(44));
+						authorization = `Bearer ${new TextDecoder().decode(base64Decoded)}`;
+					} else {
+						authorization = nativeRequest.headers.get("Authorization") ?? undefined;
+					}
+
+					const auth = authorization ? await this.#parseAuthorization(authorization) : undefined;
+
+					// TODO onHubConnect
+					const { context } = await this.createContext(nativeRequest as never, auth, nativeRequest.signal, waitUntil);
+					const hubId = id("hub_");
+					const response = await this.options.providers.hub.transfer({
+						app: this.options.app,
+						auth,
+						configuration: this.options.configuration,
+						context,
+						hubId,
+						request: nativeRequest,
+						server: this,
+						signal: nativeRequest.signal,
+					});
+					return [response, promises] as const;
 				}
 
-				const auth = authorization ? await this.#parseAuthorization(authorization) : undefined;
+				try {
+					// deno-lint-ignore no-var no-inner-declarations
+					var [params, definition] = first(
+						this.options.app.match("endpoint", url.pathname.slice(1) + `/#${nativeRequest.method.toLowerCase()}`),
+					);
+				} catch (cause) {
+					throw new RequestNotFoundError(undefined, { cause });
+				}
 
-				// TODO onHubConnect
-				const { context } = await this.createContext(nativeRequest as never, auth, nativeRequest.signal, waitUntil);
-				const hubId = id("hub_");
-				const response = await this.options.providers.hub.transfer({
-					app: this.options.app,
-					auth,
-					configuration: this.options.configuration,
-					context,
-					hubId,
-					request: nativeRequest,
-					server: this,
-					signal: nativeRequest.signal,
+				const request = await Request.from(nativeRequest);
+
+				if (!z.guard(definition.request, request)) {
+					throw new BadRequestError();
+				}
+
+				const response = await this.unsafe_handleRequest({
+					definition,
+					params,
+					request: request as never,
+					waitUntil,
 				});
-				return [response, promises];
-			}
 
-			try {
-				// deno-lint-ignore no-var no-inner-declarations
-				var [params, definition] = first(
-					this.options.app.match("endpoint", url.pathname.slice(1) + `/#${nativeRequest.method.toLowerCase()}`),
-				);
+				if (!z.guard(definition.response, response)) {
+					throw new BadGatewayError();
+				}
+
+				return [response.toResponse(), promises] as const;
 			} catch (cause) {
-				throw new RequestNotFoundError(undefined, { cause });
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				let status = 500;
+				let statusText = "Internal Server Error";
+				let error = "Error";
+				let details: unknown = undefined;
+				if (cause instanceof z.ZodError) {
+					status = 400;
+					statusText = "Bad Request";
+					error = cause.message;
+				} else if (cause instanceof PublicError) {
+					error = cause.constructor.name;
+					status = cause.status;
+					statusText = cause.statusText;
+					details = cause.details;
+				} else if (cause instanceof Error) {
+					error = cause.constructor.name;
+				}
+				return [
+					globalThis.Response.json({ error, details }, { status, statusText }),
+					promises,
+				] as const;
 			}
-
-			const request = await Request.from(nativeRequest);
-
-			if (!z.guard(definition.request, request)) {
-				throw new BadRequestError();
-			}
-
-			const response = await this.unsafe_handleRequest({
-				definition,
-				params,
-				request: request as never,
-				waitUntil,
-			});
-
-			if (!z.guard(definition.response, response)) {
-				throw new BadGatewayError();
-			}
-
-			return [response.toResponse(), promises];
-		} catch (cause) {
-			let status = 500;
-			let statusText = "Internal Server Error";
-			let error = "Error";
-			let details: unknown = undefined;
-			if (cause instanceof z.ZodError) {
-				status = 400;
-				statusText = "Bad Request";
-				error = cause.message;
-			} else if (cause instanceof PublicError) {
-				error = cause.constructor.name;
-				status = cause.status;
-				statusText = cause.statusText;
-				details = cause.details;
-			} else if (cause instanceof Error) {
-				error = cause.constructor.name;
-			}
-			return [
-				globalThis.Response.json({ error, details }, { status, statusText }),
-				promises,
-			];
-		}
+		});
 	}
 
 	/**
@@ -290,81 +299,85 @@ export class Server<TRegistry extends AppRegistry> {
 	 * @returns Background promises to await after the message is processed.
 	 */
 	async handleHubMessage(hubId: ID<"hub_">, auth: Auth, message: unknown): Promise<Array<PromiseLike<unknown>>> {
-		const promises: Array<PromiseLike<unknown>> = [];
-		const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
-		const abortController = new AbortController();
-		const request = await Request.from(new globalThis.Request("http://hub"));
+		return tracer.startActiveSpan("Server.handleHubMessage", async (span) => {
+			span.setAttribute("hubId", hubId.toString());
+			span.setAttribute("identityId", auth?.identityId.toString() ?? "anonymous");
+			const promises: Array<PromiseLike<unknown>> = [];
+			const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
+			const abortController = new AbortController();
+			const request = await Request.from(new globalThis.Request("http://hub"));
 
-		const { type, ...rest } = await new globalThis.Response(message as never).json();
+			const { type, ...rest } = await new globalThis.Response(message as never).json();
 
-		const { context, service } = await this.createContext(request, auth, abortController.signal, waitUntil);
+			const { context, service } = await this.createContext(request, auth, abortController.signal, waitUntil);
 
-		if (type === "subscribe") {
-			const { key } = rest;
-			try {
-				// deno-lint-ignore no-var no-inner-declarations
-				var [params, definition] = first(this.options.app.match("topic", key));
-			} catch (_error) {
-				throw new TopicNotFoundError();
-			}
-
-			if ("security" in definition) {
-				const permission = await definition.security({
-					app: this.options.app,
-					auth,
-					configuration: this.options.configuration,
-					context,
-					params,
-					service,
-					signal: abortController.signal,
-					waitUntil,
-				});
-				if ((permission & Permission.Subscribe) == 0) {
-					throw new ForbiddenError();
-				}
-				await this.options.providers.hub.subscribe(key, hubId);
-			}
-		} else if (type === "unsubscribe") {
-			const { key } = rest;
-			try {
-				// deno-lint-ignore no-var no-inner-declarations no-redeclare
-				var [_, definition] = first(this.options.app.match("topic", key));
-			} catch (_error) {
-				throw new TopicNotFoundError();
-			}
-
-			if ("security" in definition) {
-				await this.options.providers.hub.unsubscribe(key, hubId);
-			}
-		} else if (type === "publish") {
-			const { key, payload } = rest;
-			try {
-				// deno-lint-ignore no-redeclare no-var no-inner-declarations
-				var [params, definition] = first(this.options.app.match("topic", key));
-			} catch (_error) {
-				throw new TopicNotFoundError();
-			}
-
-			if ("security" in definition) {
-				const permission = await definition.security({
-					app: this.options.app,
-					auth,
-					configuration: this.options.configuration,
-					context,
-					params,
-					service,
-					signal: abortController.signal,
-					waitUntil,
-				});
-				if ((permission & Permission.Publish) == 0) {
-					throw new ForbiddenError();
+			if (type === "subscribe") {
+				const { key } = rest;
+				try {
+					// deno-lint-ignore no-var no-inner-declarations
+					var [params, definition] = first(this.options.app.match("topic", key));
+				} catch (_error) {
+					throw new TopicNotFoundError();
 				}
 
-				await service.pubsub.publish(key as never, {} as never, payload as never, { signal: abortController.signal });
-			}
-		}
+				if ("security" in definition) {
+					const permission = await definition.security({
+						app: this.options.app,
+						auth,
+						configuration: this.options.configuration,
+						context,
+						params,
+						service,
+						signal: abortController.signal,
+						waitUntil,
+					});
+					if ((permission & Permission.Subscribe) == 0) {
+						throw new ForbiddenError();
+					}
+					await this.options.providers.hub.subscribe(key, hubId);
+				}
+			} else if (type === "unsubscribe") {
+				const { key } = rest;
+				try {
+					// deno-lint-ignore no-var no-inner-declarations no-redeclare
+					var [_, definition] = first(this.options.app.match("topic", key));
+				} catch (_error) {
+					throw new TopicNotFoundError();
+				}
 
-		return promises;
+				if ("security" in definition) {
+					await this.options.providers.hub.unsubscribe(key, hubId);
+				}
+			} else if (type === "publish") {
+				const { key, payload } = rest;
+				try {
+					// deno-lint-ignore no-redeclare no-var no-inner-declarations
+					var [params, definition] = first(this.options.app.match("topic", key));
+				} catch (_error) {
+					throw new TopicNotFoundError();
+				}
+
+				if ("security" in definition) {
+					const permission = await definition.security({
+						app: this.options.app,
+						auth,
+						configuration: this.options.configuration,
+						context,
+						params,
+						service,
+						signal: abortController.signal,
+						waitUntil,
+					});
+					if ((permission & Permission.Publish) == 0) {
+						throw new ForbiddenError();
+					}
+
+					await service.pubsub.publish(key as never, {} as never, payload as never, { signal: abortController.signal });
+				}
+			}
+
+			return promises;
+		});
 	}
 
 	/**
@@ -374,71 +387,74 @@ export class Server<TRegistry extends AppRegistry> {
 	 * @returns Background promises to await after processing.
 	 */
 	async handleQueueItem(item: QueueItem): Promise<Array<PromiseLike<unknown>>> {
-		const promises: Array<PromiseLike<unknown>> = [];
-		const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
-		const abortController = new AbortController();
-		const request = await Request.from(new globalThis.Request("http://hub"));
+		return tracer.startActiveSpan("Server.handleQueueItem", async (span) => {
+			span.setAttribute("queueItemType", item.type);
+			const promises: Array<PromiseLike<unknown>> = [];
+			const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
+			const abortController = new AbortController();
+			const request = await Request.from(new globalThis.Request("http://hub"));
 
-		const { context, service } = await this.createContext(request, undefined, abortController.signal, waitUntil);
+			const { context, service } = await this.createContext(request, undefined, abortController.signal, waitUntil);
 
-		if (item.type === "topic_publish") {
-			const message: TopicMessage<unknown> = {
-				topic: item.key,
-				data: item.payload,
-				stopPropagation: false,
-				stopImmediatePropagation: false,
-			};
+			if (item.type === "topic_publish") {
+				const message: TopicMessage<unknown> = {
+					topic: item.key,
+					data: item.payload,
+					stopPropagation: false,
+					stopImmediatePropagation: false,
+				};
 
-			for (const [params, definition] of this.options.app.match("onTopicMessage", item.key)) {
-				await definition.handler({
-					app: this.options.app,
-					auth: undefined,
-					configuration: this.options.configuration,
-					context,
-					message: message as never,
-					params: params as never,
-					service,
-					signal: abortController.signal,
-					waitUntil,
-				});
-				if (message.stopImmediatePropagation) {
-					break;
+				for (const [params, definition] of this.options.app.match("onTopicMessage", item.key)) {
+					await definition.handler({
+						app: this.options.app,
+						auth: undefined,
+						configuration: this.options.configuration,
+						context,
+						message: message as never,
+						params: params as never,
+						service,
+						signal: abortController.signal,
+						waitUntil,
+					});
+					if (message.stopImmediatePropagation) {
+						break;
+					}
+				}
+				if (!message.stopPropagation) {
+					await this.options.providers.hub.publish(item.key, item.payload);
+				}
+			} else if (item.type === "file_deleted") {
+				for (const [params, definition] of this.options.app.match("onFileDeleted", item.key)) {
+					await definition.handler({
+						app: this.options.app,
+						auth: undefined,
+						configuration: this.options.configuration,
+						context,
+						file: item.file,
+						params: params as never,
+						service,
+						signal: abortController.signal,
+						waitUntil,
+					});
+				}
+			} else if (item.type === "file_uploaded") {
+				for (const [params, definition] of this.options.app.match("onFileUploaded", item.key)) {
+					await definition.handler({
+						app: this.options.app,
+						auth: undefined,
+						configuration: this.options.configuration,
+						context,
+						file: item.file,
+						params: params as never,
+						service,
+						signal: abortController.signal,
+						waitUntil,
+					});
 				}
 			}
-			if (!message.stopPropagation) {
-				await this.options.providers.hub.publish(item.key, item.payload);
-			}
-		} else if (item.type === "file_deleted") {
-			for (const [params, definition] of this.options.app.match("onFileDeleted", item.key)) {
-				await definition.handler({
-					app: this.options.app,
-					auth: undefined,
-					configuration: this.options.configuration,
-					context,
-					file: item.file,
-					params: params as never,
-					service,
-					signal: abortController.signal,
-					waitUntil,
-				});
-			}
-		} else if (item.type === "file_uploaded") {
-			for (const [params, definition] of this.options.app.match("onFileUploaded", item.key)) {
-				await definition.handler({
-					app: this.options.app,
-					auth: undefined,
-					configuration: this.options.configuration,
-					context,
-					file: item.file,
-					params: params as never,
-					service,
-					signal: abortController.signal,
-					waitUntil,
-				});
-			}
-		}
 
-		return promises;
+			return promises;
+		});
 	}
 
 	/**

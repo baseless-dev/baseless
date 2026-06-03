@@ -385,6 +385,15 @@ const authApp = app()
 					service,
 					value,
 				});
+				if (identityComponent.identification) {
+					const existingIdentityId = await service.document.get("auth/identity-by-identification/:component/:identification", {
+						component: currentComponent.component,
+						identification: identityComponent.identification,
+					}).catch((_) => undefined);
+					if (existingIdentityId) {
+						throw new AuthenticationSubmitPromptError();
+					}
+				}
 				stateObj.components.push({ ...identityComponent, identityId: stateObj.id, componentId: currentComponent.component });
 				if (identityComponent.confirmed) {
 					path.push(currentComponent.component);

@@ -196,9 +196,9 @@ export class Server<TRegistry extends AppRegistry> {
 	async handleRequest(
 		nativeRequest: globalThis.Request,
 	): Promise<Readonly<[response: globalThis.Response, waitUntil: Array<PromiseLike<unknown>>]>> {
-		return tracer.startActiveSpan("Server.handleRequest", async (span) => {
-			span.setAttribute("url", nativeRequest.url);
-			span.setAttribute("method", nativeRequest.method);
+		return tracer.startActiveSpan(`@baseless/server.handleRequest`, async (span) => {
+			span.setAttribute("url.full", nativeRequest.url);
+			span.setAttribute("http.request.method", nativeRequest.method);
 			const promises: Array<PromiseLike<unknown>> = [];
 			const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
 			const url = new URL(nativeRequest.url);
@@ -251,7 +251,7 @@ export class Server<TRegistry extends AppRegistry> {
 					throw new BadRequestError();
 				}
 
-				const response = await this.unsafe_handleRequest({
+				const response = await this.unsafe_handleEndpoint({
 					definition,
 					params,
 					request: request as never,
@@ -286,6 +286,8 @@ export class Server<TRegistry extends AppRegistry> {
 					globalThis.Response.json({ error, details }, { status, statusText }),
 					promises,
 				] as const;
+			} finally {
+				span.end();
 			}
 		});
 	}
@@ -299,84 +301,92 @@ export class Server<TRegistry extends AppRegistry> {
 	 * @returns Background promises to await after the message is processed.
 	 */
 	async handleHubMessage(hubId: ID<"hub_">, auth: Auth, message: unknown): Promise<Array<PromiseLike<unknown>>> {
-		return tracer.startActiveSpan("Server.handleHubMessage", async (span) => {
-			span.setAttribute("hubId", hubId.toString());
-			span.setAttribute("identityId", auth?.identityId.toString() ?? "anonymous");
+		return tracer.startActiveSpan(`@baseless/server.handleHubMessage`, async (span) => {
+			span.setAttribute("message.hubId", hubId.toString());
+			span.setAttribute("auth.identityId", auth?.identityId.toString() ?? "anonymous");
 			const promises: Array<PromiseLike<unknown>> = [];
 			const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
 			const abortController = new AbortController();
-			const request = await Request.from(new globalThis.Request("http://hub"));
+			try {
+				const request = await Request.from(new globalThis.Request("http://hub"));
 
-			const { type, ...rest } = await new globalThis.Response(message as never).json();
+				const { type, ...rest } = await new globalThis.Response(message as never).json();
 
-			const { context, service } = await this.createContext(request, auth, abortController.signal, waitUntil);
+				const { context, service } = await this.createContext(request, auth, abortController.signal, waitUntil);
 
-			if (type === "subscribe") {
-				const { key } = rest;
-				try {
-					// deno-lint-ignore no-var no-inner-declarations
-					var [params, definition] = first(this.options.app.match("topic", key));
-				} catch (_error) {
-					throw new TopicNotFoundError();
-				}
-
-				if ("security" in definition) {
-					const permission = await definition.security({
-						app: this.options.app,
-						auth,
-						configuration: this.options.configuration,
-						context,
-						params,
-						service,
-						signal: abortController.signal,
-						waitUntil,
-					});
-					if ((permission & Permission.Subscribe) == 0) {
-						throw new ForbiddenError();
-					}
-					await this.options.providers.hub.subscribe(key, hubId);
-				}
-			} else if (type === "unsubscribe") {
-				const { key } = rest;
-				try {
-					// deno-lint-ignore no-var no-inner-declarations no-redeclare
-					var [_, definition] = first(this.options.app.match("topic", key));
-				} catch (_error) {
-					throw new TopicNotFoundError();
-				}
-
-				if ("security" in definition) {
-					await this.options.providers.hub.unsubscribe(key, hubId);
-				}
-			} else if (type === "publish") {
-				const { key, payload } = rest;
-				try {
-					// deno-lint-ignore no-redeclare no-var no-inner-declarations
-					var [params, definition] = first(this.options.app.match("topic", key));
-				} catch (_error) {
-					throw new TopicNotFoundError();
-				}
-
-				if ("security" in definition) {
-					const permission = await definition.security({
-						app: this.options.app,
-						auth,
-						configuration: this.options.configuration,
-						context,
-						params,
-						service,
-						signal: abortController.signal,
-						waitUntil,
-					});
-					if ((permission & Permission.Publish) == 0) {
-						throw new ForbiddenError();
+				if (type === "subscribe") {
+					const { key } = rest;
+					try {
+						// deno-lint-ignore no-var no-inner-declarations
+						var [params, definition] = first(this.options.app.match("topic", key));
+					} catch (_error) {
+						throw new TopicNotFoundError();
 					}
 
-					await service.pubsub.publish(key as never, {} as never, payload as never, { signal: abortController.signal });
+					if ("security" in definition) {
+						const permission = await definition.security({
+							app: this.options.app,
+							auth,
+							configuration: this.options.configuration,
+							context,
+							params,
+							service,
+							signal: abortController.signal,
+							waitUntil,
+						});
+						if ((permission & Permission.Subscribe) == 0) {
+							throw new ForbiddenError();
+						}
+						await this.options.providers.hub.subscribe(key, hubId);
+					}
+				} else if (type === "unsubscribe") {
+					const { key } = rest;
+					try {
+						// deno-lint-ignore no-var no-inner-declarations no-redeclare
+						var [_, definition] = first(this.options.app.match("topic", key));
+					} catch (_error) {
+						throw new TopicNotFoundError();
+					}
+
+					if ("security" in definition) {
+						await this.options.providers.hub.unsubscribe(key, hubId);
+					}
+				} else if (type === "publish") {
+					const { key, payload } = rest;
+					try {
+						// deno-lint-ignore no-redeclare no-var no-inner-declarations
+						var [params, definition] = first(this.options.app.match("topic", key));
+					} catch (_error) {
+						throw new TopicNotFoundError();
+					}
+
+					if ("security" in definition) {
+						const permission = await definition.security({
+							app: this.options.app,
+							auth,
+							configuration: this.options.configuration,
+							context,
+							params,
+							service,
+							signal: abortController.signal,
+							waitUntil,
+						});
+						if ((permission & Permission.Publish) == 0) {
+							throw new ForbiddenError();
+						}
+
+						await service.pubsub.publish(key as never, {} as never, payload as never, { signal: abortController.signal });
+					}
 				}
+
+				return promises;
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				return promises;
+			} finally {
+				span.end();
 			}
-
-			return promises;
 		});
 	}
 
@@ -387,73 +397,82 @@ export class Server<TRegistry extends AppRegistry> {
 	 * @returns Background promises to await after processing.
 	 */
 	async handleQueueItem(item: QueueItem): Promise<Array<PromiseLike<unknown>>> {
-		return tracer.startActiveSpan("Server.handleQueueItem", async (span) => {
-			span.setAttribute("queueItemType", item.type);
+		return tracer.startActiveSpan(`@baseless/server.handleQueueItem`, async (span) => {
+			span.setAttribute("queue_item.key", item.key);
+			span.setAttribute("queue_item.type", item.type);
 			const promises: Array<PromiseLike<unknown>> = [];
 			const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
 			const abortController = new AbortController();
-			const request = await Request.from(new globalThis.Request("http://hub"));
+			try {
+				const request = await Request.from(new globalThis.Request("http://hub"));
 
-			const { context, service } = await this.createContext(request, undefined, abortController.signal, waitUntil);
+				const { context, service } = await this.createContext(request, undefined, abortController.signal, waitUntil);
 
-			if (item.type === "topic_publish") {
-				const message: TopicMessage<unknown> = {
-					topic: item.key,
-					data: item.payload,
-					stopPropagation: false,
-					stopImmediatePropagation: false,
-				};
+				if (item.type === "topic_publish") {
+					const message: TopicMessage<unknown> = {
+						topic: item.key,
+						data: item.payload,
+						stopPropagation: false,
+						stopImmediatePropagation: false,
+					};
 
-				for (const [params, definition] of this.options.app.match("onTopicMessage", item.key)) {
-					await definition.handler({
-						app: this.options.app,
-						auth: undefined,
-						configuration: this.options.configuration,
-						context,
-						message: message as never,
-						params: params as never,
-						service,
-						signal: abortController.signal,
-						waitUntil,
-					});
-					if (message.stopImmediatePropagation) {
-						break;
+					for (const [params, definition] of this.options.app.match("onTopicMessage", item.key)) {
+						await definition.handler({
+							app: this.options.app,
+							auth: undefined,
+							configuration: this.options.configuration,
+							context,
+							message: message as never,
+							params: params as never,
+							service,
+							signal: abortController.signal,
+							waitUntil,
+						});
+						if (message.stopImmediatePropagation) {
+							break;
+						}
+					}
+					if (!message.stopPropagation) {
+						await this.options.providers.hub.publish(item.key, item.payload);
+					}
+				} else if (item.type === "file_deleted") {
+					for (const [params, definition] of this.options.app.match("onFileDeleted", item.key)) {
+						await definition.handler({
+							app: this.options.app,
+							auth: undefined,
+							configuration: this.options.configuration,
+							context,
+							file: item.file,
+							params: params as never,
+							service,
+							signal: abortController.signal,
+							waitUntil,
+						});
+					}
+				} else if (item.type === "file_uploaded") {
+					for (const [params, definition] of this.options.app.match("onFileUploaded", item.key)) {
+						await definition.handler({
+							app: this.options.app,
+							auth: undefined,
+							configuration: this.options.configuration,
+							context,
+							file: item.file,
+							params: params as never,
+							service,
+							signal: abortController.signal,
+							waitUntil,
+						});
 					}
 				}
-				if (!message.stopPropagation) {
-					await this.options.providers.hub.publish(item.key, item.payload);
-				}
-			} else if (item.type === "file_deleted") {
-				for (const [params, definition] of this.options.app.match("onFileDeleted", item.key)) {
-					await definition.handler({
-						app: this.options.app,
-						auth: undefined,
-						configuration: this.options.configuration,
-						context,
-						file: item.file,
-						params: params as never,
-						service,
-						signal: abortController.signal,
-						waitUntil,
-					});
-				}
-			} else if (item.type === "file_uploaded") {
-				for (const [params, definition] of this.options.app.match("onFileUploaded", item.key)) {
-					await definition.handler({
-						app: this.options.app,
-						auth: undefined,
-						configuration: this.options.configuration,
-						context,
-						file: item.file,
-						params: params as never,
-						service,
-						signal: abortController.signal,
-						waitUntil,
-					});
-				}
-			}
 
-			return promises;
+				return promises;
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				return promises;
+			} finally {
+				span.end();
+			}
 		});
 	}
 
@@ -464,7 +483,7 @@ export class Server<TRegistry extends AppRegistry> {
 	 * waitUntil callback.
 	 * @returns The handler's {@link Response}.
 	 */
-	async unsafe_handleRequest({
+	async unsafe_handleEndpoint({
 		definition,
 		params,
 		request,
@@ -480,23 +499,36 @@ export class Server<TRegistry extends AppRegistry> {
 		params: Record<string, string>;
 		waitUntil: (promise: PromiseLike<unknown>) => void;
 	}): Promise<Response<any, any, any>> {
-		const authorization = request.headers.get("Authorization");
-		const auth = authorization ? await this.#parseAuthorization(authorization) : undefined;
+		return tracer.startActiveSpan(`@baseless/server.handleEndpoint`, async (span) => {
+			span.setAttribute("endpoint.path", definition.path);
+			span.setAttribute("endpoint.params", JSON.stringify(params));
+			try {
+				const authorization = request.headers.get("Authorization");
+				const auth = authorization ? await this.#parseAuthorization(authorization) : undefined;
+				span.setAttribute("auth.identityId", auth?.identityId.toString() ?? "");
 
-		const { context, service } = await this.createContext(request, auth, request.signal, waitUntil);
-		const output = definition.handler instanceof Function
-			? await definition.handler({
-				app: this.options.app,
-				auth,
-				configuration: this.options.configuration,
-				context,
-				params,
-				request: request as never,
-				service,
-				signal: request.signal,
-				waitUntil,
-			})
-			: definition.handler;
-		return output;
+				const { context, service } = await this.createContext(request, auth, request.signal, waitUntil);
+				const output = definition.handler instanceof Function
+					? await definition.handler({
+						app: this.options.app,
+						auth,
+						configuration: this.options.configuration,
+						context,
+						params,
+						request: request as never,
+						service,
+						signal: request.signal,
+						waitUntil,
+					})
+					: definition.handler;
+				return output;
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
+			}
+		});
 	}
 }

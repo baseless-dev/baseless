@@ -9,6 +9,7 @@ import {
 	DocumentProvider,
 } from "@baseless/server";
 import { fromKvKey, toKvKey } from "./utils.ts";
+import tracer from "./tracer.ts";
 
 /**
  * Deno KV-backed implementation of {@link DocumentProvider}.
@@ -31,15 +32,27 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 	 * @throws {@link DocumentNotFoundError} When no entry exists at `key`.
 	 */
 	async get(key: string, options?: DocumentGetOptions): Promise<Document> {
-		const entry = await this.#storage.get(toKvKey(key), options);
-		if (!entry.versionstamp) {
-			throw new DocumentNotFoundError();
-		}
-		return {
-			key: fromKvKey(entry.key),
-			versionstamp: entry.versionstamp,
-			data: entry.value,
-		} satisfies Document;
+		return tracer.startActiveSpan("@baseless/deno-provider.document.get", async (span) => {
+			span.setAttribute("document.key", key);
+			span.setAttribute("options.consistency", options?.consistency ?? "");
+			try {
+				const entry = await this.#storage.get(toKvKey(key), options);
+				if (!entry.versionstamp) {
+					throw new DocumentNotFoundError();
+				}
+				return {
+					key: fromKvKey(entry.key),
+					versionstamp: entry.versionstamp,
+					data: entry.value,
+				} satisfies Document;
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
+			}
+		});
 	}
 
 	/**
@@ -50,16 +63,28 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 	 * @throws {@link DocumentNotFoundError} When any entry in the result has no versionstamp.
 	 */
 	async getMany(keys: Array<string>, options?: DocumentGetOptions): Promise<Array<Document>> {
-		const entries = await this.#storage.getMany(keys.map((k) => toKvKey(k)), options);
-		return entries.map((entry) => {
-			if (!entry.versionstamp) {
-				throw new DocumentNotFoundError();
+		return tracer.startActiveSpan("@baseless/deno-provider.document.getMany", async (span) => {
+			span.setAttribute("document.keys", keys);
+			span.setAttribute("options.consistency", options?.consistency ?? "");
+			try {
+				const entries = await this.#storage.getMany(keys.map((k) => toKvKey(k)), options);
+				return entries.map((entry) => {
+					if (!entry.versionstamp) {
+						throw new DocumentNotFoundError();
+					}
+					return {
+						key: fromKvKey(entry.key),
+						versionstamp: entry.versionstamp,
+						data: entry.value,
+					} satisfies Document;
+				});
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
 			}
-			return {
-				key: fromKvKey(entry.key),
-				versionstamp: entry.versionstamp,
-				data: entry.value,
-			} satisfies Document;
 		});
 	}
 
@@ -69,6 +94,10 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 	 * @returns A `ReadableStream` of {@link DocumentListEntry} values.
 	 */
 	list(options: DocumentListOptions): ReadableStream<DocumentListEntry> {
+		const span = tracer.startSpan("@baseless/deno-provider.document.list");
+		span.setAttribute("options.prefix", options.prefix);
+		span.setAttribute("options.cursor", options.cursor ?? "");
+		span.setAttribute("options.limit", options.limit ?? "");
 		return new ReadableStream<DocumentListEntry>({
 			start: async (controller) => {
 				const entries = await this.#storage.list(
@@ -90,6 +119,7 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 					);
 				}
 				controller.close();
+				span.end();
 			},
 		});
 	}
@@ -125,20 +155,32 @@ export class DenoKVDocumentAtomic extends DocumentAtomic {
 	 * @throws {@link DocumentAtomicCommitError} When a versionstamp check fails or the atomic commit is rejected.
 	 */
 	async commit(): Promise<void> {
-		const atomic = this.#storage.atomic();
-		for (const check of this.checks) {
-			atomic.check({ key: toKvKey(check.key), versionstamp: check.versionstamp });
-		}
-		for (const op of this.operations) {
-			if (op.type === "delete") {
-				atomic.delete(toKvKey(op.key));
-			} else {
-				atomic.set(toKvKey(op.key), op.data);
+		return tracer.startActiveSpan("@baseless/deno-provider.document.atomic.commit", async (span) => {
+			span.setAttribute("atomic.checks", JSON.stringify(this.checks));
+			span.setAttribute("atomic.operations", JSON.stringify(this.operations));
+			try {
+				const atomic = this.#storage.atomic();
+				for (const check of this.checks) {
+					atomic.check({ key: toKvKey(check.key), versionstamp: check.versionstamp });
+				}
+				for (const op of this.operations) {
+					if (op.type === "delete") {
+						atomic.delete(toKvKey(op.key));
+					} else {
+						atomic.set(toKvKey(op.key), op.data);
+					}
+				}
+				const result = await atomic.commit();
+				if (!result.ok) {
+					throw new DocumentAtomicCommitError();
+				}
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
 			}
-		}
-		const result = await atomic.commit();
-		if (!result.ok) {
-			throw new DocumentAtomicCommitError();
-		}
+		});
 	}
 }

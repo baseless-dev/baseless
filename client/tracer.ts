@@ -1,3 +1,3 @@
 import { trace } from "@opentelemetry/api";
 
-export default trace.getTracer("baseless-client");
+export default trace.getTracer("@baseless/client");

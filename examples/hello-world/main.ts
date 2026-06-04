@@ -1,7 +1,8 @@
 import app from "./app.ts";
 import { Server } from "@baseless/server";
 import { DenoHubProvider, DenoKVDocumentProvider, DenoKVProvider, DenoQueueProvider } from "@baseless/deno-provider";
-import { ConsoleNotificationProvider, MemoryRateLimiterProvider, MemoryStorageProvider } from "@baseless/inmemory-provider";
+import { MemoryRateLimiterProvider, MemoryStorageProvider } from "@baseless/inmemory-provider";
+import { ConsoleNotificationProvider } from "@baseless/universal-provider";
 import { LibSQLTableProvider } from "@baseless/universal-provider/table";
 import { createClient } from "npm:@libsql/client@0.14.0/node";
 

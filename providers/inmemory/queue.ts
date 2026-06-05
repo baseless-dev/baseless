@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-this-alias
 import { type QueueItem, QueueProvider } from "@baseless/server";
+import tracer from "./tracer.ts";
 
 /**
  * In-memory implementation of {@link QueueProvider}.
@@ -32,15 +33,27 @@ export class MemoryQueueProvider extends QueueProvider {
 	 * @param _options Ignored; present for interface compatibility.
 	 */
 	enqueue(item: QueueItem, _options?: { signal?: AbortSignal }): Promise<void> {
-		// If no writer, buffer items
-		if (this.#writers.size === 0) {
-			this.#queue.push(item);
-		} else {
-			for (const { writer } of this.#writers.values()) {
-				writer.write(item);
+		return tracer.startActiveSpan("@baseless/inmemory-provider.queue.enqueue", async (span) => {
+			span.setAttribute("queue_item.key", item.key);
+			span.setAttribute("queue_item.type", item.type);
+			try {
+				// If no writer, buffer items
+				if (this.#writers.size === 0) {
+					this.#queue.push(item);
+				} else {
+					for (const { writer } of this.#writers.values()) {
+						writer.write(item);
+					}
+				}
+				return Promise.resolve();
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
 			}
-		}
-		return Promise.resolve();
+		});
 	}
 
 	/**

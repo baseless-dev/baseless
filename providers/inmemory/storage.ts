@@ -9,6 +9,7 @@ import {
 	type StorageUploadOptions,
 } from "@baseless/server";
 import OrderedMap from "./ordered_map.ts";
+import tracer from "./tracer.ts";
 
 /**
  * In-memory implementation of {@link StorageProvider}.
@@ -44,42 +45,53 @@ export class MemoryStorageProvider extends StorageProvider {
 		content: ReadableStream<Uint8Array> | ArrayBuffer | Blob,
 		options?: StorageUploadOptions,
 	): Promise<void> {
-		let buffer: ArrayBuffer;
-		let size: number;
-		if (content instanceof ArrayBuffer) {
-			buffer = content;
-			size = content.byteLength;
-		} else if (content instanceof Blob) {
-			buffer = await content.arrayBuffer();
-			size = buffer.byteLength;
-		} else {
-			// ReadableStream<Uint8Array>
-			const chunks: Uint8Array[] = [];
-			const reader = content.getReader();
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				chunks.push(value);
+		return tracer.startActiveSpan("@baseless/inmemory-provider.storage.put", async (span) => {
+			span.setAttribute("storage.key", key);
+			try {
+				let buffer: ArrayBuffer;
+				let size: number;
+				if (content instanceof ArrayBuffer) {
+					buffer = content;
+					size = content.byteLength;
+				} else if (content instanceof Blob) {
+					buffer = await content.arrayBuffer();
+					size = buffer.byteLength;
+				} else {
+					// ReadableStream<Uint8Array>
+					const chunks: Uint8Array[] = [];
+					const reader = content.getReader();
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done) break;
+						chunks.push(value);
+					}
+					let totalLength = 0;
+					for (const chunk of chunks) totalLength += chunk.byteLength;
+					const merged = new Uint8Array(totalLength);
+					let offset = 0;
+					for (const chunk of chunks) {
+						merged.set(chunk, offset);
+						offset += chunk.byteLength;
+					}
+					buffer = merged.buffer;
+					size = totalLength;
+				}
+				this.#content.set(key, buffer);
+				this.#storage.set(key, {
+					key,
+					contentType: options?.contentType ?? "application/octet-stream",
+					size,
+					lastModified: new Date().toISOString(),
+					metadata: options?.metadata ?? {},
+					etag: crypto.randomUUID(),
+				});
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
 			}
-			let totalLength = 0;
-			for (const chunk of chunks) totalLength += chunk.byteLength;
-			const merged = new Uint8Array(totalLength);
-			let offset = 0;
-			for (const chunk of chunks) {
-				merged.set(chunk, offset);
-				offset += chunk.byteLength;
-			}
-			buffer = merged.buffer;
-			size = totalLength;
-		}
-		this.#content.set(key, buffer);
-		this.#storage.set(key, {
-			key,
-			contentType: options?.contentType ?? "application/octet-stream",
-			size,
-			lastModified: new Date().toISOString(),
-			metadata: options?.metadata ?? {},
-			etag: crypto.randomUUID(),
 		});
 	}
 
@@ -91,6 +103,8 @@ export class MemoryStorageProvider extends StorageProvider {
 	 */
 	// deno-lint-ignore require-await
 	async get(key: string): Promise<ReadableStream<Uint8Array>> {
+		const span = tracer.startSpan("@baseless/inmemory-provider.storage.get");
+		span.setAttribute("storage.key", key);
 		const buffer = this.#content.get(key);
 		if (buffer === undefined && !this.#storage.has(key)) {
 			throw new StorageObjectNotFoundError();
@@ -100,6 +114,7 @@ export class MemoryStorageProvider extends StorageProvider {
 			start(controller): void {
 				controller.enqueue(bytes);
 				controller.close();
+				span.end();
 			},
 		});
 	}
@@ -109,11 +124,22 @@ export class MemoryStorageProvider extends StorageProvider {
 		key: string,
 		_options?: { signal?: AbortSignal },
 	): Promise<StorageObject> {
-		const object = this.#storage.get(key);
-		if (!object) {
-			throw new StorageObjectNotFoundError();
-		}
-		return structuredClone(object);
+		return tracer.startActiveSpan("@baseless/inmemory-provider.storage.getMetadata", async (span) => {
+			span.setAttribute("storage.key", key);
+			try {
+				const object = this.#storage.get(key);
+				if (!object) {
+					throw new StorageObjectNotFoundError();
+				}
+				return structuredClone(object);
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
+			}
+		});
 	}
 
 	// deno-lint-ignore require-await
@@ -121,21 +147,34 @@ export class MemoryStorageProvider extends StorageProvider {
 		key: string,
 		options?: StorageUploadOptions,
 	): Promise<StorageSignedUrl> {
-		const expirySeconds = options?.expirySeconds ?? this.#defaultExpirySeconds;
-		const expiresAt = new Date(Date.now() + expirySeconds * 1000).toISOString();
-		// In-memory: generate a deterministic fake upload URL
-		const url = `memory://upload/${key}`;
-		// Side-effect: create or update the object metadata
-		const now = new Date().toISOString();
-		this.#storage.set(key, {
-			key,
-			contentType: options?.contentType ?? "application/octet-stream",
-			size: 0,
-			lastModified: now,
-			metadata: options?.metadata ?? {},
-			etag: crypto.randomUUID(),
+		return tracer.startActiveSpan("@baseless/inmemory-provider.storage.getSignedUploadUrl", async (span) => {
+			span.setAttribute("storage.key", key);
+			span.setAttribute("storage.contentType", options?.contentType ?? "application/octet-stream");
+			try {
+				const expirySeconds = options?.expirySeconds ?? this.#defaultExpirySeconds;
+				const expiresAt = new Date(Date.now() + expirySeconds * 1000).toISOString();
+				span.setAttribute("storage.expiresAt", expiresAt);
+				// In-memory: generate a deterministic fake upload URL
+				const url = `memory://upload/${key}`;
+				// Side-effect: create or update the object metadata
+				const now = new Date().toISOString();
+				this.#storage.set(key, {
+					key,
+					contentType: options?.contentType ?? "application/octet-stream",
+					size: 0,
+					lastModified: now,
+					metadata: options?.metadata ?? {},
+					etag: crypto.randomUUID(),
+				});
+				return { url, expiresAt };
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
+			}
 		});
-		return { url, expiresAt };
 	}
 
 	// deno-lint-ignore require-await
@@ -143,14 +182,26 @@ export class MemoryStorageProvider extends StorageProvider {
 		key: string,
 		options?: StorageDownloadOptions,
 	): Promise<StorageSignedUrl> {
-		const object = this.#storage.get(key);
-		if (!object) {
-			throw new StorageObjectNotFoundError();
-		}
-		const expirySeconds = options?.expirySeconds ?? this.#defaultExpirySeconds;
-		const expiresAt = new Date(Date.now() + expirySeconds * 1000).toISOString();
-		const url = `memory://download/${key}`;
-		return { url, expiresAt };
+		return tracer.startActiveSpan("@baseless/inmemory-provider.storage.getSignedDownloadUrl", async (span) => {
+			span.setAttribute("storage.key", key);
+			try {
+				const object = this.#storage.get(key);
+				if (!object) {
+					throw new StorageObjectNotFoundError();
+				}
+				const expirySeconds = options?.expirySeconds ?? this.#defaultExpirySeconds;
+				const expiresAt = new Date(Date.now() + expirySeconds * 1000).toISOString();
+				span.setAttribute("storage.expiresAt", expiresAt);
+				const url = `memory://download/${key}`;
+				return { url, expiresAt };
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
+			}
+		});
 	}
 
 	// deno-lint-ignore require-await
@@ -158,8 +209,19 @@ export class MemoryStorageProvider extends StorageProvider {
 		key: string,
 		_options?: { signal?: AbortSignal },
 	): Promise<void> {
-		this.#storage.delete(key);
-		this.#content.delete(key);
+		return tracer.startActiveSpan("@baseless/inmemory-provider.storage.delete", async (span) => {
+			span.setAttribute("storage.key", key);
+			try {
+				this.#storage.delete(key);
+				this.#content.delete(key);
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
+			}
+		});
 	}
 
 	list(
@@ -169,6 +231,10 @@ export class MemoryStorageProvider extends StorageProvider {
 		const cursor = options.cursor;
 		const limit = options.limit ?? 100;
 		const storage = this.#storage;
+		const span = tracer.startSpan("@baseless/inmemory-provider.storage.list");
+		span.setAttribute("storage.prefix", prefix);
+		span.setAttribute("storage.cursor", cursor ?? "");
+		span.setAttribute("storage.limit", limit);
 
 		return new ReadableStream<StorageListEntry>({
 			start(controller): void {
@@ -187,6 +253,7 @@ export class MemoryStorageProvider extends StorageProvider {
 					count++;
 				}
 				controller.close();
+				span.end();
 			},
 		});
 	}

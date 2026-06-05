@@ -264,8 +264,10 @@ export class Server<TRegistry extends AppRegistry> {
 
 				return [response.toResponse(), promises] as const;
 			} catch (cause) {
-				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
-				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				const exception = cause instanceof Error ? cause : new Error(String(cause));
+				console.error(exception.stack ?? exception);
+				span.recordException(exception);
+				span.setStatus({ code: 2, message: exception.message });
 				let status = 500;
 				let statusText = "Internal Server Error";
 				let error = "Error";

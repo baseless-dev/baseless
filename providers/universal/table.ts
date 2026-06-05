@@ -3,6 +3,7 @@ import { TableProvider } from "@baseless/server";
 import type { Client, InValue } from "@libsql/client";
 import { visit } from "@baseless/core/query";
 import type { TAnyFragment, TStatement, Visitor } from "@baseless/core/query";
+import tracer from "./tracer.ts";
 
 /** A collected SQL fragment and its positional bind values. */
 interface SqlFragment {
@@ -265,57 +266,69 @@ export class LibSQLTableProvider extends TableProvider {
 		params: TParams,
 		options?: { signal?: AbortSignal },
 	): Promise<TOutput> {
-		options?.signal?.throwIfAborted();
+		return tracer.startActiveSpan("@baseless/universal-provider.table.execute", async (span) => {
+			span.setAttribute("table.statement", JSON.stringify(statement));
+			span.setAttribute("table.params", JSON.stringify(params));
+			try {
+				options?.signal?.throwIfAborted();
 
-		const ast = statement.statement;
-		switch (ast.type) {
-			case "select": {
-				const frag = compileSql(ast, params);
-				const rs = await this.#client.execute({ sql: frag.sql, args: frag.args });
-				return rs.rows.map((r) => {
-					const obj: Record<string, unknown> = {};
-					for (let i = 0; i < rs.columns.length; i++) {
-						obj[rs.columns[i]] = r[i];
+				const ast = statement.statement;
+				switch (ast.type) {
+					case "select": {
+						const frag = compileSql(ast, params);
+						const rs = await this.#client.execute({ sql: frag.sql, args: frag.args });
+						return rs.rows.map((r) => {
+							const obj: Record<string, unknown> = {};
+							for (let i = 0; i < rs.columns.length; i++) {
+								obj[rs.columns[i]] = r[i];
+							}
+							return obj;
+						}) as TOutput;
 					}
-					return obj;
-				}) as TOutput;
-			}
-			case "insert":
-			case "update":
-			case "delete": {
-				const frag = compileSql(ast, params);
-				await this.#client.execute({ sql: frag.sql, args: frag.args });
-				return undefined as TOutput;
-			}
-			case "batch": {
-				// Phase 1: Validate pre-condition checks.
-				for (const check of ast.checks) {
-					const frag = compileSql(check.select, params);
-					const rs = await this.#client.execute({ sql: frag.sql, args: frag.args });
-					const exists = rs.rows.length > 0;
-					if (check.type === "exists" && !exists) {
-						throw new Error("Batch pre-condition failed: expected rows to exist");
+					case "insert":
+					case "update":
+					case "delete": {
+						const frag = compileSql(ast, params);
+						await this.#client.execute({ sql: frag.sql, args: frag.args });
+						return undefined as TOutput;
 					}
-					if (check.type === "not_exists" && exists) {
-						throw new Error("Batch pre-condition failed: expected rows to not exist");
+					case "batch": {
+						// Phase 1: Validate pre-condition checks.
+						for (const check of ast.checks) {
+							const frag = compileSql(check.select, params);
+							const rs = await this.#client.execute({ sql: frag.sql, args: frag.args });
+							const exists = rs.rows.length > 0;
+							if (check.type === "exists" && !exists) {
+								throw new Error("Batch pre-condition failed: expected rows to exist");
+							}
+							if (check.type === "not_exists" && exists) {
+								throw new Error("Batch pre-condition failed: expected rows to not exist");
+							}
+						}
+
+						// Phase 2: Execute all action statements atomically via client.batch().
+						const batchStmts: { sql: string; args: InValue[] }[] = [];
+						for (const sub of ast.statements) {
+							const frag = compileSql(sub, params);
+							batchStmts.push({ sql: frag.sql, args: frag.args });
+						}
+
+						if (batchStmts.length > 0) {
+							await this.#client.batch(batchStmts, "write");
+						}
+
+						return undefined as TOutput;
 					}
+					default:
+						throw new Error(`Unknown statement type: ${(ast as any).type}`);
 				}
-
-				// Phase 2: Execute all action statements atomically via client.batch().
-				const batchStmts: { sql: string; args: InValue[] }[] = [];
-				for (const sub of ast.statements) {
-					const frag = compileSql(sub, params);
-					batchStmts.push({ sql: frag.sql, args: frag.args });
-				}
-
-				if (batchStmts.length > 0) {
-					await this.#client.batch(batchStmts, "write");
-				}
-
-				return undefined as TOutput;
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
 			}
-			default:
-				throw new Error(`Unknown statement type: ${(ast as any).type}`);
-		}
+		});
 	}
 }

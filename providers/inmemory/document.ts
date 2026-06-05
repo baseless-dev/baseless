@@ -9,6 +9,7 @@ import {
 	DocumentProvider,
 } from "@baseless/server";
 import OrderedMap from "./ordered_map.ts";
+import tracer from "./tracer.ts";
 
 /**
  * In-memory implementation of {@link DocumentProvider}.
@@ -34,13 +35,25 @@ export class MemoryDocumentProvider extends DocumentProvider {
 	 */
 	async get(
 		key: string,
-		_options?: DocumentGetOptions,
+		options?: DocumentGetOptions,
 	): Promise<Document> {
-		const document = this.#storage.get(key);
-		if (!document) {
-			throw new DocumentNotFoundError();
-		}
-		return structuredClone(document);
+		return tracer.startActiveSpan("@baseless/inmemory-provider.document.get", async (span) => {
+			span.setAttribute("document.key", key);
+			span.setAttribute("options.consistency", options?.consistency ?? "");
+			try {
+				const document = this.#storage.get(key);
+				if (!document) {
+					throw new DocumentNotFoundError();
+				}
+				return structuredClone(document);
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
+			}
+		});
 	}
 
 	// deno-lint-ignore require-await
@@ -52,16 +65,28 @@ export class MemoryDocumentProvider extends DocumentProvider {
 	 */
 	async getMany(
 		keys: Array<string>,
-		_options?: DocumentGetOptions,
+		options?: DocumentGetOptions,
 	): Promise<Document[]> {
-		const documents: Document[] = [];
-		for (const key of keys) {
-			const document = this.#storage.get(key);
-			if (document) {
-				documents.push(structuredClone(document) as Document);
+		return tracer.startActiveSpan("@baseless/inmemory-provider.document.getMany", async (span) => {
+			span.setAttribute("document.keys", keys);
+			span.setAttribute("options.consistency", options?.consistency ?? "");
+			try {
+				const documents: Document[] = [];
+				for (const key of keys) {
+					const document = this.#storage.get(key);
+					if (document) {
+						documents.push(structuredClone(document) as Document);
+					}
+				}
+				return documents;
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
 			}
-		}
-		return documents;
+		});
 	}
 
 	/**
@@ -71,6 +96,10 @@ export class MemoryDocumentProvider extends DocumentProvider {
 	 * @returns A `ReadableStream` of {@link DocumentListEntry} values in key order.
 	 */
 	list({ cursor = "", prefix, limit = Number.MAX_VALUE }: DocumentListOptions): ReadableStream<DocumentListEntry> {
+		const span = tracer.startSpan("@baseless/inmemory-provider.document.list");
+		span.setAttribute("options.prefix", prefix);
+		span.setAttribute("options.cursor", cursor ?? "");
+		span.setAttribute("options.limit", limit ?? "");
 		return new ReadableStream<DocumentListEntry>({
 			start: (controller) => {
 				const cursorString = cursor ? atob(cursor) : "";
@@ -93,6 +122,7 @@ export class MemoryDocumentProvider extends DocumentProvider {
 					}
 				}
 				controller.close();
+				span.end();
 			},
 		});
 	}
@@ -134,32 +164,44 @@ export class MemoryDocumentAtomic extends DocumentAtomic {
 	 * @throws {@link DocumentAtomicCommitError} When a versionstamp check fails.
 	 */
 	async commit(): Promise<void> {
-		for (const check of this.checks) {
-			if (check.versionstamp === null) {
-				if (this.#storage.has(check.key)) {
-					throw new DocumentAtomicCommitError();
-				}
-			} else {
-				try {
-					const document = await this.#provider.get(check.key);
-					if (document.versionstamp !== check.versionstamp) {
-						throw new DocumentAtomicCommitError();
+		return tracer.startActiveSpan("@baseless/inmemory-provider.document.atomic.commit", async (span) => {
+			span.setAttribute("atomic.checks", JSON.stringify(this.checks));
+			span.setAttribute("atomic.operations", JSON.stringify(this.operations));
+			try {
+				for (const check of this.checks) {
+					if (check.versionstamp === null) {
+						if (this.#storage.has(check.key)) {
+							throw new DocumentAtomicCommitError();
+						}
+					} else {
+						try {
+							const document = await this.#provider.get(check.key);
+							if (document.versionstamp !== check.versionstamp) {
+								throw new DocumentAtomicCommitError();
+							}
+						} catch (_) {
+							throw new DocumentAtomicCommitError();
+						}
 					}
-				} catch (_) {
-					throw new DocumentAtomicCommitError();
 				}
+				for (const op of this.operations) {
+					if (op.type === "delete") {
+						this.#storage.delete(op.key);
+					} else {
+						this.#storage.set(op.key, {
+							key: op.key,
+							data: op.data,
+							versionstamp: new Date().getTime().toString(),
+						});
+					}
+				}
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				throw cause;
+			} finally {
+				span.end();
 			}
-		}
-		for (const op of this.operations) {
-			if (op.type === "delete") {
-				this.#storage.delete(op.key);
-			} else {
-				this.#storage.set(op.key, {
-					key: op.key,
-					data: op.data,
-					versionstamp: new Date().getTime().toString(),
-				});
-			}
-		}
+		});
 	}
 }

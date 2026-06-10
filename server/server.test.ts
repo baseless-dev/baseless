@@ -9,7 +9,7 @@ import {
 } from "@baseless/inmemory-provider";
 import { DenoHubProvider } from "@baseless/deno-provider";
 import * as z from "@baseless/core/schema";
-import { ServiceCollection } from "./prelude.ts";
+import { AnyServiceCollection, ServiceCollection } from "./prelude.ts";
 import { fromServerErrorData, ServerErrorData } from "@baseless/core/errors";
 import { AppRegistry } from "./app.ts";
 import { Request } from "@baseless/core/request";
@@ -36,7 +36,7 @@ export default async function createMemoryServer<TRegistry extends AppRegistry>(
 			options: { method?: string; data?: unknown; headers?: Record<string, string>; schema?: T },
 		) => Promise<z.infer<T>>;
 		server: Server<TRegistry>;
-		service: ServiceCollection;
+		service: AnyServiceCollection;
 	} & Disposable
 > {
 	const kv = new MemoryKVProvider();
@@ -88,7 +88,7 @@ export default async function createMemoryServer<TRegistry extends AppRegistry>(
 		return json as never;
 	}
 
-	const { service } = await server.createContext(
+	const { service } = await server.createContextAndService(
 		await Request.from(new globalThis.Request("http://test")),
 		undefined,
 		new AbortController().signal,

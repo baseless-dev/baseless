@@ -11,7 +11,7 @@ import {
 	StorageProvider,
 	TableProvider,
 } from "./provider.ts";
-import type { ServiceCollection } from "./service.ts";
+import type { AnyServiceCollection, ServiceCollection } from "./service.ts";
 import {
 	AuthFacade,
 	DocumentFacade,
@@ -82,6 +82,19 @@ export class Server<TRegistry extends AppRegistry> {
 		this.options = options;
 	}
 
+	async createContextAndService(
+		request: Request<any, any, any, any>,
+		auth: Auth,
+		signal: AbortSignal,
+		waitUntil: (promise: PromiseLike<unknown>) => void,
+	): Promise<{
+		context: AppRegistry["context"];
+		service: AnyServiceCollection;
+	}> {
+		const { context, service } = await this.#createContextAndService(request, auth, signal, waitUntil);
+		return { context, service: service as AnyServiceCollection };
+	}
+
 	/**
 	 * Builds the request context (decoration + services) for a single request.
 	 * @param request The incoming request.
@@ -90,7 +103,7 @@ export class Server<TRegistry extends AppRegistry> {
 	 * @param waitUntil Callback to register background work.
 	 * @returns The populated `context` and `service` objects.
 	 */
-	async createContext(
+	async #createContextAndService(
 		request: Request<any, any, any, any>,
 		auth: Auth,
 		signal: AbortSignal,
@@ -221,7 +234,7 @@ export class Server<TRegistry extends AppRegistry> {
 					const auth = authorization ? await this.#parseAuthorization(authorization) : undefined;
 
 					// TODO onHubConnect
-					const { context } = await this.createContext(nativeRequest as never, auth, nativeRequest.signal, waitUntil);
+					const { context } = await this.#createContextAndService(nativeRequest as never, auth, nativeRequest.signal, waitUntil);
 					const hubId = id("hub_");
 					const response = await this.options.providers.hub.transfer({
 						app: this.options.app,
@@ -314,7 +327,7 @@ export class Server<TRegistry extends AppRegistry> {
 
 				const { type, ...rest } = await new globalThis.Response(message as never).json();
 
-				const { context, service } = await this.createContext(request, auth, abortController.signal, waitUntil);
+				const { context, service } = await this.#createContextAndService(request, auth, abortController.signal, waitUntil);
 
 				if (type === "subscribe") {
 					const { key } = rest;
@@ -408,7 +421,7 @@ export class Server<TRegistry extends AppRegistry> {
 			try {
 				const request = await Request.from(new globalThis.Request("http://hub"));
 
-				const { context, service } = await this.createContext(request, undefined, abortController.signal, waitUntil);
+				const { context, service } = await this.#createContextAndService(request, undefined, abortController.signal, waitUntil);
 
 				if (item.type === "topic_publish") {
 					const message: TopicMessage<unknown> = {
@@ -509,7 +522,7 @@ export class Server<TRegistry extends AppRegistry> {
 				const auth = authorization ? await this.#parseAuthorization(authorization) : undefined;
 				span.setAttribute("auth.identityId", auth?.identityId.toString() ?? "");
 
-				const { context, service } = await this.createContext(request, auth, request.signal, waitUntil);
+				const { context, service } = await this.#createContextAndService(request, auth, request.signal, waitUntil);
 				const output = definition.handler instanceof Function
 					? await definition.handler({
 						app: this.options.app,

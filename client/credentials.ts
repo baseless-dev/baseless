@@ -31,7 +31,7 @@ export class Credentials implements Disposable {
 	#tokens: Map<string, AuthenticationTokensObject>;
 	#storage: CredentialsStore;
 	#identityId?: string;
-	#expirationTimer?: number;
+	#expirationTimer?: ReturnType<typeof setTimeout>;
 
 	constructor(storage: CredentialsStore = new MemoryCredentialsStore(), identityId?: string) {
 		this.#emitter = new EventEmitter();

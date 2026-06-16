@@ -35,7 +35,7 @@ const pubsubApp = app()
 					waitUntil,
 				});
 				if ((permission & Permission.Publish) == 0) {
-					throw ForbiddenError;
+					throw new ForbiddenError();
 				}
 			}
 

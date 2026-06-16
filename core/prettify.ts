@@ -8,4 +8,5 @@
  * type B = Prettify<A>; // { a: string; b: number }
  * ```
  */
+// deno-lint-ignore ban-types -- `& {}` forces TypeScript to flatten the mapped type for readable tooltips
 export type Prettify<T> = { [K in keyof T]: T[K] } & {};

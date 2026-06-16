@@ -134,14 +134,17 @@ const documentApp = app()
 							signal,
 							waitUntil,
 						});
-						if ((op.type === "set" && (permission & Permission.Set) == 0) || (permission & Permission.Delete) == 0) {
+						if (
+							(op.type === "set" && (permission & Permission.Set) == 0) ||
+							(op.type === "delete" && (permission & Permission.Delete) == 0)
+						) {
 							throw new ForbiddenError();
 						}
-						if (op.type === "set") {
-							atomic.set(op.key as never, {} as never, op.data as never);
-						} else {
-							atomic.delete(op.key as never, {} as never);
-						}
+					}
+					if (op.type === "set") {
+						atomic.set(op.key as never, {} as never, op.data as never);
+					} else {
+						atomic.delete(op.key as never, {} as never);
 					}
 				} catch (cause) {
 					throw new DocumentAtomicCommitError(undefined, { cause });

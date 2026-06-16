@@ -142,7 +142,7 @@ Deno.test("Authentication", async (ctx) => {
 		using screen = render(<RegistrationPage client={mocked.client} />);
 
 		const email = await screen.findByLabelText("Email");
-		await fireEvent.change(email, { target: { value: "foo@test.local" } });
+		await fireEvent.change(email, { target: { value: "newuser@test.local" } });
 
 		const send = await screen.findByRole("send");
 		await fireEvent.click(send);

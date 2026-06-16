@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any -- visitor type-arguments match any node specialization
 import type {
 	TAnyFragment,
 	TBatchStatement,

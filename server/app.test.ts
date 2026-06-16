@@ -1,7 +1,6 @@
 import { App, app, Permission } from "./app.ts";
 import * as z from "@baseless/core/schema";
 import { Response } from "@baseless/core/response";
-import { assertEquals } from "@std/assert/equals";
 
 Deno.test("app", async (t) => {
 	await t.step("define", () => {
@@ -42,7 +41,7 @@ Deno.test("app", async (t) => {
 				path: `hello-world`,
 				request: z.jsonRequest(),
 				response: z.jsonResponse(),
-				handler: async ({ configuration, service, request }) => {
+				handler: async ({ configuration, service }) => {
 					const _stripe = configuration.stripe;
 					const _prefs = await service.document.get(`users/:userid/preferences`, { userid: "123" });
 					return Response.json({});
@@ -50,12 +49,12 @@ Deno.test("app", async (t) => {
 			})
 			.onTopicMessage({
 				path: `presence`,
-				handler: async ({ message }) => {
+				handler: ({ message }) => {
 					console.log(message);
 				},
 			})
 			.build();
 
-		type _a = typeof b extends App<any, infer A> ? A : never;
+		type _a = typeof b extends App<infer _Public, infer A> ? A : never;
 	});
 });

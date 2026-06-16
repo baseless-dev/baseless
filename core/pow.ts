@@ -48,14 +48,14 @@ declare const addEventListener: (
 	listener: EventListenerOrEventListenerObject,
 	options?: boolean | AddEventListenerOptions,
 ) => void;
-declare const postMessage: (message: any, transfer?: Transferable[]) => void;
+declare const postMessage: (message: unknown, transfer?: Transferable[]) => void;
 
 type WorkerAction =
 	| { type: "work"; challenge: string; difficulty: number; threads: number; nonce: number }
 	| { type: "abort" };
 type WorkerResult =
 	| { type: "nonce"; nonce: number }
-	| { type: "error"; error: any };
+	| { type: "error"; error: unknown };
 
 /**
  * Finds a nonce satisfying the given proof-of-work difficulty.
@@ -77,7 +77,7 @@ export function work(challenge: string, difficulty: number, options?: { threads?
 	const glue = () => {
 		let abortController: AbortController | undefined;
 		addEventListener("message", async (event) => {
-			const action = (event as any).data as WorkerAction;
+			const action = (event as MessageEvent).data as WorkerAction;
 			if (action.type === "work") {
 				abortController?.abort();
 				abortController = new AbortController();
@@ -109,7 +109,7 @@ export function work(challenge: string, difficulty: number, options?: { threads?
 			worker.terminate();
 		});
 		worker.addEventListener("message", (event) => {
-			const result = (event as any).data as WorkerResult;
+			const result = (event as MessageEvent).data as WorkerResult;
 			try {
 				if (result.type === "error") {
 					nonceDefer.reject(result.error);
@@ -117,7 +117,9 @@ export function work(challenge: string, difficulty: number, options?: { threads?
 					nonceDefer.resolve(result.nonce);
 				}
 				abortController.abort();
-			} catch (_cause) {}
+			} catch (_cause) {
+				// Defer already settled; ignore.
+			}
 		});
 		worker.postMessage({ type: "work", challenge, difficulty, threads, nonce: i });
 		workers.push(worker);

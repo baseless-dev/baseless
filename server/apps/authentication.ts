@@ -2,7 +2,7 @@ import { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/ide
 import { app, INTERNAL_HIDE_ENDPOINT } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import type { Document } from "@baseless/core/document";
-import { EncryptJWT, jwtDecrypt, type KeyLike } from "jose";
+import { EncryptJWT, jwtDecrypt } from "jose";
 import { ID, ksuid } from "@baseless/core/id";
 import {
 	AuthenticationRefreshTokenError,
@@ -71,8 +71,8 @@ export interface AuthOptions {
 	ceremony: AuthenticationCeremony | AuthenticationCeremonyResolver;
 	components: Record<string, IdentityComponentProvider>;
 	keyAlgo: string;
-	keyPublic: KeyLike;
-	keyPrivate: KeyLike;
+	keyPublic: CryptoKey;
+	keyPrivate: CryptoKey;
 	keySecret: Uint8Array;
 	rateLimit?: { limit: number; period: number };
 	refreshTokenTTL: number;

@@ -1,10 +1,10 @@
 // deno-lint-ignore-file no-explicit-any
 // import { transpile } from "jsr:@deno/emit";
-import ts from "npm:typescript";
-import { walk } from "jsr:@std/fs";
-import { dirname, extname, globToRegExp, join, relative } from "jsr:@std/path";
-import * as colors from "jsr:@std/fmt/colors";
-import { format } from "jsr:@std/fmt/duration";
+import ts from "npm:typescript@6.0.3";
+import { walk } from "jsr:@std/fs@1.0.10";
+import { dirname, extname, globToRegExp, join, relative } from "jsr:@std/path@1.0.8";
+import * as colors from "jsr:@std/fmt@1.0.10/colors";
+import { format } from "jsr:@std/fmt@1.0.10/duration";
 
 const rm = (path: string) => Deno.remove(path, { recursive: true }).catch((_) => {});
 const clearDir = async (path: string) => {
@@ -244,7 +244,7 @@ console.log(colors.yellow("! Watch out for devdependencies"));
 if (Deno.args.includes("--watch")) {
 	console.log(colors.blue("○") + colors.dim(` Watching for changes...`));
 	const workspaceChanges = new Set<PackageSummary>();
-	let processChangesTimer: number | undefined;
+	let processChangesTimer: ReturnType<typeof setTimeout> | undefined;
 	const processChanges = async () => {
 		const changes = Array.from(workspaceChanges);
 		workspaceChanges.clear();

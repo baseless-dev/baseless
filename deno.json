@@ -12,7 +12,9 @@
 	"tasks": {
 		"npm-link": "deno run -A ./scripts/npm-link.ts",
 		"test": "deno test -A --unstable-kv",
-		"testfast": "deno test -A --unstable-kv --parallel --fail-fast"
+		"testfast": "deno test -A --unstable-kv --parallel --fail-fast",
+		"lint": "deno lint",
+		"check": "deno check ."
 	},
 	"compilerOptions": {
 		"jsx": "react-jsx",
@@ -39,7 +41,7 @@
 		"@std/path": "jsr:@std/path@1.0.8",
 		"@testing-library/react": "npm:@testing-library/react@16.2.0",
 		"@types/react": "npm:@types/react@19.0.8",
-		"jose": "npm:jose@5.9.6",
+		"jose": "npm:jose@6.2.3",
 		"openapi-types": "npm:openapi-types@12.1.3",
 		"react": "npm:react@19.0.0",
 		"react-dom": "npm:react-dom@19.0.0",

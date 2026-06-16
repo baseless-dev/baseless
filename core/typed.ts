@@ -149,7 +149,7 @@ export interface TypedURLSearchParams<TData extends Record<string, string | unde
 	 */
 	forEach(
 		callbackfn: (value: TData[keyof TData], key: keyof TData, parent: this) => void,
-		thisArg?: any,
+		thisArg?: unknown,
 	): void;
 
 	/** Returns an iterator allowing to go through all keys contained

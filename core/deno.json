@@ -12,6 +12,7 @@
 		"./errors": "./errors.ts",
 		"./id": "./id.ts",
 		"./identity": "./identity.ts",
+		"./instrument": "./instrument.ts",
 		"./iter": "./iter.ts",
 		"./kv": "./kv.ts",
 		"./logger": "./logger.ts",

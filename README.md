@@ -250,3 +250,19 @@ curl -H 'accept: application/json' 'http://127.0.0.1:4000/openapi.json?ui=swagge
 ```
 
 See [examples/hello-world](./examples/hello-world) for the runnable sample app.
+
+## Development
+
+Clone the repo, then use the following commands for contributor workflows:
+
+```sh
+deno task test          # run all tests
+deno fmt                # format all files
+deno task lint          # lint all packages
+deno task check         # type-check all packages
+deno test -A --unstable-kv <path>  # run a single test file
+```
+
+For coding-agent context, project conventions, the test harness idiom, and the security model, see [CLAUDE.md](./CLAUDE.md).
+
+For domain vocabulary used throughout the codebase, see [UBIQUITOUS_LANGUAGE.md](./UBIQUITOUS_LANGUAGE.md).

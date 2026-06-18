@@ -8,7 +8,6 @@ import { Document } from "@baseless/core/document";
 import { Request } from "@baseless/core/request";
 import { Response } from "@baseless/core/response";
 import type { Prettify } from "@baseless/core/prettify";
-import { KeyLike } from "jose";
 import { StorageObject } from "@baseless/core/storage";
 
 export const INTERNAL_HIDE_ENDPOINT = Symbol();
@@ -50,12 +49,12 @@ export interface AppRegistry {
 	collections: {};
 	configuration: {
 		auth?:
-			| { keyPublic: KeyLike }
+			| { keyPublic: CryptoKey }
 			| {
 				accessTokenTTL: number;
 				keyAlgo: string;
-				keyPublic: KeyLike;
-				keyPrivate: KeyLike;
+				keyPublic: CryptoKey;
+				keyPrivate: CryptoKey;
 				keySecret: Uint8Array;
 				refreshTokenTTL: number;
 			};
@@ -564,6 +563,30 @@ export interface OnFileDeletedDefinition<
 }
 
 /**
+ * Handler invoked when a WebSocket hub client connects or disconnects.
+ */
+export type HubLifecycleHandler<TRegistry extends AppRegistry> = (options: {
+	app: App;
+	auth: Auth;
+	configuration: TRegistry["configuration"];
+	context: TRegistry["context"];
+	hubId: ID<"hub_">;
+	service: ServiceCollection<TRegistry>;
+	signal: AbortSignal;
+	waitUntil: (promise: PromiseLike<unknown>) => void;
+}) => void | Promise<void>;
+
+/** Definition of a hub connect lifecycle hook registered via {@link AppBuilder.onHubConnect}. */
+export interface OnHubConnectDefinition<TRegistry extends AppRegistry> {
+	handler: HubLifecycleHandler<TRegistry>;
+}
+
+/** Definition of a hub disconnect lifecycle hook registered via {@link AppBuilder.onHubDisconnect}. */
+export interface OnHubDisconnectDefinition<TRegistry extends AppRegistry> {
+	handler: HubLifecycleHandler<TRegistry>;
+}
+
+/**
  * Fluent builder for composing a Baseless server application. Obtain a fresh
  * instance via {@link app}.
  *
@@ -763,7 +786,7 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 	 * @returns A new builder with the endpoint removed from the public registry, but still available in the server registry for internal use and composition.
 	 * @internal
 	 */
-	[INTERNAL_HIDE_ENDPOINT]<TPath extends keyof TPublicRegistry["endpoints"]>(path: TPath): AppBuilder<TServerRegistry, {
+	[INTERNAL_HIDE_ENDPOINT]<TPath extends keyof TPublicRegistry["endpoints"]>(_path: TPath): AppBuilder<TServerRegistry, {
 		endpoints: Prettify<Omit<TPublicRegistry["endpoints"], TPath>>;
 		collections: TPublicRegistry["collections"];
 		documents: TPublicRegistry["documents"];
@@ -1118,6 +1141,8 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 			onTopicMessage: [...this.#app.onTopicMessage, ...other.#app.onTopicMessage],
 			onFileDeleted: [...this.#app.onFileDeleted, ...other.#app.onFileDeleted],
 			onFileUploaded: [...this.#app.onFileUploaded, ...other.#app.onFileUploaded],
+			onHubConnect: [...this.#app.onHubConnect, ...other.#app.onHubConnect],
+			onHubDisconnect: [...this.#app.onHubDisconnect, ...other.#app.onHubDisconnect],
 			requirements: {
 				configuration: { ...this.#app.requirements?.configuration, ...other.#app.requirements?.configuration },
 				context: { ...this.#app.requirements?.context, ...other.#app.requirements?.context },
@@ -1207,6 +1232,36 @@ export class AppBuilder<TServerRegistry extends AppRegistry, TPublicRegistry ext
 		return new AppBuilder<any, any>({
 			...this.#app,
 			onFileDeleted: [...this.#app.onFileDeleted, definition as never],
+		});
+	}
+
+	/**
+	 * Registers an {@link OnHubConnectDefinition} lifecycle hook invoked each
+	 * time a WebSocket hub client connects.
+	 * @param definition Hook definition with `handler`.
+	 * @returns A new builder with the hook registered.
+	 */
+	onHubConnect(
+		definition: OnHubConnectDefinition<TServerRegistry>,
+	): AppBuilder<TServerRegistry, TPublicRegistry> {
+		return new AppBuilder<any, any>({
+			...this.#app,
+			onHubConnect: [...this.#app.onHubConnect, definition as never],
+		});
+	}
+
+	/**
+	 * Registers an {@link OnHubDisconnectDefinition} lifecycle hook invoked each
+	 * time a WebSocket hub client disconnects.
+	 * @param definition Hook definition with `handler`.
+	 * @returns A new builder with the hook registered.
+	 */
+	onHubDisconnect(
+		definition: OnHubDisconnectDefinition<TServerRegistry>,
+	): AppBuilder<TServerRegistry, TPublicRegistry> {
+		return new AppBuilder<any, any>({
+			...this.#app,
+			onHubDisconnect: [...this.#app.onHubDisconnect, definition as never],
 		});
 	}
 
@@ -1632,6 +1687,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 	onTopicMessage: Array<OnTopicMessageDefinition<any, any>> = [];
 	onFileDeleted: Array<OnFileDeletedDefinition<any, any>> = [];
 	onFileUploaded: Array<OnFileUploadedDefinition<any, any>> = [];
+	onHubConnect: Array<OnHubConnectDefinition<any>> = [];
+	onHubDisconnect: Array<OnHubDisconnectDefinition<any>> = [];
 	requirements: {
 		configuration: Record<string, unknown>;
 		context: Record<string, unknown>;
@@ -1684,6 +1741,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 		onTopicMessage: App["onTopicMessage"];
 		onFileDeleted: App["onFileDeleted"];
 		onFileUploaded: App["onFileUploaded"];
+		onHubConnect: App["onHubConnect"];
+		onHubDisconnect: App["onHubDisconnect"];
 		requirements: App["requirements"];
 		services: App["services"];
 		tables: App["tables"];
@@ -1700,6 +1759,8 @@ export class App<TServerRegistry extends AppRegistry = AppRegistry, TPublicRegis
 		this.onTopicMessage = options.onTopicMessage;
 		this.onFileDeleted = options.onFileDeleted;
 		this.onFileUploaded = options.onFileUploaded;
+		this.onHubConnect = options.onHubConnect;
+		this.onHubDisconnect = options.onHubDisconnect;
 		this.requirements = options.requirements;
 		this.services = options.services;
 		this.tables = options.tables;
@@ -1820,6 +1881,8 @@ export function app(): AppBuilder<AppRegistry, PublicAppRegistry> {
 		onTopicMessage: [],
 		onFileDeleted: [],
 		onFileUploaded: [],
+		onHubConnect: [],
+		onHubDisconnect: [],
 		requirements: {
 			configuration: {},
 			context: {},

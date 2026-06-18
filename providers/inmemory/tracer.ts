@@ -1,3 +1,7 @@
 import { trace } from "@opentelemetry/api";
+import { instrument } from "@baseless/core/instrument";
 
-export default trace.getTracer("@baseless/inmemory-provider");
+const tracer = trace.getTracer("@baseless/inmemory-provider");
+export default tracer;
+
+export const traced = instrument(tracer);

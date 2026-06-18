@@ -331,7 +331,7 @@ export class ClientAuthCeremony implements Disposable {
 	#scopes?: string[];
 	#steps: Array<AuthenticationStep | AuthenticationComponentChoiceSelection>;
 	#store?: ClientAuthCeremonyStore;
-	#expirationTimer?: number;
+	#expirationTimer?: ReturnType<typeof setTimeout>;
 	#emitter: EventEmitter<{ step: AuthenticationStep | null }>;
 
 	static async init(

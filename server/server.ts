@@ -27,7 +27,7 @@ import { decodeBase64Url } from "@std/encoding/base64url";
 import { type ID, id, isID } from "@baseless/core/id";
 import * as z from "@baseless/core/schema";
 import type { QueueItem } from "@baseless/core/queue";
-import { jwtVerify, type KeyLike } from "jose";
+import { jwtVerify } from "jose";
 import {
 	BadGatewayError,
 	BadRequestError,
@@ -136,7 +136,7 @@ export class Server<TRegistry extends AppRegistry> {
 		service.document = new DocumentFacade({
 			app: this.options.app,
 			auth,
-			configuration: {}, // TODO
+			configuration: this.options.configuration,
 			context,
 			provider: this.options.providers.document,
 			service: service,
@@ -185,7 +185,12 @@ export class Server<TRegistry extends AppRegistry> {
 			return undefined;
 		} else if (authorization.startsWith("Bearer ")) {
 			try {
-				const { payload } = await jwtVerify(authorization.slice("Bearer ".length), this.options.configuration.auth.keyPublic);
+				const auth = this.options.configuration.auth!;
+				const { payload } = await jwtVerify(
+					authorization.slice("Bearer ".length),
+					auth.keyPublic,
+					"keyAlgo" in auth ? { algorithms: [auth.keyAlgo] } : undefined,
+				);
 				if (isID("id_", payload.sub)) {
 					return {
 						identityId: payload.sub!,
@@ -195,7 +200,8 @@ export class Server<TRegistry extends AppRegistry> {
 				// deno-lint-ignore no-empty
 			} catch (_error) {}
 		} else if (authorization.startsWith("Token ")) {
-			throw "TODO!";
+			// "Token" scheme not implemented; treat as unauthenticated.
+			return undefined;
 		}
 		return undefined;
 	}
@@ -206,7 +212,7 @@ export class Server<TRegistry extends AppRegistry> {
 	 * @param nativeRequest The incoming native HTTP request.
 	 * @returns A tuple of `[response, waitUntil promises]`.
 	 */
-	async handleRequest(
+	handleRequest(
 		nativeRequest: globalThis.Request,
 	): Promise<Readonly<[response: globalThis.Response, waitUntil: Array<PromiseLike<unknown>>]>> {
 		return tracer.startActiveSpan(`@baseless/server.handleRequest`, async (span) => {
@@ -233,9 +239,22 @@ export class Server<TRegistry extends AppRegistry> {
 
 					const auth = authorization ? await this.#parseAuthorization(authorization) : undefined;
 
-					// TODO onHubConnect
-					const { context } = await this.#createContextAndService(nativeRequest as never, auth, nativeRequest.signal, waitUntil);
+					const { context, service } = await this.#createContextAndService(nativeRequest as never, auth, nativeRequest.signal, waitUntil);
 					const hubId = id("hub_");
+
+					for (const definition of this.options.app.onHubConnect) {
+						await definition.handler({
+							app: this.options.app,
+							auth,
+							configuration: this.options.configuration,
+							context,
+							hubId,
+							service,
+							signal: nativeRequest.signal,
+							waitUntil,
+						});
+					}
+
 					const response = await this.options.providers.hub.transfer({
 						app: this.options.app,
 						auth,
@@ -315,7 +334,7 @@ export class Server<TRegistry extends AppRegistry> {
 	 * @param message The raw WebSocket message payload.
 	 * @returns Background promises to await after the message is processed.
 	 */
-	async handleHubMessage(hubId: ID<"hub_">, auth: Auth, message: unknown): Promise<Array<PromiseLike<unknown>>> {
+	handleHubMessage(hubId: ID<"hub_">, auth: Auth, message: unknown): Promise<Array<PromiseLike<unknown>>> {
 		return tracer.startActiveSpan(`@baseless/server.handleHubMessage`, async (span) => {
 			span.setAttribute("message.hubId", hubId.toString());
 			span.setAttribute("auth.identityId", auth?.identityId.toString() ?? "anonymous");
@@ -406,12 +425,54 @@ export class Server<TRegistry extends AppRegistry> {
 	}
 
 	/**
+	 * Invoked when a WebSocket hub client disconnects. Iterates and awaits all
+	 * registered `onHubDisconnect` handlers.
+	 * @param hubId The hub connection identifier.
+	 * @param auth The hub connection's authentication principal.
+	 * @returns Background promises to await after the disconnect is processed.
+	 */
+	handleHubDisconnect(hubId: ID<"hub_">, auth: Auth): Promise<Array<PromiseLike<unknown>>> {
+		return tracer.startActiveSpan(`@baseless/server.handleHubDisconnect`, async (span) => {
+			span.setAttribute("message.hubId", hubId.toString());
+			span.setAttribute("auth.identityId", auth?.identityId.toString() ?? "anonymous");
+			const promises: Array<PromiseLike<unknown>> = [];
+			const waitUntil = (promise: PromiseLike<unknown>) => promises.push(promise);
+			const abortController = new AbortController();
+			try {
+				const request = await Request.from(new globalThis.Request("http://hub"));
+				const { context, service } = await this.#createContextAndService(request, auth, abortController.signal, waitUntil);
+
+				for (const definition of this.options.app.onHubDisconnect) {
+					await definition.handler({
+						app: this.options.app,
+						auth,
+						configuration: this.options.configuration,
+						context,
+						hubId,
+						service,
+						signal: abortController.signal,
+						waitUntil,
+					});
+				}
+
+				return promises;
+			} catch (cause) {
+				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
+				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
+				return promises;
+			} finally {
+				span.end();
+			}
+		});
+	}
+
+	/**
 	 * Processes a dequeued {@link QueueItem}, dispatching it to the registered
 	 * `onTopicMessage` handlers and publishing it to the hub provider.
 	 * @param item The queue item to process.
 	 * @returns Background promises to await after processing.
 	 */
-	async handleQueueItem(item: QueueItem): Promise<Array<PromiseLike<unknown>>> {
+	handleQueueItem(item: QueueItem): Promise<Array<PromiseLike<unknown>>> {
 		return tracer.startActiveSpan(`@baseless/server.handleQueueItem`, async (span) => {
 			span.setAttribute("queue_item.key", item.key);
 			span.setAttribute("queue_item.type", item.type);
@@ -498,7 +559,7 @@ export class Server<TRegistry extends AppRegistry> {
 	 * waitUntil callback.
 	 * @returns The handler's {@link Response}.
 	 */
-	async unsafe_handleEndpoint({
+	unsafe_handleEndpoint({
 		definition,
 		params,
 		request,

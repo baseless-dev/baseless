@@ -1,7 +1,7 @@
 import createMemoryServer from "../server.test.ts";
 import { app } from "../app.ts";
 import authApp from "./authentication.ts";
-import { generateKeyPair } from "jose";
+import { decodeJwt, generateKeyPair } from "jose";
 import { ksuid } from "@baseless/core/id";
 import * as z from "@baseless/core/schema";
 import { assert } from "@std/assert/assert";
@@ -189,6 +189,8 @@ Deno.test("Simple authentication", async (t) => {
 		});
 		assert("accessToken" in password);
 		assert("idToken" in password);
+		const idPayload = decodeJwt(password.idToken);
+		assert(typeof idPayload.exp === "number" && idPayload.exp > Date.now() / 1000);
 	});
 
 	await t.step("refresh token", async () => {

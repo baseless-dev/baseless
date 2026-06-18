@@ -1,6 +1,5 @@
 // deno-lint-ignore-file ban-types no-explicit-any
 import { TypedFormData, TypedHeaders, TypedURL } from "@baseless/core/typed";
-import type * as z from "zod";
 
 /**
  * A strongly-typed drop-in for the standard `RequestInit` that constrains the
@@ -134,7 +133,7 @@ export class Request<
 
 	/** Typed headers map. */
 	get headers(): TypedHeaders<THeaders> {
-		return this.#request.headers as TypedHeaders<THeaders>;
+		return this.#request.headers as unknown as TypedHeaders<THeaders>;
 	}
 
 	/** Subresource integrity value of the request. */

@@ -1,5 +1,5 @@
 import { type QueueItem, QueueProvider } from "@baseless/server";
-import tracer from "./tracer.ts";
+import { traced } from "./tracer.ts";
 
 /**
  * Deno KV-backed implementation of {@link QueueProvider}.
@@ -19,19 +19,12 @@ export class DenoQueueProvider extends QueueProvider {
 	 * @param item The item to enqueue.
 	 * @param _options Ignored; present for interface compatibility.
 	 */
-	async enqueue(item: QueueItem, _options?: { signal?: AbortSignal }): Promise<void> {
-		return tracer.startActiveSpan("@baseless/deno-provider.queue.enqueue", async (span) => {
-			span.setAttribute("queue_item.key", item.key);
-			span.setAttribute("queue_item.type", item.type);
-			try {
-				await this.#storage.enqueue(item);
-			} catch (cause) {
-				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
-				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
-				throw cause;
-			} finally {
-				span.end();
-			}
+	enqueue(item: QueueItem, _options?: { signal?: AbortSignal }): Promise<void> {
+		return traced("@baseless/deno-provider.queue.enqueue", {
+			"queue_item.key": item.key,
+			"queue_item.type": item.type,
+		}, async (_span) => {
+			await this.#storage.enqueue(item);
 		});
 	}
 

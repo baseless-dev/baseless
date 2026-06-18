@@ -1,6 +1,5 @@
 // deno-lint-ignore-file no-explicit-any ban-types
 import { TypedFormData, TypedHeaders } from "@baseless/core/typed";
-import type * as z from "zod";
 
 /** A value accepted wherever a URL string or typed {@link Response} is expected. */
 export type RequestInfo = Response<any, any, any> | string;
@@ -87,7 +86,7 @@ export class Response<
 
 	constructor(body: TBody, init?: ResponseInit<TStatus, THeaders>) {
 		this.#body = body;
-		this.#headers = new Headers(init?.headers as never) as TypedHeaders<THeaders>;
+		this.#headers = new Headers(init?.headers as never) as unknown as TypedHeaders<THeaders>;
 		this.#status = init?.status ?? 200 as TStatus;
 		this.#statusText = init?.statusText ?? "OK";
 		this.#description = init?.description;

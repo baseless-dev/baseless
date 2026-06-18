@@ -35,9 +35,14 @@ export class DenoHubProvider extends HubProvider {
 	override transfer(options: HubProviderTransferOptions): Promise<Response> {
 		const { socket, response } = Deno.upgradeWebSocket(options.request, { protocol: "bls", idleTimeout: this.#idleTimeout });
 		this.#websockets.set(options.hubId, { auth: options.auth, socket });
-		socket.onclose = () => {
+		socket.onclose = async () => {
 			this.#websockets.delete(options.hubId);
-			// TODO options.server.handleHubDisconnect(...);
+			try {
+				const promises = await options.server.handleHubDisconnect(options.hubId, options.auth);
+				await Promise.allSettled(promises);
+			} catch (_error) {
+				// Errors in disconnect handlers must not propagate through onclose
+			}
 		};
 		socket.onmessage = async (event) => {
 			try {

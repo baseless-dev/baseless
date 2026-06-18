@@ -1,6 +1,7 @@
 import { RootQueryBuilder } from "./builder.ts";
 import { assertEquals } from "@std/assert";
 import { visit } from "./visit.ts";
+import type { TAnyFragment } from "./schema.ts";
 
 type User = {
 	user_id: number;
@@ -65,7 +66,7 @@ Deno.test("queryToString", () => {
 	);
 });
 
-export function queryToString(query: any): string {
+export function queryToString(query: TAnyFragment): string {
 	return visit<string>(query, {
 		visitLiteral: (node) => JSON.stringify(node.data),
 		visitNamedFunctionReference: (node, visit) => `${node.name}(${node.params.map(visit).join(", ")})`,

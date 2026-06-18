@@ -1,5 +1,5 @@
 import type { AppRegistry, Auth } from "./app.ts";
-import type { Document, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
+import type { Document, DocumentGetOptions, DocumentListEntry } from "@baseless/core/document";
 import type {
 	StorageListEntry,
 	StorageObject,

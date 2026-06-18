@@ -66,6 +66,7 @@ Deno.test("schema", async (ctx) => {
 		const _t1: z.infer<typeof _b> = _c;
 		const _t2: z.infer<typeof _b> = _d;
 		const _t3: () => z.infer<typeof _b> = () => {
+			// deno-lint-ignore no-constant-condition -- type-level assertion that both branches satisfy the return type
 			return 1 ? _c : _d;
 		};
 		assertThrows(() => z.jsonResponse().parse(Response.error()));

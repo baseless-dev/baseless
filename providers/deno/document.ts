@@ -9,7 +9,7 @@ import {
 	DocumentProvider,
 } from "@baseless/server";
 import { fromKvKey, toKvKey } from "./utils.ts";
-import tracer from "./tracer.ts";
+import tracer, { traced } from "./tracer.ts";
 
 /**
  * Deno KV-backed implementation of {@link DocumentProvider}.
@@ -31,11 +31,11 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 	 * @returns The {@link Document} stored at `key`.
 	 * @throws {@link DocumentNotFoundError} When no entry exists at `key`.
 	 */
-	async get(key: string, options?: DocumentGetOptions): Promise<Document> {
-		return tracer.startActiveSpan("@baseless/deno-provider.document.get", async (span) => {
-			span.setAttribute("document.key", key);
-			span.setAttribute("options.consistency", options?.consistency ?? "");
-			try {
+	get(key: string, options?: DocumentGetOptions): Promise<Document> {
+		return traced(
+			"@baseless/deno-provider.document.get",
+			{ "document.key": key, "options.consistency": options?.consistency ?? "" },
+			async (_span) => {
 				const entry = await this.#storage.get(toKvKey(key), options);
 				if (!entry.versionstamp) {
 					throw new DocumentNotFoundError();
@@ -45,14 +45,8 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 					versionstamp: entry.versionstamp,
 					data: entry.value,
 				} satisfies Document;
-			} catch (cause) {
-				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
-				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
-				throw cause;
-			} finally {
-				span.end();
-			}
-		});
+			},
+		);
 	}
 
 	/**
@@ -62,11 +56,11 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 	 * @returns An array of {@link Document} values in the same order as `keys`.
 	 * @throws {@link DocumentNotFoundError} When any entry in the result has no versionstamp.
 	 */
-	async getMany(keys: Array<string>, options?: DocumentGetOptions): Promise<Array<Document>> {
-		return tracer.startActiveSpan("@baseless/deno-provider.document.getMany", async (span) => {
-			span.setAttribute("document.keys", keys);
-			span.setAttribute("options.consistency", options?.consistency ?? "");
-			try {
+	getMany(keys: Array<string>, options?: DocumentGetOptions): Promise<Array<Document>> {
+		return traced(
+			"@baseless/deno-provider.document.getMany",
+			{ "document.keys": keys, "options.consistency": options?.consistency ?? "" },
+			async (_span) => {
 				const entries = await this.#storage.getMany(keys.map((k) => toKvKey(k)), options);
 				return entries.map((entry) => {
 					if (!entry.versionstamp) {
@@ -78,14 +72,8 @@ export class DenoKVDocumentProvider extends DocumentProvider {
 						data: entry.value,
 					} satisfies Document;
 				});
-			} catch (cause) {
-				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
-				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
-				throw cause;
-			} finally {
-				span.end();
-			}
-		});
+			},
+		);
 	}
 
 	/**
@@ -154,32 +142,25 @@ export class DenoKVDocumentAtomic extends DocumentAtomic {
 	 *
 	 * @throws {@link DocumentAtomicCommitError} When a versionstamp check fails or the atomic commit is rejected.
 	 */
-	async commit(): Promise<void> {
-		return tracer.startActiveSpan("@baseless/deno-provider.document.atomic.commit", async (span) => {
-			span.setAttribute("atomic.checks", JSON.stringify(this.checks));
-			span.setAttribute("atomic.operations", JSON.stringify(this.operations));
-			try {
-				const atomic = this.#storage.atomic();
-				for (const check of this.checks) {
-					atomic.check({ key: toKvKey(check.key), versionstamp: check.versionstamp });
+	commit(): Promise<void> {
+		return traced("@baseless/deno-provider.document.atomic.commit", {
+			"atomic.checks": JSON.stringify(this.checks),
+			"atomic.operations": JSON.stringify(this.operations),
+		}, async (_span) => {
+			const atomic = this.#storage.atomic();
+			for (const check of this.checks) {
+				atomic.check({ key: toKvKey(check.key), versionstamp: check.versionstamp });
+			}
+			for (const op of this.operations) {
+				if (op.type === "delete") {
+					atomic.delete(toKvKey(op.key));
+				} else {
+					atomic.set(toKvKey(op.key), op.data);
 				}
-				for (const op of this.operations) {
-					if (op.type === "delete") {
-						atomic.delete(toKvKey(op.key));
-					} else {
-						atomic.set(toKvKey(op.key), op.data);
-					}
-				}
-				const result = await atomic.commit();
-				if (!result.ok) {
-					throw new DocumentAtomicCommitError();
-				}
-			} catch (cause) {
-				span.recordException(cause instanceof Error ? cause : new Error(String(cause)));
-				span.setStatus({ code: 2, message: cause instanceof Error ? cause.message : String(cause) });
-				throw cause;
-			} finally {
-				span.end();
+			}
+			const result = await atomic.commit();
+			if (!result.ok) {
+				throw new DocumentAtomicCommitError();
 			}
 		});
 	}

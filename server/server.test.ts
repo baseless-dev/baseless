@@ -9,13 +9,17 @@ import {
 } from "@baseless/inmemory-provider";
 import { DenoHubProvider } from "@baseless/deno-provider";
 import * as z from "@baseless/core/schema";
-import { AnyServiceCollection, ServiceCollection } from "./prelude.ts";
+import { AnyServiceCollection } from "./prelude.ts";
 import { fromServerErrorData, ServerErrorData } from "@baseless/core/errors";
-import { AppRegistry } from "./app.ts";
+import { app, AppRegistry, Permission } from "./app.ts";
 import { Request } from "@baseless/core/request";
+import { Response } from "@baseless/core/response";
 import { type Client as LibSQLClient, createClient } from "npm:@libsql/client@0.14.0/node";
 import { LibSQLTableProvider } from "../providers/universal/table.ts";
 import { TableProvider } from "./provider.ts";
+import { generateKeyPair } from "jose";
+import { assertEquals } from "@std/assert/equals";
+import documentApp from "./apps/document.ts";
 
 export default async function createMemoryServer<TRegistry extends AppRegistry>(
 	options: Omit<ServerOptions<TRegistry>, "providers">,
@@ -125,6 +129,7 @@ export const deadline = (ms: number): Disposable => {
 	}, ms);
 	return { [Symbol.dispose]: () => clearTimeout(id) };
 };
+// deno-lint-ignore no-explicit-any
 export const serve = async (server: Server<any>): Promise<{ url: URL } & Disposable> => {
 	const ready = Promise.withResolvers<URL>();
 	const abortController = new AbortController();
@@ -245,3 +250,69 @@ export const pubsub = (
 		},
 	};
 };
+
+Deno.test("Authorization: Token scheme is treated as unauthenticated (Decision A)", async () => {
+	// keyPublic MUST be set, otherwise #parseAuthorization short-circuits before the Token branch.
+	const keyPair = await generateKeyPair("PS512");
+	using mock = await createMemoryServer({
+		app: app()
+			.endpoint({
+				path: "ping",
+				request: z.jsonRequest({}),
+				response: z.jsonResponse({ authed: z.boolean() }),
+				handler: ({ auth }) => Response.json({ authed: auth !== undefined }),
+			})
+			.build(),
+		configuration: { auth: { keyPublic: keyPair.publicKey } },
+	});
+
+	// Anonymous baseline.
+	const anon = await mock.fetch("/ping", { data: {}, schema: z.object({ authed: z.boolean() }) });
+	assertEquals(anon.authed, false);
+
+	// Token scheme — must be treated as anonymous (200, authed:false), NOT a 500.
+	const tokenResult = await mock.fetch("/ping", {
+		data: {},
+		headers: { Authorization: "Token abc" },
+		schema: z.object({ authed: z.boolean() }),
+	});
+	assertEquals(tokenResult.authed, false);
+});
+
+Deno.test("DocumentFacade receives real configuration from server options", async () => {
+	// deno-lint-ignore no-explicit-any
+	const capturedConfigurations: any[] = [];
+
+	using mock = await createMemoryServer({
+		app: app()
+			.extend(documentApp)
+			.requireConfiguration({ magicKey: "default" })
+			.collection({
+				path: "item",
+				schema: z.string(),
+				collectionSecurity: () => Permission.All,
+				documentSecurity: () => Permission.All,
+				topicSecurity: () => Permission.All,
+			})
+			.onDocumentSetting({
+				path: "item/:key",
+				handler({ configuration }): void {
+					capturedConfigurations.push(configuration);
+				},
+			})
+			.build(),
+		configuration: { magicKey: "real-value" },
+	});
+
+	await mock.fetch("/document/commit", {
+		data: {
+			atomic: {
+				checks: [],
+				operations: [{ type: "set", key: "item/test", data: "hello" }],
+			},
+		},
+	});
+
+	assertEquals(capturedConfigurations.length, 1);
+	assertEquals((capturedConfigurations[0] as { magicKey: string }).magicKey, "real-value");
+});

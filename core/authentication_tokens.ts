@@ -13,7 +13,11 @@ export interface AuthenticationTokens {
 }
 
 /** Zod schema for {@link AuthenticationTokens}. */
-export const AuthenticationTokens = z.strictObject({
+export const AuthenticationTokens: z.ZodObject<{
+	accessToken: z.ZodString;
+	idToken: z.ZodString;
+	refreshToken: z.ZodOptional<z.ZodString>;
+}> = z.strictObject({
 	accessToken: z.string(),
 	idToken: z.string(),
 	refreshToken: z.optional(z.string()),

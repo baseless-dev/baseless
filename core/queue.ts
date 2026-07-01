@@ -11,7 +11,11 @@ export interface QueueItemTopicPublish {
 }
 
 /** Zod schema for {@link QueueItemTopicPublish}. */
-export const QueueItemTopicPublish = z.strictObject({
+export const QueueItemTopicPublish: z.ZodObject<{
+	type: z.ZodLiteral<"topic_publish">;
+	key: z.ZodString;
+	payload: z.ZodUnknown;
+}> = z.strictObject({
 	type: z.literal("topic_publish"),
 	key: z.string(),
 	payload: z.unknown(),
@@ -27,7 +31,11 @@ export interface QueueItemFileUploaded {
 }
 
 /** Zod schema for {@link QueueItemFileUploaded}. */
-export const QueueItemFileUploaded = z.strictObject({
+export const QueueItemFileUploaded: z.ZodObject<{
+	type: z.ZodLiteral<"file_uploaded">;
+	key: z.ZodString;
+	file: ReturnType<typeof StorageObject>;
+}> = z.strictObject({
 	type: z.literal("file_uploaded"),
 	key: z.string(),
 	file: StorageObject(),
@@ -43,14 +51,25 @@ export interface QueueItemFileDeleted {
 }
 
 /** Zod schema for {@link QueueItemFileDeleted}. */
-export const QueueItemFileDeleted = z.strictObject({
+export const QueueItemFileDeleted: z.ZodObject<{
+	type: z.ZodLiteral<"file_deleted">;
+	key: z.ZodString;
+	file: ReturnType<typeof StorageObject>;
+}> = z.strictObject({
 	type: z.literal("file_deleted"),
 	key: z.string(),
 	file: StorageObject(),
 });
 
 /** Zod schema for {@link QueueItem}. */
-export const QueueItem = z.discriminatedUnion("type", [
+export const QueueItem: z.ZodDiscriminatedUnion<
+	readonly [
+		typeof QueueItemTopicPublish,
+		typeof QueueItemFileDeleted,
+		typeof QueueItemFileUploaded,
+	],
+	"type"
+> = z.discriminatedUnion("type", [
 	QueueItemTopicPublish,
 	QueueItemFileDeleted,
 	QueueItemFileUploaded,

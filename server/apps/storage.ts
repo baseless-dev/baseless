@@ -1,4 +1,4 @@
-import { app, INTERNAL_HIDE_ENDPOINT, Permission } from "../app.ts";
+import { app, type AppBuilder, type AppRegistry, INTERNAL_HIDE_ENDPOINT, Permission, type PublicAppRegistry } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import { first } from "@baseless/core/iter";
 import {
@@ -12,7 +12,7 @@ import {
 import { ForbiddenError, StorageFolderNotFoundError, StorageObjectNotFoundError } from "@baseless/core/errors";
 import { Response } from "@baseless/core/response";
 
-const storageApp = app()
+const storageApp: AppBuilder<AppRegistry, PublicAppRegistry> = app()
 	.endpoint({
 		path: "storage/get-metadata",
 		request: z.jsonRequest({

@@ -14,7 +14,12 @@ export interface AuthenticationStep {
 }
 
 /** Zod schema for {@link AuthenticationStep}. */
-export const AuthenticationStep = z.strictObject({
+export const AuthenticationStep: z.ZodObject<{
+	step: typeof AuthenticationComponent;
+	state: z.ZodString;
+	expireAt: z.ZodNumber;
+	validating: z.ZodBoolean;
+}> = z.strictObject({
 	step: AuthenticationComponent,
 	state: z.string(),
 	expireAt: z.number(),

@@ -1,5 +1,13 @@
 // deno-lint-ignore-file no-explicit-any
-import { app, INTERNAL_HIDE_ENDPOINT, Permission, TableDefinition } from "../app.ts";
+import {
+	app,
+	type AppBuilder,
+	type AppRegistry,
+	INTERNAL_HIDE_ENDPOINT,
+	Permission,
+	type PublicAppRegistry,
+	TableDefinition,
+} from "../app.ts";
 import * as z from "@baseless/core/schema";
 import {
 	ExpressionBuilder,
@@ -283,7 +291,7 @@ function resolveValueFromRow(
 // Public table app — client-facing endpoint with full security enforcement
 // ---------------------------------------------------------------------------
 
-const tableApp = app()
+const tableApp: AppBuilder<AppRegistry, PublicAppRegistry> = app()
 	.endpoint({
 		path: "table/execute",
 		request: z.jsonRequest({

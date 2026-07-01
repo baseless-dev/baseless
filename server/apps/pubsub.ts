@@ -1,10 +1,10 @@
-import { app, INTERNAL_HIDE_ENDPOINT, Permission } from "../app.ts";
+import { app, type AppBuilder, type AppRegistry, INTERNAL_HIDE_ENDPOINT, Permission, type PublicAppRegistry } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import { first } from "@baseless/core/iter";
 import { ForbiddenError, TopicNotFoundError } from "@baseless/core/errors";
 import { Response } from "@baseless/core/response";
 
-const pubsubApp = app()
+const pubsubApp: AppBuilder<AppRegistry, PublicAppRegistry> = app()
 	.endpoint({
 		path: "pubsub/publish",
 		request: z.jsonRequest({
@@ -47,6 +47,3 @@ const pubsubApp = app()
 	[INTERNAL_HIDE_ENDPOINT]("pubsub/publish");
 
 export default pubsubApp;
-
-/** The compiled pub/sub {@link App} returned by `pubsubApp.build()`. */
-export type PubsubApplication = ReturnType<typeof pubsubApp.build>;

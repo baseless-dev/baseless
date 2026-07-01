@@ -11,7 +11,10 @@ export interface Notification {
 }
 
 /** Zod schema for {@link Notification}. */
-export const TNotification = z.strictObject({
+export const TNotification: z.ZodObject<{
+	subject: z.ZodString;
+	content: z.ZodRecord<z.ZodString, z.ZodString>;
+}> = z.strictObject({
 	subject: z.string(),
 	content: z.record(z.string(), z.string()),
 }).meta({ id: "Notification" });

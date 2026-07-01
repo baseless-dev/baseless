@@ -91,7 +91,8 @@ export function Authentication({
 				url.searchParams.delete("state");
 				url.searchParams.delete("code");
 				url.searchParams.delete("scope");
-				globalThis.history.replaceState(null, "", url.toString());
+				// deno-lint-ignore no-explicit-any
+				(globalThis as any).history.replaceState(null, "", url.toString());
 				ceremony.submitPrompt({ code, state, scope });
 			}
 		}

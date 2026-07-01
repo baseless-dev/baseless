@@ -31,7 +31,13 @@ export type AuthenticationComponent =
 	| AuthenticationComponentChoice;
 
 /** Zod schema for {@link AuthenticationComponentPrompt}. */
-export const AuthenticationComponentPrompt = z.strictObject({
+export const AuthenticationComponentPrompt: z.ZodObject<{
+	kind: z.ZodLiteral<"component">;
+	id: z.ZodString;
+	prompt: z.ZodString;
+	options: z.ZodRecord<z.ZodString, z.ZodUnknown>;
+	sendable: z.ZodBoolean;
+}> = z.strictObject({
 	kind: z.literal("component"),
 	id: z.string(),
 	prompt: z.string(),
@@ -40,13 +46,21 @@ export const AuthenticationComponentPrompt = z.strictObject({
 }).meta({ id: "AuthenticationComponentPrompt" });
 
 /** Zod schema for {@link AuthenticationComponentChoice}. */
-export const AuthenticationComponentChoice = z.strictObject({
+export const AuthenticationComponentChoice: z.ZodObject<{
+	kind: z.ZodLiteral<"choice">;
+	prompts: z.ZodArray<typeof AuthenticationComponentPrompt>;
+}> = z.strictObject({
 	kind: z.literal("choice"),
 	prompts: z.array(AuthenticationComponentPrompt),
 }).meta({ id: "AuthenticationComponentChoice" });
 
 /** Zod schema for {@link AuthenticationComponent}. */
-export const AuthenticationComponent = z.union([
+export const AuthenticationComponent: z.ZodUnion<
+	readonly [
+		typeof AuthenticationComponentPrompt,
+		typeof AuthenticationComponentChoice,
+	]
+> = z.union([
 	AuthenticationComponentPrompt,
 	AuthenticationComponentChoice,
 ]).meta({ id: "AuthenticationComponent" });

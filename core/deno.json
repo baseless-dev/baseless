@@ -27,7 +27,6 @@
 		"./schema": "./schema.ts",
 		"./session": "./session.ts",
 		"./storage": "./storage.ts",
-		"./topic": "./topic.ts",
 		"./trie": "./trie.ts",
 		"./typed": "./typed.ts"
 	},

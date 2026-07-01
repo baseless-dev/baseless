@@ -170,7 +170,10 @@ export interface ServerErrorData {
 	details?: unknown;
 }
 /** Zod schema for {@link ServerErrorData}. */
-export const ServerErrorData = z.strictObject({
+export const ServerErrorData: z.ZodObject<{
+	error: z.ZodString;
+	details: z.ZodOptional<z.ZodUnknown>;
+}> = z.strictObject({
 	error: z.string(),
 	details: z.optional(z.unknown()),
 }).meta({ id: "ServerErrorData" });

@@ -1,5 +1,6 @@
+// deno-lint-ignore-file ban-types
 import { Identity, IdentityChannel, IdentityComponent } from "@baseless/core/identity";
-import { app, INTERNAL_HIDE_ENDPOINT } from "../app.ts";
+import { app, type AppBuilder, INTERNAL_HIDE_ENDPOINT, type PublicAppRegistry } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import type { Document } from "@baseless/core/document";
 import { EncryptJWT, jwtDecrypt } from "jose";
@@ -80,7 +81,60 @@ export interface AuthOptions {
 
 const defaultRateLimiter = { limit: 5, period: 1000 * 60 * 5 };
 
-const authApp = app()
+const authApp: AppBuilder<{
+	collections: {
+		"auth/identity": Identity;
+		"auth/identity/:id/component": IdentityComponent;
+		"auth/identity/:id/channel": IdentityChannel;
+	};
+	configuration: {
+		auth:
+			| ({
+				keyPublic: CryptoKey;
+			} & AuthOptions)
+			| ({
+				accessTokenTTL: number;
+				keyAlgo: string;
+				keyPublic: CryptoKey;
+				keyPrivate: CryptoKey;
+				keySecret: Uint8Array;
+				refreshTokenTTL: number;
+			} & AuthOptions);
+	};
+	context: {};
+	documents: {
+		"auth/identity/:key": Identity;
+		"auth/identity/:id/component/:key": IdentityComponent;
+		"auth/identity/:id/channel/:key": IdentityChannel;
+		"auth/identity-by-identification/:component/:identification": ID<"id_">;
+	};
+	files: {};
+	folders: {};
+	requirements: {
+		configuration: {
+			auth: AuthOptions;
+		};
+		context: {};
+		collections: {};
+		documents: {};
+		files: {};
+		folders: {};
+		services: {};
+		tables: {};
+		topics: {};
+	};
+	services: {};
+	tables: {};
+	topics: {
+		"auth/identity": Identity;
+		"auth/identity/:key": Identity;
+		"auth/identity/:id/component": IdentityComponent;
+		"auth/identity/:id/component/:key": IdentityComponent;
+		"auth/identity/:id/channel": IdentityChannel;
+		"auth/identity/:id/channel/:key": IdentityChannel;
+		"auth/identity-by-identification/:component/:identification": ID<"id_">;
+	};
+}, PublicAppRegistry> = app()
 	.requireConfiguration({
 		auth: undefined as never as AuthOptions,
 	})
@@ -958,7 +1012,40 @@ export type AuthenticationState =
 	};
 
 /** Zod schema for {@link AuthenticationState}. */
-export const AuthenticationState = z.union([
+export const AuthenticationState: z.ZodUnion<
+	readonly [
+		z.ZodObject<{
+			kind: z.ZodLiteral<"authentication">;
+			id: z.ZodOptional<z.ZodId<"id_">>;
+			path: z.ZodArray<z.ZodString>;
+			scopes: z.ZodArray<z.ZodString>;
+		}>,
+		z.ZodObject<{
+			kind: z.ZodLiteral<"registration">;
+			id: z.ZodId<"id_">;
+			channels: z.ZodArray<z.ZodType<IdentityChannel, unknown, z.core.$ZodTypeInternals<IdentityChannel, unknown>>>;
+			components: z.ZodArray<z.ZodType<IdentityComponent, unknown, z.core.$ZodTypeInternals<IdentityComponent, unknown>>>;
+			scopes: z.ZodArray<z.ZodString>;
+		}>,
+		z.ZodObject<{
+			kind: z.ZodLiteral<"modification">;
+			id: z.ZodId<"id_">;
+			componentId: z.ZodString;
+			mode: z.ZodUnion<readonly [z.ZodLiteral<"add">, z.ZodLiteral<"replace">]>;
+			phase: z.ZodUnion<
+				readonly [
+					z.ZodLiteral<"verify-existing">,
+					z.ZodLiteral<"verify-existing-validation">,
+					z.ZodLiteral<"setup-new">,
+					z.ZodLiteral<"setup-new-validation">,
+				]
+			>;
+			channels: z.ZodArray<typeof IdentityChannel>;
+			components: z.ZodArray<typeof IdentityComponent>;
+			scopes: z.ZodArray<z.ZodString>;
+		}>,
+	]
+> = z.union([
 	z.strictObject({
 		kind: z.literal("authentication"),
 		id: z.optional(z.id("id_")),

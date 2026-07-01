@@ -12,7 +12,10 @@ export interface AuthenticationModificationResult {
 }
 
 /** Zod schema for {@link AuthenticationModificationResult}. */
-export const AuthenticationModificationResult = z.strictObject({
+export const AuthenticationModificationResult: z.ZodObject<{
+	kind: z.ZodLiteral<"modification-complete">;
+	componentId: z.ZodString;
+}> = z.strictObject({
 	kind: z.literal("modification-complete"),
 	componentId: z.string(),
 }).meta({ id: "AuthenticationModificationResult" });
@@ -29,7 +32,13 @@ export type AuthenticationResponse =
 	| AuthenticationModificationResult;
 
 /** Zod schema for {@link AuthenticationResponse}. */
-export const AuthenticationResponse = z.union([
+export const AuthenticationResponse: z.ZodUnion<
+	readonly [
+		typeof AuthenticationStep,
+		typeof AuthenticationTokens,
+		typeof AuthenticationModificationResult,
+	]
+> = z.union([
 	AuthenticationStep,
 	AuthenticationTokens,
 	AuthenticationModificationResult,

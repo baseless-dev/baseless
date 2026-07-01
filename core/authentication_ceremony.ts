@@ -80,13 +80,24 @@ export function component(component: string): AuthenticationCeremonyComponent {
 }
 
 /** Zod schema for {@link AuthenticationCeremonyComponent}. */
-export const AuthenticationCeremonyComponent = z.strictObject({
+export const AuthenticationCeremonyComponent: z.ZodObject<{
+	kind: z.ZodLiteral<"component">;
+	component: z.ZodString;
+}> = z.strictObject({
 	kind: z.literal("component"),
 	component: z.string(),
 }).meta({ id: "AuthenticationCeremonyComponent" });
 
 /** Zod schema for {@link AuthenticationCeremony}. */
-export const AuthenticationCeremony = z.lazy(() =>
+export const AuthenticationCeremony: z.ZodLazy<
+	z.ZodUnion<
+		readonly [
+			typeof AuthenticationCeremonyComponent,
+			typeof AuthenticationCeremonySequence,
+			typeof AuthenticationCeremonyChoice,
+		]
+	>
+> = z.lazy(() =>
 	z.union([
 		AuthenticationCeremonyComponent,
 		AuthenticationCeremonySequence,
@@ -97,7 +108,10 @@ export const AuthenticationCeremony = z.lazy(() =>
 );
 
 /** Zod schema for {@link AuthenticationCeremonySequence}. */
-export const AuthenticationCeremonySequence = z.strictObject({
+export const AuthenticationCeremonySequence: z.ZodObject<{
+	kind: z.ZodLiteral<"sequence">;
+	components: z.ZodArray<typeof AuthenticationCeremony>;
+}> = z.strictObject({
 	kind: z.literal("sequence"),
 	get components(): z.ZodArray<typeof AuthenticationCeremony> {
 		return z.array(AuthenticationCeremony);
@@ -105,7 +119,10 @@ export const AuthenticationCeremonySequence = z.strictObject({
 }).meta({ id: "AuthenticationCeremonySequence" });
 
 /** Zod schema for {@link AuthenticationCeremonyChoice}. */
-export const AuthenticationCeremonyChoice = z.strictObject(
+export const AuthenticationCeremonyChoice: z.ZodObject<{
+	kind: z.ZodLiteral<"choice">;
+	components: z.ZodArray<typeof AuthenticationCeremony>;
+}> = z.strictObject(
 	{
 		kind: z.literal("choice"),
 		get components(): z.ZodArray<typeof AuthenticationCeremony> {
@@ -117,13 +134,19 @@ export const AuthenticationCeremonyChoice = z.strictObject(
 );
 
 /** Zod schema for {@link AuthenticationCeremonySequenceShallow}. */
-export const AuthenticationCeremonySequenceShallow = z.strictObject({
+export const AuthenticationCeremonySequenceShallow: z.ZodObject<{
+	kind: z.ZodLiteral<"sequence">;
+	components: z.ZodArray<typeof AuthenticationCeremonyComponent>;
+}> = z.strictObject({
 	kind: z.literal("sequence"),
 	components: z.array(AuthenticationCeremonyComponent),
 }).meta({ id: "AuthenticationCeremonySequenceShallow" });
 
 /** Zod schema for {@link AuthenticationCeremonyChoiceShallow}. */
-export const AuthenticationCeremonyChoiceShallow = z.strictObject({
+export const AuthenticationCeremonyChoiceShallow: z.ZodObject<{
+	kind: z.ZodLiteral<"choice">;
+	components: z.ZodArray<typeof AuthenticationCeremonyComponent>;
+}> = z.strictObject({
 	kind: z.literal("choice"),
 	components: z.array(AuthenticationCeremonyComponent),
 }).meta({ id: "AuthenticationCeremonyChoiceShallow" });

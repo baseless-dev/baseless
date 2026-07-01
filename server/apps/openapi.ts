@@ -1,4 +1,5 @@
-import { App, app, AppRegistry, EndpointDefinition } from "../app.ts";
+// deno-lint-ignore-file ban-types
+import { App, app, type AppBuilder, AppRegistry, EndpointDefinition } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import type { OpenAPIV3 } from "openapi-types";
 import { Response } from "@baseless/core/response";
@@ -9,7 +10,75 @@ export const zodRequestToOpenAPIPathsObject = z.zodRequestToOpenAPIPathsObject;
 const cache = new WeakMap<App<AppRegistry>, OpenAPIV3.Document>();
 const OPENAPI_DOCUMENT_VERSION = "3.0.3";
 
-export default app()
+const openapiApp: AppBuilder<{
+	collections: {};
+	configuration: {
+		auth?: {
+			keyPublic: CryptoKey;
+		} | {
+			accessTokenTTL: number;
+			keyAlgo: string;
+			keyPublic: CryptoKey;
+			keyPrivate: CryptoKey;
+			keySecret: Uint8Array;
+			refreshTokenTTL: number;
+		} | undefined;
+		openapi: {
+			info: OpenAPIV3.InfoObject;
+			path?: string;
+			servers?: OpenAPIV3.ServerObject[];
+			tags?: OpenAPIV3.TagObject[];
+		};
+	};
+	context: {};
+	documents: {};
+	files: {};
+	folders: {};
+	requirements: {
+		configuration: {
+			openapi: {
+				info: OpenAPIV3.InfoObject;
+				path?: string;
+				servers?: OpenAPIV3.ServerObject[];
+				tags?: OpenAPIV3.TagObject[];
+			};
+		};
+		context: {};
+		collections: {};
+		documents: {};
+		files: {};
+		folders: {};
+		services: {};
+		tables: {};
+		topics: {};
+	};
+	services: {};
+	tables: {};
+	topics: {};
+}, {
+	endpoints: {
+		"openapi.json": {
+			request: z.ZodRequest<"GET", {
+				Accept: string | undefined;
+			}, {
+				ui: "scalar" | "swagger" | undefined;
+			}, null>;
+			response:
+				| z.ZodResponse<200, {
+					"content-type": "text/html";
+				}, string>
+				| z.ZodResponse<200, {
+					"content-type": "application/json";
+				}, unknown>;
+		};
+	};
+	collections: {};
+	documents: {};
+	files: {};
+	folders: {};
+	tables: {};
+	topics: {};
+}> = app()
 	.requireConfiguration({
 		openapi: {
 			info: {
@@ -71,6 +140,8 @@ export default app()
 			return Response.json(document);
 		},
 	});
+
+export default openapiApp;
 
 const scalar = (options: { title: string; description: string; url: string }) =>
 	`<!doctype html>

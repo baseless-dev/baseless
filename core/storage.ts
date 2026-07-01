@@ -46,7 +46,12 @@ export interface StorageListOptions<TPrefix = string> {
 }
 
 /** Zod schema for {@link StorageListOptions}. */
-export const StorageListOptions = z.strictObject({
+export const StorageListOptions: z.ZodObject<{
+	prefix: z.ZodString;
+	cursor: z.ZodOptional<z.ZodString>;
+	limit: z.ZodOptional<z.ZodNumber>;
+	signal: z.ZodOptional<z.ZodCustom<AbortSignal>>;
+}> = z.strictObject({
 	prefix: z.string(),
 	cursor: z.optional(z.string()),
 	limit: z.optional(z.number()),
@@ -121,7 +126,13 @@ export interface StorageSignedUploadUrlOptions {
 }
 
 /** Zod schema for {@link StorageSignedUploadUrlOptions}. */
-export const StorageSignedUploadUrlOptions = z.strictObject({
+export const StorageSignedUploadUrlOptions: z.ZodObject<{
+	contentType: z.ZodOptional<z.ZodString>;
+	metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+	expirySeconds: z.ZodOptional<z.ZodNumber>;
+	conditions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+	signal: z.ZodOptional<z.ZodCustom<AbortSignal>>;
+}> = z.strictObject({
 	contentType: z.optional(z.string()),
 	metadata: z.optional(z.record(z.string(), z.string())),
 	expirySeconds: z.optional(z.number()),
@@ -165,6 +176,8 @@ export interface StorageSignedDownloadUrlOptions {
 }
 
 /** Zod schema for {@link StorageSignedDownloadUrlOptions}. */
-export const StorageSignedDownloadUrlOptions = z.strictObject({
+export const StorageSignedDownloadUrlOptions: z.ZodObject<{
+	expirySeconds: z.ZodOptional<z.ZodNumber>;
+}> = z.strictObject({
 	expirySeconds: z.optional(z.number()),
 });

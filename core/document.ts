@@ -50,7 +50,10 @@ export interface DocumentGetOptions {
 }
 
 /** Zod schema for {@link DocumentGetOptions}. */
-export const DocumentGetOptions = z.strictObject({
+export const DocumentGetOptions: z.ZodObject<{
+	consistency: z.ZodUnion<[z.ZodLiteral<"strong">, z.ZodLiteral<"eventual">]>;
+	signal: z.ZodOptional<z.ZodCustom<AbortSignal>>;
+}> = z.strictObject({
 	consistency: z.union([z.literal("strong"), z.literal("eventual")]),
 	signal: z.optional(z.instanceof(AbortSignal)),
 });
@@ -68,7 +71,12 @@ export interface DocumentListOptions<TPrefix = string> {
 }
 
 /** Zod schema for {@link DocumentListOptions}. */
-export const DocumentListOptions = z.strictObject({
+export const DocumentListOptions: z.ZodObject<{
+	prefix: z.ZodString;
+	cursor: z.ZodOptional<z.ZodString>;
+	limit: z.ZodOptional<z.ZodNumber>;
+	signal: z.ZodOptional<z.ZodCustom<AbortSignal>>;
+}> = z.strictObject({
 	prefix: z.string(),
 	cursor: z.optional(z.string()),
 	limit: z.optional(z.number()),
@@ -120,7 +128,11 @@ export type DocumentAtomicCheck = {
 };
 
 /** Zod schema for {@link DocumentAtomicCheck}. */
-export const DocumentAtomicCheck = z.strictObject({
+export const DocumentAtomicCheck: z.ZodObject<{
+	type: z.ZodLiteral<"check">;
+	key: z.ZodString;
+	versionstamp: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNull]>>;
+}> = z.strictObject({
 	type: z.literal("check"),
 	key: z.string(),
 	versionstamp: z.optional(z.union([z.string(), z.null()])),
@@ -139,7 +151,19 @@ export type DocumentAtomicOperation =
 	};
 
 /** Zod schema for {@link DocumentAtomicOperation}. */
-export const DocumentAtomicOperation = z.union([
+export const DocumentAtomicOperation: z.ZodUnion<
+	readonly [
+		z.ZodObject<{
+			type: z.ZodLiteral<"delete">;
+			key: z.ZodString;
+		}>,
+		z.ZodObject<{
+			type: z.ZodLiteral<"set">;
+			key: z.ZodString;
+			data: z.ZodAny;
+		}>,
+	]
+> = z.union([
 	z.strictObject({
 		type: z.literal("delete"),
 		key: z.string(),
@@ -161,7 +185,10 @@ export interface DocumentAtomic {
 }
 
 /** Zod schema for {@link DocumentAtomic}. */
-export const DocumentAtomic = z.strictObject({
+export const DocumentAtomic: z.ZodObject<{
+	checks: z.ZodArray<typeof DocumentAtomicCheck>;
+	operations: z.ZodArray<typeof DocumentAtomicOperation>;
+}> = z.strictObject({
 	checks: z.array(DocumentAtomicCheck),
 	operations: z.array(DocumentAtomicOperation),
 });

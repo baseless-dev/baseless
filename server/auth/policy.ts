@@ -113,7 +113,13 @@ export interface Policy {
 }
 
 /** Zod schema for {@link Policy}. */
-export const Policy = z.strictObject({
+export const Policy: z.ZodObject<{
+	identifier: z.ZodString;
+	version: z.ZodString;
+	required: z.ZodBoolean;
+	name: z.ZodRecord<z.ZodString, z.ZodString>;
+	content: z.ZodRecord<z.ZodString, z.ZodString>;
+}> = z.strictObject({
 	identifier: z.string(),
 	version: z.string(),
 	required: z.boolean(),

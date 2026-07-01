@@ -1,16 +1,18 @@
-import { app, INTERNAL_HIDE_ENDPOINT, Permission } from "../app.ts";
+import { app, type AppBuilder, type AppRegistry, INTERNAL_HIDE_ENDPOINT, Permission, type PublicAppRegistry } from "../app.ts";
 import * as z from "@baseless/core/schema";
 import { first } from "@baseless/core/iter";
-import { Document, DocumentAtomic, DocumentGetOptions, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
+import { Document, DocumentAtomic, DocumentListEntry, DocumentListOptions } from "@baseless/core/document";
 import { CollectionNotFoundError, DocumentAtomicCommitError, DocumentNotFoundError, ForbiddenError } from "@baseless/core/errors";
 import { Response } from "@baseless/core/response";
 
-const documentApp = app()
+const documentApp: AppBuilder<AppRegistry, PublicAppRegistry> = app()
 	.endpoint({
 		path: "document/get",
 		request: z.jsonRequest({
 			path: z.string(),
-			options: z.optional(DocumentGetOptions),
+			options: z.optional(z.strictObject({
+				consistency: z.union([z.literal("strong"), z.literal("eventual")]),
+			})),
 		}),
 		response: z.jsonResponse({
 			document: Document(),
@@ -49,7 +51,9 @@ const documentApp = app()
 		path: "document/get-many",
 		request: z.jsonRequest({
 			paths: z.array(z.string()),
-			options: z.optional(DocumentGetOptions),
+			options: z.optional(z.strictObject({
+				consistency: z.union([z.literal("strong"), z.literal("eventual")]),
+			})),
 		}),
 		response: z.jsonResponse({
 			documents: z.array(Document()),

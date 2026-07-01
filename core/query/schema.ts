@@ -11,7 +11,10 @@ export interface TLiteral<TData> {
 }
 
 /** Zod schema for {@link TLiteral}. */
-export const TLiteral = z.strictObject({
+export const TLiteral: z.ZodObject<{
+	type: z.ZodLiteral<"literal">;
+	data: z.ZodAny;
+}> = z.strictObject({
 	type: z.literal("literal"),
 	data: z.any(),
 }).meta({ id: "Literal" });
@@ -26,7 +29,10 @@ export interface TNamedParamReference<TName extends string | number | symbol, TD
 }
 
 /** Zod schema for {@link TNamedParamReference}. */
-export const TNamedParamReference = z.strictObject({
+export const TNamedParamReference: z.ZodObject<{
+	type: z.ZodLiteral<"paramref">;
+	param: z.ZodString;
+}> = z.strictObject({
 	type: z.literal("paramref"),
 	param: z.string(),
 }).meta({ id: "NamedParamReference" });
@@ -41,7 +47,11 @@ export interface TNamedTableReference {
 }
 
 /** Zod schema for {@link TNamedTableReference}. */
-export const TNamedTableReference = z.strictObject({
+export const TNamedTableReference: z.ZodObject<{
+	type: z.ZodLiteral<"tableref">;
+	table: z.ZodString;
+	alias: z.ZodOptional<z.ZodString>;
+}> = z.strictObject({
 	type: z.literal("tableref"),
 	table: z.string(),
 	alias: z.optional(z.string()),
@@ -58,7 +68,11 @@ export interface TNamedColumnReference<TName extends string | number | symbol, T
 }
 
 /** Zod schema for {@link TNamedColumnReference}. */
-export const TNamedColumnReference = z.strictObject({
+export const TNamedColumnReference: z.ZodObject<{
+	type: z.ZodLiteral<"columnref">;
+	table: z.ZodString;
+	column: z.ZodString;
+}> = z.strictObject({
 	type: z.literal("columnref"),
 	table: z.string(),
 	column: z.string(),
@@ -76,7 +90,11 @@ export interface TNamedFunctionReference<TName extends string | number | symbol,
 }
 
 /** Zod schema for {@link TNamedFunctionReference}. */
-export const TNamedFunctionReference = z.strictObject({
+export const TNamedFunctionReference: z.ZodObject<{
+	type: z.ZodLiteral<"functionref">;
+	name: z.ZodString;
+	params: z.ZodArray<z.ZodAny>;
+}> = z.strictObject({
 	type: z.literal("functionref"),
 	name: z.string(),
 	params: z.array(z.any()),
@@ -92,7 +110,15 @@ export interface TSubqueryExpression {
 }
 
 /** Zod schema for {@link TSubqueryExpression}. */
-export const TSubqueryExpression: z.ZodType<TSubqueryExpression> = z.lazy((): z.ZodType<TSubqueryExpression> =>
+export const TSubqueryExpression: z.ZodLazy<
+	z.ZodObject<{
+		type: z.ZodLiteral<"subquery">;
+		select: z.ZodType<TSelectStatement>;
+	}>
+> = z.lazy((): z.ZodObject<{
+	type: z.ZodLiteral<"subquery">;
+	select: z.ZodType<TSelectStatement>;
+}> =>
 	z.strictObject({
 		type: z.literal("subquery"),
 		select: TSelectStatement,
@@ -112,7 +138,12 @@ export interface TBooleanComparisonExpression<TParams extends {}> {
 }
 
 /** Zod schema for {@link TBooleanComparisonExpression}. */
-export const TBooleanComparisonExpression = z.strictObject({
+export const TBooleanComparisonExpression: z.ZodObject<{
+	type: z.ZodLiteral<"booleancomparison">;
+	operator: z.ZodString;
+	left: z.ZodType<TExpression>;
+	right: z.ZodType<TExpression>;
+}> = z.strictObject({
 	type: z.literal("booleancomparison"),
 	operator: z.string(),
 	get left() {
@@ -134,7 +165,11 @@ export interface TBooleanExpression<TParams extends {}> {
 }
 
 /** Zod schema for {@link TBooleanExpression}. */
-export const TBooleanExpression = z.strictObject({
+export const TBooleanExpression: z.ZodObject<{
+	type: z.ZodLiteral<"booleanexpression">;
+	operator: z.ZodString;
+	operands: z.ZodArray<z.ZodUnion<readonly [typeof TBooleanComparisonExpression, typeof TBooleanExpression]>>;
+}> = z.strictObject({
 	type: z.literal("booleanexpression"),
 	operator: z.string(),
 	get operands() {
@@ -182,7 +217,18 @@ export type TExpression =
 	| TBooleanComparisonExpression<any>;
 
 /** Zod schema for {@link TExpression}. */
-export const TExpression = z.union([
+export const TExpression: z.ZodUnion<
+	readonly [
+		typeof TNamedFunctionReference,
+		typeof TSubqueryExpression,
+		typeof TNamedTableReference,
+		typeof TNamedColumnReference,
+		typeof TNamedParamReference,
+		typeof TLiteral,
+		typeof TBooleanExpression,
+		typeof TBooleanComparisonExpression,
+	]
+> = z.union([
 	TNamedFunctionReference,
 	TSubqueryExpression,
 	TNamedTableReference,
@@ -205,7 +251,13 @@ export interface TJoinFragment {
 }
 
 /** Zod schema for {@link TJoinFragment}. */
-export const TJoinFragment = z.strictObject({
+export const TJoinFragment: z.ZodObject<{
+	type: z.ZodLiteral<"join">;
+	joinType: z.ZodOptional<z.ZodUnion<readonly [z.ZodLiteral<"inner">, z.ZodLiteral<"left">, z.ZodLiteral<"right">]>>;
+	table: z.ZodString;
+	alias: z.ZodOptional<z.ZodString>;
+	on: z.ZodOptional<z.ZodUnion<readonly [typeof TBooleanComparisonExpression, typeof TBooleanExpression]>>;
+}> = z.strictObject({
 	type: z.literal("join"),
 	joinType: z.optional(z.union([z.literal("inner"), z.literal("left"), z.literal("right")])),
 	table: z.string(),
@@ -265,7 +317,13 @@ export interface TInsertStatement {
 }
 
 /** Zod schema for {@link TInsertStatement}. */
-export const TInsertStatement = z.strictObject({
+export const TInsertStatement: z.ZodObject<{
+	type: z.ZodLiteral<"insert">;
+	into: typeof TNamedTableReference;
+	columns: z.ZodArray<z.ZodString>;
+	values: z.ZodOptional<z.ZodArray<z.ZodRecord<z.ZodString, typeof TReferenceOrLiteral>>>;
+	from: z.ZodOptional<typeof TSelectStatement>;
+}> = z.strictObject({
 	type: z.literal("insert"),
 	into: TNamedTableReference,
 	columns: z.array(z.string()),
@@ -286,7 +344,14 @@ export interface TUpdateStatement {
 }
 
 /** Zod schema for {@link TUpdateStatement}. */
-export const TUpdateStatement = z.strictObject({
+export const TUpdateStatement: z.ZodObject<{
+	type: z.ZodLiteral<"update">;
+	table: typeof TNamedTableReference;
+	set: z.ZodRecord<z.ZodString, typeof TReferenceOrLiteral>;
+	join: z.ZodOptional<z.ZodArray<typeof TJoinFragment>>;
+	where: z.ZodOptional<z.ZodUnion<readonly [typeof TBooleanExpression, typeof TExpression]>>;
+	limit: z.ZodOptional<z.ZodNumber>;
+}> = z.strictObject({
 	type: z.literal("update"),
 	table: TNamedTableReference,
 	set: z.record(z.string(), TReferenceOrLiteral),
@@ -307,7 +372,13 @@ export interface TDeleteStatement {
 }
 
 /** Zod schema for {@link TDeleteStatement}. */
-export const TDeleteStatement = z.strictObject({
+export const TDeleteStatement: z.ZodObject<{
+	type: z.ZodLiteral<"delete">;
+	table: typeof TNamedTableReference;
+	join: z.ZodOptional<z.ZodArray<typeof TJoinFragment>>;
+	where: z.ZodOptional<z.ZodUnion<readonly [typeof TBooleanExpression, typeof TExpression]>>;
+	limit: z.ZodOptional<z.ZodNumber>;
+}> = z.strictObject({
 	type: z.literal("delete"),
 	table: TNamedTableReference,
 	join: z.optional(z.array(TJoinFragment)),
@@ -325,7 +396,10 @@ export interface TCheck {
 }
 
 /** Zod schema for {@link TCheck}. */
-export const TCheck = z.strictObject({
+export const TCheck: z.ZodObject<{
+	type: z.ZodUnion<readonly [z.ZodLiteral<"exists">, z.ZodLiteral<"not_exists">]>;
+	select: typeof TSelectStatement;
+}> = z.strictObject({
 	type: z.union([z.literal("exists"), z.literal("not_exists")]),
 	select: TSelectStatement,
 }).meta({ id: "Check" });
@@ -341,7 +415,11 @@ export interface TBatchStatement {
 }
 
 /** Zod schema for {@link TBatchStatement}. */
-export const TBatchStatement = z.strictObject({
+export const TBatchStatement: z.ZodObject<{
+	type: z.ZodLiteral<"batch">;
+	checks: z.ZodArray<typeof TCheck>;
+	statements: z.ZodArray<typeof TAnyStatement>;
+}> = z.strictObject({
 	type: z.literal("batch"),
 	checks: z.array(TCheck),
 	get statements() {
@@ -353,7 +431,15 @@ export const TBatchStatement = z.strictObject({
 export type TAnyStatement = TSelectStatement | TInsertStatement | TUpdateStatement | TDeleteStatement | TBatchStatement;
 
 /** Zod schema for {@link TAnyStatement}. */
-export const TAnyStatement = z.union([
+export const TAnyStatement: z.ZodUnion<
+	readonly [
+		typeof TSelectStatement,
+		typeof TInsertStatement,
+		typeof TUpdateStatement,
+		typeof TDeleteStatement,
+		typeof TBatchStatement,
+	]
+> = z.union([
 	TSelectStatement,
 	TInsertStatement,
 	TUpdateStatement,
@@ -372,7 +458,10 @@ export interface TStatement<TParams extends {}, TOutput> {
 }
 
 /** Zod schema for {@link TStatement}. */
-export const TStatement = z.strictObject({
+export const TStatement: z.ZodObject<{
+	type: z.ZodLiteral<"statement">;
+	statement: typeof TAnyStatement;
+}> = z.strictObject({
 	type: z.literal("statement"),
 	statement: TAnyStatement,
 }).meta({ id: "Statement" });
@@ -385,7 +474,14 @@ export type TAnyFragment =
 	| TCheck;
 
 /** Zod schema for {@link TAnyFragment}. */
-export const TAnyFragment = z.union([
+export const TAnyFragment: z.ZodUnion<
+	readonly [
+		typeof TExpression,
+		typeof TJoinFragment,
+		typeof TAnyStatement,
+		typeof TCheck,
+	]
+> = z.union([
 	TExpression,
 	TJoinFragment,
 	TAnyStatement,

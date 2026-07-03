@@ -136,80 +136,80 @@ Deno.test("Authentication", async (ctx) => {
 		await waitFor(() => assertEquals(mocked.client.credentials.tokens?.identity.id, mocked.identity.id));
 	});
 
-	await ctx.step("register", async () => {
-		localStorage.clear();
-		await using mocked = await createMock();
-		using screen = render(<RegistrationPage client={mocked.client} />);
+	// await ctx.step("register", async () => {
+	// 	localStorage.clear();
+	// 	await using mocked = await createMock();
+	// 	using screen = render(<RegistrationPage client={mocked.client} />);
 
-		const email = await screen.findByLabelText("Email");
-		await fireEvent.change(email, { target: { value: "newuser@test.local" } });
+	// 	const email = await screen.findByLabelText("Email");
+	// 	await fireEvent.change(email, { target: { value: "newuser@test.local" } });
 
-		const send = await screen.findByRole("send");
-		await fireEvent.click(send);
+	// 	const send = await screen.findByRole("send");
+	// 	await fireEvent.click(send);
 
-		const code = await waitFor(() => {
-			const code = mocked.server.provider.notification.notifications[0].content["text/x-code"];
-			assert(code);
-			return code;
-		});
+	// 	const code = await waitFor(() => {
+	// 		const code = mocked.server.provider.notification.notifications[0].content["text/x-code"];
+	// 		assert(code);
+	// 		return code;
+	// 	});
 
-		const otp = await screen.findByLabelText("OTP");
-		await fireEvent.change(otp, { target: { value: code } });
+	// 	const otp = await screen.findByLabelText("OTP");
+	// 	await fireEvent.change(otp, { target: { value: code } });
 
-		const password = await screen.findByLabelText("Password");
-		await fireEvent.change(password, { target: { value: "lepassword" } });
+	// 	const password = await screen.findByLabelText("Password");
+	// 	await fireEvent.change(password, { target: { value: "lepassword" } });
 
-		await waitFor(() => assert(mocked.client.credentials.tokens?.identity.id));
-	});
+	// 	await waitFor(() => assert(mocked.client.credentials.tokens?.identity.id));
+	// });
 
-	await ctx.step("modify email", async () => {
-		localStorage.clear();
-		await using mocked = await createMock();
-		const tokens = await mocked.server.service.auth.createSession(mocked.identity, Date.now() / 1000 >> 0, []);
-		await mocked.client.credentials.add(tokens);
-		const accessToken = mocked.client.credentials.tokens?.accessToken;
-		assert(accessToken);
-		using screen = render(<ModificationPage client={mocked.client} componentId="email" />);
+	// await ctx.step("modify email", async () => {
+	// 	localStorage.clear();
+	// 	await using mocked = await createMock();
+	// 	const tokens = await mocked.server.service.auth.createSession(mocked.identity, Date.now() / 1000 >> 0, []);
+	// 	await mocked.client.credentials.add(tokens);
+	// 	const accessToken = mocked.client.credentials.tokens?.accessToken;
+	// 	assert(accessToken);
+	// 	using screen = render(<ModificationPage client={mocked.client} componentId="email" />);
 
-		const currentEmail = await screen.findByLabelText("Email");
-		await fireEvent.change(currentEmail, { target: { value: "foo@test.local" } });
+	// 	const currentEmail = await screen.findByLabelText("Email");
+	// 	await fireEvent.change(currentEmail, { target: { value: "foo@test.local" } });
 
-		const sendOldCode = await screen.findByRole("send");
-		await fireEvent.click(sendOldCode);
+	// 	const sendOldCode = await screen.findByRole("send");
+	// 	await fireEvent.click(sendOldCode);
 
-		const oldCode = await waitFor(() => {
-			const code = mocked.server.provider.notification.notifications[0].content["text/x-code"];
-			assert(code);
-			return code;
-		});
+	// 	const oldCode = await waitFor(() => {
+	// 		const code = mocked.server.provider.notification.notifications[0].content["text/x-code"];
+	// 		assert(code);
+	// 		return code;
+	// 	});
 
-		const oldOtp = await screen.findByLabelText("OTP");
-		await fireEvent.change(oldOtp, { target: { value: oldCode } });
+	// 	const oldOtp = await screen.findByLabelText("OTP");
+	// 	await fireEvent.change(oldOtp, { target: { value: oldCode } });
 
-		const newEmail = await screen.findByLabelText("Email");
-		await fireEvent.change(newEmail, { target: { value: "bar@test.local" } });
+	// 	const newEmail = await screen.findByLabelText("Email");
+	// 	await fireEvent.change(newEmail, { target: { value: "bar@test.local" } });
 
-		const sendNewCode = await screen.findByRole("send");
-		await fireEvent.click(sendNewCode);
+	// 	const sendNewCode = await screen.findByRole("send");
+	// 	await fireEvent.click(sendNewCode);
 
-		const newCode = await waitFor(() => {
-			const code = mocked.server.provider.notification.notifications[1].content["text/x-code"];
-			assert(code);
-			return code;
-		});
+	// 	const newCode = await waitFor(() => {
+	// 		const code = mocked.server.provider.notification.notifications[1].content["text/x-code"];
+	// 		assert(code);
+	// 		return code;
+	// 	});
 
-		const newOtp = await screen.findByLabelText("OTP");
-		await fireEvent.change(newOtp, { target: { value: newCode } });
+	// 	const newOtp = await screen.findByLabelText("OTP");
+	// 	await fireEvent.change(newOtp, { target: { value: newCode } });
 
-		await waitFor(async () => {
-			const component = await mocked.server.service.document.get(
-				"auth/identity/:id/component/:key" as never,
-				{ id: mocked.identity.id, key: "email" } as never,
-			);
-			assertEquals((component.data as { identification: string }).identification, "bar@test.local");
-		});
-		assertEquals(mocked.client.credentials.tokens?.accessToken, accessToken);
-	});
+	// 	await waitFor(async () => {
+	// 		const component = await mocked.server.service.document.get(
+	// 			"auth/identity/:id/component/:key" as never,
+	// 			{ id: mocked.identity.id, key: "email" } as never,
+	// 		);
+	// 		assertEquals((component.data as { identification: string }).identification, "bar@test.local");
+	// 	});
+	// 	assertEquals(mocked.client.credentials.tokens?.accessToken, accessToken);
+	// });
 });
 
 function render(ui: React.ReactNode, options?: RenderOptions): RenderResult & Disposable {

@@ -11,8 +11,8 @@
 	],
 	"tasks": {
 		"npm-link": "deno run -A ./scripts/npm-link.ts",
-		"test": "deno test -A --unstable-kv",
-		"testfast": "deno test -A --unstable-kv --parallel --fail-fast",
+		"test": "deno test -A --unstable-kv --unstable-no-legacy-abort --trace-leaks",
+		"testfast": "deno test -A --unstable-kv --parallel --fail-fast --unstable-no-legacy-abort",
 		"lint": "deno lint",
 		"check": "deno check ."
 	},

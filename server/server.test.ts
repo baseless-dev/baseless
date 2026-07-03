@@ -251,7 +251,7 @@ export const pubsub = (
 	};
 };
 
-Deno.test("Authorization: Token scheme is treated as unauthenticated (Decision A)", async () => {
+Deno.test("Authorization: Token scheme is treated as unauthenticated", async () => {
 	// keyPublic MUST be set, otherwise #parseAuthorization short-circuits before the Token branch.
 	const keyPair = await generateKeyPair("PS512");
 	using mock = await createMemoryServer({

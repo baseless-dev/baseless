@@ -19,6 +19,7 @@
 		"./notification": "./notification.ts",
 		"./otp": "./otp.ts",
 		"./path": "./path.ts",
+		"./pow": "./pow.ts",
 		"./prettify": "./prettify.ts",
 		"./query": "./query/prelude.ts",
 		"./queue": "./queue.ts",

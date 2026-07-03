@@ -353,6 +353,7 @@ Deno.test("Client", async (ctx) => {
 		await sleep(10);
 		const msg = await presence.next();
 		assertEquals(msg.value, { userId });
+		await client.disconnect();
 	});
 
 	await ctx.step("modification", async () => {
@@ -427,5 +428,8 @@ Deno.test("Client", async (ctx) => {
 			.get("auth/identity/:id/component/:key" as never, { id: modifiableIdentity.id, key: "email" } as never)
 			.then((document) => (document.data as typeof modifiableIdentityComponentEmail).identification);
 		assertEquals(updatedEmail, "modified@test.local");
+
+		// Clean up
+		await client.auth.signOut();
 	});
 });

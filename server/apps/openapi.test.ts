@@ -144,7 +144,6 @@ Deno.test("OpenAPI", async (t) => {
 												{ type: "string", enum: ["eventual"] },
 											],
 										},
-										signal: {},
 									},
 									required: ["consistency"],
 									additionalProperties: false,

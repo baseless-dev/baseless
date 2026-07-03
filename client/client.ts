@@ -289,11 +289,11 @@ export class ClientAuth {
 	async signOut(signal?: AbortSignal): Promise<void> {
 		const identityId = this.#client.credentials.tokens?.identity.id;
 		if (identityId) {
-			const _response = await this.#client.fetch(`${this.#endpoint}/sign-out`, {
+			await this.#client.fetch(`${this.#endpoint}/sign-out`, {
 				signal,
 				method: "POST",
-			});
-			this.#client.credentials.remove(identityId);
+			}).catch((_) => {});
+			await this.#client.credentials.remove(identityId);
 		}
 		return;
 	}
@@ -1059,6 +1059,11 @@ export interface TypedClient<TPublicAppRegistry extends PublicAppRegistry> exten
 	 * @param baseUrl Optional override for the WebSocket URL.
 	 */
 	connect(baseUrl?: URL): Promise<void>;
+
+	/**
+	 * Closes the active WebSocket connection and clears all topic subscriptions.
+	 */
+	disconnect(): Promise<void>;
 
 	/** Sub-client for authentication operations. */
 	auth: ClientAuth;

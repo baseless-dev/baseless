@@ -297,7 +297,6 @@ export class Server<TRegistry extends AppRegistry> {
 				return [response.toResponse(), promises] as const;
 			} catch (cause) {
 				const exception = cause instanceof Error ? cause : new Error(String(cause));
-				console.error(exception.stack ?? exception);
 				span.recordException(exception);
 				span.setStatus({ code: 2, message: exception.message });
 				let status = 500;

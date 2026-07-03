@@ -85,6 +85,7 @@ export class Credentials implements Disposable {
 			const tokens = this.tokens;
 			await this.#emitter.emit("tokens", tokens);
 			clearTimeout(this.#expirationTimer);
+			this.#expirationTimer = undefined;
 			if (tokens) {
 				const expiration = tokens.refreshTokenExpiration ?? tokens.accessTokenExpiration;
 				this.#expirationTimer = setTimeout(async () => {
